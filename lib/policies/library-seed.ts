@@ -675,6 +675,326 @@ export const SEED_SOURCES: SeedSource[] = [
       "wales",
       "england"
     ]
+  },
+  {
+    "key": "acas_grievance",
+    "publisher": "Acas",
+    "title": "Grievance procedure: step by step",
+    "url": "https://www.acas.org.uk/grievance-procedure-step-by-step",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_absence",
+    "publisher": "Acas",
+    "title": "Managing staff sickness and absence",
+    "url": "https://www.acas.org.uk/absence-from-work",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_ssp",
+    "publisher": "GOV.UK",
+    "title": "Statutory Sick Pay: employer guide",
+    "url": "https://www.gov.uk/employers-sick-pay",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_ssp",
+    "publisher": "Acas",
+    "title": "Statutory Sick Pay (SSP)",
+    "url": "https://www.acas.org.uk/checking-sick-pay/statutory-sick-pay-ssp",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_holiday",
+    "publisher": "GOV.UK",
+    "title": "Holiday entitlement",
+    "url": "https://www.gov.uk/holiday-entitlement-rights",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_holiday",
+    "publisher": "Acas",
+    "title": "Checking holiday entitlement",
+    "url": "https://www.acas.org.uk/checking-holiday-entitlement",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_maternity",
+    "publisher": "GOV.UK",
+    "title": "Maternity pay and leave",
+    "url": "https://www.gov.uk/maternity-pay-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_paternity",
+    "publisher": "GOV.UK",
+    "title": "Paternity pay and leave",
+    "url": "https://www.gov.uk/paternity-pay-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_adoption",
+    "publisher": "GOV.UK",
+    "title": "Adoption pay and leave",
+    "url": "https://www.gov.uk/adoption-pay-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_spl",
+    "publisher": "GOV.UK",
+    "title": "Shared Parental Leave and Pay",
+    "url": "https://www.gov.uk/shared-parental-leave-and-pay",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_parental",
+    "publisher": "Acas",
+    "title": "Parental leave",
+    "url": "https://www.acas.org.uk/parental-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_flexible",
+    "publisher": "GOV.UK",
+    "title": "Flexible working",
+    "url": "https://www.gov.uk/flexible-working",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_flex_code",
+    "publisher": "Acas",
+    "title": "Code of Practice on handling requests for flexible working",
+    "url": "https://www.acas.org.uk/acas-code-of-practice-on-flexible-working-requests",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_sexual_harassment",
+    "publisher": "Acas",
+    "title": "Sexual harassment",
+    "url": "https://www.acas.org.uk/sexual-harassment",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_harassment_changes",
+    "publisher": "Acas",
+    "title": "Harassment law changes under the Employment Rights Act 2025",
+    "url": "https://www.acas.org.uk/employment-rights-act-2025/harassment-law-changes",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_bullying",
+    "publisher": "Acas",
+    "title": "Discrimination, bullying and harassment",
+    "url": "https://www.acas.org.uk/discrimination-bullying-and-harassment",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "ehrc_harassment",
+    "publisher": "Equality and Human Rights Commission",
+    "title": "Sexual harassment and harassment at work: technical guidance",
+    "url": "https://www.equalityhumanrights.com/guidance/sexual-harassment-and-harassment-work-technical-guidance",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_performance",
+    "publisher": "Acas",
+    "title": "Managing performance",
+    "url": "https://www.acas.org.uk/managing-performance",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_probation",
+    "publisher": "Acas",
+    "title": "Probation periods",
+    "url": "https://www.acas.org.uk/probation-periods",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_dependants",
+    "publisher": "Acas",
+    "title": "Time off for dependants",
+    "url": "https://www.acas.org.uk/time-off-for-dependants",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_carers_leave",
+    "publisher": "GOV.UK",
+    "title": "Carer's Leave",
+    "url": "https://www.gov.uk/carers-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_bereavement",
+    "publisher": "Acas",
+    "title": "Time off for bereavement",
+    "url": "https://www.acas.org.uk/time-off-for-bereavement",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_parental_bereavement",
+    "publisher": "GOV.UK",
+    "title": "Parental Bereavement Pay and Leave",
+    "url": "https://www.gov.uk/parental-bereavement-pay-leave",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_working_hours",
+    "publisher": "GOV.UK",
+    "title": "Maximum weekly working hours",
+    "url": "https://www.gov.uk/maximum-weekly-working-hours",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_rest_breaks",
+    "publisher": "GOV.UK",
+    "title": "Rest breaks at work",
+    "url": "https://www.gov.uk/rest-breaks-work",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "hse_drugs_alcohol",
+    "publisher": "Health and Safety Executive",
+    "title": "Drug and alcohol abuse at work",
+    "url": "https://www.hse.gov.uk/alcoholdrugs/",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_social_media",
+    "publisher": "Acas",
+    "title": "Social media at work",
+    "url": "https://www.acas.org.uk/social-media-use-and-employee-privacy",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "hse_stress",
+    "publisher": "Health and Safety Executive",
+    "title": "Work related stress",
+    "url": "https://www.hse.gov.uk/stress/",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_menopause",
+    "publisher": "Acas",
+    "title": "Menopause at work",
+    "url": "https://www.acas.org.uk/menopause-at-work",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_mental_health",
+    "publisher": "Acas",
+    "title": "Supporting mental health at work",
+    "url": "https://www.acas.org.uk/supporting-mental-health-workplace",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_mileage",
+    "publisher": "GOV.UK",
+    "title": "Business travel mileage for employees' own vehicles",
+    "url": "https://www.gov.uk/expenses-and-benefits-business-travel-mileage",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_nmw_calc",
+    "publisher": "GOV.UK",
+    "title": "Calculating the minimum wage (including travel time between visits)",
+    "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage",
+    "regions": [
+      "wales",
+      "england"
+    ]
   }
 ];
 
@@ -1084,7 +1404,9 @@ export const SEED_TOPICS: SeedTopic[] = [
     "key": "lone_working",
     "title": "Lone working",
     "summary": "Keeping care workers safe when they work alone in the community: check ins, risk assessment and what to do in an emergency.",
-    "requiredBy": [],
+    "requiredBy": [
+      "hr"
+    ],
     "questions": [
       {
         "key": "checkin",
@@ -1127,7 +1449,9 @@ export const SEED_TOPICS: SeedTopic[] = [
     "key": "equality_diversity",
     "title": "Equality, diversity and inclusion",
     "summary": "Treating people fairly and with respect, protected characteristics, language and communication needs.",
-    "requiredBy": [],
+    "requiredBy": [
+      "hr"
+    ],
     "questions": [
       {
         "key": "welsh_language",
@@ -1139,6 +1463,329 @@ export const SEED_TOPICS: SeedTopic[] = [
       "equality_s4",
       "w_reg25",
       "e_reg10"
+    ]
+  },
+  {
+    "key": "grievance",
+    "title": "Grievance",
+    "summary": "How a member of staff raises a concern or complaint about their work, who hears it, timescales, the right to be accompanied and appeal.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "grievance_to",
+        "label": "Who should staff raise a grievance with first, and who hears an appeal?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_code",
+      "acas_grievance"
+    ]
+  },
+  {
+    "key": "sickness_absence",
+    "title": "Sickness absence",
+    "summary": "Reporting sickness, fit notes, Statutory Sick Pay from the first day of illness, return to work meetings and managing frequent or long term absence.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "report_to",
+        "label": "Who do care workers phone when they are sick, and by what time before their first call?",
+        "type": "text"
+      },
+      {
+        "key": "company_sick_pay",
+        "label": "Do you pay company sick pay on top of Statutory Sick Pay?",
+        "type": "yesno"
+      }
+    ],
+    "sourceKeys": [
+      "acas_absence",
+      "gov_ssp",
+      "acas_ssp"
+    ]
+  },
+  {
+    "key": "holiday_leave",
+    "title": "Holiday and annual leave",
+    "summary": "Holiday entitlement, how leave is requested and approved, the holiday year, carry over and holiday pay for irregular hours workers.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "holiday_year",
+        "label": "When does your holiday year start?",
+        "type": "text"
+      },
+      {
+        "key": "notice",
+        "label": "How much notice must staff give to book holiday?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "gov_holiday",
+      "acas_holiday"
+    ]
+  },
+  {
+    "key": "family_leave",
+    "title": "Family leave",
+    "summary": "Maternity, paternity, adoption, shared parental and unpaid parental leave and pay, and the protections that go with them.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "enhanced",
+        "label": "Do you pay anything above the statutory rates for any family leave?",
+        "type": "yesno"
+      }
+    ],
+    "sourceKeys": [
+      "gov_maternity",
+      "gov_paternity",
+      "gov_adoption",
+      "gov_spl",
+      "acas_parental"
+    ]
+  },
+  {
+    "key": "flexible_working",
+    "title": "Flexible working",
+    "summary": "How staff request flexible working from their first day, how requests are considered and the deadline for a decision.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "decides",
+        "label": "Who decides flexible working requests?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "gov_flexible",
+      "acas_flex_code"
+    ]
+  },
+  {
+    "key": "bullying_harassment",
+    "title": "Bullying and harassment",
+    "summary": "Preventing and dealing with bullying and harassment, including the duty to take all reasonable steps to prevent sexual harassment and harassment by third parties such as service users or family members.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "report_to",
+        "label": "Who can staff report bullying or harassment to, other than their line manager?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_bullying",
+      "acas_sexual_harassment",
+      "acas_harassment_changes",
+      "ehrc_harassment",
+      "equality_s4"
+    ]
+  },
+  {
+    "key": "capability",
+    "title": "Capability and performance",
+    "summary": "Supporting and managing staff whose work falls below the standard expected, including informal support, formal stages and dismissal on capability grounds.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "stages",
+        "label": "Who manages formal capability meetings?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_performance",
+      "acas_code"
+    ]
+  },
+  {
+    "key": "probation",
+    "title": "Probation",
+    "summary": "The probation period for new staff, reviews during it, extending it and what happens at the end.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "length",
+        "label": "How long is your probation period, and when are the reviews?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_probation"
+    ]
+  },
+  {
+    "key": "code_of_conduct",
+    "title": "Staff code of conduct",
+    "summary": "The standards of behaviour expected of care workers: dignity, professional boundaries, gifts, confidentiality, dress, phones and conduct on calls.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "gifts",
+        "label": "What is your rule on staff accepting gifts or money from service users?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "scw_code",
+      "cqc_reg12",
+      "cqc_reg13"
+    ]
+  },
+  {
+    "key": "dependants_carers_leave",
+    "title": "Time off for dependants and carer's leave",
+    "summary": "Emergency time off to care for a dependant, and the week of unpaid carer's leave each year for a dependant with a long term care need.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "paid",
+        "label": "Is any of this time off paid?",
+        "type": "yesno"
+      }
+    ],
+    "sourceKeys": [
+      "acas_dependants",
+      "gov_carers_leave"
+    ]
+  },
+  {
+    "key": "bereavement",
+    "title": "Bereavement and compassionate leave",
+    "summary": "Time off and support when a member of staff is bereaved, including statutory parental bereavement leave and pay.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "days",
+        "label": "How many days of compassionate leave do you give, and are they paid?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_bereavement",
+      "gov_parental_bereavement"
+    ]
+  },
+  {
+    "key": "working_time",
+    "title": "Working time and rest breaks",
+    "summary": "Maximum weekly hours, the opt out, daily and weekly rest, breaks between calls, night work and travel time between visits counting towards pay.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "opt_out",
+        "label": "Do you ask staff to opt out of the 48 hour week?",
+        "type": "yesno"
+      }
+    ],
+    "sourceKeys": [
+      "gov_working_hours",
+      "gov_rest_breaks",
+      "gov_nmw_calc"
+    ]
+  },
+  {
+    "key": "drugs_alcohol",
+    "title": "Drugs and alcohol",
+    "summary": "Being fit for work, what happens if a care worker is suspected of being under the influence, support for staff and testing if used.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "testing",
+        "label": "Do you carry out drug or alcohol testing?",
+        "type": "yesno"
+      }
+    ],
+    "sourceKeys": [
+      "hse_drugs_alcohol"
+    ]
+  },
+  {
+    "key": "social_media",
+    "title": "Social media and phones",
+    "summary": "Using social media and personal phones safely: never sharing anything about service users, photographs, contact with service users and families, and phones while driving.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "photos",
+        "label": "Are staff ever allowed to take photographs on calls, and on which device?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_social_media",
+      "ico_gdpr",
+      "scw_code"
+    ]
+  },
+  {
+    "key": "wellbeing",
+    "title": "Stress, wellbeing and menopause",
+    "summary": "Supporting staff mental health, preventing work related stress, and supporting staff through the menopause.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "support",
+        "label": "What support do you offer staff, for example an employee assistance line?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "hse_stress",
+      "acas_mental_health",
+      "acas_menopause"
+    ]
+  },
+  {
+    "key": "expenses_mileage",
+    "title": "Expenses and mileage",
+    "summary": "Mileage and expenses for travel between calls, approved rates, how to claim, and making sure pay never falls below the minimum wage once travel time is counted.",
+    "requiredBy": [
+      "hr"
+    ],
+    "questions": [
+      {
+        "key": "rate",
+        "label": "What mileage rate do you pay per mile?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "gov_mileage",
+      "gov_nmw_calc"
     ]
   }
 ];

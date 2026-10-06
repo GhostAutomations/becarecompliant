@@ -93,6 +93,9 @@ export default async function PoliciesPage() {
   const regulators = checklistFor(co?.regulator ?? null);
   const expected = topics.filter((t) => t.required_by.some((r) => regulators.includes(r as "ciw" | "cqc")));
   const missing = expected.filter((t) => !haveTopic.has(t.key));
+  /* Employment law is the same in England and Wales, so every company gets the same HR list. */
+  const hrTopics = topics.filter((t) => t.required_by.includes("hr"));
+  const hrMissing = hrTopics.filter((t) => !haveTopic.has(t.key));
   const topicTitle = new Map(topics.map((t) => [t.key, t.title]));
 
   return (
@@ -157,25 +160,12 @@ export default async function PoliciesPage() {
                 ? " Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017 names ten of them; the others are expected under their own regulations."
                 : ""}
             </p>
-            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-              {[...expected].sort((a, b) => Number(haveTopic.has(a.key)) - Number(haveTopic.has(b.key))).map((t) => {
-                const have = haveTopic.get(t.key);
-                return (
-                  <div key={t.key} className="flex items-center justify-between gap-3 py-1 text-sm">
-                    <span className={have ? "text-white/80" : "text-white"}>
-                      {have ? "✓ " : "✗ "}
-                      {t.title}
-                      {regulators.includes("ciw") && WALES_REG12_TOPICS.has(t.key) ? (
-                        <span className="ml-1 text-xs text-white/40">reg 12</span>
-                      ) : null}
-                    </span>
-                    {!have && writer ? (
-                      <Link href={`/policies/write?topic=${t.key}`} className="text-xs text-gold-300 hover:underline">Write with AI</Link>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+            <TopicChecklist
+              topics={expected}
+              have={haveTopic}
+              writer={writer}
+              tag={(key) => (regulators.includes("ciw") && WALES_REG12_TOPICS.has(key) ? "reg 12" : null)}
+            />
             {writer ? (
               <p className="form-hint mt-3">
                 Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
@@ -184,6 +174,20 @@ export default async function PoliciesPage() {
           </div>
         )}
       </section>
+
+      {hrTopics.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">HR policies</h2>
+          <div className="glass-card p-5">
+            <p className="mb-3 text-sm text-white/70">
+              {hrTopics.length - hrMissing.length} of {hrTopics.length} in place. Employment law is the same in
+              England and Wales, so these are written from Acas and GOV.UK guidance, including the Employment
+              Rights Act 2025 changes.
+            </p>
+            <TopicChecklist topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Review register</h2>
@@ -276,6 +280,44 @@ export default async function PoliciesPage() {
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/** A tick list of standard policies, missing ones first, each missing one a link to write it with AI. */
+function TopicChecklist({
+  topics,
+  have,
+  writer,
+  tag,
+}: {
+  topics: Array<{ key: string; title: string }>;
+  have: Map<string, unknown>;
+  writer: boolean;
+  tag: (key: string) => string | null;
+}) {
+  return (
+    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+      {[...topics]
+        .sort((a, b) => Number(have.has(a.key)) - Number(have.has(b.key)))
+        .map((t) => {
+          const got = have.has(t.key);
+          const label = tag(t.key);
+          return (
+            <div key={t.key} className="flex items-center justify-between gap-3 py-1 text-sm">
+              <span className={got ? "text-white/80" : "text-white"}>
+                {got ? "✓ " : "✗ "}
+                {t.title}
+                {label ? <span className="ml-1 text-xs text-white/40">{label}</span> : null}
+              </span>
+              {!got && writer ? (
+                <Link href={`/policies/write?topic=${t.key}`} className="text-xs text-gold-300 hover:underline">
+                  Write with AI
+                </Link>
+              ) : null}
+            </div>
+          );
+        })}
     </div>
   );
 }
