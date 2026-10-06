@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
+import { ensureInvitationCopies } from "@/lib/absence/meeting-letters";
 import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
 import { listRtwQuestionnaires } from "@/lib/absence/rtw-questions-data";
@@ -36,6 +37,9 @@ export default async function AbsencePage() {
   }
 
   const companyId = profile.company_id;
+  /* Any booked meeting still without its invitation copy (booked before copies were kept) gets
+     it made now, automatically (Phil, 2026-10-06). Quick when there is nothing to do. */
+  await ensureInvitationCopies({ companyId });
   const [
     branches,
     { config, rows },

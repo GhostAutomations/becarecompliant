@@ -71,7 +71,7 @@ import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { listOutcomeLetters } from "@/lib/absence/outcome-letter-data";
 import { OutcomeLetterButton } from "@/components/absence/outcome-letter-dialog";
 import { listMeetingLetters, meetingLetterName, type MeetingLetterCopy } from "@/lib/absence/meeting-letter-data";
-import KeepInvitationCopyButton from "@/components/absence/keep-invitation-copy-button";
+import { ensureInvitationCopies } from "@/lib/absence/meeting-letters";
 import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Record" };
@@ -219,6 +219,11 @@ export default async function PersonPage({
      forms, and linked from their meeting. RLS keeps them to the people who prepare meetings. */
   // Always read, not only when meetings remain: cancelling a booking deletes the meeting but the
   // letter that was sent stays, and must stay in their history.
+  // A booking made before copies were kept gets its copy made here, automatically (Phil,
+  // 2026-10-06: "It should all be automatic"), so it is in the list read just below.
+  if (canManage && meetings.some((m) => !m.evidence_id && m.meeting_time)) {
+    await ensureInvitationCopies({ companyId, personId: id });
+  }
   const meetingLetters = canManage ? await listMeetingLetters(id) : [];
   const evidenceRows = [
     ...evidence,
@@ -1047,8 +1052,8 @@ export default async function PersonPage({
                               {m.stage ? `Stage ${m.stage}` : "Meeting"}
                             </span>
                           </div>
-                          {/* The invitation letter (0406): its kept PDF, or for a meeting booked before
-                              copies were kept and not yet held, a button to make the copy. */}
+                          {/* The invitation letter (0406): its kept PDF. A meeting booked before copies
+                              were kept has had its copy made automatically above. */}
                           {canManage && letterByMeeting.get(m.id) ? (
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                               <a
@@ -1057,10 +1062,6 @@ export default async function PersonPage({
                               >
                                 Invitation letter PDF
                               </a>
-                            </div>
-                          ) : canManage && !m.evidence_id && m.meeting_time ? (
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                              <KeepInvitationCopyButton meetingId={m.id} />
                             </div>
                           ) : null}
                           {/* The outcome letter (Phil, 2026-09-29): offered until it has gone, then
