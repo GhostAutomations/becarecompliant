@@ -527,13 +527,15 @@ export default function HolidayView({
         </div>
         <div className="grid grid-cols-7 gap-1">
           {cells.map((day, i) => {
-            if (day == null) return <div key={i} className="min-h-16 rounded-lg bg-white/[0.02]" />;
+            if (day == null) return <div key={i} className="h-16 rounded-lg bg-white/[0.02]" />;
             const hols = holidaysOn(day);
             return (
-              <div key={i} className="min-h-16 rounded-lg bg-white/5 p-1 text-left">
-                <div className="text-[11px] text-white/50">{day}</div>
-                <div className="mt-0.5 space-y-0.5">
-                  {hols.slice(0, 2).map((h) => (
+              /* Every day is the same size; a busy day scrolls inside its own box rather than
+                 hiding names behind "+1 more" (Phil, 2026-10-06). */
+              <div key={i} className="flex h-16 flex-col rounded-lg bg-white/5 p-1 text-left">
+                <div className="shrink-0 text-[11px] text-white/50">{day}</div>
+                <div className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+                  {hols.map((h) => (
                     <div
                       key={h.id}
                       className={`truncate rounded px-1 py-0.5 text-[10px] ${
@@ -546,9 +548,6 @@ export default function HolidayView({
                       {(h.requester_name ?? "").split(" ")[0]}
                     </div>
                   ))}
-                  {hols.length > 2 && (
-                    <div className="px-1 text-[10px] text-white/50">+{hols.length - 2} more</div>
-                  )}
                 </div>
               </div>
             );
