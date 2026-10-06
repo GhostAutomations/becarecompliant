@@ -273,6 +273,8 @@ export async function uploadPolicy(
       signature_mode: rules.signature_mode,
       reassign_on_new_version: rules.reassign_on_new_version,
       assign_to_new_starters: newStarterFlag(formData),
+      // Which standard policy it is, when the AI writer made it (2026-10-06): the checklist.
+      topic_key: String(formData.get("topic_key") ?? "").trim() || null,
       storage_path: "pending",
       file_name: file.name,
       mime_type: file.type || null,
@@ -832,7 +834,10 @@ export async function updateWrittenPolicy(
     supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
   ]);
   if (!policy) return { error: "That policy could not be found." };
-  if (policy.source !== "text") {
+  /* An uploaded policy improved by the AI (2026-10-06) becomes a written one from this version
+     on: the earlier versions keep their documents, and every new one has its wording. */
+  const converting = policy.source !== "text" && formData.get("convert_to_text") === "1";
+  if (policy.source !== "text" && !converting) {
     return { error: "That policy is an uploaded document. Upload a new version instead." };
   }
   if ((policy.body as string | null)?.trim() === body) {
@@ -840,6 +845,10 @@ export async function updateWrittenPolicy(
   }
 
   const nextVersion = ((policy.version as number | null) ?? 1) + 1;
+  if (converting) {
+    const { error: convErr } = await supabase.from("company_policies").update({ source: "text" }).eq("id", policyId);
+    if (convErr) return { error: convErr.message };
+  }
   const stored = await freezeWrittenVersion({
     companyId,
     companyName: (company?.name as string | null) ?? "Your company",
@@ -953,6 +962,9 @@ async function freezeWrittenVersion(opts: {
       mime_type: "application/pdf",
       bytes: pdf.length,
       updated_at: new Date().toISOString(),
+      // A new version answers "the guidance behind this policy changed" (2026-10-06).
+      guidance_changed_at: null,
+      guidance_change_note: null,
     })
     .eq("id", opts.policyId);
   if (polErr) return { ok: false, error: polErr.message };
@@ -1012,6 +1024,8 @@ export async function uploadPolicyVersion(
       mime_type: file.type || null,
       bytes: file.size,
       updated_at: new Date().toISOString(),
+      guidance_changed_at: null,
+      guidance_change_note: null,
     })
     .eq("id", policyId);
 

@@ -1,0 +1,150 @@
+"use client";
+
+/**
+ * An AI draft or review, ready to approve (Phil, 2026-10-06).
+ *
+ *   A new draft: edit the wording freely, choose a new policy or the next version of one you
+ *   already have, approve.
+ *   A review: what is missing or out of date (with its source), then each section side by side,
+ *   yours and the suggested wording; keep yours or use (and edit) the suggestion, then approve.
+ *
+ * The sources are listed under both, and are added to the policy itself on approval.
+ */
+
+import { useState } from "react";
+import ActionForm from "@/components/action-form";
+import { approvePolicyDraft, discardPolicyDraft } from "@/lib/policies/ai-actions";
+import type { ImproveReview } from "@/lib/policies/ai-prompt";
+
+type Source = { n: number; title: string; publisher: string; url: string; checkedOn: string };
+type Existing = { id: string; title: string };
+
+const SEVERITY = { high: "pill pill-red", medium: "pill pill-amber", low: "pill pill-neutral" } as const;
+
+function Sources({ sources }: { sources: Source[] }) {
+  return (
+    <div className="glass-card p-5">
+      <h2 className="mb-2 text-sm font-semibold text-white">Sources this was written from</h2>
+      <ul className="space-y-1 text-sm text-white/70">
+        {sources.map((s) => (
+          <li key={s.n}>
+            <span className="font-semibold text-white">[S{s.n}]</span>{" "}
+            <a href={s.url} target="_blank" rel="noreferrer" className="text-gold-300 hover:underline">{s.title}</a>, {s.publisher}, checked {s.checkedOn}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function DraftEditor({
+  draft,
+  existing,
+  sameTopic,
+}: {
+  draft: { id: string; kind: "write" | "improve"; title: string; draft_text: string | null; review: ImproveReview | null; policy_id: string | null; sources: Source[] };
+  existing: Existing[];
+  sameTopic: Existing | null;
+}) {
+  const review = draft.review;
+  const [use, setUse] = useState<string[]>(() => (review ? review.sections.map(() => "proposed") : []));
+
+  return (
+    <div className="space-y-5">
+      {review ? (
+        <div className="glass-card space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-white">What we found</h2>
+          {review.summary ? <p className="text-sm text-white/80">{review.summary}</p> : null}
+          {review.gaps.length === 0 ? (
+            <p className="text-sm text-white/60">No gaps found.</p>
+          ) : (
+            <ul className="space-y-2">
+              {review.gaps.map((g, i) => (
+                <li key={i} className="flex gap-2 text-sm text-white/80">
+                  <span className={SEVERITY[g.severity]}>{g.severity === "high" ? "High" : g.severity === "medium" ? "Medium" : "Low"}</span>
+                  <span>
+                    {g.issue} {g.source ? <span className="text-white/45">[{g.source}]</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
+      <ActionForm action={approvePolicyDraft} hidden={{ draft_id: draft.id }} label="Approve and save the policy" savingLabel="Saving…" buttonClassName="btn-primary">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="title" className="form-label">Title</label>
+            <input id="title" name="title" defaultValue={draft.title} maxLength={140} />
+          </div>
+
+          {draft.kind === "write" ? (
+            <div>
+              <label htmlFor="body" className="form-label">The policy</label>
+              <textarea id="body" name="body" rows={28} defaultValue={draft.draft_text ?? ""} />
+              <p className="form-hint">
+                Fill in anything marked [To be completed]. A line starting # is a heading, a line starting with a dash is a bullet.
+                The list of sources is added at the end when you approve.
+              </p>
+            </div>
+          ) : review ? (
+            <div className="space-y-4">
+              {review.sections.map((s, i) => (
+                <div key={i} className="rounded-xl border border-white/10 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">{s.heading}</p>
+                    <div className="flex gap-3 text-sm">
+                      <label className="flex items-center gap-1 text-white/80">
+                        <input type="radio" name={`use_${i}`} value="proposed" checked={use[i] === "proposed"} onChange={() => setUse((u) => u.map((x, j) => (j === i ? "proposed" : x)))} />
+                        Use the suggestion
+                      </label>
+                      <label className={`flex items-center gap-1 ${s.original ? "text-white/80" : "text-white/30"}`}>
+                        <input type="radio" name={`use_${i}`} value="original" disabled={!s.original} checked={use[i] === "original"} onChange={() => setUse((u) => u.map((x, j) => (j === i ? "original" : x)))} />
+                        Keep mine
+                      </label>
+                    </div>
+                  </div>
+                  {s.reason ? <p className="text-xs text-white/55">{s.reason}</p> : null}
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wide text-white/40">Yours</p>
+                      <p className="whitespace-pre-line rounded-lg bg-white/5 p-3 text-sm text-white/70">{s.original || "Not in your policy."}</p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wide text-white/40">Suggested</p>
+                      <textarea name={`text_${i}`} rows={8} defaultValue={s.proposed} disabled={use[i] !== "proposed"} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="form-error">This review could not be read.</p>
+          )}
+
+          <div>
+            <label htmlFor="target" className="form-label">Save it as</label>
+            <select id="target" name="target" defaultValue={draft.policy_id ?? sameTopic?.id ?? "new"}>
+              <option value="new">A new policy</option>
+              {existing.map((p) => (
+                <option key={p.id} value={p.id}>The next version of {p.title}</option>
+              ))}
+            </select>
+            <p className="form-hint">A new version keeps the old one, and asks your team to sign again if that policy is set to.</p>
+          </div>
+        </div>
+      </ActionForm>
+
+      <Sources sources={draft.sources} />
+
+      <ActionForm
+        action={discardPolicyDraft}
+        hidden={{ draft_id: draft.id }}
+        label="Discard this draft"
+        buttonClassName="btn-ghost text-xs"
+        confirm="Discard this draft? It cannot be brought back."
+      />
+    </div>
+  );
+}

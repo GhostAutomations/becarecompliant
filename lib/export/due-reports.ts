@@ -55,6 +55,7 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
   const people = rows.filter((r) => r.kind === "person");
   const sus = rows.filter((r) => r.kind === "service_user");
   const training = rows.filter((r) => r.kind === "training");
+  const policies = rows.filter((r) => r.kind === "policy");
   const tone = band === "overdue" ? "red" : "amber";
 
   const line = (r: DueRow): ReportCell[] => [
@@ -83,12 +84,14 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
           { label: "Service Users", value: String(records(sus)) },
           { label: "Overdue training", value: String(training.length) },
           { label: "People with overdue training", value: String(records(training)) },
+          { label: "Policy reviews overdue", value: String(policies.length) },
         ]
       : [
           { label: "Checks due", value: String(people.length + sus.length) },
           { label: "People checks", value: String(people.length) },
           { label: "Service User checks", value: String(sus.length) },
           { label: "Training renewals", value: String(training.length) },
+          { label: "Policy reviews", value: String(policies.length) },
         ];
 
   const doc: ReportDoc = {
@@ -111,11 +114,18 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
       { kind: "table", columns, rows: sus.map(line), emptyText: meta.emptyServiceUsers },
       { kind: "heading", text: "Training" },
       { kind: "table", columns: trainingColumns, rows: training.map(line), emptyText: meta.emptyTraining },
+      { kind: "heading", text: "Policy reviews" },
+      {
+        kind: "table",
+        columns: columns.map((c) => (c.header === "Check" ? { ...c, header: "Review" } : c)),
+        rows: policies.map(line),
+        emptyText: band === "overdue" ? "No policy reviews are overdue." : "No policy reviews fall due in this period.",
+      },
     ],
   };
 
   const csvRows: CsvCell[][] = rows.map((r) => [
-    r.kind === "person" ? "Person" : r.kind === "training" ? "Training" : "Service User",
+    r.kind === "person" ? "Person" : r.kind === "training" ? "Training" : r.kind === "policy" ? "Policy" : "Service User",
     r.name,
     (r.branchId && branchName.get(r.branchId)) || "",
     r.checkName ?? "",

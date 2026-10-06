@@ -196,7 +196,13 @@ export default async function FounderPage() {
     else if (u.kind === "ai") aiUnits += u.units_sum ?? 0;
   }
 
-  const signupSeries = buildSignupSeries(list, 8);
+  /* Real customers only (Phil, 3 Oct 2026): a test company or a demo is not a sign-up. Every demo
+     is marked as a test company when it is made (lib/founder/demo-actions.ts), so one flag covers
+     both, the same rule the MRR above already follows. */
+  const signupSeries = buildSignupSeries(
+    list.filter((c) => !(c as { is_test?: boolean }).is_test),
+    8,
+  );
   const thisMonthLabel = new Date().toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
@@ -283,6 +289,10 @@ export default async function FounderPage() {
         <Link href="/founder/forms" className="app-tile">
           <h2 className="text-base font-semibold text-white">Form template library</h2>
           <p className="text-sm text-white/60">Starter forms for new companies.</p>
+        </Link>
+        <Link href="/founder/policy-library" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Policy library</h2>
+          <p className="text-sm text-white/60">Sources the policy AI writes from, and changes to approve.</p>
         </Link>
         <Link href="/founder/question-bank" className="app-tile">
           <h2 className="text-base font-semibold text-white">Question bank</h2>

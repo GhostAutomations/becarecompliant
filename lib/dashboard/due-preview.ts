@@ -23,10 +23,14 @@
  * renewal date in a band is due. Not done is left out (Phil, 2026-10-05, lib/dashboard/data.ts). Overdue counts the people with any overdue
  * training, separately from their People checks, so the tile reads "3 people, 1 Service User,
  * 5 for training" and the three figures add up to the number on it.
+ *
+ * POLICY REVIEWS ARE THE FOURTH (Phil, 2026-10-06, Policies department). kind "policy" is one
+ * company policy whose review date has passed (Overdue) or falls in a band. Company wide, so it
+ * has no branch.
  */
 
 export type DueRow = {
-  kind: "person" | "service_user" | "training";
+  kind: "person" | "service_user" | "training" | "policy";
   recordId: string;
   name: string;
   checkName: string | null;
@@ -50,7 +54,7 @@ export type PreviewLine = {
 export type PreviewBox = { total: number; lines: PreviewLine[] };
 
 export type DuePreview = {
-  overdue: PreviewBox & { people: number; serviceUsers: number; training: number };
+  overdue: PreviewBox & { people: number; serviceUsers: number; training: number; policies: number };
   d7: PreviewBox;
   d14: PreviewBox;
   d30: PreviewBox;
@@ -78,6 +82,7 @@ export function slashDate(iso: string): string {
 
 export function recordHref(kind: DueRow["kind"], id: string): string {
   if (kind === "training") return `/people/training?person=${id}`;
+  if (kind === "policy") return "/policies";
   return kind === "person" ? `/people/${id}` : `/service-users/${id}`;
 }
 
@@ -117,12 +122,13 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
     people: lateList.filter((e) => e.kind === "person").length,
     serviceUsers: lateList.filter((e) => e.kind === "service_user").length,
     training: lateList.filter((e) => e.kind === "training").length,
+    policies: lateList.filter((e) => e.kind === "policy").length,
     lines: lateList.slice(0, limit).map<PreviewLine>((e) => ({
       key: `${e.kind}:${e.id}`,
       href: recordHref(e.kind, e.id),
       name: e.name,
       // Training says so, because "Fire Safety" under a name could be read as one of their checks.
-      detail: e.kind === "training" ? `Training: ${e.checks.join(", ")}` : e.checks.join(", "),
+      detail: e.kind === "training" ? `Training: ${e.checks.join(", ")}` : e.kind === "policy" ? "Policy review" : e.checks.join(", "),
       when: e.oldest ? lateLabel(e.oldest, todayIso) : e.kind === "training" ? "Not done" : "Overdue",
       tone: "red",
     })),
@@ -137,7 +143,7 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
         key: `${r.kind}:${r.recordId}:${r.checkName}:${r.dueDate}`,
         href: recordHref(r.kind, r.recordId),
         name: r.name,
-        detail: r.kind === "training" ? `Training: ${r.checkName}` : (r.checkName as string),
+        detail: r.kind === "training" ? `Training: ${r.checkName}` : r.kind === "policy" ? "Policy review" : (r.checkName as string),
         when: dueLabel(r.dueDate as string, todayIso),
         tone: "amber",
       })),

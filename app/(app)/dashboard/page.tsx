@@ -1247,7 +1247,7 @@ export default async function DashboardPage() {
           iconTone="indigo"
           value={overdue}
           tone={overdue > 0 ? "red" : "green"}
-          sub={`${duePreview.overdue.people} ${duePreview.overdue.people === 1 ? "person" : "people"}, ${duePreview.overdue.serviceUsers} ${duePreview.overdue.serviceUsers === 1 ? "Service User" : "Service Users"}, ${duePreview.overdue.training} for training`}
+          sub={`${duePreview.overdue.people} ${duePreview.overdue.people === 1 ? "person" : "people"}, ${duePreview.overdue.serviceUsers} ${duePreview.overdue.serviceUsers === 1 ? "Service User" : "Service Users"}, ${duePreview.overdue.training} for training${duePreview.overdue.policies > 0 ? `, ${duePreview.overdue.policies} ${duePreview.overdue.policies === 1 ? "policy" : "policies"}` : ""}`}
           preview={{ title: "Overdue", ...duePreview.overdue, emptyText: "Nothing is overdue." }}
         />
         <Tile

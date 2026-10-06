@@ -157,6 +157,25 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
       });
     }
   }
+  /* POLICY REVIEWS (Phil, 2026-10-06): every active policy with a review date, read through the
+     caller's own client so only people who can see the company's policies get them. */
+  const { data: pol } = await supabase
+    .from("company_policies")
+    .select("id, title, review_due_on")
+    .eq("company_id", companyId)
+    .eq("status", "active")
+    .not("review_due_on", "is", null);
+  for (const p of (pol as Array<{ id: string; title: string; review_due_on: string }> | null) ?? []) {
+    rows.push({
+      kind: "policy",
+      recordId: p.id,
+      name: p.title,
+      checkName: "Policy review",
+      dueDate: p.review_due_on,
+      rag: p.review_due_on < today ? "red" : "amber",
+      branchId: null,
+    });
+  }
   return { rows, today };
 }
 

@@ -3,73 +3,259 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { canWritePolicies, requireCompany } from "@/lib/auth/guards";
 import { isCarerLogin } from "@/lib/auth/carer-login";
+import { createClient } from "@/lib/supabase/server";
+import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
+import { listOpenDrafts, listTopics } from "@/lib/policies/data";
+import { checklistFor, policyReviewRag } from "@/lib/policies/review";
+import { WALES_REG12_TOPICS } from "@/lib/policies/library-seed";
+import { markPolicyReviewed, setPolicyOwner, setPolicyTopic } from "@/lib/policies/ai-actions";
 
 /**
  * Policies, a department of its own (Phil, 2026-10-06: "make that its own department, still
  * where a company can upload their policies but also where they can create a policy or have
- * their policy improved"). It was a tile in Settings.
+ * their policy improved").
  *
- * Admins write and approve: the library below, exactly as it was in Settings. A company can
- * give Managers, Registered Managers and Registered Individuals the same in Role access (0399).
- * Everyone else here reads every policy and sends them out from Briefings.
+ * From the top: write or improve with AI, anything waiting on you (guidance changed, drafts),
+ * the policies your regulator expects and which you have, the review register, and the
+ * library itself. Admins, and roles ticked "Can write and approve" in Role access (0399), do
+ * the writing; everyone else here reads and sends policies out from Briefings.
  */
 
 export const metadata: Metadata = { title: "Policies" };
 
 const READERS = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
+function ukDate(iso: string | null): string {
+  if (!iso) return "No date";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+const RAG_PILL = { red: "pill pill-red", amber: "pill pill-amber", green: "pill pill-green" } as const;
+
 export default async function PoliciesPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (isCarerLogin(profile.role)) redirect("/my");
   if (!READERS.includes(profile.role)) redirect("/dashboard");
-  /* Admins, and any role the company has ticked "Can write and approve" in Role access (0399). */
-  const isAdmin =
-    profile.role === "company_admin" || profile.role === "platform_admin" || (await canWritePolicies(profile.company_id));
+  const companyId = profile.company_id;
+  const writer =
+    profile.role === "company_admin" || profile.role === "platform_admin" || (await canWritePolicies(companyId));
 
-  const [policies, config] = await Promise.all([
-    listPolicies(profile.company_id, true),
-    isAdmin ? getPolicyConfig(profile.company_id) : Promise.resolve(null),
+  const supabase = await createClient();
+  const [policies, config, topics, drafts, { data: reviewRows }, { data: co }, { data: people }] = await Promise.all([
+    listPolicies(companyId, true),
+    writer ? getPolicyConfig(companyId) : Promise.resolve(null),
+    listTopics(),
+    writer ? listOpenDrafts(companyId) : Promise.resolve([]),
+    supabase
+      .from("company_policies")
+      .select("id, title, topic_key, owner_id, review_due_on, last_reviewed_on, guidance_changed_at, guidance_change_note")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .order("title"),
+    supabase.from("companies").select("regulator").eq("id", companyId).maybeSingle<{ regulator: string | null }>(),
+    supabase
+      .from("profiles")
+      .select("id, full_name, role")
+      .eq("company_id", companyId)
+      .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"])
+      .eq("status", "active")
+      .order("full_name"),
   ]);
   const active = policies.filter((p) => p.status === "active");
   const archived = policies.filter((p) => p.status === "archived");
+  type ReviewRow = {
+    id: string;
+    title: string;
+    topic_key: string | null;
+    owner_id: string | null;
+    review_due_on: string | null;
+    last_reviewed_on: string | null;
+    guidance_changed_at: string | null;
+    guidance_change_note: string | null;
+  };
+  const register = (reviewRows as ReviewRow[] | null) ?? [];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const owners = (people as Array<{ id: string; full_name: string | null }> | null) ?? [];
+  const changed = register.filter((r) => r.guidance_changed_at);
+  const haveTopic = new Map(register.filter((r) => r.topic_key).map((r) => [r.topic_key as string, r]));
+  const regulators = checklistFor(co?.regulator ?? null);
+  const expected = topics.filter((t) => t.required_by.some((r) => regulators.includes(r as "ciw" | "cqc")));
+  const missing = expected.filter((t) => !haveTopic.has(t.key));
+  const topicTitle = new Map(topics.map((t) => [t.key, t.title]));
 
   return (
     <div className="page-shell space-y-6">
-      <div>
-        <h1 className="page-title">Policies</h1>
-        <p className="page-subtitle">
-          Your company&apos;s policies in one place. Send them out from{" "}
-          <Link href="/briefings" className="text-gold-300 underline underline-offset-4 hover:text-gold-400">Briefings</Link>: your team reads each one and signs it,
-          and the signature is stored as Evidence with the version they signed.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Policies</h1>
+          <p className="page-subtitle">
+            Write, improve, review and keep your policies up to date. Send them out from{" "}
+            <Link href="/briefings" className="text-gold-300 underline underline-offset-4 hover:text-gold-400">Briefings</Link>{" "}
+            for your team to read and sign.
+          </p>
+        </div>
+        {writer ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/policies/write" className="btn-primary">Write a policy with AI</Link>
+            <Link href="/policies/improve" className="btn-outline">Improve a policy with AI</Link>
+          </div>
+        ) : null}
       </div>
 
-      {isAdmin && config ? (
-        <PolicyLibrary policies={active} config={config} />
-      ) : active.length === 0 ? (
-        <div className="glass-card p-6 text-sm text-white/60">
-          No policies have been added yet. Your Admin adds them here.
-        </div>
-      ) : (
-        <div className="glass-card divide-y divide-white/10">
-          {active.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{p.title}</p>
-                <p className="text-xs text-white/50">Version {p.version}</p>
-              </div>
-              <a href={`/api/policies/${p.id}/file`} target="_blank" rel="noreferrer" className="btn-outline">
-                Open
-              </a>
+      {changed.length > 0 ? (
+        <section className="glass-card space-y-2 border border-amber-400/40 p-5">
+          <h2 className="text-sm font-semibold text-white">The guidance behind {changed.length === 1 ? "a policy" : `${changed.length} policies`} has changed</h2>
+          {changed.map((r) => (
+            <div key={r.id} className="text-sm text-white/75">
+              <span className="font-semibold text-white">{r.title}:</span> {r.guidance_change_note}
+              {writer ? (
+                <Link href={`/policies/improve?policy=${r.id}`} className="ml-2 text-gold-300 hover:underline">Review it with AI</Link>
+              ) : null}
             </div>
           ))}
-        </div>
-      )}
+        </section>
+      ) : null}
 
-      {isAdmin && archived.length > 0 ? (
+      {writer && drafts.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Drafts waiting for you</h2>
+          <div className="glass-card divide-y divide-white/10">
+            {drafts.map((d) => (
+              <Link key={d.id} href={`/policies/drafts/${d.id}`} className="flex items-center justify-between gap-3 p-4 hover:bg-white/5">
+                <span className="text-sm font-semibold text-white">{d.title}</span>
+                <span className="pill pill-amber">{d.kind === "write" ? "New draft" : "Review"}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          Policies your regulator expects
+          {regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}
+        </h2>
+        {topics.length === 0 ? (
+          <div className="glass-card p-5 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
+        ) : (
+          <div className="glass-card p-5">
+            <p className="mb-3 text-sm text-white/70">
+              {expected.length - missing.length} of {expected.length} in place.
+              {regulators.includes("ciw")
+                ? " Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017 names ten of them; the others are expected under their own regulations."
+                : ""}
+            </p>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+              {expected.map((t) => {
+                const have = haveTopic.get(t.key);
+                return (
+                  <div key={t.key} className="flex items-center justify-between gap-3 py-1 text-sm">
+                    <span className={have ? "text-white/80" : "text-white"}>
+                      {have ? "✓ " : "✗ "}
+                      {t.title}
+                      {regulators.includes("ciw") && WALES_REG12_TOPICS.has(t.key) ? (
+                        <span className="ml-1 text-xs text-white/40">reg 12</span>
+                      ) : null}
+                    </span>
+                    {!have && writer ? (
+                      <Link href={`/policies/write?topic=${t.key}`} className="text-xs text-gold-300 hover:underline">Write with AI</Link>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+            {writer ? (
+              <p className="form-hint mt-3">
+                Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+              </p>
+            ) : null}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Review register</h2>
+        {register.length === 0 ? (
+          <div className="glass-card p-5 text-sm text-white/60">No policies yet.</div>
+        ) : (
+          <div className="glass-card divide-y divide-white/10">
+            {register.map((r) => {
+              const rag = policyReviewRag(r.review_due_on, today);
+              return (
+                <div key={r.id} className="space-y-2 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">{r.title}</p>
+                    <span className={RAG_PILL[rag]}>
+                      {rag === "red" ? "Review overdue" : "Review due"} {ukDate(r.review_due_on)}
+                    </span>
+                  </div>
+                  {writer ? (
+                    <div className="flex flex-wrap items-end gap-3">
+                      <ActionForm action={setPolicyTopic} hidden={{ policy_id: r.id }} label="Save" inline buttonClassName="btn-ghost text-xs">
+                        <label className="form-label" htmlFor={`topic-${r.id}`}>Which standard policy is this?</label>
+                        <select id={`topic-${r.id}`} name="topic_key" defaultValue={r.topic_key ?? ""}>
+                          <option value="">Not one of the standard policies</option>
+                          {topics.map((t) => (
+                            <option key={t.key} value={t.key}>{t.title}</option>
+                          ))}
+                        </select>
+                      </ActionForm>
+                      <ActionForm action={setPolicyOwner} hidden={{ policy_id: r.id }} label="Save" inline buttonClassName="btn-ghost text-xs">
+                        <label className="form-label" htmlFor={`owner-${r.id}`}>Owner</label>
+                        <select id={`owner-${r.id}`} name="owner_id" defaultValue={r.owner_id ?? ""}>
+                          <option value="">No owner</option>
+                          {owners.map((o) => (
+                            <option key={o.id} value={o.id}>{o.full_name || "Unnamed"}</option>
+                          ))}
+                        </select>
+                      </ActionForm>
+                      <ActionForm
+                        action={markPolicyReviewed}
+                        hidden={{ policy_id: r.id }}
+                        label="Reviewed, no changes needed"
+                        buttonClassName="btn-outline text-xs"
+                        confirm={`Mark "${r.title}" as reviewed today with no changes? The next review date moves on by its review period.`}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-white/50">
+                      {r.topic_key ? topicTitle.get(r.topic_key) : "Not one of the standard policies"}
+                      {r.owner_id ? ` · Owner: ${owners.find((o) => o.id === r.owner_id)?.full_name ?? "Unknown"}` : ""}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Library</h2>
+        {writer && config ? (
+          <PolicyLibrary policies={active} config={config} />
+        ) : active.length === 0 ? (
+          <div className="glass-card p-6 text-sm text-white/60">No policies have been added yet. Your Admin adds them here.</div>
+        ) : (
+          <div className="glass-card divide-y divide-white/10">
+            {active.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{p.title}</p>
+                  <p className="text-xs text-white/50">Version {p.version}</p>
+                </div>
+                <a href={`/api/policies/${p.id}/file`} target="_blank" rel="noreferrer" className="btn-outline">Open</a>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {writer && archived.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Archived</h2>
           <div className="glass-card divide-y divide-white/10">

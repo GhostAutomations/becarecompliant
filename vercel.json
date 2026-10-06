@@ -30,6 +30,10 @@
     {
       "path": "/api/cron/setup-alert",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/policy-sources",
+      "schedule": "30 3 * * *"
     }
   ]
 }
