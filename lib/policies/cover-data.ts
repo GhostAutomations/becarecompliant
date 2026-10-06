@@ -71,11 +71,13 @@ export async function referenceFor(
   }
   const supabase = await createClient();
   let requiredBy: string[] = [];
+  let isStandard = false;
   if (topicKey) {
     const { data } = await supabase.from("policy_topics").select("required_by").eq("key", topicKey).maybeSingle<{ required_by: string[] }>();
     requiredBy = data?.required_by ?? [];
+    isStandard = Boolean(data);
   }
-  const { data, error } = await supabase.rpc("next_policy_reference", { cid: companyId, p_prefix: referencePrefix(requiredBy) });
+  const { data, error } = await supabase.rpc("next_policy_reference", { cid: companyId, p_prefix: referencePrefix(requiredBy, isStandard) });
   if (error || typeof data !== "string") return { error: `A reference number could not be given: ${error?.message ?? "no answer"}` };
   return { reference: data };
 }

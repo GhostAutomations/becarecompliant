@@ -15,6 +15,9 @@ test("reference areas and typed references", () => {
   assert.equal(referencePrefix(["hr"]), "HR");
   assert.equal(referencePrefix(["ciw", "cqc"]), "CARE");
   assert.equal(referencePrefix([]), "GEN");
+  // A standard policy with no regulator tag (the register's Statement of Purpose) is CARE.
+  assert.equal(referencePrefix([], true), "CARE");
+  assert.equal(referencePrefix(["hr"], true), "HR");
   assert.equal(cleanReference(" qp 12 "), "QP-12");
   assert.equal(cleanReference(""), null);
   assert.equal(cleanReference("<script>"), null);

@@ -96,3 +96,6 @@ Phil's example: Thistle's Recruitment Process and Procedure. Decisions: logo lar
   - PCT4 PASS: Reason for review offered on the draft (starts on New policy); chose "Inspection or audit finding", stored on the version and printed on page 2.
   - Found while testing PCP5: editing a written policy by hand gave no "What changed" or "Reason for review", so every hand edited version said "Updated" and "Annual review". Both added to the edit form. PCP5 to run after deploy, by hand edit (no credits).
   - Note for Phil: the 24 new register standards (Statement of Purpose, Notifications to CIW and others) carry no regulator tag, so they number as GEN, not CARE.
+  - Phil, "and care": every standard policy numbers as CARE unless it is HR; GEN only for a policy that is not a standard one. Bevan's two test policies renumbered POL-CARE-001 and 002 (counter set to 2; GEN numbers 1 and 2 are never given again).
+  - PCP5 PASS (by hand edit, after deploy dpl_95sChrXr): version 2 kept POL-CARE-002; cover shows Date of last Review (version 1's date), Change in how we work, the typed change, and both versions in the change history.
+  - DEFECT found and fixed: with two versions the change history spilled one row onto a page of its own. Page 2 tightened; checked by rendering with five versions, all on page 2. Retest after deploy.

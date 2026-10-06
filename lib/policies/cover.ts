@@ -61,11 +61,16 @@ export function coverFromStored(v: unknown): CoverChoices {
   return coverFromForm((k) => o[k]);
 }
 
-/** The area a reference number is filed under: HR, CARE (what the regulator expects) or GEN. */
-export function referencePrefix(requiredBy: readonly string[] | null | undefined): string {
+/**
+ * The area a reference number is filed under: HR for an HR policy, CARE for every other standard
+ * policy, GEN only for a policy that is not one of the standard ones. Phil, 2026-10-06: the new
+ * register policies (Statement of Purpose, Notifications to CIW and so on) carry no regulator tag
+ * but are care policies, so "and care".
+ */
+export function referencePrefix(requiredBy: readonly string[] | null | undefined, isStandard = (requiredBy?.length ?? 0) > 0): string {
   const r = requiredBy ?? [];
   if (r.includes("hr")) return "HR";
-  if (r.includes("ciw") || r.includes("cqc")) return "CARE";
+  if (isStandard || r.includes("ciw") || r.includes("cqc")) return "CARE";
   return "GEN";
 }
 

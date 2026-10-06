@@ -92,13 +92,13 @@ const coverStyles = StyleSheet.create({
   band: { position: "absolute", left: 0, right: 0, bottom: 0, height: 270, justifyContent: "center", paddingHorizontal: 40 },
   bandTitle: { color: "#ffffff", fontSize: 25, fontWeight: 700, textAlign: "center", lineHeight: 1.3 },
   bandRef: { color: "#ffffff", fontSize: 11, textAlign: "center", marginTop: 10 },
-  second: { paddingTop: 110, paddingBottom: 56, paddingHorizontal: 54, fontSize: 10.5, color: INK },
-  heading: { fontSize: 15, fontWeight: 700, color: "#000000", marginBottom: 14 },
+  second: { paddingTop: 100, paddingBottom: 56, paddingHorizontal: 54, fontSize: 10, color: INK },
+  heading: { fontSize: 15, fontWeight: 700, color: "#000000", marginBottom: 10 },
   table: { borderWidth: 0.75, borderColor: BORDER },
   tRow: { flexDirection: "row", borderBottomWidth: 0.75, borderBottomColor: BORDER },
-  tLabel: { width: 140, padding: 7, borderRightWidth: 0.75, borderRightColor: BORDER, fontSize: 10.5 },
-  tValue: { flex: 1, padding: 7, fontSize: 10.5 },
-  sub: { fontSize: 12, fontWeight: 700, color: "#000000", marginTop: 22, marginBottom: 8 },
+  tLabel: { width: 140, paddingVertical: 4.5, paddingHorizontal: 7, borderRightWidth: 0.75, borderRightColor: BORDER, fontSize: 10 },
+  tValue: { flex: 1, paddingVertical: 4.5, paddingHorizontal: 7, fontSize: 10 },
+  sub: { fontSize: 12, fontWeight: 700, color: "#000000", marginTop: 16, marginBottom: 6 },
 });
 
 function TableRow({ label, value, minHeight, last }: { label: string; value: string; minHeight?: number; last?: boolean }) {
@@ -120,10 +120,10 @@ function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; la
           style={[
             HIST_WIDTHS[i] ? { width: HIST_WIDTHS[i], flexGrow: 0, flexShrink: 0 } : { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
             i < cells.length - 1 ? { borderRightWidth: 0.75, borderRightColor: BORDER } : {},
-            { padding: 7 },
+            { paddingVertical: 4.5, paddingHorizontal: 7 },
           ]}
         >
-          <Text style={{ fontSize: 10, fontWeight: bold ? 700 : 400 }}>{t}</Text>
+          <Text style={{ fontSize: 9.5, fontWeight: bold ? 700 : 400 }}>{t}</Text>
         </View>
       ))}
     </View>
@@ -138,7 +138,7 @@ function Cover({ c }: { c: CoverPage }) {
         ["Date of Review/ Review Completed", review.reviewedOn],
         ["Date of last Review", review.lastReviewOn],
         ["Name of Person completing the Review", review.reviewedBy],
-        ["Reason for Review", review.reason, 90],
+        ["Reason for Review", review.reason, 60],
         ["Review Changes", review.changes],
         ["Next Review Date", review.nextReview],
       ]
