@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
-import { listOpenDrafts, listTopics } from "@/lib/policies/data";
+import { listOpenDrafts, topicsForCompany } from "@/lib/policies/data";
 import { checklistFor, policyReviewRag } from "@/lib/policies/review";
 import { WALES_REG12_TOPICS } from "@/lib/policies/library-seed";
 import { markPolicyReviewed, setPolicyOwner, setPolicyTopic } from "@/lib/policies/ai-actions";
@@ -45,10 +45,11 @@ export default async function PoliciesPage() {
     profile.role === "company_admin" || profile.role === "platform_admin" || (await canWritePolicies(companyId));
 
   const supabase = await createClient();
-  const [policies, config, topics, drafts, { data: reviewRows }, { data: co }, { data: people }] = await Promise.all([
+  const { data: coRow } = await supabase.from("companies").select("regulator").eq("id", companyId).maybeSingle<{ regulator: string | null }>();
+  const [policies, config, { topics, register: policyRegister }, drafts, { data: reviewRows }, { data: co }, { data: people }] = await Promise.all([
     listPolicies(companyId, true),
     writer ? getPolicyConfig(companyId) : Promise.resolve(null),
-    listTopics(),
+    topicsForCompany(companyId, coRow?.regulator ?? null),
     writer ? listOpenDrafts(companyId) : Promise.resolve([]),
     supabase
       .from("company_policies")
@@ -97,6 +98,13 @@ export default async function PoliciesPage() {
   const hrTopics = topics.filter((t) => t.required_by.includes("hr"));
   const hrMissing = hrTopics.filter((t) => !haveTopic.has(t.key));
   const topicTitle = new Map(topics.map((t) => [t.key, t.title]));
+  /* A company's own register (0405): its sections, in the register's order, each its own card. */
+  const registerSections: Array<{ section: string; lines: typeof policyRegister }> = [];
+  for (const line of policyRegister) {
+    const last = registerSections[registerSections.length - 1];
+    if (last && last.section === line.section) last.lines.push(line);
+    else registerSections.push({ section: line.section, lines: [line] });
+  }
 
   return (
     <div className="page-shell space-y-6">
@@ -145,49 +153,81 @@ export default async function PoliciesPage() {
         </section>
       ) : null}
 
+      {registerSections.length > 0 ? (
+        <>
+          <p className="text-sm text-white/70">
+            {policyRegister.filter((l) => haveTopic.has(l.topic_key)).length} of {policyRegister.length} policies on your register
+            are in place.
+          </p>
+          {registerSections.map(({ section, lines }) => (
+            <section key={section} className="space-y-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section}</h2>
+              <div className="glass-card p-5">
+                <p className="mb-3 text-sm text-white/70">
+                  {lines.filter((l) => haveTopic.has(l.topic_key)).length} of {lines.length} in place.
+                </p>
+                <TopicChecklist
+                  topics={lines.map((l) => ({ key: l.topic_key, title: l.title }))}
+                  have={haveTopic}
+                  writer={writer}
+                  tag={(key) => (/reg 12\(1\)/i.test(lines.find((l) => l.topic_key === key)?.legal_basis ?? "") ? "reg 12" : null)}
+                />
+              </div>
+            </section>
+          ))}
+          {writer ? (
+            <p className="form-hint">
+              Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <>
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Policies your regulator expects
-          {regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}
-        </h2>
-        {topics.length === 0 ? (
-          <div className="glass-card p-5 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
-        ) : (
-          <div className="glass-card p-5">
-            <p className="mb-3 text-sm text-white/70">
-              {expected.length - missing.length} of {expected.length} in place.
-              {regulators.includes("ciw")
-                ? " Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017 names ten of them; the others are expected under their own regulations."
-                : ""}
-            </p>
-            <TopicChecklist
-              topics={expected}
-              have={haveTopic}
-              writer={writer}
-              tag={(key) => (regulators.includes("ciw") && WALES_REG12_TOPICS.has(key) ? "reg 12" : null)}
-            />
-            {writer ? (
-              <p className="form-hint mt-3">
-                Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+            Policies your regulator expects
+            {regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}
+          </h2>
+          {topics.length === 0 ? (
+            <div className="glass-card p-5 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
+          ) : (
+            <div className="glass-card p-5">
+              <p className="mb-3 text-sm text-white/70">
+                {expected.length - missing.length} of {expected.length} in place.
+                {regulators.includes("ciw")
+                  ? " Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017 names ten of them; the others are expected under their own regulations."
+                  : ""}
               </p>
-            ) : null}
-          </div>
-        )}
-      </section>
-
-      {hrTopics.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">HR policies</h2>
-          <div className="glass-card p-5">
-            <p className="mb-3 text-sm text-white/70">
-              {hrTopics.length - hrMissing.length} of {hrTopics.length} in place. Employment law is the same in
-              England and Wales, so these are written from Acas and GOV.UK guidance, including the Employment
-              Rights Act 2025 changes.
-            </p>
-            <TopicChecklist topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
-          </div>
+              <TopicChecklist
+                topics={expected}
+                have={haveTopic}
+                writer={writer}
+                tag={(key) => (regulators.includes("ciw") && WALES_REG12_TOPICS.has(key) ? "reg 12" : null)}
+              />
+              {writer ? (
+                <p className="form-hint mt-3">
+                  Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+                </p>
+              ) : null}
+            </div>
+          )}
         </section>
-      ) : null}
+  
+        {hrTopics.length > 0 ? (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">HR policies</h2>
+            <div className="glass-card p-5">
+              <p className="mb-3 text-sm text-white/70">
+                {hrTopics.length - hrMissing.length} of {hrTopics.length} in place. Employment law is the same in
+                England and Wales, so these are written from Acas and GOV.UK guidance, including the Employment
+                Rights Act 2025 changes.
+              </p>
+              <TopicChecklist topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
+            </div>
+          </section>
+        ) : null}
+        </>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Review register</h2>

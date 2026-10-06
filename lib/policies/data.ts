@@ -24,6 +24,44 @@ export async function listTopics(): Promise<PolicyTopic[]> {
   return (data as PolicyTopic[] | null) ?? [];
 }
 
+/** A company's own policy register (0405): its sections and titles, in order. Empty for most. */
+export type RegisterLine = { topic_key: string; section: string; title: string; legal_basis: string | null; sort: number };
+
+export async function getCompanyRegister(companyId: string): Promise<RegisterLine[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("company_policy_register")
+    .select("topic_key, section, title, legal_basis, sort")
+    .eq("company_id", companyId)
+    .order("sort");
+  return (data as RegisterLine[] | null) ?? [];
+}
+
+/**
+ * The standard policies this company works from: its own register when it has one (Bevan,
+ * Phil 2026-10-06), titled as the register titles them; otherwise its regulator's list and the
+ * HR list. So the Write, Improve and "Which standard policy" lists never offer a policy that
+ * does not belong to the company (an English company is never offered "Notifications to CIW").
+ */
+export async function topicsForCompany(
+  companyId: string,
+  regulator: string | null,
+): Promise<{ topics: PolicyTopic[]; register: RegisterLine[] }> {
+  const [all, register] = await Promise.all([listTopics(), getCompanyRegister(companyId)]);
+  if (register.length > 0) {
+    const byKey = new Map(all.map((t) => [t.key, t]));
+    const topics = register
+      .map((r) => {
+        const t = byKey.get(r.topic_key);
+        return t ? { ...t, title: r.title } : null;
+      })
+      .filter((t): t is PolicyTopic => t !== null);
+    return { topics, register };
+  }
+  const regs = regulator === "ciw" ? ["ciw"] : regulator === "cqc" ? ["cqc"] : ["ciw", "cqc"];
+  return { topics: all.filter((t) => t.required_by.some((r) => r === "hr" || regs.includes(r))), register };
+}
+
 export async function getTopic(key: string): Promise<PolicyTopic | null> {
   return (await listTopics()).find((t) => t.key === key) ?? null;
 }

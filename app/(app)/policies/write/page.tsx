@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import PolicyWriteForm from "@/components/policies/write-form";
-import { companyFacts, companySystemSettings, listPolicyOwners, listTopics } from "@/lib/policies/data";
+import { companyFacts, companySystemSettings, listPolicyOwners, topicsForCompany } from "@/lib/policies/data";
 import { TOPICS_USING_SETTINGS } from "@/lib/policies/system-settings";
 
 export const metadata: Metadata = { title: "Write a policy" };
@@ -13,7 +13,8 @@ export default async function WritePolicyPage({ searchParams }: { searchParams: 
   const { profile } = await requirePolicyWriter();
   const { topic } = await searchParams;
   const companyId = profile.company_id as string;
-  const [topics, facts, owners] = await Promise.all([listTopics(), companyFacts(companyId), listPolicyOwners(companyId)]);
+  const [facts, owners] = await Promise.all([companyFacts(companyId), listPolicyOwners(companyId)]);
+  const { topics } = await topicsForCompany(companyId, facts.regulator);
   /* What the company already set up, shown before writing so nobody is surprised by it. */
   const settings: Record<string, string[]> = Object.fromEntries(
     await Promise.all(

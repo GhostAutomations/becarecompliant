@@ -54,3 +54,9 @@ Bevan first, then Thistle and every company.
 - PCP3 The saved PDF's first page is the cover: company, title, reference (POL-HR-001 for the first HR policy), version 1, approved on, approved by with role, owner, next review, applies to, read and sign, retention, classification, change history; then the policy, with the reference in the header and footer.
 - PCP4 A second policy in the same area gets the next number (POL-HR-002); a deleted one's number is never given again.
 - PCP5 A new version keeps the reference, and the change history lists both versions with what changed.
+
+## Bevan's own register (2026-10-06)
+- PRG1 Bevan's Policies page shows the register's 9 sections (Governance & quality ... Data & technology), each "X of Y in place", missing first, reg 12 tags, Write with AI on every row; total "X of 57" above. The standard regulator and HR lists are gone for Bevan only.
+- PRG2 Thistle and Demo still show "Policies your regulator expects" and "HR policies" exactly as before.
+- PRG3 Write with AI and Improve on Bevan list the 57 register titles only; an English company never sees Wales only policies.
+- PRG4 After the founder Load and check, the 24 new standard policies (Business Continuity, Visit Scheduling, Statement of Purpose and so on) write from their sources.

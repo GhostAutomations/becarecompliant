@@ -985,6 +985,324 @@ export const SEED_SOURCES: SeedSource[] = [
       "wales",
       "england"
     ]
+  },
+  {
+    "key": "w_reg6",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 6: Requirements in relation to the provision of the service",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/6",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg7",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 7: Requirements in relation to the statement of purpose",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/7",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg8",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 8: Requirements in relation to monitoring and improvement",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/8",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg11",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 11: Financial sustainability of the service",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/11",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg17",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 17: Records of personal plans",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/17",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg21",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 21: Standards of care and support, overarching requirements",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/21",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg22",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 22: Continuity of care",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/22",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg23",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 23: Information",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/23",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg24",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 24: Language and communication",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/24",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg33",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 33: Access to health and other services",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/33",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg34",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 34: Staffing, overarching requirements",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/34",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg41",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 41: Delineation of travel time and care time",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/41",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg42",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 42: Offering domiciliary care workers on non-guaranteed hours contracts the choice of alternative contractual arrangements",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/42",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg60",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 60: Notifications",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/60",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg63",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 63: Conflicts of interest",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/63",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg73",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 73: Visits (responsible individual)",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/73",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg76",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 76: Engagement with individuals and others",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/76",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg78",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 78: Systems for keeping records",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/78",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg80",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 80: Quality of care review",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/80",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_reg84",
+    "publisher": "legislation.gov.uk",
+    "title": "Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017, regulation 84: Notifications (responsible individual)",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/regulation/84",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_sched2",
+    "publisher": "legislation.gov.uk",
+    "title": "Wales Regulations 2017, Schedule 2: Records to be kept",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/schedule/2",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "w_sched3",
+    "publisher": "legislation.gov.uk",
+    "title": "Wales Regulations 2017, Schedule 3: Notifications by the service provider",
+    "url": "https://www.legislation.gov.uk/wsi/2017/1264/schedule/3",
+    "regions": [
+      "wales"
+    ]
+  },
+  {
+    "key": "nice_ng21",
+    "publisher": "NICE",
+    "title": "NG21 Home care: delivering personal care and practical support to older people living in their own homes",
+    "url": "https://www.nice.org.uk/guidance/ng21/chapter/Recommendations",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "nice_ng86",
+    "publisher": "NICE",
+    "title": "NG86 People's experience in adult social care services",
+    "url": "https://www.nice.org.uk/guidance/ng86/chapter/Recommendations",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "nice_ng142",
+    "publisher": "NICE",
+    "title": "NG142 End of life care for adults: service delivery",
+    "url": "https://www.nice.org.uk/guidance/ng142/chapter/Recommendations",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "nice_cg32",
+    "publisher": "NICE",
+    "title": "CG32 Nutrition support for adults",
+    "url": "https://www.nice.org.uk/guidance/cg32/chapter/Recommendations",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "nice_cg179",
+    "publisher": "NICE",
+    "title": "CG179 Pressure ulcers: prevention and management",
+    "url": "https://www.nice.org.uk/guidance/cg179/chapter/Recommendations",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "hse_manual",
+    "publisher": "Health and Safety Executive",
+    "title": "Manual handling at work",
+    "url": "https://www.hse.gov.uk/msd/manual-handling/index.htm",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "hse_driving",
+    "publisher": "Health and Safety Executive",
+    "title": "Driving and riding safely for work",
+    "url": "https://www.hse.gov.uk/roadsafety/index.htm",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "ncsc_small",
+    "publisher": "National Cyber Security Centre",
+    "title": "Small Business Guide: Cyber Security",
+    "url": "https://www.ncsc.gov.uk/collection/small-business-guide",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "ico_security",
+    "publisher": "Information Commissioner's Office",
+    "title": "A guide to data security",
+    "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/security/a-guide-to-data-security/",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_fraud",
+    "publisher": "GOV.UK",
+    "title": "Offence of failure to prevent fraud (Economic Crime and Corporate Transparency Act 2023)",
+    "url": "https://www.gov.uk/government/publications/offence-of-failure-to-prevent-fraud-introduced-by-eccta",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "acas_dismissals",
+    "publisher": "Acas",
+    "title": "Dismissals",
+    "url": "https://www.acas.org.uk/dismissals",
+    "regions": [
+      "wales",
+      "england"
+    ]
+  },
+  {
+    "key": "gov_notice",
+    "publisher": "GOV.UK",
+    "title": "Handing in your notice",
+    "url": "https://www.gov.uk/handing-in-your-notice",
+    "regions": [
+      "wales",
+      "england"
+    ]
   }
 ];
 
@@ -1816,6 +2134,467 @@ export const SEED_TOPICS: SeedTopic[] = [
       "gov_mileage",
       "gov_nmw_calc"
     ]
+  },
+  {
+    "key": "statement_of_purpose",
+    "title": "Statement of Purpose",
+    "summary": "What the service is, who it is for, how it is provided and how people can raise concerns, as the regulations require.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "who",
+        "label": "Who do you provide care and support for, and in which areas?",
+        "type": "text"
+      },
+      {
+        "key": "services",
+        "label": "What services do you provide (for example personal care, medication support, respite)?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg7",
+      "w_reg6",
+      "w_reg19"
+    ]
+  },
+  {
+    "key": "governance_quality",
+    "title": "Governance, Quality Assurance & Improvement",
+    "summary": "How the service is overseen and improved: the responsible individual's visits, the quality of care review, keeping policies up to date and learning from incidents, complaints and safeguarding.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "ri",
+        "label": "Who is your responsible individual, and how often do they visit?",
+        "type": "text"
+      },
+      {
+        "key": "audits",
+        "label": "Which audits do you carry out, and how often?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg8",
+      "w_reg73",
+      "w_reg76",
+      "w_reg79",
+      "w_reg80"
+    ]
+  },
+  {
+    "key": "notifications_ciw",
+    "title": "Notifications to CIW",
+    "summary": "What must be reported to Care Inspectorate Wales, by whom, how and how quickly.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "who",
+        "label": "Who sends notifications to CIW?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg60",
+      "w_sched3",
+      "w_reg84"
+    ]
+  },
+  {
+    "key": "records_management",
+    "title": "Records Management & Retention",
+    "summary": "Which records are kept, how they are kept accurate and secure, how long they are kept and how they are destroyed.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "systems",
+        "label": "Which systems hold your records?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg59",
+      "w_sched2",
+      "w_reg78",
+      "ico_gdpr"
+    ]
+  },
+  {
+    "key": "business_continuity",
+    "title": "Business Continuity & Emergency Planning",
+    "summary": "Keeping care going when something goes wrong: severe weather, loss of IT or phones, power cuts, staff shortages and outbreaks, with priority calls and recovery.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "priority",
+        "label": "How do you decide which calls must go ahead first in an emergency?",
+        "type": "text"
+      },
+      {
+        "key": "systems",
+        "label": "Which systems would you lose in an IT failure, and what is the paper back up?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg22",
+      "w_reg12",
+      "hse_risk",
+      "ncsc_small"
+    ]
+  },
+  {
+    "key": "person_centred_care",
+    "title": "Person Centred Care, Rights & Dignity",
+    "summary": "Care built around the person: choice, independence, well-being, dignity, privacy, human rights, culture, religion, relationships and advocacy.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "involve",
+        "label": "How do people and their families take part in planning their care?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg21",
+      "w_reg15",
+      "w_reg25",
+      "nice_ng86"
+    ]
+  },
+  {
+    "key": "welsh_language_communication",
+    "title": "Welsh Language & Communication Needs",
+    "summary": "The Active Offer of care in Welsh, communication needs, and information people can understand.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "welsh",
+        "label": "How many of your staff speak Welsh, and how do you match them to people who want care in Welsh?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg24",
+      "w_reg23",
+      "w_reg25"
+    ]
+  },
+  {
+    "key": "end_of_life",
+    "title": "End of Life Care & Death of a Service User",
+    "summary": "Supporting people at the end of life and their families, working with health professionals, and what staff do when someone dies.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "partners",
+        "label": "Which health teams do you work with for end of life care?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "nice_ng142",
+      "w_reg33"
+    ]
+  },
+  {
+    "key": "no_reply_missing",
+    "title": "No Reply at a Visit & Missing Person",
+    "summary": "What a care worker does when nobody answers the door, or the person is not where they should be, and when to call family, the office or the police.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "wait",
+        "label": "How long does a care worker wait before escalating a no reply, and who do they call?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg26",
+      "w_reg21",
+      "hse_lone"
+    ]
+  },
+  {
+    "key": "financial_governance_fraud",
+    "title": "Financial Governance & Fraud Prevention",
+    "summary": "Running the company's own finances safely: authorisations, checks, conflicts of interest and preventing fraud.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "authorise",
+        "label": "Who can authorise payments, and up to what amount?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg11",
+      "w_reg63",
+      "gov_fraud"
+    ]
+  },
+  {
+    "key": "nutrition_hydration",
+    "title": "Nutrition, Hydration & Food Safety",
+    "summary": "Supporting people to eat and drink well, recognising malnutrition and dehydration, and preparing food safely.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "support",
+        "label": "Do your care workers prepare meals, and do you record food and fluid intake?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "nice_cg32",
+      "nice_ng21",
+      "w_reg33"
+    ]
+  },
+  {
+    "key": "skin_continence_oral",
+    "title": "Skin Integrity, Continence & Oral Health",
+    "summary": "Preventing pressure damage, supporting continence with dignity, and helping people look after their mouth and teeth.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "refer",
+        "label": "Who do care workers report skin changes to (for example district nurses)?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "nice_cg179",
+      "nice_ng21",
+      "w_reg33"
+    ]
+  },
+  {
+    "key": "specialist_health_tasks",
+    "title": "Specialist Health Tasks",
+    "summary": "Health tasks delegated by health professionals (for example epilepsy medication, PEG feeding, catheter or stoma care): training, sign off and what staff must not do.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "tasks",
+        "label": "Which specialist health tasks do your care workers carry out, if any?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg33",
+      "w_reg36",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "moving_handling_falls",
+    "title": "Moving & Handling and Falls",
+    "summary": "Safe moving and handling in people's homes, equipment checks, and preventing and responding to falls.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "equipment",
+        "label": "Who checks hoists and other equipment, and how often?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "hse_manual",
+      "hse_risk",
+      "w_reg57"
+    ]
+  },
+  {
+    "key": "driving_for_work",
+    "title": "Driving for Work",
+    "summary": "Driving safely between calls: licences, insurance for business use, vehicle checks, phones and tiredness.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "insurance",
+        "label": "Do you check that staff have business use insurance, and how often?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "hse_driving",
+      "gov_phones_driving",
+      "gov_mileage"
+    ]
+  },
+  {
+    "key": "leaving_employment",
+    "title": "Leaving Employment",
+    "summary": "Resignation, notice, dismissal, exit interviews, returning property and giving references for former staff.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "notice",
+        "label": "What notice do staff have to give?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "acas_dismissals",
+      "gov_notice",
+      "acas_code"
+    ]
+  },
+  {
+    "key": "visit_scheduling",
+    "title": "Visit Scheduling, Late & Missed Visits",
+    "summary": "Planning rotas, travel time between calls, call monitoring, and what happens when a visit is late or missed.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "late",
+        "label": "After how many minutes is a call counted as late, and who is told?",
+        "type": "text"
+      },
+      {
+        "key": "monitoring",
+        "label": "Which call monitoring system do you use?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg41",
+      "w_reg42",
+      "w_reg34",
+      "w_reg22",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "care_records_communication",
+    "title": "Care Records & Communication",
+    "summary": "Writing good care notes, daily records, electronic records, handover and keeping each other informed.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "system",
+        "label": "Which system do care workers record calls in (paper, Birdie, other)?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg59",
+      "w_sched2",
+      "w_reg17",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "changes_condition_escalation",
+    "title": "Changes in Condition, Escalation & Hospital",
+    "summary": "Spotting when someone is unwell or their needs change, who to tell and how fast, and supporting hospital admissions and discharges.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "escalate",
+        "label": "Who do care workers call when someone's condition changes, in and out of hours?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg16",
+      "w_reg33",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "refusal_of_care",
+    "title": "Refusal of Care",
+    "summary": "When someone declines care, medication or support: respecting the choice, mental capacity, recording and when to escalate.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "escalate",
+        "label": "Who should a care worker tell when someone refuses care?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "mca_s1",
+      "mca_s4",
+      "w_reg15",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "access_homes_keys",
+    "title": "Access to Homes & Key Holding",
+    "summary": "Getting into people's homes safely: key safes, keys, codes, and keeping them secure.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "codes",
+        "label": "How are key safe codes stored and shared?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "nice_ng21",
+      "w_reg26",
+      "hse_lone"
+    ]
+  },
+  {
+    "key": "personal_care_tasks",
+    "title": "Personal Care, Domestic Tasks & Community Access",
+    "summary": "Personal care, domestic tasks and supporting people out in the community, as set out in their personal plan.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "tasks",
+        "label": "Which domestic tasks and community support do you provide?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "w_reg15",
+      "w_reg21",
+      "nice_ng21"
+    ]
+  },
+  {
+    "key": "cyber_security_it",
+    "title": "Cyber Security & IT Use",
+    "summary": "Keeping systems and devices secure: passwords, phones, email, updates, backups and reporting a breach.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "devices",
+        "label": "Do staff use their own phones or company devices for care records?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "ncsc_small",
+      "ico_security",
+      "w_reg59"
+    ]
+  },
+  {
+    "key": "professional_boundaries",
+    "title": "Professional Boundaries, Gifts & Relationships",
+    "summary": "Keeping relationships professional: gifts, favours, social media contact, lending money and relationships with people supported or their families.",
+    "requiredBy": [],
+    "questions": [
+      {
+        "key": "gifts",
+        "label": "What is your rule on gifts and on staff lending or borrowing money?",
+        "type": "text"
+      }
+    ],
+    "sourceKeys": [
+      "scw_code",
+      "w_reg63",
+      "w_reg25",
+      "w_reg28"
+    ]
   }
 ];
 
@@ -1827,8 +2606,8 @@ export const SEED_TOPICS: SeedTopic[] = [
  * deployment's code, so "Load and check" there quietly put back the old links and the old policy
  * list. The sync now records the version it wrote and refuses to write an older one.
  */
-export const SEED_VERSION = 2;
-export const SEED_FINGERPRINT = "8c9f3531c472be29";
+export const SEED_VERSION = 3;
+export const SEED_FINGERPRINT = "0cd5ee14a455c727";
 
 /** The ten policies Wales regulation 12 names (SI 2017/1264 reg 12, read 2026-10-06). */
 export const WALES_REG12_TOPICS: ReadonlySet<string> = new Set([

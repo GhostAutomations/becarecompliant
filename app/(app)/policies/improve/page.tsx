@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import PolicyImproveForm from "@/components/policies/improve-form";
-import { listTopics } from "@/lib/policies/data";
+import { topicsForCompany } from "@/lib/policies/data";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Improve a policy" };
@@ -12,8 +12,9 @@ export default async function ImprovePolicyPage({ searchParams }: { searchParams
   const { profile } = await requirePolicyWriter();
   const { policy } = await searchParams;
   const supabase = await createClient();
-  const [topics, { data: mine }] = await Promise.all([
-    listTopics(),
+  const { data: co } = await supabase.from("companies").select("regulator").eq("id", profile.company_id as string).maybeSingle<{ regulator: string | null }>();
+  const [{ topics }, { data: mine }] = await Promise.all([
+    topicsForCompany(profile.company_id as string, co?.regulator ?? null),
     supabase
       .from("company_policies")
       .select("id, title, topic_key")
