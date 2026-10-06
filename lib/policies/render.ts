@@ -56,6 +56,16 @@ export async function renderWrittenPolicy(
   }
   if (!body || !body.trim()) return { ok: false, error: "That version has no stored wording." };
 
+  /* "Issued" is the day THIS version was approved, not the day somebody opens it (Phil saw
+     "Issued 07 October 2026" on a version approved on the 6th). */
+  const { data: issued } = await admin
+    .from("company_policy_versions")
+    .select("created_at")
+    .eq("policy_id", policyId)
+    .eq("version", wanted)
+    .maybeSingle<{ created_at: string }>();
+  const issuedAt = issued?.created_at ? new Date(issued.created_at) : new Date();
+
   const company = (Array.isArray(policy.companies) ? policy.companies[0] : policy.companies) as
     | { name: string }
     | null;
@@ -74,7 +84,7 @@ export async function renderWrittenPolicy(
     title: policy.title as string,
     version: wanted,
     blocks: parsePolicyText(body),
-    savedAt: new Date(),
+    savedAt: issuedAt,
     cover,
   });
   return { ok: true, pdf, title: policy.title as string };

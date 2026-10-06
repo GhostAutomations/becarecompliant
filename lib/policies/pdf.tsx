@@ -24,7 +24,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { PolicyBlock } from "@/lib/policies/text";
-import { DEFAULT_COLOURS, type CoverPage } from "@/lib/policies/cover";
+import { DEFAULT_COLOURS, ordinalDate, type CoverPage } from "@/lib/policies/cover";
 
 /* Whole words only: a label such as "completing" must not break as "complet-ing". */
 Font.registerHyphenationCallback((word) => [word]);
@@ -225,7 +225,6 @@ function Cover({ c }: { c: CoverPage }) {
             {c.reference ? `${c.reference} · ` : ""}
             {c.title} · version {c.version}
           </Text>
-          <Text style={styles.footerText}>Uncontrolled when printed. The current version is held in Be Care Compliant.</Text>
         </View>
       </Page>
     </>
@@ -254,12 +253,8 @@ export async function renderPolicyPdf(opts: {
   /** The cover page, for every policy written in Be Care Compliant (0404). */
   cover?: CoverPage | null;
 }): Promise<Buffer> {
-  const when = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(opts.savedAt);
+  // Written the same way as the cover ("6th October 2026"), so one document reads one way.
+  const when = ordinalDate(opts.savedAt);
 
   return renderToBuffer(
     <Document title={`${opts.title} (version ${opts.version})`} author={opts.companyName}>
