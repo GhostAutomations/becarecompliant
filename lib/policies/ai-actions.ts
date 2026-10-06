@@ -24,6 +24,7 @@ import { runAi } from "@/lib/ai/anthropic";
 import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
 import { fillPlaceholders, findPlaceholders } from "@/lib/policies/placeholders";
 import { coverFromForm } from "@/lib/policies/cover";
+import { docxToText } from "@/lib/policies/docx";
 import { signPolicyDocument } from "@/lib/assignments/storage";
 import { createWrittenPolicy, updateWrittenPolicy } from "@/lib/assignments/actions";
 import type { ActionState } from "@/lib/forms";
@@ -159,16 +160,28 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
       return { error: "That policy has no wording or document to check." };
     }
   } else if (fd.get("document") instanceof File && (fd.get("document") as File).size > 0) {
-    /* A policy that is not in Be Care Compliant yet, uploaded just to be checked. PDF only, the
-       same rule as the library, and capped like every other upload (Server Actions take 4MB). */
+    /* A policy that is not in Be Care Compliant yet, uploaded just to be checked: a PDF, or a
+       Word document (Phil, 2026-10-06) read as text. Capped like every other upload (Server
+       Actions take 4MB). */
     const file = fd.get("document") as File;
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      return { error: "Upload the policy as a PDF, or paste the wording in instead." };
-    }
+    const name = file.name.toLowerCase();
     if (file.size > 3 * 1024 * 1024) return { error: "That file is over 3MB. Paste the wording in instead." };
-    title = file.name.replace(/\.pdf$/i, "") || topic.title;
-    const bytes = Buffer.from(await file.arrayBuffer());
-    attachments = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") } }];
+    if (name.endsWith(".docx")) {
+      const text = docxToText(new Uint8Array(await file.arrayBuffer()));
+      if (!text || text.length < 200) {
+        return { error: "We could not read the wording in that Word document. Save it as a PDF, or paste the wording in instead." };
+      }
+      policyText = text.slice(0, 120_000);
+      title = file.name.replace(/\.docx$/i, "") || topic.title;
+    } else if (name.endsWith(".doc")) {
+      return { error: "That is an older Word file (.doc). Open it in Word and save it as .docx or PDF, or paste the wording in." };
+    } else if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+      title = file.name.replace(/\.pdf$/i, "") || topic.title;
+      const bytes = Buffer.from(await file.arrayBuffer());
+      attachments = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") } }];
+    } else {
+      return { error: "Upload the policy as a PDF or a Word document (.docx), or paste the wording in instead." };
+    }
   } else if (pasted.length >= 200) {
     policyText = pasted.slice(0, 120_000);
   } else {
