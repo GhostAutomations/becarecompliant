@@ -525,14 +525,20 @@ export default function HolidayView({
             <div key={d} className="pb-1">{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        {/* The calendar fills the rest of the screen (Phil, 2026-10-06): each week shares the height
+            left below the folded lists, never less than four names a day, and what does not fit
+            (Declined and cancelled) sits below the fold. */}
+        <div
+          className="grid grid-cols-7 gap-1 [--day-h:clamp(6.5rem,calc((100dvh_-_33rem)_/_var(--weeks)),12rem)]"
+          style={{ "--weeks": Math.ceil(cells.length / 7) } as React.CSSProperties}
+        >
           {cells.map((day, i) => {
-            if (day == null) return <div key={i} className="h-16 rounded-lg bg-white/[0.02]" />;
+            if (day == null) return <div key={i} className="h-[var(--day-h)] rounded-lg bg-white/[0.02]" />;
             const hols = holidaysOn(day);
             return (
               /* Every day is the same size; a busy day scrolls inside its own box rather than
                  hiding names behind "+1 more" (Phil, 2026-10-06). */
-              <div key={i} className="flex h-16 flex-col rounded-lg bg-white/5 p-1 text-left">
+              <div key={i} className="flex h-[var(--day-h)] flex-col rounded-lg bg-white/5 p-1 text-left">
                 <div className="shrink-0 text-[11px] text-white/50">{day}</div>
                 <div className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
                   {hols.map((h) => (
