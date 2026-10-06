@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import { REVIEW_REASONS } from "@/lib/policies/cover";
 import ActionForm from "@/components/action-form";
 import {
   uploadPolicy,
@@ -409,6 +410,21 @@ export default function PolicyLibrary({
                       The wording
                     </label>
                     <textarea id={`edit-${p.id}`} name="body" rows={16} defaultValue={p.body ?? ""} required />
+                    {/* For the cover's Audit Checklist and Report and change history (0410). */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor={`chg-${p.id}`} className="form-label">What changed</label>
+                        <input id={`chg-${p.id}`} name="change_summary" maxLength={200} placeholder="For example, updated the falls reporting steps" />
+                      </div>
+                      <div>
+                        <label htmlFor={`why-${p.id}`} className="form-label">Reason for review</label>
+                        <select id={`why-${p.id}`} name="review_reason" defaultValue="Annual review">
+                          {REVIEW_REASONS.filter((r) => r !== "New policy").map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                     <p className="form-hint">
                       Editing creates version {p.version + 1}. Version {p.version} is kept exactly
                       as it reads now, so signatures already given stay evidenced.

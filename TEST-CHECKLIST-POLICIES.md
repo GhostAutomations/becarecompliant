@@ -85,3 +85,14 @@ Phil's example: Thistle's Recruitment Process and Procedure. Decisions: logo lar
 - PCT5 "Reviewed, no changes needed" on the review register: the cover then shows that day, the person who pressed it, Annual review, None, and the earlier approval as the last review.
 - PCT6 No logo: page 1 shows the company name and band only, nothing broken.
 - Rendered here first with a sample (Bevan's details, a sample logo and colours): both pages match Phil's layout.
+- Run 2026-10-06 23:45 (Claude in Chrome as Bev, deploy dpl_ELL9Xqv2):
+  - PCT1 PASS: pickers and live preview; saved teal #1f6f78 and orange #c2410c (DB checked); "Use Be Care Compliant colours" appeared.
+  - PCT2 PASS: page 1 company name in orange, teal band with title and POL-GEN-001 · Version 1, no footer.
+  - PCT3 PASS: page 2 Audit Checklist and Report (6th October 2026, None this is the first issue, Bev Admin, Admin, New policy, First issue, 6th October 2027), Document control, Change history, reference in footer.
+  - PCT6 PASS: Bevan has no logo; page 1 shows the name and band only, nothing broken.
+  - PCT5 by unit test only: a same day "Reviewed, no changes needed" does not count as a later review, so it cannot be shown live today.
+  - PCT4 not run yet (needs a new AI draft, 3 credits). Run with PCP4 and PCP5.
+  - PCP4 PASS: Moving & Handling and Falls got POL-GEN-002.
+  - PCT4 PASS: Reason for review offered on the draft (starts on New policy); chose "Inspection or audit finding", stored on the version and printed on page 2.
+  - Found while testing PCP5: editing a written policy by hand gave no "What changed" or "Reason for review", so every hand edited version said "Updated" and "Annual review". Both added to the edit form. PCP5 to run after deploy, by hand edit (no credits).
+  - Note for Phil: the 24 new register standards (Statement of Purpose, Notifications to CIW and others) carry no regulator tag, so they number as GEN, not CARE.
