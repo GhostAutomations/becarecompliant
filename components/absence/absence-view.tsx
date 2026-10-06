@@ -34,6 +34,7 @@ import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
 import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import RtwSendPanel from "@/components/absence/rtw-send-panel";
 import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
+import { rankAbsenceRows } from "@/lib/absence/rank";
 import { useBranchWord } from "@/components/branches/branch-word";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
@@ -288,9 +289,18 @@ export default function AbsenceView({
     return { schema, presets, bookingId: earliest?.id ?? null };
   }
 
+  // Ranked: whoever needs a meeting booking first, booked meetings next, then stages already
+  // dealt with, then everyone below threshold (Phil, 2026-10-06). lib/absence/rank.ts.
   const visibleRows = useMemo(
-    () => (branch ? rows.filter((r) => r.branchId === branch) : rows),
-    [rows, branch],
+    () =>
+      rankAbsenceRows(branch ? rows.filter((r) => r.branchId === branch) : rows, (r) => ({
+        derivedStage: r.status.derivedStage,
+        derivedLabel: r.status.derivedLabel,
+        meetingDue: r.status.meetingDue,
+        bradfordScore: r.status.bradfordScore,
+        booking: bookingByPerson[r.personId] ?? null,
+      })),
+    [rows, branch, bookingByPerson],
   );
   const visiblePeople = useMemo(
     () => (branch ? people.filter((p) => p.branch_id === branch) : people),
