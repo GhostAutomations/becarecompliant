@@ -59,3 +59,38 @@ test("a name is matched as it was filed, trimmed", () => {
   assert.deepEqual(formOptions(rows), [{ name: "Supervision", count: 1 }]);
   assert.equal(filterByForm(rows, "Supervision").length, 1);
 });
+
+import { BACK_OFFICE, backOfficeGroup, newestFirst } from "./history-filter.ts";
+
+test("every back office form shares one heading", () => {
+  for (const key of ["absence_back_office", "absence_management_meeting", "holiday_requests", "complaint_outcome", "incident_report", "whistleblowing_report"]) {
+    assert.equal(backOfficeGroup(key), BACK_OFFICE, key);
+  }
+  for (const key of ["supervision", "annual_appraisal", "spot_check", "", null]) {
+    assert.equal(backOfficeGroup(key), null, String(key));
+  }
+});
+
+test("the filter lists Back office once, with everything done there under it", () => {
+  const rows = [
+    { form_name: "Absence Back Office", group: BACK_OFFICE },
+    { form_name: "Absence Management Meeting Records", group: BACK_OFFICE },
+    { form_name: "Absence meeting invitation", group: BACK_OFFICE },
+    { form_name: "Supervision", group: null },
+  ];
+  assert.deepEqual(formOptions(rows), [
+    { name: BACK_OFFICE, count: 3 },
+    { name: "Supervision", count: 1 },
+  ]);
+  assert.equal(filterByForm(rows, BACK_OFFICE).length, 3);
+  assert.equal(filterByForm(rows, "Supervision").length, 1);
+});
+
+test("newest first, and the latest filed first on the same day", () => {
+  const rows = [
+    { id: "a", submitted_at: "2026-10-06T12:30:00Z" },
+    { id: "b", submitted_at: "2026-09-01T09:00:00Z" },
+    { id: "c", submitted_at: "2026-10-06T15:12:00Z" },
+  ];
+  assert.deepEqual(newestFirst(rows, (r) => r.submitted_at.slice(0, 10)).map((r) => r.id), ["c", "a", "b"]);
+});

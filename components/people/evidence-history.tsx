@@ -14,7 +14,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ALL_FORMS, filterByForm, formOptions } from "@/lib/evidence/history-filter";
+import { ALL_FORMS, filterByForm, formOptions, newestFirst } from "@/lib/evidence/history-filter";
 import { formatDisplayDate } from "@/lib/people/logic";
 
 export type EvidenceRow = {
@@ -31,6 +31,8 @@ export type EvidenceRow = {
   linkLabel?: string;
   /** A small pill beside the name, e.g. "Copy made afterwards". */
   badge?: string | null;
+  /** The filter heading, "Back office" for anything done there. */
+  group?: string | null;
 };
 
 /** The day this Evidence is about: the paper date for an upload, else the day it was filed. */
@@ -42,9 +44,9 @@ export default function EvidenceHistory({ rows }: { rows: EvidenceRow[] }) {
   const [form, setForm] = useState(ALL_FORMS);
   const options = useMemo(() => formOptions(rows), [rows]);
   /* Newest first BY THE DATE SHOWN. A supervision from March uploaded today is March's, and
-     sorting by upload day would put it above June's. */
+     sorting by upload day would put it above June's. Same day: latest filed first. */
   const shown = useMemo(
-    () => [...filterByForm(rows, form)].sort((a, b) => shownDate(b).localeCompare(shownDate(a))),
+    () => newestFirst(filterByForm(rows, form), shownDate),
     [rows, form],
   );
 

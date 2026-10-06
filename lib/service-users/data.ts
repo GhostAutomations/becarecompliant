@@ -1,4 +1,5 @@
 import "server-only";
+import { backOfficeGroup } from "@/lib/evidence/history-filter";
 
 /**
  * Be Care Compliant — Service Users (Phase 4) server data access. All reads go
@@ -781,16 +782,16 @@ export async function listServiceUserAssignments(id: string): Promise<
 
 /** Evidence history for a Record (newest first), for the drill-down timeline. */
 export async function listServiceUserEvidence(id: string): Promise<
-  Array<{ id: string; form_id: string; form_name: string | null; submitted_at: string; author_name: string | null; paper_on: string | null }>
+  Array<{ id: string; form_id: string; form_name: string | null; submitted_at: string; author_name: string | null; paper_on: string | null; group: string | null }>
 > {
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
-    .select("id, form_id, submitted_at, author_name, forms(name), paper_on:answers->>__completed_on")
+    .select("id, form_id, submitted_at, author_name, forms(name, key), paper_on:answers->>__completed_on")
     .eq("record_type", "service_user")
     .eq("record_id", id)
     .order("submitted_at", { ascending: false });
-  return ((data as unknown as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null; forms: { name: string } | null; paper_on: string | null }>) ?? []).map((e) => ({
+  return ((data as unknown as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null; forms: { name: string; key: string | null } | null; paper_on: string | null }>) ?? []).map((e) => ({
     id: e.id,
     form_id: e.form_id,
     form_name: e.forms?.name ?? null,
@@ -798,6 +799,8 @@ export async function listServiceUserEvidence(id: string): Promise<
     author_name: e.author_name,
     // Set when the Check was completed on paper and the scan uploaded (DEF-056).
     paper_on: e.paper_on ?? null,
+    // Incident and complaint forms sit under one "Back office" filter, as on a person.
+    group: backOfficeGroup(e.forms?.key),
   }));
 }
 

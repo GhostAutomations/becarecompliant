@@ -17,7 +17,53 @@
 
 export type EvidenceRowLike = {
   form_name?: string | null;
+  /** The filter heading this row sits under, when it is not its own form name. Everything done
+   *  in the back office is one "Back office" heading (see backOfficeGroup). */
+  group?: string | null;
 };
+
+/**
+ * ONE HEADING FOR THE BACK OFFICE (Phil, 2026-10-06): "If it was done in back office for any
+ * subject, whether it's absence, holiday, complaints, incidents, whistleblowing, doesn't matter
+ * what it is, let's just call it back office. Otherwise ... we'll have as many things in this
+ * drop down as we do in the actual evidence." The row keeps its own name; only the filter groups.
+ */
+export const BACK_OFFICE = "Back office";
+
+const BACK_OFFICE_PREFIXES = [
+  "absence_",
+  "holiday_",
+  "complaint",
+  "incident_",
+  "whistleblow",
+  "grievance",
+  "disciplin",
+  "planner_",
+  "invoic",
+];
+
+/** BACK_OFFICE when a form with this key is back office work, else null. */
+export function backOfficeGroup(formKey: string | null | undefined): string | null {
+  const key = (formKey ?? "").trim().toLowerCase();
+  if (!key) return null;
+  if (key.includes("back_office")) return BACK_OFFICE;
+  return BACK_OFFICE_PREFIXES.some((p) => key.startsWith(p)) ? BACK_OFFICE : null;
+}
+
+function groupOf(row: EvidenceRowLike): string {
+  return (row.group ?? "").trim() || (row.form_name ?? "").trim() || UNNAMED;
+}
+
+/** Newest first: by the day shown, then by the moment it was filed, so two things on the same
+ *  day still come latest first. */
+export function newestFirst<T extends { submitted_at: string }>(
+  rows: ReadonlyArray<T>,
+  shownDay: (row: T) => string,
+): T[] {
+  return [...rows].sort(
+    (a, b) => shownDay(b).localeCompare(shownDay(a)) || b.submitted_at.localeCompare(a.submitted_at),
+  );
+}
 
 /** The value used for "everything", which is never a real form name. */
 export const ALL_FORMS = "";
@@ -31,7 +77,7 @@ export type FormOption = { name: string; count: number };
 export function formOptions(rows: ReadonlyArray<EvidenceRowLike>): FormOption[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
-    const name = (row.form_name ?? "").trim() || UNNAMED;
+    const name = groupOf(row);
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -39,11 +85,11 @@ export function formOptions(rows: ReadonlyArray<EvidenceRowLike>): FormOption[] 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The rows for one form name, in the order given. ALL_FORMS returns everything. */
+/** The rows under one heading (a form name, or Back office), in the order given. ALL_FORMS returns everything. */
 export function filterByForm<T extends EvidenceRowLike>(
   rows: ReadonlyArray<T>,
   name: string,
 ): T[] {
   if (!name) return [...rows];
-  return rows.filter((r) => ((r.form_name ?? "").trim() || UNNAMED) === name);
+  return rows.filter((r) => groupOf(r) === name);
 }

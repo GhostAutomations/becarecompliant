@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BACK_OFFICE } from "@/lib/evidence/history-filter";
 import Link from "next/link";
 import { NoFormLinked } from "@/components/forms/no-form-linked";
 import { redirect } from "next/navigation";
@@ -235,6 +236,7 @@ export default async function PersonPage({
       href: `/api/absence/meeting-letter/${l.id}`,
       linkLabel: "Download PDF",
       badge: l.rebuilt ? "Copy made afterwards" : null,
+      group: BACK_OFFICE,
     })),
   ];
   const letterByMeeting = new Map<string, MeetingLetterCopy>();
