@@ -34,7 +34,7 @@ import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
 import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import RtwSendPanel from "@/components/absence/rtw-send-panel";
 import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
-import { rankAbsenceRows } from "@/lib/absence/rank";
+import { absenceRank, rankAbsenceRows, type RankInput } from "@/lib/absence/rank";
 import { useBranchWord } from "@/components/branches/branch-word";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
@@ -289,17 +289,18 @@ export default function AbsenceView({
     return { schema, presets, bookingId: earliest?.id ?? null };
   }
 
+  const rankInputFor = (r: AbsencePersonRow): RankInput => ({
+    derivedStage: r.status.derivedStage,
+    derivedLabel: r.status.derivedLabel,
+    meetingDue: r.status.meetingDue,
+    bradfordScore: r.status.bradfordScore,
+    booking: bookingByPerson[r.personId] ?? null,
+  });
   // Ranked: whoever needs a meeting booking first, booked meetings next, then stages already
   // dealt with, then everyone below threshold (Phil, 2026-10-06). lib/absence/rank.ts.
   const visibleRows = useMemo(
     () =>
-      rankAbsenceRows(branch ? rows.filter((r) => r.branchId === branch) : rows, (r) => ({
-        derivedStage: r.status.derivedStage,
-        derivedLabel: r.status.derivedLabel,
-        meetingDue: r.status.meetingDue,
-        bradfordScore: r.status.bradfordScore,
-        booking: bookingByPerson[r.personId] ?? null,
-      })),
+      rankAbsenceRows(branch ? rows.filter((r) => r.branchId === branch) : rows, rankInputFor),
     [rows, branch, bookingByPerson],
   );
   const visiblePeople = useMemo(
@@ -348,6 +349,195 @@ export default function AbsenceView({
     if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
+  };
+
+
+  const actionRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) <= 1);
+  const trackingRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) > 1);
+
+  /** One person's absence tile, the same in either section. */
+  const renderCard = (r: AbsencePersonRow) => {
+            const s = r.status;
+            const pill =
+              s.derivedStage != null && s.derivedStage >= 2
+                ? "pill pill-red"
+                : s.derivedLabel
+                  ? "pill pill-amber"
+                  : "pill pill-neutral";
+            return (
+              <div key={r.personId} className="glass-card flex flex-col gap-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/people/${r.personId}`}
+                      className="truncate font-semibold text-white hover:text-gold-300"
+                    >
+                      {r.fullName}
+                    </Link>
+                    {branches.length > 1 && (
+                      <p className="text-[11px] text-white/45">{branchName(r.branchId)}</p>
+                    )}
+                  </div>
+                  <span className={pill}>{s.derivedLabel ?? "Below threshold"}</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg bg-white/5 p-2">
+                    <div className="text-base font-semibold text-white">{r.occasions}</div>
+                    <div className="text-white/50">occasions</div>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-2">
+                    <div className="text-base font-semibold text-white">{r.totalDays}</div>
+                    <div className="text-white/50">days</div>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-2">
+                    <div className="text-base font-semibold text-white">
+                      {method === "bradford" ? s.bradfordScore : s.meetingStage ?? "—"}
+                    </div>
+                    <div className="text-white/50">
+                      {method === "bradford" ? "Bradford" : "last meeting"}
+                    </div>
+                  </div>
+                </div>
+
+                {r.notCounted > 0 && (
+                  <p className="text-xs text-white/50">
+                    {r.notCounted} discounted {r.notCounted === 1 ? "absence does" : "absences do"} not count.
+                  </p>
+                )}
+                {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
+                {s.meetingDue && (
+                  <p className="text-xs font-medium text-amber-300">
+                    A {s.derivedLabel ?? "stage"} meeting is due.
+                  </p>
+                )}
+                {bookingByPerson[r.personId] && (
+                  <div className="text-xs font-medium text-sky-300">
+                    <p>
+                      {bookingByPerson[r.personId].stage
+                        ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
+                        : "Meeting booked"}
+                      {bookingByPerson[r.personId].meeting_date
+                        ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
+                        : ""}
+                      {bookingByPerson[r.personId].conductor_name
+                        ? `, held by ${bookingByPerson[r.personId].conductor_name}`
+                        : ""}
+                      {bookingByPerson[r.personId].location
+                        ? `, ${locationLabel(bookingByPerson[r.personId].location!, offices)}`
+                        : ""}
+                    </p>
+                    {bookingByPerson[r.personId].response === "accepted" && (
+                      <p className="text-emerald-300">Invitation accepted.</p>
+                    )}
+                    {bookingByPerson[r.personId].response === "declined" && (
+                      <p className="text-red-300">
+                        Invitation declined
+                        {bookingByPerson[r.personId].response_reason
+                          ? `: ${bookingByPerson[r.personId].response_reason}`
+                          : "."}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Two by two, full width, so a narrow card holds its buttons in tidy rows
+                    instead of a ragged wrap. */}
+                <div className="mt-auto grid grid-cols-2 gap-2 pt-1 [&>*]:w-full [&_button]:w-full">
+                  {canManage && absenceSchema ? (
+                      <FormEvidenceDialog
+                        title={`Record absence for ${r.fullName}`}
+                        schema={absenceSchema}
+                        action={recordAbsence}
+                        extraFields={{ person_id: r.personId }}
+                        triggerLabel="Add absence"
+                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                        submitLabel="Save absence"
+                        hideFields={["name", "email"]}
+                      />
+                    ) : null}
+                  <AbsenceDetailDialog
+                    personName={r.fullName}
+                    events={eventsByPerson[r.personId] ?? []}
+                    canEdit={canManage}
+                    canDiscount={canDiscount}
+                    windowStart={windowStart}
+                    openOnMount={openViewPersonId === r.personId}
+                  />
+                  {canManage ? (
+                    <BookMeetingDialog
+                      personId={r.personId}
+                      personName={r.fullName}
+                      defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
+                      minStage={(s.meetingStage ?? 0) + 1}
+                      maxStage={s.derivedStage ?? 0}
+                      conductors={conductors}
+                      offices={offices}
+                      stageActions={stageActionMap}
+                    />
+                  ) : null}
+                  {canManage && meetingSchema ? (
+                      (() => {
+                        const mf = meetingFormFor(r);
+                        const savedQuestions =
+                          meetingQuestions[mf.bookingId ? `meeting:${mf.bookingId}` : `person:${r.personId}`] ?? [];
+                        return mf.schema ? (
+                          <FormEvidenceDialog
+                            title={`Absence meeting for ${r.fullName}`}
+                            schema={mf.schema}
+                            action={recordAbsenceMeeting}
+                            extraFields={{ person_id: r.personId }}
+                            initialAi={savedQuestions.length > 0 ? { questions: savedQuestions } : undefined}
+                            questionsEditable
+                            aiDraft={
+                              mf.schema.sections.some((sec) => sec.fields.some((f) => f.key === "meeting_questions"))
+                                ? {
+                                    action: draftMeetingQuestions,
+                                    label: "Draft questions for me",
+                                    hint: "Write the questions for this meeting from their absences, what they said at their Return to Works and anything agreed at earlier meetings. They become boxes you fill in as you talk, and you can change or remove any of them. They are kept for this meeting, so opening it again costs nothing.",
+                                    extraFields: {
+                                      person_id: r.personId,
+                                      ...(mf.bookingId ? { meeting_id: mf.bookingId } : {}),
+                                    },
+                                    questions: { dataKey: "ai_questions", answerKey: "meeting_questions" },
+                                  }
+                                : undefined
+                            }
+                            triggerLabel="Record meeting"
+                            triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                            submitLabel="Save meeting"
+                            presetAnswers={mf.presets}
+                            hideFields={["name"]}
+                            onSaved={(saved) => {
+                              const meetingId = saved.data?.meeting_id || null;
+                              if (!canDiscount) {
+                                if (meetingId) setLetterFor({ meetingId, personName: r.fullName });
+                                return;
+                              }
+                              const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
+                              setAfterMeeting({
+                                personId: r.personId,
+                                personName: r.fullName,
+                                stage: Number.isInteger(st) ? st : null,
+                                date: saved.data?.meeting_date || null,
+                                meetingId,
+                              });
+                            }}
+                          />
+                        ) : null;
+                      })()
+                    ) : null}
+                  {canManage && bookingByPerson[r.personId] ? (
+                    <CancelRearrangeDialog
+                      booking={bookingByPerson[r.personId]}
+                      personName={r.fullName}
+                      conductors={conductors}
+                      offices={offices}
+                    />
+                  ) : null}
+                  </div>
+              </div>
+            );
   };
 
   return (
@@ -580,194 +770,24 @@ export default function AbsenceView({
           once an absence is logged against them.
         </div>
       ) : (
-        /* FOUR ACROSS on a wide desktop (Phil, 2026-09-24: "each tile needs to be narrower", then
-           "lets try 4 tiles per line"). Same text and button sizes: three on a smaller desktop,
-           two on a laptop or tablet, one on a phone. */
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {visibleRows.map((r) => {
-            const s = r.status;
-            const pill =
-              s.derivedStage != null && s.derivedStage >= 2
-                ? "pill pill-red"
-                : s.derivedLabel
-                  ? "pill pill-amber"
-                  : "pill pill-neutral";
-            return (
-              <div key={r.personId} className="glass-card flex flex-col gap-3 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/people/${r.personId}`}
-                      className="truncate font-semibold text-white hover:text-gold-300"
-                    >
-                      {r.fullName}
-                    </Link>
-                    {branches.length > 1 && (
-                      <p className="text-[11px] text-white/45">{branchName(r.branchId)}</p>
-                    )}
-                  </div>
-                  <span className={pill}>{s.derivedLabel ?? "Below threshold"}</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="rounded-lg bg-white/5 p-2">
-                    <div className="text-base font-semibold text-white">{r.occasions}</div>
-                    <div className="text-white/50">occasions</div>
-                  </div>
-                  <div className="rounded-lg bg-white/5 p-2">
-                    <div className="text-base font-semibold text-white">{r.totalDays}</div>
-                    <div className="text-white/50">days</div>
-                  </div>
-                  <div className="rounded-lg bg-white/5 p-2">
-                    <div className="text-base font-semibold text-white">
-                      {method === "bradford" ? s.bradfordScore : s.meetingStage ?? "—"}
-                    </div>
-                    <div className="text-white/50">
-                      {method === "bradford" ? "Bradford" : "last meeting"}
-                    </div>
-                  </div>
-                </div>
-
-                {r.notCounted > 0 && (
-                  <p className="text-xs text-white/50">
-                    {r.notCounted} discounted {r.notCounted === 1 ? "absence does" : "absences do"} not count.
-                  </p>
-                )}
-                {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
-                {s.meetingDue && (
-                  <p className="text-xs font-medium text-amber-300">
-                    A {s.derivedLabel ?? "stage"} meeting is due.
-                  </p>
-                )}
-                {bookingByPerson[r.personId] && (
-                  <div className="text-xs font-medium text-sky-300">
-                    <p>
-                      {bookingByPerson[r.personId].stage
-                        ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
-                        : "Meeting booked"}
-                      {bookingByPerson[r.personId].meeting_date
-                        ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
-                        : ""}
-                      {bookingByPerson[r.personId].conductor_name
-                        ? `, held by ${bookingByPerson[r.personId].conductor_name}`
-                        : ""}
-                      {bookingByPerson[r.personId].location
-                        ? `, ${locationLabel(bookingByPerson[r.personId].location!, offices)}`
-                        : ""}
-                    </p>
-                    {bookingByPerson[r.personId].response === "accepted" && (
-                      <p className="text-emerald-300">Invitation accepted.</p>
-                    )}
-                    {bookingByPerson[r.personId].response === "declined" && (
-                      <p className="text-red-300">
-                        Invitation declined
-                        {bookingByPerson[r.personId].response_reason
-                          ? `: ${bookingByPerson[r.personId].response_reason}`
-                          : "."}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Two by two, full width, so a narrow card holds its buttons in tidy rows
-                    instead of a ragged wrap. */}
-                <div className="mt-auto grid grid-cols-2 gap-2 pt-1 [&>*]:w-full [&_button]:w-full">
-                  {canManage && absenceSchema ? (
-                      <FormEvidenceDialog
-                        title={`Record absence for ${r.fullName}`}
-                        schema={absenceSchema}
-                        action={recordAbsence}
-                        extraFields={{ person_id: r.personId }}
-                        triggerLabel="Add absence"
-                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
-                        submitLabel="Save absence"
-                        hideFields={["name", "email"]}
-                      />
-                    ) : null}
-                  <AbsenceDetailDialog
-                    personName={r.fullName}
-                    events={eventsByPerson[r.personId] ?? []}
-                    canEdit={canManage}
-                    canDiscount={canDiscount}
-                    windowStart={windowStart}
-                    openOnMount={openViewPersonId === r.personId}
-                  />
-                  {canManage ? (
-                    <BookMeetingDialog
-                      personId={r.personId}
-                      personName={r.fullName}
-                      defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
-                      minStage={(s.meetingStage ?? 0) + 1}
-                      maxStage={s.derivedStage ?? 0}
-                      conductors={conductors}
-                      offices={offices}
-                      stageActions={stageActionMap}
-                    />
-                  ) : null}
-                  {canManage && meetingSchema ? (
-                      (() => {
-                        const mf = meetingFormFor(r);
-                        const savedQuestions =
-                          meetingQuestions[mf.bookingId ? `meeting:${mf.bookingId}` : `person:${r.personId}`] ?? [];
-                        return mf.schema ? (
-                          <FormEvidenceDialog
-                            title={`Absence meeting for ${r.fullName}`}
-                            schema={mf.schema}
-                            action={recordAbsenceMeeting}
-                            extraFields={{ person_id: r.personId }}
-                            initialAi={savedQuestions.length > 0 ? { questions: savedQuestions } : undefined}
-                            questionsEditable
-                            aiDraft={
-                              mf.schema.sections.some((sec) => sec.fields.some((f) => f.key === "meeting_questions"))
-                                ? {
-                                    action: draftMeetingQuestions,
-                                    label: "Draft questions for me",
-                                    hint: "Write the questions for this meeting from their absences, what they said at their Return to Works and anything agreed at earlier meetings. They become boxes you fill in as you talk, and you can change or remove any of them. They are kept for this meeting, so opening it again costs nothing.",
-                                    extraFields: {
-                                      person_id: r.personId,
-                                      ...(mf.bookingId ? { meeting_id: mf.bookingId } : {}),
-                                    },
-                                    questions: { dataKey: "ai_questions", answerKey: "meeting_questions" },
-                                  }
-                                : undefined
-                            }
-                            triggerLabel="Record meeting"
-                            triggerClassName="btn-outline px-3 py-1.5 text-xs"
-                            submitLabel="Save meeting"
-                            presetAnswers={mf.presets}
-                            hideFields={["name"]}
-                            onSaved={(saved) => {
-                              const meetingId = saved.data?.meeting_id || null;
-                              if (!canDiscount) {
-                                if (meetingId) setLetterFor({ meetingId, personName: r.fullName });
-                                return;
-                              }
-                              const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
-                              setAfterMeeting({
-                                personId: r.personId,
-                                personName: r.fullName,
-                                stage: Number.isInteger(st) ? st : null,
-                                date: saved.data?.meeting_date || null,
-                                meetingId,
-                              });
-                            }}
-                          />
-                        ) : null;
-                      })()
-                    ) : null}
-                  {canManage && bookingByPerson[r.personId] ? (
-                    <CancelRearrangeDialog
-                      booking={bookingByPerson[r.personId]}
-                      personName={r.fullName}
-                      conductors={conductors}
-                      offices={offices}
-                    />
-                  ) : null}
-                  </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {/* Two folded sections (Phil, 2026-10-06). Action required: a meeting is due and not
+              booked, or booked and not yet recorded; they stay here until the meeting is
+              recorded. Tracking: everyone else with absences, at a stage already dealt with or
+              below threshold. Same ranking inside each (lib/absence/rank.ts). */}
+          <AbsenceSection
+            title="Action required"
+            rows={actionRows}
+            empty="Nobody needs a meeting booked or recorded."
+            renderCard={renderCard}
+          />
+          <AbsenceSection
+            title="Tracking"
+            rows={trackingRows}
+            empty="Nobody else has absences in the window."
+            renderCard={renderCard}
+          />
+        </>
       )}
 
       {afterMeeting ? (
@@ -788,5 +808,44 @@ export default function AbsenceView({
         />
       ) : null}
     </div>
+  );
+}
+
+/** A folded section of absence tiles: closed by default, the count in its heading, the same
+ *  summary row and chevron as the Holiday page's folded lists. */
+function AbsenceSection({
+  title,
+  rows,
+  empty,
+  renderCard,
+}: {
+  title: string;
+  rows: AbsencePersonRow[];
+  empty: string;
+  renderCard: (r: AbsencePersonRow) => React.ReactNode;
+}) {
+  return (
+    <details className="fold glass-card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]">
+        <span className="text-sm font-semibold text-white/80">
+          {title} ({rows.length})
+        </span>
+        <span aria-hidden className="fold-chevron shrink-0 text-lg text-white/40 transition-transform">
+          ›
+        </span>
+      </summary>
+      <div className="border-t border-white/10 p-4">
+        {rows.length === 0 ? (
+          <p className="text-sm text-white/50">{empty}</p>
+        ) : (
+          /* FOUR ACROSS on a wide desktop (Phil, 2026-09-24: "each tile needs to be narrower",
+             then "lets try 4 tiles per line"). Three on a smaller desktop, two on a laptop or
+             tablet, one on a phone. */
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            {rows.map(renderCard)}
+          </div>
+        )}
+      </div>
+    </details>
   );
 }
