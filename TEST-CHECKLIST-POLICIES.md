@@ -60,3 +60,18 @@ Bevan first, then Thistle and every company.
 - PRG2 Thistle and Demo still show "Policies your regulator expects" and "HR policies" exactly as before.
 - PRG3 Write with AI and Improve on Bevan list the 57 register titles only; an English company never sees Wales only policies.
 - PRG4 After the founder Load and check, the 24 new standard policies (Business Continuity, Visit Scheduling, Statement of Purpose and so on) write from their sources.
+
+## Library load, 2026-10-06 evening
+- PL-L1 Load and check after the register work: 136 of 136 active sources checked, 0 never loaded, 0 errors; the 34 new sources for Bevan's 24 new standard policies loaded. PASS (Claude in Chrome as Founder, DB checked).
+- DEFECT found and fixed: all six HSE sources were landing pages (400 to 1,300 characters of links). Now linked to each guide's print page, and the loader reads HSE's section list (print-guides/*.json) and every section in order, as the browser does. Result: lone working 9,016, drugs and alcohol 7,573, stress 9,484, driving 25,635, manual handling 10,695, risk 8,402 characters, no navigation scraps. PASS (DB checked).
+- One waiting change: DBS checking service guidance, "No change in substance". For Phil to approve.
+
+## Bevan register and cover page, run 2026-10-06 evening (Claude in Chrome as Bev)
+- PRG1 PASS: 9 sections (8, 6, 3, 2, 5, 4, 20, 7, 2 = 57), "0 of 57", reg 12 tags, Write with AI on every row, no standard regulator or HR lists.
+- PRG2 By data only: Thistle and Demo have no register rows, so they keep the standard lists. Not seen on screen.
+- PRG3 PASS: Write and Improve both list exactly the 57 register titles.
+- PRG4 PASS: Driving for Work written from the full HSE driving guide [S1] plus two GOV.UK sources.
+- PCP1 PASS: cover page section on Write; Approved by "Not set" is right for Bevan (no Responsible Individual on the account).
+- PCP2 PASS: draft page carried Approved by, Applies to, Read and sign, Retention, Classification; Reference blank; What changed "First issue".
+- PCP3 FAIL then fixed: saved as POL-GEN-001, but the PDF opened from the library had no cover. The Open link draws written policies fresh (render.ts) and left the cover out. Now builds the cover from the saved version. Retest after deploy.
+- Note for Phil: references are HR, CARE or GEN by the policy's regulator tag, so Driving for Work is GEN, not Health & Safety.

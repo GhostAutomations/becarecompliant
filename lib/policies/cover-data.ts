@@ -148,3 +148,82 @@ export async function buildCoverPage(opts: {
     },
   };
 }
+
+
+/**
+ * THE COVER FOR A VERSION ALREADY SAVED (Phil, 2026-10-06: "where is the cover page?"). A written
+ * policy is drawn fresh whenever someone opens it (lib/policies/render.ts), and that drawing left
+ * the cover out, so a policy opened from the library had none. This builds it from what was stored
+ * when that version was approved: its own approval date and approver, the history up to it, and
+ * the next review from the policy. Read with the caller's client (render.ts passes the service
+ * client, having already checked the reader may see the policy).
+ */
+export async function coverForSavedVersion(
+  db: Pick<Awaited<ReturnType<typeof createClient>>, "from">,
+  opts: { policyId: string; version: number; title: string; companyName: string },
+): Promise<CoverPage> {
+  const [{ data: p }, { data: versions }] = await Promise.all([
+    db
+      .from("company_policies")
+      .select("reference, owner_id, approver_id, applies_to, read_by, retention, classification, review_months, review_due_on")
+      .eq("id", opts.policyId)
+      .maybeSingle<{
+        reference: string | null;
+        owner_id: string | null;
+        approver_id: string | null;
+        applies_to: string | null;
+        read_by: string | null;
+        retention: string | null;
+        classification: string | null;
+        review_months: number | null;
+        review_due_on: string | null;
+      }>(),
+    db
+      .from("company_policy_versions")
+      .select("version, created_at, change_summary, approved_by_name")
+      .eq("policy_id", opts.policyId)
+      .order("version"),
+  ]);
+  const ids = [p?.owner_id, p?.approver_id].filter((x): x is string => Boolean(x));
+  const { data: people } = ids.length
+    ? await db.from("profiles").select("id, full_name, role").in("id", ids)
+    : { data: [] as Array<{ id: string; full_name: string | null; role: string }> };
+  const who = new Map(((people as Array<{ id: string; full_name: string | null; role: string }> | null) ?? []).map((x) => [x.id, x]));
+  const approver = p?.approver_id ? who.get(p.approver_id) : undefined;
+  const approverRole = approver ? (ROLE_LABELS[approver.role] ?? approver.role) : null;
+  const list = ((versions as Array<{ version: number; created_at: string; change_summary: string | null; approved_by_name: string | null }> | null) ?? [])
+    .filter((v) => v.version <= opts.version);
+  const mine = list.find((v) => v.version === opts.version);
+  const approvedAt = mine ? new Date(mine.created_at) : new Date();
+  const approvedByName = mine?.approved_by_name ?? approver?.full_name ?? null;
+  const approvedBy = approvedByName
+    ? `${approvedByName}${approverRole && approvedByName === approver?.full_name ? `, ${approverRole}` : ""}`
+    : null;
+  let nextReview: Date;
+  if (p?.review_due_on && /^\d{4}-\d{2}-\d{2}$/.test(p.review_due_on)) {
+    nextReview = new Date(`${p.review_due_on}T12:00:00Z`);
+  } else {
+    nextReview = new Date(approvedAt);
+    nextReview.setMonth(nextReview.getMonth() + (p?.review_months ?? 12));
+  }
+  return {
+    reference: p?.reference ?? null,
+    title: opts.title,
+    companyName: opts.companyName,
+    version: opts.version,
+    approvedOn: ukLong(approvedAt),
+    approvedBy,
+    owner: p?.owner_id ? (who.get(p.owner_id)?.full_name ?? null) : null,
+    nextReview: ukLong(nextReview),
+    appliesTo: p?.applies_to ?? "All staff",
+    readBy: p?.read_by ?? "As set in Briefings",
+    retention: p?.retention ?? "Kept for 8 years after it is replaced",
+    classification: p?.classification ?? "Internal",
+    history: list.map((v) => ({
+      version: v.version,
+      date: ukLong(new Date(v.created_at)),
+      change: v.change_summary ?? (v.version === 1 ? "First issue" : "Not recorded"),
+      approvedBy: v.approved_by_name,
+    })),
+  };
+}

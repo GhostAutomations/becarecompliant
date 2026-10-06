@@ -22,6 +22,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { parsePolicyText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
+import { coverForSavedVersion } from "@/lib/policies/cover-data";
 
 /**
  * Render one version of a written policy. Pass a version to reproduce exactly
@@ -59,12 +60,21 @@ export async function renderWrittenPolicy(
     | { name: string }
     | null;
 
+  const companyName = company?.name ?? "Your company";
+  // The ISO 9001 cover (0404) on every opening, not only on the copy saved at approval.
+  const cover = await coverForSavedVersion(admin, {
+    policyId,
+    version: wanted,
+    title: policy.title as string,
+    companyName,
+  });
   const pdf = await renderPolicyPdf({
-    companyName: company?.name ?? "Your company",
+    companyName,
     title: policy.title as string,
     version: wanted,
     blocks: parsePolicyText(body),
     savedAt: new Date(),
+    cover,
   });
   return { ok: true, pdf, title: policy.title as string };
 }
