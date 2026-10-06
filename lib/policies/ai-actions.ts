@@ -23,6 +23,7 @@ import { writeAudit } from "@/lib/audit";
 import { runAi } from "@/lib/ai/anthropic";
 import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
 import { fillPlaceholders, findPlaceholders } from "@/lib/policies/placeholders";
+import { coverFromForm } from "@/lib/policies/cover";
 import { signPolicyDocument } from "@/lib/assignments/storage";
 import { createWrittenPolicy, updateWrittenPolicy } from "@/lib/assignments/actions";
 import type { ActionState } from "@/lib/forms";
@@ -93,6 +94,7 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
       nation: facts.regulator,
       answers: Object.fromEntries(topic.questions.map((q, i) => [q.key, answers[i].answer])),
       owner_id: ownerId,
+      cover: coverFromForm((k) => fd.get(k)),
       draft_text: r.ok.trim(),
       sources: meta,
       created_by: user.id,
@@ -264,6 +266,11 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   const target = String(fd.get("target") ?? (draft.policy_id ? draft.policy_id : "new"));
   const form = new FormData();
   form.set("body", body);
+  /* The cover page and owner go with the policy, so the very first PDF prints them (0404). */
+  for (const k of ["cover_present", "approver_id", "applies_to", "read_by", "retention", "classification", "owner_id", "reference", "change_summary"]) {
+    const v = fd.get(k);
+    if (typeof v === "string") form.set(k, v);
+  }
   let result: ActionState;
   let policyId: string | null = null;
   if (target && target !== "new") {

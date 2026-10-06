@@ -47,3 +47,10 @@ Bevan first, then Thistle and every company.
 - PH8 Policy owner: Write with AI asks "Who owns this policy?" (required, defaults to you); the draft page shows it; approving sets it on the policy in the review register.
 - PH7, PH8 tested by Claude in Chrome on Bevan (Grievance): owner question showed set to Bev Admin; draft had 3 To be completed fields; saving with one blank refused, naming it, answers kept; filled and approved: no gaps left, answers in the text, Bev Admin named. PASS.
 - DEFECT found and fixed: AI policies were saved without their standard policy (topic_key), so the HR checklist did not tick and the owner was not set. createWrittenPolicy now saves topic_key. Grievance and Sickness absence repaired by hand.
+
+## Cover page, ISO 9001 (2026-10-06)
+- PCP1 Write with AI shows a Cover page section: Approved by (starts on the RI), Applies to, Read and sign, Retention, Classification.
+- PCP2 The draft page shows the same, filled from the Write page, plus Reference (blank = automatic) and What changed (First issue for a new policy).
+- PCP3 The saved PDF's first page is the cover: company, title, reference (POL-HR-001 for the first HR policy), version 1, approved on, approved by with role, owner, next review, applies to, read and sign, retention, classification, change history; then the policy, with the reference in the header and footer.
+- PCP4 A second policy in the same area gets the next number (POL-HR-002); a deleted one's number is never given again.
+- PCP5 A new version keeps the reference, and the change history lists both versions with what changed.

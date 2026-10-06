@@ -60,6 +60,7 @@ export default async function PolicyDraftPage({ params }: { params: Promise<{ id
             policy_id: draft.policy_id,
             sources: draft.sources,
             owner_id: draft.owner_id,
+            cover: draft.cover,
           }}
           existing={existing.map(({ id: pid, title }) => ({ id: pid, title }))}
           sameTopic={sameTopic ? { id: sameTopic.id, title: sameTopic.title } : null}

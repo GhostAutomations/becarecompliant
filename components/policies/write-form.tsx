@@ -7,6 +7,8 @@
  */
 
 import { POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
+import CoverFields from "@/components/policies/cover-fields";
+import { DEFAULT_COVER } from "@/lib/policies/cover";
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import { generatePolicyDraft } from "@/lib/policies/ai-actions";
@@ -29,7 +31,7 @@ export default function PolicyWriteForm({
   topics: PolicyTopic[];
   initial: string | null;
   settings: Record<string, string[]>;
-  owners: Array<{ id: string; full_name: string | null }>;
+  owners: Array<{ id: string; full_name: string | null; role: string }>;
   me: string;
 }) {
   const [key, setKey] = useState(initial && topics.some((t) => t.key === initial) ? initial : "");
@@ -80,6 +82,7 @@ export default function PolicyWriteForm({
                 ) : null}
               </div>
             ) : null}
+            <CoverFields people={owners} value={DEFAULT_COVER} />
             <div className="space-y-3 border-t border-white/10 pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-white/50">About your service</p>
               <p className="form-hint">The more you tell it, the less you will need to fill in afterwards. Anything left blank is marked in the draft for you to complete.</p>

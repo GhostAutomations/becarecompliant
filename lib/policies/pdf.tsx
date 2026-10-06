@@ -22,6 +22,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { PolicyBlock } from "@/lib/policies/text";
+import type { CoverPage } from "@/lib/policies/cover";
 
 const NAVY = "#081231";
 const GOLD = "#f59e0b";
@@ -57,7 +58,67 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   footerText: { fontSize: 8, color: MUTED },
+  coverCompany: { fontSize: 11, color: MUTED, marginTop: 40 },
+  coverTitle: { fontSize: 24, fontWeight: 700, color: NAVY, marginTop: 8 },
+  coverRef: { fontSize: 11, color: GOLD, fontWeight: 700, marginTop: 6, marginBottom: 26 },
+  row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#dfe4f0", paddingVertical: 6 },
+  rowLabel: { width: 150, fontSize: 9.5, color: MUTED },
+  rowValue: { flex: 1, fontSize: 10, color: INK },
+  histHead: { fontSize: 12, fontWeight: 700, color: NAVY, marginTop: 24, marginBottom: 6 },
+  histRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#dfe4f0", paddingVertical: 4 },
+  histCell: { fontSize: 9, color: INK },
 });
+
+/** The ISO 9001 style cover (lib/policies/cover.ts): who, what, which version, until when. */
+function Cover({ c }: { c: CoverPage }) {
+  const rows: Array<[string, string]> = [
+    ["Reference", c.reference ?? "Not set"],
+    ["Version", String(c.version)],
+    ["Approved on", c.approvedOn],
+    ["Approved by", c.approvedBy ?? "Not recorded"],
+    ["Policy owner", c.owner ?? "Not recorded"],
+    ["Next review due", c.nextReview ?? "Not set"],
+    ["Applies to", c.appliesTo],
+    ["Read and sign", c.readBy],
+    ["Retention", c.retention],
+    ["Classification", c.classification],
+  ];
+  return (
+    <Page size="A4" style={styles.page}>
+      <Text style={styles.coverCompany}>{c.companyName}</Text>
+      <Text style={styles.coverTitle}>{c.title}</Text>
+      <Text style={styles.coverRef}>{c.reference ?? ""}</Text>
+      {rows.map(([k, v]) => (
+        <View key={k} style={styles.row}>
+          <Text style={styles.rowLabel}>{k}</Text>
+          <Text style={styles.rowValue}>{v}</Text>
+        </View>
+      ))}
+      <Text style={styles.histHead}>Change history</Text>
+      <View style={[styles.histRow, { borderBottomColor: GOLD }]}>
+        <Text style={[styles.histCell, { width: 50, color: MUTED }]}>Version</Text>
+        <Text style={[styles.histCell, { width: 80, color: MUTED }]}>Date</Text>
+        <Text style={[styles.histCell, { flex: 1, color: MUTED }]}>What changed</Text>
+        <Text style={[styles.histCell, { width: 130, color: MUTED }]}>Approved by</Text>
+      </View>
+      {c.history.map((h) => (
+        <View key={h.version} style={styles.histRow} wrap={false}>
+          <Text style={[styles.histCell, { width: 50 }]}>{h.version}</Text>
+          <Text style={[styles.histCell, { width: 80 }]}>{h.date}</Text>
+          <Text style={[styles.histCell, { flex: 1 }]}>{h.change}</Text>
+          <Text style={[styles.histCell, { width: 130 }]}>{h.approvedBy ?? ""}</Text>
+        </View>
+      ))}
+      <View style={styles.footer} fixed>
+        <Text style={styles.footerText}>
+          {c.reference ? `${c.reference} · ` : ""}
+          {c.title} · version {c.version}
+        </Text>
+        <Text style={styles.footerText}>Uncontrolled when printed. The current version is held in Be Care Compliant.</Text>
+      </View>
+    </Page>
+  );
+}
 
 function Spans({ block }: { block: PolicyBlock }) {
   return (
@@ -78,6 +139,8 @@ export async function renderPolicyPdf(opts: {
   blocks: PolicyBlock[];
   /** Europe/London date the version was saved. */
   savedAt: Date;
+  /** The cover page, for every policy written in Be Care Compliant (0404). */
+  cover?: CoverPage | null;
 }): Promise<Buffer> {
   const when = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -88,10 +151,12 @@ export async function renderPolicyPdf(opts: {
 
   return renderToBuffer(
     <Document title={`${opts.title} (version ${opts.version})`} author={opts.companyName}>
+      {opts.cover ? <Cover c={opts.cover} /> : null}
       <Page size="A4" style={styles.page}>
         <View style={styles.brandBar} fixed>
           <Text style={styles.title}>{opts.title}</Text>
           <Text style={styles.meta}>
+            {opts.cover?.reference ? `${opts.cover.reference} · ` : ""}
             {opts.companyName} · Version {opts.version} · Issued {when}
           </Text>
         </View>
@@ -126,6 +191,7 @@ export async function renderPolicyPdf(opts: {
 
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
+            {opts.cover?.reference ? `${opts.cover.reference} · ` : ""}
             {opts.title} · version {opts.version}
           </Text>
           <Text

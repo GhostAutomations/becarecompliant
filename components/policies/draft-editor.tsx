@@ -16,6 +16,8 @@ import ActionForm from "@/components/action-form";
 import { approvePolicyDraft, discardPolicyDraft } from "@/lib/policies/ai-actions";
 import type { ImproveReview } from "@/lib/policies/ai-prompt";
 import { findPlaceholders } from "@/lib/policies/placeholders";
+import CoverFields from "@/components/policies/cover-fields";
+import { coverFromStored } from "@/lib/policies/cover";
 
 type Source = { n: number; title: string; publisher: string; url: string; checkedOn: string };
 type Existing = { id: string; title: string };
@@ -44,14 +46,15 @@ export default function DraftEditor({
   sameTopic,
   owners,
 }: {
-  draft: { id: string; kind: "write" | "improve"; title: string; draft_text: string | null; review: ImproveReview | null; policy_id: string | null; sources: Source[]; owner_id: string | null };
+  draft: { id: string; kind: "write" | "improve"; title: string; draft_text: string | null; review: ImproveReview | null; policy_id: string | null; sources: Source[]; owner_id: string | null; cover: unknown };
   existing: Existing[];
   sameTopic: Existing | null;
-  owners: Array<{ id: string; full_name: string | null }>;
+  owners: Array<{ id: string; full_name: string | null; role: string }>;
 }) {
   const review = draft.review;
   const [use, setUse] = useState<string[]>(() => (review ? review.sections.map(() => "proposed") : []));
   const [body, setBody] = useState(draft.draft_text ?? "");
+  const [target, setTarget] = useState<string>(draft.policy_id ?? sameTopic?.id ?? "new");
   /* Everything still marked "[To be completed: ...]", as fields under the policy (Phil,
      2026-10-06). A new draft is read as it is edited; a review from its suggested sections. */
   const toFill =
@@ -163,13 +166,33 @@ export default function DraftEditor({
 
           <div>
             <label htmlFor="target" className="form-label">Save it as</label>
-            <select id="target" name="target" defaultValue={draft.policy_id ?? sameTopic?.id ?? "new"}>
+            <select id="target" name="target" value={target} onChange={(e) => setTarget(e.target.value)}>
               <option value="new">A new policy</option>
               {existing.map((p) => (
                 <option key={p.id} value={p.id}>The next version of {p.title}</option>
               ))}
             </select>
             <p className="form-hint">A new version keeps the old one, and asks your team to sign again if that policy is set to.</p>
+          </div>
+
+          <CoverFields people={owners} value={coverFromStored(draft.cover)} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="reference" className="form-label">Reference</label>
+              <input id="reference" name="reference" maxLength={30} placeholder={target === "new" ? "Given automatically, for example POL-HR-001" : "Keeps its current reference"} />
+              <p className="form-hint">Leave blank unless you already number your policies.</p>
+            </div>
+            <div>
+              <label htmlFor="change_summary" className="form-label">What changed (for the change history)</label>
+              <input
+                id="change_summary"
+                name="change_summary"
+                maxLength={200}
+                key={target === "new" ? "new" : "next"}
+                defaultValue={target === "new" ? "First issue" : ""}
+                placeholder={target === "new" ? "First issue" : "For example, updated for the new sick pay rules"}
+              />
+            </div>
           </div>
         </div>
       </ActionForm>

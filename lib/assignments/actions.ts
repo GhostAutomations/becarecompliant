@@ -28,6 +28,7 @@ import type { ActionState } from "@/lib/forms";
 import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storage";
 import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
+import { buildCoverPage, coverPatchFrom, referenceFor } from "@/lib/policies/cover-data";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
@@ -763,12 +764,19 @@ export async function createWrittenPolicy(
     const { data: t } = await supabase.from("policy_topics").select("key").eq("key", topicKey).maybeSingle();
     if (!t) topicKey = null;
   }
+  /* The cover page (0404): what the form chose, and a reference number. */
+  const coverPatch = await coverPatchFrom(formData, companyId);
+  if (coverPatch && "error" in coverPatch) return { error: coverPatch.error };
+  const ref = await referenceFor(formData, companyId, topicKey);
+  if ("error" in ref) return { error: ref.error };
 
   const { data: policy, error } = await supabase
     .from("company_policies")
     .insert({
       company_id: companyId,
       topic_key: topicKey,
+      reference: ref.reference,
+      ...(coverPatch?.patch ?? {}),
       title,
       summary,
       source: "text",
@@ -784,6 +792,7 @@ export async function createWrittenPolicy(
     })
     .select("id, file_name")
     .single();
+  if (error?.code === "23505") return { error: `The reference ${ref.reference} is already used by another of your policies.` };
   if (error || !policy) return { error: error?.message ?? "The policy could not be saved." };
 
   const stored = await freezeWrittenVersion({
@@ -796,6 +805,7 @@ export async function createWrittenPolicy(
     version: 1,
     body,
     actorId: user.id,
+    changeSummary: String(formData.get("change_summary") ?? "").trim() || "First issue",
   });
   if (!stored.ok) {
     await supabase.from("company_policies").delete().eq("id", policy.id);
@@ -837,7 +847,7 @@ export async function updateWrittenPolicy(
   const [{ data: policy }, { data: company }] = await Promise.all([
     supabase
       .from("company_policies")
-      .select("id, title, version, source, body, file_name")
+      .select("id, title, version, source, body, file_name, reference, topic_key")
       .eq("id", policyId)
       .eq("company_id", companyId)
       .maybeSingle(),
@@ -852,6 +862,21 @@ export async function updateWrittenPolicy(
   }
   if ((policy.body as string | null)?.trim() === body) {
     return { ok: "Nothing had changed, so no new version was created." };
+  }
+
+  /* The cover page (0404): new choices, a typed reference, or a first reference number. */
+  const coverPatch = await coverPatchFrom(formData, companyId);
+  if (coverPatch && "error" in coverPatch) return { error: coverPatch.error };
+  const patch: Record<string, string | null> = { ...(coverPatch?.patch ?? {}) };
+  if (String(formData.get("reference") ?? "").trim() || !policy.reference) {
+    const ref = await referenceFor(formData, companyId, (policy.topic_key as string | null) ?? null);
+    if ("error" in ref) return { error: ref.error };
+    if (ref.reference !== policy.reference) patch.reference = ref.reference;
+  }
+  if (Object.keys(patch).length > 0) {
+    const { error: pErr } = await supabase.from("company_policies").update(patch).eq("id", policyId).eq("company_id", companyId);
+    if (pErr?.code === "23505") return { error: `The reference ${patch.reference} is already used by another of your policies.` };
+    if (pErr) return { error: pErr.message };
   }
 
   const nextVersion = ((policy.version as number | null) ?? 1) + 1;
@@ -869,6 +894,7 @@ export async function updateWrittenPolicy(
     version: nextVersion,
     body,
     actorId: user.id,
+    changeSummary: String(formData.get("change_summary") ?? "").trim() || "Updated",
   });
   if (!stored.ok) return { error: stored.error };
 
@@ -927,11 +953,21 @@ async function freezeWrittenVersion(opts: {
   version: number;
   body: string;
   actorId: string;
+  /** For the cover page's change history (0404). */
+  changeSummary: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const blocks = parsePolicyText(opts.body);
   if (policyPlainText(blocks).length === 0) {
     return { ok: false, error: "There was no readable wording to save." };
   }
+
+  const cover = await buildCoverPage({
+    policyId: opts.policyId,
+    version: opts.version,
+    title: opts.title,
+    companyName: opts.companyName,
+    changeSummary: opts.changeSummary,
+  });
 
   let pdf: Buffer;
   try {
@@ -941,6 +977,7 @@ async function freezeWrittenVersion(opts: {
       version: opts.version,
       blocks,
       savedAt: new Date(),
+      cover: cover.cover,
     });
   } catch (e) {
     return { ok: false, error: `The policy PDF could not be produced: ${(e as Error).message}` };
@@ -959,6 +996,9 @@ async function freezeWrittenVersion(opts: {
     bytes: pdf.length,
     body: opts.body,
     created_by: opts.actorId,
+    change_summary: opts.changeSummary,
+    approved_by_name: cover.approvedByName,
+    approved_by_role: cover.approvedByRole,
   });
   if (verErr) return { ok: false, error: `The version could not be recorded: ${verErr.message}` };
 
