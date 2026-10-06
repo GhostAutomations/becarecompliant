@@ -61,6 +61,8 @@ function textOf(fragment: string): string {
     s = s.replace(new RegExp(`<${tag}\\b[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
   }
   s = s.replace(/<!--[\s\S]*?-->/g, " ");
+  // A part that starts inside a comment keeps its tail ("variants -->" on HSE pages).
+  s = s.replace(/^[^<]*?-->/, " ").replace(/>[^<]*?-->/g, "> ");
   // Cookie and consent banners are not content.
   s = s.replace(/<div[^>]+(cookie|consent|banner)[^>]*>[\s\S]*?<\/div>/gi, " ");
   s = s
@@ -87,3 +89,21 @@ export function normaliseForCompare(text: string): string {
 /** Longest text kept per source. Legislation sections are short; guidance pages are cut here
  *  so one long page cannot crowd the others out of the AI's reading. */
 export const SOURCE_TEXT_LIMIT = 40_000;
+
+/**
+ * The address to READ for a source. A GOV.UK guide is split into parts (Overview, Pay,
+ * Eligibility, How to claim) and its first page is only the overview: Maternity pay and leave
+ * read as 853 characters. Its print view holds every part on one page. The link people see and
+ * open stays the guide itself.
+ */
+export function readableUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "www.gov.uk" && /^\/[a-z0-9-]+\/?$/.test(u.pathname)) {
+      return `${u.origin}${u.pathname.replace(/\/$/, "")}/print`;
+    }
+  } catch {
+    // Not a URL: leave it for the fetch to report.
+  }
+  return url;
+}

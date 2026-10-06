@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { SOURCE_TEXT_LIMIT, htmlToText, normaliseForCompare } from "./extract";
+import { SOURCE_TEXT_LIMIT, htmlToText, normaliseForCompare, readableUrl } from "./extract";
 
 /**
  * Fetch one official source and return the text the policy AI reads, with a fingerprint the
@@ -16,8 +16,9 @@ export async function fetchSourceText(
 ): Promise<{ ok: true; text: string; hash: string } | { ok: false; error: string }> {
   /* One retry for a slow or busy site (legislation.gov.uk timed out on three regulations in one
      run, 2026-10-06): a timeout or a server error is often gone a moment later. A 404 is not. */
+  const target = readableUrl(url);
   const once = () =>
-    fetch(url, {
+    fetch(target, {
       headers: {
         "user-agent": "BeCareCompliant-PolicyLibrary/1.0 (+https://becarecompliant.com)",
         accept: "text/html,application/xhtml+xml",

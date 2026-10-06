@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { htmlToText, normaliseForCompare } from "./extract.ts";
+import { htmlToText, normaliseForCompare, readableUrl } from "./extract.ts";
 
 test("keeps the content, drops the furniture", () => {
   const html = `<html><body><header>Menu</header><nav>Home</nav><main><h1>Regulation 12</h1><p>The service provider must have policies &amp; procedures.</p><ul><li>Safeguarding</li><li>Medication</li></ul></main><footer>Cookies</footer><script>x()</script></body></html>`;
@@ -26,4 +26,15 @@ test("a short regulation is kept short, not padded with the page", () => {
   const t = htmlToText(html);
   assert.match(t, /open and transparent/);
   assert.doesNotMatch(t, /Footer|Menu/);
+});
+
+test("a GOV.UK guide is read from its print view; other pages are left alone", () => {
+  assert.equal(readableUrl("https://www.gov.uk/maternity-pay-leave"), "https://www.gov.uk/maternity-pay-leave/print");
+  assert.equal(readableUrl("https://www.gov.uk/government/publications/calculating-the-minimum-wage"), "https://www.gov.uk/government/publications/calculating-the-minimum-wage");
+  assert.equal(readableUrl("https://www.acas.org.uk/parental-leave"), "https://www.acas.org.uk/parental-leave");
+});
+
+test("the tail of a comment at the start of the text is dropped", () => {
+  const t = htmlToText(`<html><body><main> variants --> <h1>Lone working</h1><p>${"Employers must assess the risks. ".repeat(20)}</p></main></body></html>`);
+  assert.doesNotMatch(t, /-->/);
 });
