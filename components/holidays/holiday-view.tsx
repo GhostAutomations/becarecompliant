@@ -281,6 +281,8 @@ export default function HolidayView({
     .sort((a, b) => b.start_date.localeCompare(a.start_date));
   // Calendar shows approved (green) AND pending (amber, awaiting approval).
   const onCalendar = scoped.filter((r) => r.status === "approved" || r.status === "pending");
+  const branchNames = useMemo(() => new Map(branches.map((b) => [b.id, b.name])), [branches]);
+  const branchName = (id: string | null) => (id ? branchNames.get(id) ?? null : null);
 
   /**
    * Who else in the same branch is off across these dates. Worked out here from
@@ -543,14 +545,21 @@ export default function HolidayView({
                   {hols.map((h) => (
                     <div
                       key={h.id}
-                      className={`truncate rounded px-1 py-0.5 text-[10px] leading-[15px] ${
+                      className={`flex min-w-0 items-baseline justify-between gap-1 rounded px-1 py-0.5 text-[10px] leading-[15px] ${
                         h.status === "approved"
                           ? "bg-emerald-400/20 text-emerald-200"
                           : "bg-amber-400/20 text-amber-200"
                       }`}
-                      title={`${h.requester_name ?? ""}${h.status === "pending" ? " (awaiting approval)" : ""}`}
+                      title={`${h.requester_name ?? ""}${branchName(h.branch_id) ? `, ${branchName(h.branch_id)}` : ""}${h.status === "pending" ? " (awaiting approval)" : ""}`}
                     >
-                      {(h.requester_name ?? "").split(" ")[0]}
+                      {/* First name on the left, branch or house on the right, each cut short with an
+                          ellipsis rather than spilling into the next column (Phil, 2026-10-06). */}
+                      <span className="min-w-0 truncate">{(h.requester_name ?? "").split(" ")[0]}</span>
+                      {branchName(h.branch_id) && (
+                        <span className="min-w-0 max-w-[55%] shrink-0 truncate text-right opacity-70">
+                          {branchName(h.branch_id)}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
