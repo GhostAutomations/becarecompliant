@@ -75,12 +75,14 @@ async function summariseChange(title: string, before: string, after: string): Pr
   const r = await runAi({
     companyId: null,
     feature: "policy_source_change",
-    maxTokens: 600,
+    maxTokens: 2000,
     system:
-      "You compare two versions of an official UK web page used as guidance for care policies. Say in plain UK English, in at most four short bullet points, what changed in substance. If the only differences are page furniture, dates of the page itself or formatting, say exactly: No change in substance. No dashes as punctuation.",
+      "You compare two versions of an official UK web page used as guidance for care policies. If the only differences are page furniture, navigation, banners, dates of the page itself, spacing or formatting, reply with exactly: No change in substance. Otherwise say in plain UK English, in at most four short sentences, what changed in substance for a care provider's policies. Never repeat unchanged content. No dashes as punctuation.",
     prompt: `Source: ${title}\n\nBEFORE:\n${before.slice(0, 15_000)}\n\nAFTER:\n${after.slice(0, 15_000)}`,
   });
-  return "ok" in r ? r.ok : `Could not summarise the change: ${r.error}`;
+  return "ok" in r
+    ? r.ok.replace(/\n*\(This reply was cut short[^)]*\)\s*$/, "").trim()
+    : `Could not summarise the change: ${r.error}`;
 }
 
 export type CheckResult = { checked: number; unchanged: number; added: number; changed: string[]; failed: string[] };

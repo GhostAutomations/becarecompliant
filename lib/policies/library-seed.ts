@@ -583,8 +583,8 @@ export const SEED_SOURCES: SeedSource[] = [
   {
     "key": "care_certificate",
     "publisher": "Skills for Care",
-    "title": "The Care Certificate",
-    "url": "https://www.skillsforcare.org.uk/Developing-your-workforce/Care-Certificate/Care-Certificate.aspx",
+    "title": "Care Certificate standards",
+    "url": "https://www.skillsforcare.org.uk/Developing-your-workforce/Care-Certificate/Care-Certificate-standards.aspx",
     "regions": [
       "england"
     ]
@@ -668,8 +668,8 @@ export const SEED_SOURCES: SeedSource[] = [
   {
     "key": "ico_gdpr",
     "publisher": "Information Commissioner's Office",
-    "title": "UK GDPR guidance and resources",
-    "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/",
+    "title": "A guide to the data protection principles (UK GDPR)",
+    "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/",
     "regions": [
       "wales",
       "england"
