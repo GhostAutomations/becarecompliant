@@ -525,7 +525,9 @@ export default function HolidayView({
             <div key={d} className="pb-1">{d}</div>
           ))}
         </div>
-        {/* Each day holds five names, then scrolls inside its own box (Phil, 2026-10-06).
+        {/* Each day holds five rows of names, two side by side from tablet width up, so ten
+            names before it scrolls inside its own box (Phil, 2026-10-06). On a phone a day is too
+            narrow for two, so it is one column of five.
             Every chip is a fixed 19px (15px line plus padding) with a 2px gap, so the list box is
             5 x 19 + 4 x 2 = 103px and the sixth name always sits just out of view. */}
         <div className="grid grid-cols-7 gap-1">
@@ -537,7 +539,7 @@ export default function HolidayView({
                  hiding names behind "+1 more" (Phil, 2026-10-06). */
               <div key={i} className="flex flex-col rounded-lg bg-white/5 p-1 text-left">
                 <div className="shrink-0 text-[11px] leading-4 text-white/50">{day}</div>
-                <div className="mt-0.5 h-[103px] space-y-0.5 overflow-y-auto">
+                <div className="mt-0.5 grid h-[103px] grid-cols-1 content-start gap-0.5 overflow-y-auto md:grid-cols-2">
                   {hols.map((h) => (
                     <div
                       key={h.id}
