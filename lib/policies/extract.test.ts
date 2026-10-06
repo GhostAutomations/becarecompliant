@@ -14,3 +14,9 @@ test("keeps the content, drops the furniture", () => {
 test("a reflowed page with the same words compares equal", () => {
   assert.equal(normaliseForCompare("A  b\n\nC"), normaliseForCompare("a b c"));
 });
+
+test("an empty main falls back to the body", () => {
+  const words = "Lone workers must be risk assessed and have a way to raise the alarm. ".repeat(10);
+  const t = htmlToText(`<html><body><main><a>Home</a></main><div id="content"><p>${words}</p></div></body></html>`);
+  assert.match(t, /raise the alarm/);
+});

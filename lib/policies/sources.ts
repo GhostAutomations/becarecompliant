@@ -28,7 +28,7 @@ export async function fetchSourceText(
   const type = res.headers.get("content-type") ?? "";
   if (type.includes("pdf")) return { ok: false, error: "This link is a PDF. Link the web page instead." };
   const text = htmlToText(await res.text()).slice(0, SOURCE_TEXT_LIMIT);
-  if (text.length < 200) return { ok: false, error: "The page had almost no readable text." };
+  if (text.length < 120) return { ok: false, error: "The page had almost no readable text." };
   const hash = createHash("sha256").update(normaliseForCompare(text)).digest("hex");
   return { ok: true, text, hash };
 }

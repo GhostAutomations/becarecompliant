@@ -29,6 +29,17 @@ export const RECHECK_DAYS = 28;
 
 export async function syncLibrary(): Promise<{ error: string | null }> {
   const db = createServiceClient();
+  /* A source whose LINK changed is a different page, not a change to the same one: it starts
+     again and loads fresh, rather than waiting for approval as a "change". */
+  const { data: had } = await db.from("policy_sources").select("key, url");
+  const oldUrl = new Map(((had as Array<{ key: string; url: string }> | null) ?? []).map((r) => [r.key, r.url]));
+  const moved = SEED_SOURCES.filter((s) => oldUrl.has(s.key) && oldUrl.get(s.key) !== s.url).map((s) => s.key);
+  if (moved.length > 0) {
+    await db
+      .from("policy_sources")
+      .update({ current_text: null, current_hash: null, checked_at: null, approved_at: null, pending_text: null, pending_hash: null, pending_summary: null, pending_found_at: null, last_error: null })
+      .in("key", moved);
+  }
   const { error: sErr } = await db.from("policy_sources").upsert(
     SEED_SOURCES.map((s) => ({ key: s.key, publisher: s.publisher, title: s.title, url: s.url, regions: s.regions })),
     { onConflict: "key" },

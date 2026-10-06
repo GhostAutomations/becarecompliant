@@ -358,7 +358,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg9",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 9, Person-centred care",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-9-person-centred-care",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-9",
     "regions": [
       "england"
     ]
@@ -367,7 +367,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg11",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 11, Need for consent",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-11-need-consent",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-11",
     "regions": [
       "england"
     ]
@@ -376,7 +376,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg12",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 12, Safe care and treatment",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-12-safe-care-treatment",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-12",
     "regions": [
       "england"
     ]
@@ -385,7 +385,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg13",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 13, Safeguarding service users from abuse and improper treatment",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-13-safeguarding-service-users-abuse-improper",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-13",
     "regions": [
       "england"
     ]
@@ -394,7 +394,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg16",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 16, Receiving and acting on complaints",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-16-receiving-acting-complaints",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-16",
     "regions": [
       "england"
     ]
@@ -403,7 +403,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg17",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 17, Good governance",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-17-good-governance",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-17",
     "regions": [
       "england"
     ]
@@ -412,7 +412,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg18",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 18, Staffing",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-18-staffing",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-18",
     "regions": [
       "england"
     ]
@@ -421,7 +421,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg19",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 19, Fit and proper persons employed",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-19-fit-proper-persons-employed",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-19",
     "regions": [
       "england"
     ]
@@ -430,7 +430,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "cqc_reg20",
     "publisher": "Care Quality Commission",
     "title": "CQC guidance: Regulation 20, Duty of candour",
-    "url": "https://www.cqc.org.uk/guidance-providers/regulations/regulation-20-duty-candour",
+    "url": "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-20",
     "regions": [
       "england"
     ]
@@ -526,7 +526,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "acas_code",
     "publisher": "Acas",
     "title": "Acas Code of Practice on disciplinary and grievance procedures",
-    "url": "https://www.acas.org.uk/acas-code-of-practice-for-disciplinary-and-grievance-procedures",
+    "url": "https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures/html",
     "regions": [
       "wales",
       "england"
@@ -566,7 +566,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "scw_awif",
     "publisher": "Social Care Wales",
     "title": "All Wales Induction Framework for Health and Social Care",
-    "url": "https://socialcare.wales/learning-and-development/all-wales-induction-framework-for-health-and-social-care",
+    "url": "https://socialcare.wales/qualifications-funding/induction-frameworks/induction-for-health-and-social-care-awif",
     "regions": [
       "wales"
     ]
@@ -575,7 +575,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "scw_code",
     "publisher": "Social Care Wales",
     "title": "Code of Professional Practice for Social Care",
-    "url": "https://socialcare.wales/regulation/codes-of-professional-practice-and-guidance",
+    "url": "https://socialcare.wales/dealing-with-concerns/codes-of-practice-and-guidance/code-of-professional-practice-for-social-care-workers",
     "regions": [
       "wales"
     ]

@@ -36,7 +36,16 @@ function contentPart(html: string): string {
 }
 
 export function htmlToText(html: string): string {
-  let s = contentPart(html);
+  const part = textOf(contentPart(html));
+  /* Some sites keep the words outside <main> (or put an empty <main> round a menu): when the
+     chosen part says almost nothing, read the whole body instead. */
+  if (part.length >= 400) return part;
+  const body = textOf(html.match(/<body[\s\S]*?<\/body>/i)?.[0] ?? html);
+  return body.length > part.length ? body : part;
+}
+
+function textOf(fragment: string): string {
+  let s = fragment;
   for (const tag of DROP) {
     s = s.replace(new RegExp(`<${tag}\\b[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
   }
