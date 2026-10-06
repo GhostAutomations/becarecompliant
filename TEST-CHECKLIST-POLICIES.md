@@ -45,3 +45,5 @@ Bevan first, then Thistle and every company.
 - PH5 Too few credits: PASS (Bev, balance 2, refused with "uses 3 and you have 2", restored to 157).
 - PH7 To be completed: each [To be completed: ...] in a draft shows as its own field between the policy and Save it as; answers replace the text on save; saving with any left blank is refused and keeps what was typed.
 - PH8 Policy owner: Write with AI asks "Who owns this policy?" (required, defaults to you); the draft page shows it; approving sets it on the policy in the review register.
+- PH7, PH8 tested by Claude in Chrome on Bevan (Grievance): owner question showed set to Bev Admin; draft had 3 To be completed fields; saving with one blank refused, naming it, answers kept; filled and approved: no gaps left, answers in the text, Bev Admin named. PASS.
+- DEFECT found and fixed: AI policies were saved without their standard policy (topic_key), so the HR checklist did not tick and the owner was not set. createWrittenPolicy now saves topic_key. Grievance and Sickness absence repaired by hand.

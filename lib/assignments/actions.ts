@@ -755,10 +755,20 @@ export async function createWrittenPolicy(
     .eq("id", companyId)
     .maybeSingle();
 
+  /* Which standard policy this is, when written with AI: it is what ticks the Policies
+     checklist and lets the approval find the policy again to set its owner. A key that is not a
+     standard policy is dropped rather than refused. */
+  let topicKey: string | null = String(formData.get("topic_key") ?? "").trim() || null;
+  if (topicKey) {
+    const { data: t } = await supabase.from("policy_topics").select("key").eq("key", topicKey).maybeSingle();
+    if (!t) topicKey = null;
+  }
+
   const { data: policy, error } = await supabase
     .from("company_policies")
     .insert({
       company_id: companyId,
+      topic_key: topicKey,
       title,
       summary,
       source: "text",
