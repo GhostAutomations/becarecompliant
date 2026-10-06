@@ -77,13 +77,15 @@ export type PolicyDraft = {
   sources: Array<{ n: number; title: string; publisher: string; url: string; checkedOn: string }>;
   status: "draft" | "approved" | "discarded";
   created_at: string;
+  /** The regulator it was written for (ciw or cqc), so a Welsh draft is never mistaken for English. */
+  nation: string | null;
 };
 
 export async function getDraft(id: string, companyId: string): Promise<PolicyDraft | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("policy_drafts")
-    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at")
+    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -94,7 +96,7 @@ export async function listOpenDrafts(companyId: string): Promise<PolicyDraft[]> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("policy_drafts")
-    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at")
+    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation")
     .eq("company_id", companyId)
     .eq("status", "draft")
     .order("created_at", { ascending: false })

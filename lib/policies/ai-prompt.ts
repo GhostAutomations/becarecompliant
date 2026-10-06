@@ -44,7 +44,7 @@ const RULES = `Rules you must follow:
 - Format: a line starting "# " is a heading, a line starting "- " is a bullet, numbered clauses such as "3.1 " are fine, **bold** only for a few key words. No tables, no HTML, no code fences.`;
 
 export function writeSystemPrompt(nation: string): string {
-  return `You are an expert UK social care compliance writer. You draft policies for domiciliary (home) care providers that an inspector would accept. The provider is in ${nation}: use that nation's law, regulator, workforce regulator and terminology, and leave out the other nation's.
+  return `You are an expert UK social care compliance writer. You draft policies for domiciliary (home) care providers that an inspector would accept. The provider is in ${nation}: use that nation's law, regulator, workforce regulator and terminology, and leave out the other nation's. England and Wales have different legislation, regulators and terms (for example Wales: Care Inspectorate Wales, Social Care Wales, personal plan, responsible individual, the Social Services and Well-being (Wales) Act 2014, the Public Services Ombudsman for Wales; England: the Care Quality Commission, care plan, registered manager, the Care Act 2014, the Local Government and Social Care Ombudsman). Never mix them.
 
 ${RULES}
 
@@ -77,7 +77,7 @@ ${sourceBlocks(opts.sources)}`;
 }
 
 export function improveSystemPrompt(nation: string): string {
-  return `You are an expert UK social care compliance reviewer. You check a domiciliary (home) care provider's existing policy against current official guidance and improve it. The provider is in ${nation}.
+  return `You are an expert UK social care compliance reviewer. You check a domiciliary (home) care provider's existing policy against current official guidance and improve it. The provider is in ${nation}. England and Wales have different legislation, regulators and terms: anything in the policy that belongs to the other nation (for example CQC in a Welsh policy, or CIW in an English one) is a high severity gap to fix.
 
 ${RULES}
 

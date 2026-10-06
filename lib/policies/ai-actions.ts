@@ -37,6 +37,11 @@ import {
   type ImproveReview,
 } from "./ai-prompt";
 
+/* England and Wales are different law (Phil, 2026-10-06): a policy is only ever written for the
+   nation the company's regulator says, so with no regulator there is nothing safe to write. */
+const NO_REGULATOR =
+  "Your company's regulator is not set, so we cannot tell whether to write for Wales (CIW) or England (CQC). Ask Be Care Compliant support to set it.";
+
 const NO_LIBRARY =
   "The guidance library for this policy has not been loaded yet, so the AI has nothing checked to write from. Ask Be Care Compliant support.";
 
@@ -48,6 +53,7 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
   if (!topic) return { error: "Choose which policy to write." };
 
   const facts = await companyFacts(companyId);
+  if (!facts.regulator) return { error: NO_REGULATOR };
   const sources = await promptSources(topic, facts.regulator);
   if (sources.length === 0) return { error: NO_LIBRARY };
 
@@ -73,6 +79,7 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
       topic_key: topic.key,
       kind: "write",
       title,
+      nation: facts.regulator,
       answers: Object.fromEntries(answers.map((a, i) => [topic.questions[i].key, a.answer])),
       draft_text: r.ok.trim(),
       sources: meta,
@@ -155,6 +162,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
   }
 
   const facts = await companyFacts(companyId);
+  if (!facts.regulator) return { error: NO_REGULATOR };
   const sources = await promptSources(topic, facts.regulator);
   if (sources.length === 0) return { error: NO_LIBRARY };
 
@@ -178,6 +186,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
       topic_key: topic.key,
       kind: "improve",
       policy_id: policyId,
+      nation: facts.regulator,
       title,
       input_text: policyText,
       review,

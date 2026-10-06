@@ -36,6 +36,13 @@ export default async function PolicyDraftPage({ params }: { params: Promise<{ id
               ? "Read it through, fill in anything marked [To be completed], then approve it. Nobody sees it until you do."
               : "Here is what is missing or out of date, and suggested wording for each section. Choose what to keep, then approve."}
         </p>
+        {draft.nation ? (
+          <p className="mt-2">
+            <span className="pill pill-neutral">
+              Written for {draft.nation === "ciw" ? "Wales (Care Inspectorate Wales)" : "England (CQC)"}
+            </span>
+          </p>
+        ) : null}
         <p className="form-hint">
           AI drafts are a starting point written from official guidance, not legal advice. The registered manager or
           responsible individual should check it fits how your service really works before approving.
