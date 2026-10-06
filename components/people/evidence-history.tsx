@@ -61,8 +61,10 @@ export default function EvidenceHistory({ rows }: { rows: EvidenceRow[] }) {
 
   return (
     <div className="border-t border-white/10">
-      {/* Only worth a filter when there is more than one kind of thing to filter. */}
-      {options.length > 1 ? (
+      {/* Always shown when there is evidence (Phil, 2026-10-06: "where is the show dropdown
+          gone?"). It used to hide when everything sat under one heading, which made it vanish
+          from a record whose evidence is all Back office. */}
+      {options.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
           <div className="flex items-center gap-2">
             <label htmlFor="evidence-form" className="text-xs text-white/50">
