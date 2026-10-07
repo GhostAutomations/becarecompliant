@@ -83,6 +83,8 @@ export default function OutcomeInForm({
     f.set("answers", JSON.stringify(answersRef.current));
     // The absences ticked above as not counting, so the letter can say so.
     if (extrasRef.current.discount_note) f.set("discount_note", extrasRef.current.discount_note);
+    if (extrasRef.current.discount_dates) f.set("discount_dates", extrasRef.current.discount_dates);
+    if (extrasRef.current.discount_reason) f.set("discount_reason", extrasRef.current.discount_reason);
     return f;
   }
 

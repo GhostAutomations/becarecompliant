@@ -103,7 +103,13 @@ test("stage facts: why this stage, and what a further absence could lead to", ()
   assert.deepEqual(stageFacts({ stage: null, thresholds, windowWords: "6 months" }), []);
 });
 
-test("absences block lists each absence like the invitation", () => {
-  assert.equal(absencesBlock(["22nd September 2026: Childcare, 1 day"]), "The meeting covered the following absence:\n\u2022 22nd September 2026: Childcare, 1 day");
+test("absences block lists each absence like the invitation, discounted ones marked and explained", () => {
+  const a = { line: "22nd September 2026: Childcare, 1 day", startDate: "2026-09-22", when: "22nd September 2026" };
+  const b = { line: "3rd August 2026: Car, 1 day", startDate: "2026-08-03", when: "3rd August 2026" };
+  assert.equal(absencesBlock([a]), "The meeting covered the following absence:\n\u2022 22nd September 2026: Childcare, 1 day");
+  assert.equal(
+    absencesBlock([b, a], { dates: ["2026-08-03"], whens: ["3rd August 2026"], reason: "Agreed at the Stage 2 meeting held on 20/10/2026." }),
+    "The meeting covered the following 2 absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20/10/2026.",
+  );
   assert.equal(absencesBlock([]), "");
 });

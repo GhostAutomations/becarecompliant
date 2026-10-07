@@ -186,9 +186,24 @@ export function stageFacts(opts: {
   return out;
 }
 
-/** The absences block that opens the outcome, laid out like the invitation's list. */
-export function absencesBlock(lines: string[]): string {
-  if (lines.length === 0) return "";
-  const intro = lines.length === 1 ? "The meeting covered the following absence:" : `The meeting covered the following ${lines.length} absences:`;
-  return [intro, ...lines.map((l) => `\u2022 ${l}`)].join("\n");
+/** The absences block that opens the outcome, laid out like the invitation's list. An absence
+ *  discounted at this meeting is marked, and a sentence says so and why (Phil, 2026-10-07). */
+export function absencesBlock(
+  absences: Array<{ line: string; startDate: string; when: string }>,
+  /** Every absence ticked to discount, with its date as the letter writes it ("3rd August 2026"),
+   *  whether or not it is in this stage's list. */
+  discount?: { dates: string[]; whens: string[]; reason: string },
+): string {
+  if (absences.length === 0) return "";
+  const discounted = new Set(discount?.dates ?? []);
+  const intro =
+    absences.length === 1 ? "The meeting covered the following absence:" : `The meeting covered the following ${absences.length} absences:`;
+  const lines = absences.map((a) => `\u2022 ${a.line}${discounted.has(a.startDate) ? " (discounted at this meeting)" : ""}`);
+  const gone = discount?.whens ?? [];
+  const reason = (discount?.reason ?? "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
+  const sentence =
+    gone.length === 0
+      ? ""
+      : `${gone.length === 1 ? `The absence on ${gone[0]} was` : `The absences on ${gone.slice(0, -1).join(", ")} and ${gone[gone.length - 1]} were`} discounted at this meeting and no longer ${gone.length === 1 ? "counts" : "count"} towards your attendance${reason ? `: ${reason}.` : "."}`;
+  return [[intro, ...lines].join("\n"), sentence].filter(Boolean).join("\n\n");
 }

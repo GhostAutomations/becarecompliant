@@ -36,6 +36,7 @@ import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
 import {
   absenceLine,
   appealDays,
+  letterDate,
   buildOutcomeLetterDoc,
   letterBodyParagraphs,
   type OutcomeLetterDoc,
@@ -231,11 +232,18 @@ async function stageFactsFor(
  * wording with the AI's middle merged in, from the opening line to the appeal paragraph, without
  * Dear or the sign off (the layout adds those). This is what the manager edits, and what is sent.
  */
-async function fullLetterText(ctx: LetterCtx, middle: string): Promise<string> {
+async function fullLetterText(
+  ctx: LetterCtx,
+  middle: string,
+  discount?: { dates: string[]; whens: string[]; reason: string },
+): Promise<string> {
   const { wording, values, extras, config } = await letterSetup(ctx);
   // Each absence the meeting covered, listed like the invitation letter (Phil, 2026-10-07).
   const covered = discussedAbsences(extras.absences, ctx.meeting.stage, thresholdsOf(config));
-  const block = absencesBlock(covered.map(({ e }) => absenceLine(e)));
+  const block = absencesBlock(
+    covered.map(({ e }) => ({ line: absenceLine(e), startDate: e.start_date, when: letterDate(e.start_date) })),
+    discount,
+  );
   const withList = block ? `${block}\n\n${middle}` : middle;
   return joinLetterParagraphs(
     letterBodyParagraphs(letterParagraphs(wording.body, { ...values, outcome_body: withList }), ctx.employee.name),
@@ -632,7 +640,17 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
   if ("error" in result) return { error: result.error };
   const middle = cleanOutcomeBody(result.ok);
   if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
-  return { body: await fullLetterText(loaded.ctx, middle) };
+  // Absences ticked to discount in the form (Phil, 2026-10-07): marked in the list and explained.
+  const dates = String(formData.get("discount_dates") ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const reason = clipText(formData.get("discount_reason"), 500);
+  return { body: await fullLetterText(
+      loaded.ctx,
+      middle,
+      dates.length ? { dates, whens: [...dates].sort().map(letterDate), reason } : undefined,
+    ) };
 }
 
 /** The real PDF of the whole letter, for the preview beside the words. Saves and sends nothing. */

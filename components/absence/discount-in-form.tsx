@@ -65,6 +65,8 @@ export default function DiscountInForm({
 
   useEffect(() => {
     setExtra("discount_ids", chosen.map((a) => a.id).join(","));
+    // Their dates, so the outcome letter can say which were discounted and why.
+    setExtra("discount_dates", chosen.map((a) => a.start_date).join(","));
     setExtra("discount_reason", chosen.length ? shownReason : "");
     setExtra(
       "discount_note",
