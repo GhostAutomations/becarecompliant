@@ -149,3 +149,21 @@ test("a warning date left behind is not used when the warning is None", () => {
   const withWarning = outcomeFacts({ warning_issued: "Written warning", warning_live_until: "2027-02-17" });
   assert.ok(withWarning.some((f) => f.includes("2027-02-17")));
 });
+
+test("the reason for no further action goes to the letter only with that outcome", () => {
+  assert.ok(
+    outcomeFacts({ meeting_outcome: "No further action", nfa_reason: "Emergency with a dependant" }).some((f) =>
+      f.startsWith("Reason for no further action: Emergency"),
+    ),
+  );
+  assert.ok(!outcomeFacts({ meeting_outcome: "Formal warning issued", nfa_reason: "left over" }).some((f) => f.includes("left over")));
+});
+
+test("the reason for no further action goes to the letter only with that outcome", () => {
+  assert.ok(
+    outcomeFacts({ meeting_outcome: "No further action", nfa_reason: "Emergency with a dependant" }).some((f) =>
+      f.startsWith("Reason for no further action: Emergency"),
+    ),
+  );
+  assert.ok(!outcomeFacts({ meeting_outcome: "Formal warning issued", nfa_reason: "left over" }).some((f) => f.includes("left over")));
+});

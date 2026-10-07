@@ -33,7 +33,9 @@ export const OUTCOME_SYSTEM = [
   "2. Support and adjustments agreed, and any monitoring period, in full.",
   "3. The outcome and the warning in full: what was decided, the warning given and why (their absences",
   "reached the stage's trigger, as the record states), how long the warning stays live (its live",
-  "until date, if recorded), and the review date, if recorded.",
+  "until date, if recorded), and the review date, if recorded. When the outcome is no further action,",
+  "explain why using the record's 'Reason for no further action', in plain words, as the manager's",
+  "decision.",
   "4. What happens next: use the 'If attendance does not improve' line from the record, word for word",
   "in meaning, so they know what a further absence could lead to. Leave this out only if the record",
   "has no such line.",
@@ -64,6 +66,10 @@ export function outcomeFacts(answers: Record<string, unknown> | null | undefined
   add("Support and adjustments discussed", "support_adjustments_discussed");
   add("Questions asked and answers", "meeting_questions", 1500);
   add("Outcome of the meeting", "meeting_outcome", 80);
+  // Why no further action was taken (Phil, 2026-10-08): only with that outcome.
+  if (clipText(answers["meeting_outcome"], 80) === "No further action") add("Reason for no further action", "nfa_reason");
+  // Why no further action was taken (Phil, 2026-10-08): only with that outcome.
+  if (clipText(answers["meeting_outcome"], 80) === "No further action") add("Reason for no further action", "nfa_reason");
   add("Warning or dismissal", "warning_issued", 40);
   // Only with a real warning: the date box hides when the warning is None, but an earlier answer
   // can still be in the form (Phil, 2026-10-07: an NFA letter said a stage "remains live until").
