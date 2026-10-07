@@ -7,6 +7,7 @@ import {
   absencesBlock,
   joinLetterParagraphs,
   letterParagraphs,
+  stageAfterMeeting,
   stageFacts,
   normaliseApprovedBody,
   outcomeFacts,
@@ -112,4 +113,32 @@ test("absences block lists each absence like the invitation, discounted ones mar
     "The meeting covered the following 2 absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20/10/2026.",
   );
   assert.equal(absencesBlock([]), "");
+});
+
+test("stage after a meeting: No further action with absences discounted stays where they were", () => {
+  const thresholds = [
+    { stage: 1, occasions: 3 },
+    { stage: 2, occasions: 4 },
+    { stage: 3, occasions: 5 },
+  ];
+  // Stage 2 meeting, one of four discounted, NFA: back to three, Stage 1 held before: stays Stage 1.
+  assert.equal(stageAfterMeeting({ stage: 2, outcome: "No further action", remaining: 3, priorHeld: 1, thresholds }), 1);
+  // A warning keeps the meeting's stage whatever was discounted.
+  assert.equal(stageAfterMeeting({ stage: 2, outcome: "Formal warning issued", remaining: 3, priorHeld: 1, thresholds }), 2);
+  // NFA but still at the trigger: the meeting's stage.
+  assert.equal(stageAfterMeeting({ stage: 2, outcome: "No further action", remaining: 4, priorHeld: 1, thresholds }), 2);
+  // NFA below every trigger with no earlier meeting: no stage.
+  assert.equal(stageAfterMeeting({ stage: 1, outcome: "No further action", remaining: 2, priorHeld: null, thresholds }), null);
+});
+
+test("what happens next follows the stage after the meeting", () => {
+  const thresholds = [
+    { stage: 1, occasions: 3, action: "Verbal warning" },
+    { stage: 2, occasions: 4, action: "Written warning" },
+    { stage: 3, occasions: 5, action: "Final written warning" },
+  ];
+  const f = stageFacts({ stage: 2, thresholds, windowWords: "6 months", stageAfter: 1, label: (n) => `Stage ${n} disciplinary hearing` });
+  assert.ok(f.some((x) => x.includes("REMAINS AT STAGE 1")));
+  assert.ok(f.some((x) => x.includes("may lead to a Stage 2 disciplinary hearing, which could result in up to and including a written warning")));
+  assert.ok(!f.some((x) => x.includes("Stage 3")));
 });

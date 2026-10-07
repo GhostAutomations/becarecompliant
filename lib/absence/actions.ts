@@ -32,7 +32,8 @@ import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
 import { ukDate } from "@/lib/dates";
-import { canDiscountAbsences, discountReasonProblem } from "@/lib/absence/discount";
+import { canDiscountAbsences, discountReasonProblem, windowStartIso } from "@/lib/absence/discount";
+import type { StageThreshold } from "@/lib/absence/logic";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
@@ -50,7 +51,7 @@ import type { Answers } from "@/lib/form-schema";
 import { toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { availableStages, stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
-import { normaliseApprovedBody } from "@/lib/absence/outcome-letter";
+import { normaliseApprovedBody, stageAfterMeeting } from "@/lib/absence/outcome-letter";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -352,6 +353,40 @@ export async function recordAbsenceMeeting(
     }
   }
 
+  /* THE STAGE THEY ARE ON AFTERWARDS (Phil, 2026-10-07: "follow the letter"). A meeting that ends
+     with No further action because the absences it discounts take them below its trigger leaves
+     them at their earlier stage, so the next meeting due is that stage's next one, not this one's.
+     Stored beside the meeting's own stage, which stays what was held. */
+  let stageAfter: number | null = validStage;
+  if (validStage) {
+    const config = await getAbsenceConfig(person.company_id as string);
+    if (config.method === "stages") {
+      const windowStart = windowStartIso(formatCivilDate(todayInLondon()), config.window);
+      const [{ data: summary }, { data: earlier }] = await Promise.all([
+        supabase.from("person_absence_summary").select("occasions").eq("person_id", personId).maybeSingle(),
+        supabase
+          .from("absence_meetings")
+          .select("stage, stage_after")
+          .eq("person_id", personId)
+          .not("evidence_id", "is", null)
+          .gte("meeting_date", windowStart),
+      ]);
+      const prior = ((earlier ?? []) as Array<{ stage: number | null; stage_after: number | null }>).map(
+        (m) => m.stage_after ?? m.stage ?? 0,
+      );
+      stageAfter = stageAfterMeeting({
+        stage: validStage,
+        outcome: String(answers["meeting_outcome"] ?? ""),
+        remaining: Math.max(0, ((summary?.occasions as number | null) ?? 0) - toDiscount.length),
+        priorHeld: prior.length ? Math.max(...prior) : null,
+        thresholds: (config.thresholds as StageThreshold[])
+          .filter((t) => typeof t.occasions === "number")
+          .map((t) => ({ stage: Number(t.stage), occasions: Number(t.occasions) })),
+      });
+    }
+  }
+  const stageAfterColumn = stageAfter === validStage ? null : (stageAfter ?? 0);
+
   const result = await submitEvidence({
     formVersionId: form.versionId,
     branchId: (person.branch_id as string | null) ?? null,
@@ -371,6 +406,7 @@ export async function recordAbsenceMeeting(
         evidence_id: result.evidenceId,
         meeting_date: meetingDate,
         stage: validStage,
+        stage_after: stageAfterColumn,
         recorded_by: user.id,
       })
       .eq("id", openBooking.id);
@@ -387,6 +423,7 @@ export async function recordAbsenceMeeting(
         branch_id: (person.branch_id as string | null) ?? null,
         person_id: personId,
         stage: validStage,
+        stage_after: stageAfterColumn,
         meeting_date: meetingDate,
         evidence_id: result.evidenceId,
         recorded_by: user.id,
@@ -611,17 +648,18 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
   // booked in (Phil), so that stage can be booked again. A "no further
   // action" outcome resetting the cycle arrives with meeting outcomes
   // (Additions).
-  const { data: maxStageRow } = await supabase
+  const { data: stageRows } = await supabase
     .from("absence_meetings")
-    .select("stage")
+    .select("stage, stage_after")
     .eq("person_id", personId)
     .not("stage", "is", null)
     // held (has evidence), unanswered, or accepted count; declined opens do not
-    .or("evidence_id.not.is.null,response.is.null,response.eq.accepted")
-    .order("stage", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const maxStage = (maxStageRow?.stage as number | null) ?? 0;
+    .or("evidence_id.not.is.null,response.is.null,response.eq.accepted");
+  // A meeting that left them at an earlier stage counts as that stage (0423, Phil 2026-10-07).
+  const maxStage = ((stageRows ?? []) as Array<{ stage: number | null; stage_after: number | null }>).reduce(
+    (m, r) => Math.max(m, r.stage_after ?? r.stage ?? 0),
+    0,
+  );
   if (stage <= maxStage) {
     return {
       error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,

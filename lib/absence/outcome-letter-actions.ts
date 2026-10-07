@@ -43,6 +43,7 @@ import {
 } from "@/lib/absence/invitation-letter";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
 import { windowLabel } from "@/lib/absence/window";
+import { windowStartIso } from "@/lib/absence/discount";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   OUTCOME_SYSTEM,
@@ -52,6 +53,8 @@ import {
   joinLetterParagraphs,
   OUTCOME_BODY_LIMIT,
   absencesBlock,
+  isNoFurtherAction,
+  stageAfterMeeting,
   stageFacts,
   letterParagraphs,
   normaliseApprovedBody,
@@ -217,6 +220,7 @@ async function stageFactsFor(
   config: Awaited<ReturnType<typeof getAbsenceConfig>>,
   stage: number | null,
   companyId: string,
+  stageAfter?: number | null,
 ): Promise<string[]> {
   const meetingName = await companyMeetingName(companyId);
   return stageFacts({
@@ -224,6 +228,42 @@ async function stageFactsFor(
     thresholds: thresholdsOf(config),
     windowWords: windowLabel(config.window),
     label: (n) => stageLabelFor(n, meetingName),
+    stageAfter,
+  });
+}
+
+/** The highest stage held at an earlier recorded meeting in the rolling window (not this one). */
+async function priorHeldStage(ctx: LetterCtx, excludeMeetingId: string | null): Promise<number | null> {
+  const config = await getAbsenceConfig(ctx.companyId);
+  const windowStart = windowStartIso(formatCivilDate(todayInLondon()), config.window);
+  let q = ctx.supabase
+    .from("absence_meetings")
+    .select("id, stage, stage_after")
+    .eq("person_id", ctx.personId)
+    .not("evidence_id", "is", null)
+    .gte("meeting_date", windowStart);
+  if (excludeMeetingId) q = q.neq("id", excludeMeetingId);
+  const { data } = await q;
+  const stages = ((data ?? []) as Array<{ stage: number | null; stage_after: number | null }>).map(
+    (m) => m.stage_after ?? m.stage ?? 0,
+  );
+  return stages.length ? Math.max(...stages) || null : null;
+}
+
+/** The stage they are on once this meeting is over, given the discounts it makes (Phil, 2026-10-07). */
+async function stageAfterFor(
+  ctx: LetterCtx,
+  discountDates: string[],
+  excludeMeetingId: string | null,
+): Promise<number | null> {
+  const { extras, config } = await letterSetup(ctx);
+  const gone = new Set(discountDates);
+  return stageAfterMeeting({
+    stage: ctx.meeting.stage,
+    outcome: typeof ctx.answers.meeting_outcome === "string" ? ctx.answers.meeting_outcome : "",
+    remaining: extras.absences.filter((a) => !gone.has(a.start_date)).length,
+    priorHeld: await priorHeldStage(ctx, excludeMeetingId),
+    thresholds: thresholdsOf(config),
   });
 }
 
@@ -255,9 +295,12 @@ async function fullLetterText(
     discount,
   );
   const withList = block ? `${block}\n\n${middle}` : middle;
-  return joinLetterParagraphs(
-    letterBodyParagraphs(letterParagraphs(wording.body, { ...values, outcome_body: withList }), ctx.employee.name),
-  ).slice(0, OUTCOME_BODY_LIMIT);
+  // No further action: no right of appeal paragraph (Phil, 2026-10-07).
+  const nfa = isNoFurtherAction(ctx.answers.meeting_outcome);
+  const paragraphs = letterParagraphs(wording.body, { ...values, outcome_body: withList }).filter(
+    (p) => !nfa || !/right to appeal|appeal will be heard/i.test(p),
+  );
+  return joinLetterParagraphs(letterBodyParagraphs(paragraphs, ctx.employee.name)).slice(0, OUTCOME_BODY_LIMIT);
 }
 
 /** Build the whole letter from the text the manager approved: subject, email and the PDF's layout. */
@@ -329,7 +372,7 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
       facts: [
         ...(await coveredFact(ctx)),
         ...outcomeFacts(ctx.answers),
-        ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId)),
+        ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId, await stageAfterFor(ctx, [], ctx.meeting.id))),
       ].map((f) =>
         redactName(f, ctx.employee.name),
       ),
@@ -642,6 +685,13 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
   }
   const config = await getAbsenceConfig(profile.company_id);
   const stage = loaded.ctx.meeting.stage;
+  // Absences ticked to discount in the form (Phil, 2026-10-07): marked in the list and explained,
+  // and they decide the stage the employee is on after the meeting.
+  const dates = String(formData.get("discount_dates") ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const stageAfter = await stageAfterFor(loaded.ctx, dates, null);
   const result = await runAi({
     companyId: profile.company_id,
     feature: "absence_outcome_letter",
@@ -650,7 +700,11 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
       stage,
       stageAction: stageActionFor(config, stage),
       // The employee's name never goes to the AI: reasons and notes are often written with it.
-      facts: [...(await coveredFact(loaded.ctx)), ...facts, ...(await stageFactsFor(config, stage, profile.company_id))].map(
+      facts: [
+        ...(await coveredFact(loaded.ctx)),
+        ...facts,
+        ...(await stageFactsFor(config, stage, profile.company_id, stageAfter)),
+      ].map(
         (f) => redactName(f, loaded.ctx.employee.name),
       ),
     }),
@@ -662,11 +716,6 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
   if ("error" in result) return { error: result.error };
   const middle = cleanOutcomeBody(result.ok);
   if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
-  // Absences ticked to discount in the form (Phil, 2026-10-07): marked in the list and explained.
-  const dates = String(formData.get("discount_dates") ?? "")
-    .split(",")
-    .map((d) => d.trim())
-    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
   const reason = clipText(formData.get("discount_reason"), 500);
   return { body: await fullLetterText(
       loaded.ctx,

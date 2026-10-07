@@ -173,6 +173,9 @@ export function stageFacts(opts: {
   windowWords: string;
   /** "Stage 3 disciplinary hearing": the company's own name for the meetings. */
   label?: (stage: number) => string;
+  /** The stage they are on once this meeting is over (stageAfterMeeting). Null: no stage. When it
+   *  differs from `stage`, the letter says so, and "what happens next" follows it. */
+  stageAfter?: number | null;
 }): string[] {
   const label = opts.label ?? ((n: number) => `Stage ${n} meeting`);
   if (!opts.stage) return [];
@@ -181,10 +184,21 @@ export function stageFacts(opts: {
   if (at?.occasions) {
     out.push(`Why this stage: Stage ${opts.stage} is reached at ${at.occasions} absences within ${opts.windowWords}`);
   }
-  const next = opts.thresholds.find((t) => t.stage === opts.stage! + 1);
+  const after = opts.stageAfter === undefined ? opts.stage : opts.stageAfter;
+  if (after !== opts.stage) {
+    out.push(
+      after
+        ? `Stage after this meeting: with the absences discounted at this meeting, the record is below the Stage ${opts.stage} trigger, so the employee REMAINS AT STAGE ${after}`
+        : `Stage after this meeting: with the absences discounted at this meeting, the record is below every trigger, so the employee is not at any stage`,
+    );
+  }
+  // What happens next follows the stage they are on AFTER this meeting (Phil, 2026-10-07: "you
+  // remain at Stage 1" then "may lead to a Stage 3" was wrong).
+  const atAfter = opts.thresholds.find((t) => t.stage === (after ?? 0));
+  const next = opts.thresholds.find((t) => t.stage === (after ?? 0) + 1);
   if (next?.occasions) {
     out.push(
-      `If attendance does not improve: ${next.occasions === (at?.occasions ?? 0) + 1 ? "a further absence" : `reaching ${next.occasions} absences within ${opts.windowWords}`} may lead to a ${label(next.stage)}${next.action ? `, which could result in up to and including a ${next.action.toLowerCase()}` : ""}`,
+      `If attendance does not improve: ${next.occasions === (atAfter?.occasions ?? 0) + 1 ? "a further absence" : `reaching ${next.occasions} absences within ${opts.windowWords}`} may lead to a ${label(next.stage)}${next.action ? `, which could result in up to and including a ${next.action.toLowerCase()}` : ""}`,
     );
   }
   return out;
@@ -210,4 +224,31 @@ export function absencesBlock(
       ? ""
       : `${gone.length === 1 ? `The absence on ${gone[0]} was` : `The absences on ${gone.slice(0, -1).join(", ")} and ${gone[gone.length - 1]} were`} discounted at this meeting and no longer ${gone.length === 1 ? "counts" : "count"} towards your attendance${reason ? `: ${reason}.` : "."}`;
   return [[intro, ...lines].join("\n"), sentence].filter(Boolean).join("\n\n");
+}
+
+/**
+ * The stage someone is on once a meeting is over (Phil, 2026-10-07). A meeting with an outcome
+ * leaves them at its stage. One that ends with No further action because absences were discounted
+ * and the rest no longer reach its trigger leaves them where they were: the stage their remaining
+ * absences reach, or the last stage they actually had, whichever is higher.
+ */
+export function stageAfterMeeting(o: {
+  stage: number | null;
+  outcome: string;
+  /** Absences that still count once this meeting's discounts are applied. */
+  remaining: number;
+  /** The highest stage held at an earlier meeting in the window (not this one). */
+  priorHeld: number | null;
+  thresholds: Array<{ stage: number; occasions: number }>;
+}): number | null {
+  if (!o.stage) return null;
+  if (o.outcome.trim() !== "No further action") return o.stage;
+  const reached = o.thresholds.filter((t) => t.occasions <= o.remaining).reduce((m, t) => Math.max(m, t.stage), 0);
+  if (reached >= o.stage) return o.stage;
+  return Math.max(reached, o.priorHeld ?? 0) || null;
+}
+
+/** No further action: no right of appeal paragraph (Phil, 2026-10-07). */
+export function isNoFurtherAction(outcome: unknown): boolean {
+  return typeof outcome === "string" && outcome.trim() === "No further action";
 }
