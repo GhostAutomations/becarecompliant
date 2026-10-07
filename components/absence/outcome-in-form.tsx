@@ -5,7 +5,8 @@
  *
  * Once the manager has filled in the meeting, Generate outcome at the bottom of the form writes the
  * outcome letter from what is on screen. The words show on the left to edit (a blank line between
- * paragraphs, Enter for extra space), and the real PDF of the whole letter on the right, redrawn a
+ * paragraphs, Enter for extra space), and the real PDF of the whole letter on the right (drawn with
+ * pdf.js), redrawn a
  * second after they stop typing. On a phone the PDF sits under the words.
  *
  * Nothing is saved here. The words go with Save meeting as the meeting's draft letter, and the
@@ -16,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Answers } from "@/lib/form-schema";
 import { draftOutcomeFromForm, previewOutcomePdfFromForm } from "@/lib/absence/outcome-letter-actions";
 import { AiIcon } from "@/components/ai-icon";
+import PolicyReader from "@/components/staff/policy-reader";
 
 type Ctx = {
   answers: Answers;
@@ -188,11 +190,11 @@ export default function OutcomeInForm({
                 </span>
               </div>
               {pdfUrl ? (
-                <iframe
-                  title="Outcome letter PDF preview"
-                  src={pdfUrl}
-                  className="h-[560px] w-full rounded-lg border border-white/10 bg-white"
-                />
+                /* Drawn page by page with pdf.js, the same reader policies use: a PDF in a frame is
+                   blocked by the site's no framing rule, and an iPhone only shows its first page. */
+                <div className="h-[560px] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                  <PolicyReader key={pdfUrl} url={pdfUrl} onRendered={() => {}} onFailed={() => {}} />
+                </div>
               ) : (
                 <div className="flex h-[560px] w-full items-center justify-center rounded-lg border border-white/10 text-sm text-white/50">
                   {pdfError ?? "Preparing the letter…"}

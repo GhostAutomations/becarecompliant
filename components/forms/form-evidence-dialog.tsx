@@ -31,6 +31,14 @@ import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { focusFirstError } from "@/components/forms/focus-first-error";
 import { dialogDraftKey, mergeDraft } from "@/lib/forms/draft-key";
+
+/** The held copy with the fresh preset keys put back on top. */
+function withFresh(merged: Answers | undefined, presets: Answers | undefined, keys: string[] | undefined): Answers | undefined {
+  if (!merged || !presets || !keys?.length) return merged;
+  const out = { ...merged };
+  for (const k of keys) if (k in presets) out[k] = presets[k];
+  return out;
+}
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import {
   IDLE_STATE,
@@ -63,6 +71,7 @@ export default function FormEvidenceDialog({
   questionsNote,
   questionsFooter,
   bottomPanel,
+  freshPresets,
 }: {
   title: string;
   schema: FormSchema;
@@ -103,6 +112,10 @@ export default function FormEvidenceDialog({
    *  cannot be schema fields, because the server validates every answer against the
    *  stored published version (see lib/forms.ts). Any form can use this: give it a
    *  long_text field to land in and return the payload. */
+  /** Preset keys worked out fresh from the record each time (e.g. the absences a meeting
+   *  discusses). A part-finished copy held from earlier never overrides these, so they are never
+   *  out of date. */
+  freshPresets?: string[];
   /** A panel under the form, above Save, e.g. the absence meeting's Generate outcome. It sees the
    *  answers as they will be saved, can post extra fields with the save, and can widen the box. */
   bottomPanel?: (ctx: {
@@ -518,7 +531,10 @@ export default function FormEvidenceDialog({
                 <FormRenderer
                   key={`${formKey}:${held.version}`}
                   schema={effectiveSchema}
-                  defaultValue={draftDefaults ?? mergeDraft(presetAnswers, held.restored ?? undefined)}
+                  defaultValue={
+                    draftDefaults ??
+                    withFresh(mergeDraft(presetAnswers, held.restored ?? undefined), presetAnswers, freshPresets)
+                  }
                   errors={errors}
                   onChange={(next) => {
                     setAnswers(next);

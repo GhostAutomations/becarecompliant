@@ -277,7 +277,17 @@ export default function AbsenceView({
     const presets: Record<string, string> = {
       purpose_of_meeting:
         "To discuss the employee's attendance record, review absence history, understand any underlying reasons for absence, and agree any appropriate actions and support measures.",
-      current_absence_level: `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period`,
+      // Names the stage and which absences it covers (Phil, 2026-10-07), so the count above and the
+      // dates below plainly match: a Thistle Stage 2 covers only Absence 4.
+      current_absence_level: `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period.${
+        bookedStage && discussed.length > 0
+          ? ` Stage ${bookedStage} covers ${
+              discussed.length === 1
+                ? `absence ${discussed[0].n}`
+                : `absences ${discussed[0].n} to ${discussed[discussed.length - 1].n}`
+            }.`
+          : ""
+      }`,
       dates_of_absence_discussed: dates,
     };
     if (earliest) {
@@ -549,6 +559,7 @@ export default function AbsenceView({
                               );
                             }}
                             presetAnswers={mf.presets}
+                            freshPresets={["current_absence_level", "dates_of_absence_discussed"]}
                             hideFields={["name"]}
                             onSaved={(saved) => {
                               // Discounting is in the form now (Phil, 2026-10-07), so the save goes
