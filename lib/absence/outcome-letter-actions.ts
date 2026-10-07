@@ -31,9 +31,17 @@ import { sendEmail } from "@/lib/email/resend";
 import { claimNotification, releaseNotification, settleNotification } from "@/lib/notifications/log";
 import { outcomeLetterPath, sha256Hex, uploadOutcomeLetter } from "@/lib/evidence/storage";
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
-import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
+import { companyMeetingName, loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
-import { appealDays, buildOutcomeLetterDoc, letterBodyParagraphs, type OutcomeLetterDoc } from "@/lib/absence/invitation-letter";
+import {
+  absenceLine,
+  appealDays,
+  buildOutcomeLetterDoc,
+  letterBodyParagraphs,
+  type OutcomeLetterDoc,
+} from "@/lib/absence/invitation-letter";
+import { discussedAbsences } from "@/lib/absence/meeting-questions";
+import { windowLabel } from "@/lib/absence/window";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   OUTCOME_SYSTEM,
@@ -42,6 +50,8 @@ import {
   clipText,
   joinLetterParagraphs,
   OUTCOME_BODY_LIMIT,
+  absencesBlock,
+  stageFacts,
   letterParagraphs,
   normaliseApprovedBody,
   outcomeFacts,
@@ -190,7 +200,30 @@ async function letterSetup(ctx: LetterCtx) {
     appeal_days: appealDays(ctx.answers.appeal_days),
     appeal_manager: appealBy || "a manager",
   };
-  return { wording, extras, values, stageLabel, todayIso };
+  return { wording, extras, config, values, stageLabel, todayIso };
+}
+
+function thresholdsOf(config: Awaited<ReturnType<typeof getAbsenceConfig>>) {
+  return config.method === "stages"
+    ? (config.thresholds as Array<{ stage: number | string; occasions?: number | null; action?: string | null }>)
+        .filter((t) => typeof t.occasions === "number")
+        .map((t) => ({ stage: Number(t.stage), occasions: Number(t.occasions), action: t.action ?? null }))
+    : [];
+}
+
+/** Why this stage and what comes next, for the AI to write from. */
+async function stageFactsFor(
+  config: Awaited<ReturnType<typeof getAbsenceConfig>>,
+  stage: number | null,
+  companyId: string,
+): Promise<string[]> {
+  const meetingName = await companyMeetingName(companyId);
+  return stageFacts({
+    stage,
+    thresholds: thresholdsOf(config),
+    windowWords: windowLabel(config.window),
+    label: (n) => stageLabelFor(n, meetingName),
+  });
 }
 
 /**
@@ -199,9 +232,13 @@ async function letterSetup(ctx: LetterCtx) {
  * Dear or the sign off (the layout adds those). This is what the manager edits, and what is sent.
  */
 async function fullLetterText(ctx: LetterCtx, middle: string): Promise<string> {
-  const { wording, values } = await letterSetup(ctx);
+  const { wording, values, extras, config } = await letterSetup(ctx);
+  // Each absence the meeting covered, listed like the invitation letter (Phil, 2026-10-07).
+  const covered = discussedAbsences(extras.absences, ctx.meeting.stage, thresholdsOf(config));
+  const block = absencesBlock(covered.map(({ e }) => absenceLine(e)));
+  const withList = block ? `${block}\n\n${middle}` : middle;
   return joinLetterParagraphs(
-    letterBodyParagraphs(letterParagraphs(wording.body, { ...values, outcome_body: middle }), ctx.employee.name),
+    letterBodyParagraphs(letterParagraphs(wording.body, { ...values, outcome_body: withList }), ctx.employee.name),
   ).slice(0, OUTCOME_BODY_LIMIT);
 }
 
@@ -271,7 +308,9 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
     prompt: buildOutcomePrompt({
       stage: ctx.meeting.stage,
       stageAction: stageActionFor(config, ctx.meeting.stage),
-      facts: outcomeFacts(ctx.answers).map((f) => redactName(f, ctx.employee.name)),
+      facts: [...outcomeFacts(ctx.answers), ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId))].map((f) =>
+        redactName(f, ctx.employee.name),
+      ),
     }),
     maxTokens: 1200,
   });
@@ -586,7 +625,7 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
       stage,
       stageAction: stageActionFor(config, stage),
       // The employee's name never goes to the AI: reasons and notes are often written with it.
-      facts: facts.map((f) => redactName(f, loaded.ctx.employee.name)),
+      facts: [...facts, ...(await stageFactsFor(config, stage, profile.company_id))].map((f) => redactName(f, loaded.ctx.employee.name)),
     }),
     maxTokens: 1200,
   });

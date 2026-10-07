@@ -4,8 +4,10 @@ import {
   OUTCOME_SYSTEM,
   buildOutcomePrompt,
   cleanOutcomeBody,
+  absencesBlock,
   joinLetterParagraphs,
   letterParagraphs,
+  stageFacts,
   normaliseApprovedBody,
   outcomeFacts,
   slashDate,
@@ -84,4 +86,24 @@ test("joinLetterParagraphs is the reverse of letterParagraphs", () => {
   for (const text of ["A.", "A.\n\nB.", "A.\n\n\nB.", "A.\nline\n\n\n\nB.\n\nC."]) {
     assert.equal(joinLetterParagraphs(letterParagraphs(text, {})), text);
   }
+});
+
+test("stage facts: why this stage, and what a further absence could lead to", () => {
+  const thresholds = [
+    { stage: 1, occasions: 3, action: "Verbal warning" },
+    { stage: 2, occasions: 4, action: "Written warning" },
+    { stage: 3, occasions: 5, action: "Final written warning" },
+    { stage: 4, occasions: 6, action: "Dismissal" },
+  ];
+  assert.deepEqual(stageFacts({ stage: 2, thresholds, windowWords: "6 months" }), [
+    "Why this stage: Stage 2 is reached at 4 absences within 6 months",
+    "If attendance does not improve: a further absence may lead to a Stage 3 meeting, which could result in up to and including a final written warning",
+  ]);
+  assert.equal(stageFacts({ stage: 4, thresholds, windowWords: "6 months" }).length, 1);
+  assert.deepEqual(stageFacts({ stage: null, thresholds, windowWords: "6 months" }), []);
+});
+
+test("absences block lists each absence like the invitation", () => {
+  assert.equal(absencesBlock(["22nd September 2026: Childcare, 1 day"]), "The meeting covered the following absence:\n\u2022 22nd September 2026: Childcare, 1 day");
+  assert.equal(absencesBlock([]), "");
 });

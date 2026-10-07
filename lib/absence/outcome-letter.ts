@@ -19,11 +19,21 @@ export const OUTCOME_SYSTEM = [
   "Never add a fact, a date, a target or a decision that is not in the record, and never change the",
   "outcome or the warning that was recorded. Write to the employee as \"you\", in plain, calm, respectful",
   "British English. No dashes. No names.",
-  "Write two to five short paragraphs, as plain text with a blank line between paragraphs: what the",
-  "meeting covered (the absences discussed and the explanation given, briefly), any support or",
-  "adjustments agreed, the outcome, and when a warning was given, what it is and until when it stays",
-  "live, then any targets and the review date. Where the record says nothing about one of these, leave",
-  "it out rather than guess.",
+  "The letter must be DETAILED (Phil, 2026-10-07: a short summary is not enough for an employment",
+  "record). Write four to seven paragraphs, as plain text with a blank line between paragraphs, in",
+  "this order:",
+  "1. What was discussed: take each absence the meeting covered in turn and say what the employee",
+  "explained about it and anything they confirmed (for example that a problem is now resolved), using",
+  "their answers to the questions asked. The letter already lists the absences with their dates above",
+  "your text, so refer to them by date and reason rather than listing them again.",
+  "2. Support and adjustments agreed, and any monitoring period, in full.",
+  "3. The outcome and the warning in full: what was decided, the warning given and why (their absences",
+  "reached the stage's trigger, as the record states), how long the warning stays live (its live",
+  "until date, if recorded), and the review date, if recorded.",
+  "4. What happens next: use the 'If attendance does not improve' line from the record, word for word",
+  "in meaning, so they know what a further absence could lead to. Leave this out only if the record",
+  "has no such line.",
+  "Where the record says nothing about one of these, leave it out rather than guess.",
   "Do NOT write a greeting, a sign off, a subject line, anything about the right of appeal, or any",
   "heading: the company's own wording around your text already has those. No markdown, no bullet points.",
 ].join(" ");
@@ -147,4 +157,38 @@ export function joinLetterParagraphs(paragraphs: string[]): string {
     spaces = 0;
   }
   return out;
+}
+
+/**
+ * Facts about the stage for the letter (Phil, 2026-10-07): why this stage was reached, and what the
+ * next one could lead to, so the letter can say "what happens next". From Settings, Absence.
+ */
+export function stageFacts(opts: {
+  stage: number | null;
+  thresholds: Array<{ stage: number; occasions: number; action?: string | null }>;
+  windowWords: string;
+  /** "Stage 3 disciplinary hearing": the company's own name for the meetings. */
+  label?: (stage: number) => string;
+}): string[] {
+  const label = opts.label ?? ((n: number) => `Stage ${n} meeting`);
+  if (!opts.stage) return [];
+  const out: string[] = [];
+  const at = opts.thresholds.find((t) => t.stage === opts.stage);
+  if (at?.occasions) {
+    out.push(`Why this stage: Stage ${opts.stage} is reached at ${at.occasions} absences within ${opts.windowWords}`);
+  }
+  const next = opts.thresholds.find((t) => t.stage === opts.stage! + 1);
+  if (next?.occasions) {
+    out.push(
+      `If attendance does not improve: ${next.occasions === (at?.occasions ?? 0) + 1 ? "a further absence" : `reaching ${next.occasions} absences within ${opts.windowWords}`} may lead to a ${label(next.stage)}${next.action ? `, which could result in up to and including a ${next.action.toLowerCase()}` : ""}`,
+    );
+  }
+  return out;
+}
+
+/** The absences block that opens the outcome, laid out like the invitation's list. */
+export function absencesBlock(lines: string[]): string {
+  if (lines.length === 0) return "";
+  const intro = lines.length === 1 ? "The meeting covered the following absence:" : `The meeting covered the following ${lines.length} absences:`;
+  return [intro, ...lines.map((l) => `\u2022 ${l}`)].join("\n");
 }
