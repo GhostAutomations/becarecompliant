@@ -73,6 +73,12 @@ export function isFieldVisible(
   return controller ? isFieldVisible(controller, answers, fields, depth + 1) : true;
 }
 
+/** Is an answer needed: marked required, or required by another answer (requiredWhen). */
+export function isFieldRequired(field: FormField, answers: Answers): boolean {
+  if (field.required === true) return true;
+  return !!field.requiredWhen && matchesVisibleWhen(field.requiredWhen.in, answers[field.requiredWhen.field]);
+}
+
 /**
  * Should this field appear in the stored Evidence (on screen and in the PDF)?
  *
@@ -123,8 +129,8 @@ export function cleanAnswers(schema: FormSchema, answers: Answers): Answers {
   return out;
 }
 
-function validateField(field: FormField, value: AnswerValue | undefined): string | null {
-  const required = field.required === true;
+function validateField(field: FormField, value: AnswerValue | undefined, answers: Answers = {}): string | null {
+  const required = isFieldRequired(field, answers);
   /* A section, not a single answer: its own rules say what is missing, and they hold whether
      or not the field is marked required, because a review with an outcome left blank is not
      a review of that outcome. */
@@ -288,7 +294,7 @@ export function validateAnswers(schema: FormSchema, answers: Answers): Validatio
     if (isPresentational(field.type)) continue;
     if (down.has(field.key)) continue;
     if (!isFieldVisible(field, answers, all)) continue;
-    const message = validateField(field, answers[field.key]);
+    const message = validateField(field, answers[field.key], answers);
     if (message) errors.push({ key: field.key, message });
   }
   return { ok: errors.length === 0, errors };

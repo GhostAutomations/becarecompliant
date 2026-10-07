@@ -200,6 +200,9 @@ export type FormField = {
   fullScale?: number;
   validation?: FieldValidation;
   visibleWhen?: VisibleWhen;
+  /** Required only when another field is answered with one of `in` (Phil, 2026-10-07: a formal
+   *  warning outcome makes "Warning or dismissal" required). Same shape as visibleWhen. */
+  requiredWhen?: VisibleWhen;
   /** Answering this field with one of `when` stands down every field after it. */
   standsDown?: StandsDown;
   /** Answered with one of `when`, the next one is due `days` after this completion instead of

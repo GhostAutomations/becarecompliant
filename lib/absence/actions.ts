@@ -239,6 +239,15 @@ export async function recordAbsenceMeeting(
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
 
+  /* A formal warning outcome needs the warning named (Phil, 2026-10-07). The form marks it
+     required (requiredWhen); "None" with a formal warning says two different things. */
+  if (String(answers["meeting_outcome"] ?? "") === "Formal warning issued") {
+    const w = String(answers["warning_issued"] ?? "").trim();
+    if (!w || w === "None") {
+      return { error: "The outcome is a formal warning, so choose which warning in Warning or dismissal." };
+    }
+  }
+
   /* Absences the meeting agreed not to count, ticked in the form (Phil, 2026-10-07). Checked
      BEFORE anything is saved, so a refusal leaves nothing half done; discounted after the save. */
   const discountIds = [...new Set(String(formData.get("discount_ids") ?? "").split(",").map((x) => x.trim()).filter(Boolean))];

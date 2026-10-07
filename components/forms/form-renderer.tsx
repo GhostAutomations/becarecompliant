@@ -32,7 +32,7 @@ import {
   isAddressValue,
   isPackageValue,
 } from "@/lib/form-schema";
-import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
+import { type FieldError, isFieldRequired, isFieldVisible, standDown } from "@/lib/form-validate";
 import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
 import { scoreProgress } from "@/lib/forms/scoring";
 import { type LookupChoice, exactChoice, lookupError, scopeChoices } from "@/lib/forms/lookup";
@@ -185,7 +185,8 @@ export default function FormRenderer({
             {visibleFields.map((field) => (
                 <Field
                   key={field.key}
-                  field={field}
+                  // Marked required by another answer (requiredWhen) shows its asterisk too.
+                  field={!field.required && isFieldRequired(field, answers) ? { ...field, required: true } : field}
                   value={scored[field.key]}
                   scoreHint={
                     field.type === "score_band"
