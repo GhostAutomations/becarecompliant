@@ -25,6 +25,7 @@ export default function CreatePersonForm({
   trackerBoxes,
   historyBoxes,
   showScw = false,
+  canOpenSettings = true,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
@@ -36,6 +37,8 @@ export default function CreatePersonForm({
   historyBoxes: HistoryBoxView[];
   /** Welsh companies (CIW): ask for the Social Care Wales registration number (DEF-097). */
   showScw?: boolean;
+  /** Can this person open Settings? If not, the empty line manager box asks them to tell an Admin. */
+  canOpenSettings?: boolean;
 }) {
   const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
@@ -147,14 +150,24 @@ export default function CreatePersonForm({
           */}
           {managers.length === 0 ? (
             <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-              <p className="text-sm text-white/70">
-                There is nobody to report to yet. Set your office team up first: invite your
-                managers in Settings, Users, and they appear here as soon as they have accepted
-                and set a password.
-              </p>
-              <Link href="/settings/users" className="mt-2 inline-block text-xs text-gold-300 hover:underline">
-                Go to Settings, Users
-              </Link>
+              {canOpenSettings ? (
+                <>
+                  <p className="text-sm text-white/70">
+                    There is nobody to report to yet. Set your office team up first: invite your
+                    managers in Settings, Users, and they appear here as soon as they have accepted
+                    and set a password.
+                  </p>
+                  <Link href="/settings/users" className="mt-2 inline-block text-xs text-gold-300 hover:underline">
+                    Go to Settings, Users
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm text-white/70">
+                  There is nobody to report to yet. Managers appear here once an Admin has invited
+                  them and they have set a password. You can add this person now and choose their
+                  line manager later.
+                </p>
+              )}
             </div>
           ) : (
             <>

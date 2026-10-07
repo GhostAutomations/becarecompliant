@@ -15,6 +15,8 @@ import {
 } from "@/lib/people/data";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { HISTORY_FLAG, TRACKER_BOXES, historyBoxes } from "@/lib/people/history-boxes";
+import { disabledModulesFor } from "@/lib/auth/module-access";
+import { canUseModule } from "@/lib/auth/module-catalogue";
 
 export const metadata: Metadata = { title: "Add person" };
 
@@ -72,6 +74,13 @@ export default async function NewPersonPage() {
           trackerBoxes={trackers}
           historyBoxes={history}
           showScw={(await getRegulator(profile.company_id)) !== "cqc"}
+          /* Only offer the Settings link to somebody who can open Settings (Phil, 2026-10-07: a
+             Recruiter followed it to "That area is switched off"). */
+          canOpenSettings={canUseModule(
+            "settings",
+            profile.role,
+            await disabledModulesFor(profile.company_id, profile.role, profile.company_role_id ?? null),
+          )}
         />
       </div>
     </div>
