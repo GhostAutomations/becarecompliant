@@ -37,6 +37,7 @@ import {
   OUTCOME_SYSTEM,
   buildOutcomePrompt,
   cleanOutcomeBody,
+  clipText,
   letterParagraphs,
   normaliseApprovedBody,
   outcomeFacts,
@@ -487,6 +488,9 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
   const loaded = await loadFromForm(formData, profile.company_id);
   if ("error" in loaded) return { error: loaded.error };
   const facts = outcomeFacts(loaded.answers);
+  // Absences ticked in the form as not counting (Phil, 2026-10-07), so the letter can say so.
+  const discountNote = clipText(formData.get("discount_note"), 600);
+  if (discountNote) facts.push(`Absences the meeting agreed to discount, so they no longer count: ${discountNote}`);
   if (!facts.some((f) => f.startsWith("Outcome of the meeting:"))) {
     return { error: "Fill in the outcome of the meeting first, then generate the letter." };
   }

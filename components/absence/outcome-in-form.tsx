@@ -55,6 +55,8 @@ export default function OutcomeInForm({
   const urlRef = useRef<string | null>(null);
   const answersRef = useRef(answers);
   answersRef.current = answers;
+  const extrasRef = useRef(extras);
+  extrasRef.current = extras;
   const hasLetter = body.trim() !== "";
 
   // The words go with Save meeting, and stay while the box is closed and opened again.
@@ -71,6 +73,8 @@ export default function OutcomeInForm({
     f.set("person_id", personId);
     if (meetingId) f.set("meeting_id", meetingId);
     f.set("answers", JSON.stringify(answersRef.current));
+    // The absences ticked above as not counting, so the letter can say so.
+    if (extrasRef.current.discount_note) f.set("discount_note", extrasRef.current.discount_note);
     return f;
   }
 

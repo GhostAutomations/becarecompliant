@@ -15,9 +15,9 @@ import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
-import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
 import OutcomeLetterDialog from "@/components/absence/outcome-letter-dialog";
 import OutcomeInForm from "@/components/absence/outcome-in-form";
+import DiscountInForm from "@/components/absence/discount-in-form";
 import { stageActionFor, stageActionLines } from "@/lib/absence/stage-actions";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -27,7 +27,7 @@ import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { availableStages, recordableStages } from "@/lib/absence/record-meeting";
 import { fieldToNameSelect, removeField } from "@/lib/form-schema";
-import { countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
+import { countedAbsences } from "@/lib/absence/discount";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
 import { draftMeetingQuestions } from "@/lib/absence/meeting-questions-actions";
 import type { AiQuestion } from "@/lib/forms";
@@ -125,31 +125,12 @@ export default function AbsenceView({
   const [pickPerson, setPickPerson] = useState("");
   const [pickQuery, setPickQuery] = useState("");
 
-  /* After a meeting is saved, a Manager or above is asked which absences it discounted. */
-  const [afterMeeting, setAfterMeeting] = useState<
-    { personId: string; personName: string; stage: number | null; date: string | null; meetingId: string | null } | null
-  >(null);
-  /* Then the outcome letter is offered (Phil, 2026-09-29): straight after the discount question, or
-     straight after the save for someone who is not asked it. */
+  /* After Save meeting the outcome letter is offered (Phil, 2026-09-29). Discounting moved into the
+     meeting form itself (Phil, 2026-10-07). */
   const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string; initialBody?: string | null } | null>(null);
   /* The outcome generated in each person's meeting form (Phil, 2026-10-07), so the letter step after
      Save meeting opens on those words. */
   const formOutcome = useRef<Record<string, string>>({});
-  const afterRef = useRef(afterMeeting);
-  afterRef.current = afterMeeting;
-  // Stable on purpose: DiscountAfterMeeting's success effect lists it (see DEF-079).
-  const closeAfterMeeting = useCallback(() => {
-    const a = afterRef.current;
-    if (a?.meetingId) {
-      setLetterFor({
-        meetingId: a.meetingId,
-        personName: a.personName,
-        initialBody: formOutcome.current[a.personId] || null,
-      });
-      delete formOutcome.current[a.personId];
-    }
-    setAfterMeeting(null);
-  }, []);
   const closeLetter = useCallback(() => setLetterFor(null), []);
 
   /* A dashboard Return to Work row links here with ?rtw=<absence id>: open that interview's
@@ -555,31 +536,32 @@ export default function AbsenceView({
                             submitLabel="Save meeting"
                             bottomPanel={(ctx) => {
                               formOutcome.current[r.personId] = ctx.extras.outcome_body ?? "";
-                              return <OutcomeInForm personId={r.personId} meetingId={mf.bookingId} ctx={ctx} />;
+                              return (
+                                <>
+                                  {canDiscount ? (
+                                    <DiscountInForm
+                                      absences={countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart })}
+                                      ctx={ctx}
+                                    />
+                                  ) : null}
+                                  <OutcomeInForm personId={r.personId} meetingId={mf.bookingId} ctx={ctx} />
+                                </>
+                              );
                             }}
                             presetAnswers={mf.presets}
                             hideFields={["name"]}
                             onSaved={(saved) => {
+                              // Discounting is in the form now (Phil, 2026-10-07), so the save goes
+                              // straight to the outcome letter.
                               const meetingId = saved.data?.meeting_id || null;
-                              if (!canDiscount) {
-                                if (meetingId) {
-                                  setLetterFor({
-                                    meetingId,
-                                    personName: r.fullName,
-                                    initialBody: formOutcome.current[r.personId] || null,
-                                  });
-                                  delete formOutcome.current[r.personId];
-                                }
-                                return;
+                              if (meetingId) {
+                                setLetterFor({
+                                  meetingId,
+                                  personName: r.fullName,
+                                  initialBody: formOutcome.current[r.personId] || null,
+                                });
                               }
-                              const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
-                              setAfterMeeting({
-                                personId: r.personId,
-                                personName: r.fullName,
-                                stage: Number.isInteger(st) ? st : null,
-                                date: saved.data?.meeting_date || null,
-                                meetingId,
-                              });
+                              delete formOutcome.current[r.personId];
                             }}
                           />
                         ) : null;
@@ -854,15 +836,6 @@ export default function AbsenceView({
           />
         </>
       )}
-
-      {afterMeeting ? (
-        <DiscountAfterMeeting
-          personName={afterMeeting.personName}
-          absences={countedAbsences(eventsByPerson[afterMeeting.personId] ?? [], { windowStart })}
-          defaultReason={meetingDiscountReason(afterMeeting.stage, afterMeeting.date)}
-          onClose={closeAfterMeeting}
-        />
-      ) : null}
 
       {letterFor ? (
         <OutcomeLetterDialog

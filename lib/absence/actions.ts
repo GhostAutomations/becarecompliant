@@ -32,6 +32,7 @@ import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
 import { ukDate } from "@/lib/dates";
+import { canDiscountAbsences, discountReasonProblem } from "@/lib/absence/discount";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
@@ -238,6 +239,26 @@ export async function recordAbsenceMeeting(
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
 
+  /* Absences the meeting agreed not to count, ticked in the form (Phil, 2026-10-07). Checked
+     BEFORE anything is saved, so a refusal leaves nothing half done; discounted after the save. */
+  const discountIds = [...new Set(String(formData.get("discount_ids") ?? "").split(",").map((x) => x.trim()).filter(Boolean))];
+  const discountReason = String(formData.get("discount_reason") ?? "").trim();
+  let toDiscount: Array<{ id: string; start_date: string }> = [];
+  if (discountIds.length > 0) {
+    if (!canDiscountAbsences(profile.role)) return { error: "Only a Manager or above can discount absences." };
+    const problem = discountReasonProblem(discountReason);
+    if (problem) return { error: `Discounted absences: ${problem}` };
+    const { data: evs } = await supabase
+      .from("absence_events")
+      .select("id, person_id, start_date, discounted_at")
+      .in("id", discountIds);
+    const found = (evs ?? []) as Array<{ id: string; person_id: string; start_date: string; discounted_at: string | null }>;
+    if (found.length !== discountIds.length || found.some((e) => e.person_id !== personId)) {
+      return { error: "One of the ticked absences could not be found for this person. Close the form and open it again." };
+    }
+    toDiscount = found.filter((e) => !e.discounted_at);
+  }
+
   const form = await getCompanyFormByKey(
     profile.company_id,
     "absence_management_meeting",
@@ -381,6 +402,30 @@ export async function recordAbsenceMeeting(
     finalQuestions: finalAiQuestions(formData),
   });
 
+  // The ticked absences stop counting now the meeting is saved. A failure here keeps the meeting
+  // (it is already saved) and says which absence did not change, to discount from the card.
+  let discountProblem: string | null = null;
+  let discounted = 0;
+  for (const ev of toDiscount) {
+    const { error: dErr } = await supabase.rpc("discount_absence", { p_id: ev.id, p_reason: discountReason });
+    if (dErr) {
+      discountProblem = `The meeting is saved, but the absence of ${ukDate(ev.start_date)} could not be discounted: ${dErr.message}`;
+      break;
+    }
+    discounted += 1;
+    await writeAudit({
+      companyId: person.company_id as string,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "absence.discounted",
+      entityType: "person",
+      entityId: personId,
+      summary: `Discounted the absence of ${ukDate(ev.start_date)}: ${discountReason}`,
+      metadata: { absence_id: ev.id, reason: discountReason, meeting_id: meetingId },
+    });
+  }
+
   // The outcome letter generated in the form (Phil, 2026-10-07) becomes this meeting's draft letter,
   // so Approve and send opens on it and no second credit is spent. Never fails the save.
   const outcomeBody = normaliseApprovedBody(formData.get("outcome_body"));
@@ -425,10 +470,17 @@ export async function recordAbsenceMeeting(
   });
 
   revalidatePath("/people/absence");
+  revalidatePath("/dashboard");
   revalidatePath(`/people/${personId}`);
-  // Handed back so the screen can offer to discount the absences this meeting discussed (0328).
+  // Never an error once the meeting is saved: an error keeps the form open, and saving it again
+  // would record the meeting twice. The problem is said in the saved message instead.
+  const discountNote = discountProblem
+    ? ` ${discountProblem}. Discount it from their card.`
+    : discounted > 0
+      ? ` ${discounted === 1 ? "1 absence" : `${discounted} absences`} discounted.`
+      : "";
   return {
-    ok: attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded.",
+    ok: `${attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded."}${discountNote}`,
     data: { meeting_stage: validStage ? String(validStage) : "", meeting_date: meetingDate ?? "", meeting_id: meetingId ?? "" },
   };
 }
