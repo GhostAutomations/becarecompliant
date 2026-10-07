@@ -161,14 +161,14 @@ export default function OutcomeInForm({
       ) : (
         <>
           <p className="mt-1 text-xs text-white/60">
-            Edit the outcome on the left. Leave a blank line between paragraphs, or press Enter for
-            more space. The PDF on the right is the whole letter and updates as you type. It is kept
-            with the meeting when you save, then you check it and send it.
+            This is the whole letter between Dear and Yours sincerely, so what you see here is what the
+            PDF shows. Leave a blank line between paragraphs, and press Enter again for more space. If
+            you change who hears an appeal or the days allowed, change them here too, or generate again.
           </p>
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
             <div>
               <label htmlFor={`oif-${personId}`} className="form-label">
-                The outcome
+                The letter
               </label>
               <textarea
                 id={`oif-${personId}`}

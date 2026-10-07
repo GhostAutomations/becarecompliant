@@ -74,9 +74,14 @@ export async function renderOutcomeLetterPdf(opts: {
 
         {/* A single line break the manager typed is kept as a line break, a blank line starts a
             new paragraph, so they can space the letter as they like. */}
-        {l.paragraphs.map((p, i) => (
-          <Text key={i} style={styles.para}>{p}</Text>
-        ))}
+        {l.paragraphs.map((p, i) =>
+          p ? (
+            <Text key={i} style={styles.para}>{p}</Text>
+          ) : (
+            // An empty line the manager added with Enter: one line of space.
+            <Text key={i}>{" "}</Text>
+          ),
+        )}
 
         <View style={styles.signOff} wrap={false}>
           <Text>{l.signOff.closing}</Text>

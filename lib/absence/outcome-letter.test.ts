@@ -4,6 +4,7 @@ import {
   OUTCOME_SYSTEM,
   buildOutcomePrompt,
   cleanOutcomeBody,
+  joinLetterParagraphs,
   letterParagraphs,
   normaliseApprovedBody,
   outcomeFacts,
@@ -73,6 +74,14 @@ test("letterParagraphs merges the drafted middle into the company wording", () =
 });
 
 test("an extra blank line is kept as a space in the letter", () => {
-  assert.deepEqual(letterParagraphs("A.\n\n\n\nB.", {}), ["A.", "", "B."]);
+  assert.deepEqual(letterParagraphs("A.\n\nB.", {}), ["A.", "B."]);
+  assert.deepEqual(letterParagraphs("A.\n\n\nB.", {}), ["A.", "", "B."]);
+  assert.deepEqual(letterParagraphs("A.\n\n\n\nB.", {}), ["A.", "", "", "B."]);
   assert.deepEqual(letterParagraphs("\n\nA.\nline two\n\n\n\n", {}), ["A.\nline two"]);
+});
+
+test("joinLetterParagraphs is the reverse of letterParagraphs", () => {
+  for (const text of ["A.", "A.\n\nB.", "A.\n\n\nB.", "A.\nline\n\n\n\nB.\n\nC."]) {
+    assert.equal(joinLetterParagraphs(letterParagraphs(text, {})), text);
+  }
 });

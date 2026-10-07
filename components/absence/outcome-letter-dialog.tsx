@@ -140,9 +140,9 @@ export default function OutcomeLetterDialog({
         ) : (
           <div className="mt-3 space-y-3">
             <p className="text-xs text-white/60">
-              The middle of the letter: what the meeting covered and what was decided. Your
-              company&apos;s own opening, right of appeal and sign off go around it (Settings,
-              Letters).
+              The whole letter between Dear and Yours sincerely: your company&apos;s opening and
+              right of appeal (Settings, Letters) with what the meeting covered and decided in the
+              middle. The letterhead, address, Dear and sign off are added as the letter is laid out.
             </p>
             {!body.trim() ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -178,7 +178,7 @@ export default function OutcomeLetterDialog({
             ) : null}
             <div>
               <label htmlFor={`ol-${meetingId}`} className="form-label">
-                The outcome
+                The letter
               </label>
               <textarea
                 id={`ol-${meetingId}`}

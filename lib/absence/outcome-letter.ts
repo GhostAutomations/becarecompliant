@@ -119,12 +119,32 @@ export function letterParagraphs(template: string, values: Record<string, string
   );
   // A blank line starts a new paragraph; each EXTRA blank line is kept as an empty paragraph, so
   // the letter shows the space the manager added. Empty ones at either end are dropped.
+  // Each Enter beyond the blank line between paragraphs is one empty line in the letter.
+  const SPACE = "\u0000";
   const parts = merged
     .replace(/\r\n/g, "\n")
-    .split(/\n[ \t]*\n/)
-    .map((p) => p.replace(/^\n+|\n+$/g, "").trim());
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, (run) => `\n\n${`${SPACE}\n\n`.repeat(run.length - 2)}`)
+    .split(/\n\n/)
+    .map((p) => (p === SPACE ? "" : p.replace(/^\n+|\n+$/g, "").trim()));
   while (parts.length && !parts[0]) parts.shift();
   while (parts.length && !parts[parts.length - 1]) parts.pop();
   return parts;
 }
 
+
+/** Paragraphs back into the text the manager edits: a blank line between paragraphs, and one more
+ *  Enter for each empty line. The exact reverse of letterParagraphs. */
+export function joinLetterParagraphs(paragraphs: string[]): string {
+  let out = "";
+  let spaces = 0;
+  for (const p of paragraphs) {
+    if (!p) {
+      if (out) spaces += 1;
+      continue;
+    }
+    out = out ? `${out}\n\n${"\n".repeat(spaces)}${p}` : p;
+    spaces = 0;
+  }
+  return out;
+}

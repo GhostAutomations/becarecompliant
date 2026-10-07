@@ -33,13 +33,15 @@ import { outcomeLetterPath, sha256Hex, uploadOutcomeLetter } from "@/lib/evidenc
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
 import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
-import { appealDays, buildOutcomeLetterDoc, type OutcomeLetterDoc } from "@/lib/absence/invitation-letter";
+import { appealDays, buildOutcomeLetterDoc, letterBodyParagraphs, type OutcomeLetterDoc } from "@/lib/absence/invitation-letter";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   OUTCOME_SYSTEM,
   buildOutcomePrompt,
   cleanOutcomeBody,
   clipText,
+  joinLetterParagraphs,
+  OUTCOME_BODY_LIMIT,
   letterParagraphs,
   normaliseApprovedBody,
   outcomeFacts,
@@ -155,7 +157,8 @@ type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employ
 };
 
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
-async function compose(ctx: LetterCtx, body: string) {
+/** Everything the letter merges, apart from the outcome itself. */
+async function letterSetup(ctx: LetterCtx) {
   const [wording, extras, config] = await Promise.all([
     letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome"),
     loadLetterExtras({ companyId: ctx.companyId, personId: ctx.personId, conductorId: ctx.conductorId ?? NO_ONE }),
@@ -181,12 +184,30 @@ async function compose(ctx: LetterCtx, body: string) {
     meeting_when: time ? `${meetingDate} at ${time}` : meetingDate,
     location: ctx.meeting.location ?? "",
     duration: ctx.meeting.duration_minutes ? `${ctx.meeting.duration_minutes} minutes` : "",
-    outcome_body: body,
+    outcome_body: "",
     letter_date: slashDate(todayIso),
     // Chosen in the meeting's Outcome section (Phil, 2026-10-07); seven days unless changed.
     appeal_days: appealDays(ctx.answers.appeal_days),
     appeal_manager: appealBy || "a manager",
   };
+  return { wording, extras, values, stageLabel, todayIso };
+}
+
+/**
+ * THE WHOLE LETTER AS TEXT (Phil, 2026-10-07: the box and the PDF must match). The company's
+ * wording with the AI's middle merged in, from the opening line to the appeal paragraph, without
+ * Dear or the sign off (the layout adds those). This is what the manager edits, and what is sent.
+ */
+async function fullLetterText(ctx: LetterCtx, middle: string): Promise<string> {
+  const { wording, values } = await letterSetup(ctx);
+  return joinLetterParagraphs(
+    letterBodyParagraphs(letterParagraphs(wording.body, { ...values, outcome_body: middle }), ctx.employee.name),
+  ).slice(0, OUTCOME_BODY_LIMIT);
+}
+
+/** Build the whole letter from the text the manager approved: subject, email and the PDF's layout. */
+async function compose(ctx: LetterCtx, letterText: string) {
+  const { wording, extras, values, stageLabel, todayIso } = await letterSetup(ctx);
   const subject = renderLetterSubject(wording.subject, values) || `Outcome of your ${stageLabel}`;
   // Laid out like the invitation letter (Phil, 2026-10-07).
   const doc = buildOutcomeLetterDoc({
@@ -200,7 +221,7 @@ async function compose(ctx: LetterCtx, body: string) {
     meetingTitle: meetingNameAsTitle(extras.meetingName),
     conductorName: ctx.conductorName,
     conductorRole: extras.conductorRole,
-    wordingParagraphs: letterParagraphs(wording.body, values),
+    wordingParagraphs: letterParagraphs(letterText, {}),
   });
   const html = noticeEmailHtml({
     preheader: subject,
@@ -255,8 +276,9 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
     maxTokens: 1200,
   });
   if ("error" in result) return { error: result.error };
-  const body = cleanOutcomeBody(result.ok);
-  if (!body) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
+  const middle = cleanOutcomeBody(result.ok);
+  if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
+  const body = await fullLetterText(ctx, middle);
 
   if (ctx.letter) {
     await ctx.supabase
@@ -569,9 +591,9 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
     maxTokens: 1200,
   });
   if ("error" in result) return { error: result.error };
-  const body = cleanOutcomeBody(result.ok);
-  if (!body) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
-  return { body };
+  const middle = cleanOutcomeBody(result.ok);
+  if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
+  return { body: await fullLetterText(loaded.ctx, middle) };
 }
 
 /** The real PDF of the whole letter, for the preview beside the words. Saves and sends nothing. */
