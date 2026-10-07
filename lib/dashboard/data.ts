@@ -1,3 +1,4 @@
+import { timed } from "@/lib/perf/timing";
 import "server-only";
 
 /**
@@ -58,7 +59,7 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
 export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; today: string }> {
   const supabase = await createClient();
   const [pc, sc, pn, sn, tr, training] = await Promise.all([
-    supabase.from("person_check_status").select("person_id, check_name, due_date, rag").eq("company_id", companyId),
+    timed("due.personChecks", supabase.from("person_check_status").select("person_id, check_name, due_date, rag").eq("company_id", companyId).then((r) => r)),
     supabase
       .from("service_user_check_status")
       .select("service_user_id, check_name, due_date, rag")
@@ -71,7 +72,7 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
       .eq("company_id", companyId),
     /* The Training register itself, request cached (the dashboard's training tile already asks
        the same question), so a course is overdue here exactly when it is red there. */
-    getTrainingMatrix(companyId, null),
+    timed("due.training", getTrainingMatrix(companyId, null)),
   ]);
   const names = new Map<string, string>();
   const branchOf = new Map<string, string | null>();
@@ -466,10 +467,10 @@ export type AbsenceActions = {
 
 export async function getAbsenceActions(companyId: string): Promise<AbsenceActions> {
   const [{ rows }, openBookings, rtw, awaitingLastDate] = await Promise.all([
-    listAbsenceRegister(companyId, null),
-    listOpenBookings(companyId),
-    listOutstandingRtw(companyId),
-    listAwaitingLastDate(companyId),
+    timed("abs.register", listAbsenceRegister(companyId, null)),
+    timed("abs.bookings", listOpenBookings(companyId)),
+    timed("abs.rtw", listOutstandingRtw(companyId)),
+    timed("abs.awaiting", listAwaitingLastDate(companyId)),
   ]);
   const booked = new Set(openBookings.map((b) => b.person_id));
   return {

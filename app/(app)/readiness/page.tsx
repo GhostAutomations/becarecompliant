@@ -1,3 +1,4 @@
+import { timed } from "@/lib/perf/timing";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -110,7 +111,8 @@ const RECORDERS = ["platform_admin", "company_admin", "registered_individual", "
 
 export default async function ReadinessPage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
   const sp = await searchParams;
-  const { profile } = await requireCompany();
+  const perfStart = Date.now();
+  const { profile } = await timed("rd.requireCompany", requireCompany());
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
 
@@ -126,9 +128,10 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
   /* PER REGISTERED SERVICE (0363, Phil 2026-10-01). CIW inspected Thistle Care (Cardiff) and
      Thistle Care (Gwent) separately, each with its own report, ratings and notices, so readiness is
      shown one branch at a time. A company with no registered service sees every branch together. */
-  const { branch, branches } = await resolveReadinessBranch(profile.company_id, sp.branch);
+  console.log(`[perf] rd.beforeBranch ${Date.now() - perfStart}`);
+  const { branch, branches } = await timed("rd.resolveBranch", resolveReadinessBranch(profile.company_id, sp.branch));
   const branchId = branch?.id ?? null;
-  const bw = await getBranchTerms(profile.company_id);
+  const bw = await timed("rd.branchTerms", getBranchTerms(profile.company_id));
 
   let noticeQuery = supabase
     .from("inspection_notices")
@@ -137,12 +140,13 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
     .eq("regulator", regulator);
   if (branchId) noticeQuery = noticeQuery.or(`branch_id.eq.${branchId},branch_id.is.null`);
   const [{ requirements: allRequirements }, items, noticesRes, inspections, selfRatings] = await Promise.all([
-    getFrameworkReadiness(profile.company_id, regulator, branchId),
-    getFrameworkItems(profile.company_id, regulator, branchId),
-    noticeQuery.order("issued_on", { ascending: false }),
-    getLatestInspections(profile.company_id, regulator),
-    getSelfRatings(profile.company_id, regulator, branchId),
+    timed("rd.readiness", getFrameworkReadiness(profile.company_id, regulator, branchId)),
+    timed("rd.items", getFrameworkItems(profile.company_id, regulator, branchId)),
+    timed("rd.notices", noticeQuery.order("issued_on", { ascending: false }).then((r) => r)),
+    timed("rd.inspections", getLatestInspections(profile.company_id, regulator)),
+    timed("rd.selfRatings", getSelfRatings(profile.company_id, regulator, branchId)),
   ]);
+  console.log(`[perf] rd.data ${Date.now() - perfStart}`);
   /* Who may rate a theme and add an action: the people who record an inspection, not the founder
      looking in support mode. Adding an action is an Update, which the record's own rules decide. */
   const canRate = RECORDERS.includes(profile.role) && !profile.actingAsCompanyId;

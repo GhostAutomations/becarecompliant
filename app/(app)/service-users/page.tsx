@@ -1,3 +1,4 @@
+import { timed } from "@/lib/perf/timing";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
@@ -26,7 +27,8 @@ export default async function ServiceUsersPage({
 }: {
   searchParams: Promise<{ branch?: string; view?: string; completed?: string; recorded?: string; history?: string; warn?: string }>;
 }) {
-  const { user, profile } = await requireCompany();
+  const perfStart = Date.now();
+  const { user, profile } = await timed("su.requireCompany", requireCompany());
   // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
   // A Senior sees names and the Checks ticked on their tile (0338, 0339). The middleware has
@@ -54,15 +56,15 @@ export default async function ServiceUsersPage({
 
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
-  const nameSort = await getRegisterNameSort(user.id);
+  const nameSort = await timed("su.nameSort", getRegisterNameSort(user.id));
   const [branches, register, columnLabels, reviewIntervalDays, checkColumns, primaryBranchId, rememberedBranch] = await Promise.all([
-    listAccessibleBranchTypes(companyId, profile.role, user.id),
-    listRegister(companyId, null, "all"),
-    getServiceUserColumnLabels(companyId),
-    getReviewIntervalDays(companyId),
-    listRegisterCheckColumns(companyId, "service_users"),
-    callerPrimaryBranchId(user.id),
-    getRememberedBranch("service_users"),
+    timed("su.branches", listAccessibleBranchTypes(companyId, profile.role, user.id)),
+    timed("su.register", listRegister(companyId, null, "all")),
+    timed("su.columnLabels", getServiceUserColumnLabels(companyId)),
+    timed("su.reviewInterval", getReviewIntervalDays(companyId)),
+    timed("su.checkColumns", listRegisterCheckColumns(companyId, "service_users")),
+    timed("su.primaryBranch", callerPrimaryBranchId(user.id)),
+    timed("su.remembered", getRememberedBranch("service_users")),
   ]);
 
   /*
@@ -81,6 +83,7 @@ export default async function ServiceUsersPage({
       .filter((r) => r.evidenceId),
   );
 
+  console.log(`[perf] su.data ${Date.now() - perfStart}`);
   const canManage = MANAGE_ROLES.includes(profile.role);
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
