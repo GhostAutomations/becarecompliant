@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { timed } from "@/lib/perf/timing";
 import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
@@ -13,7 +14,7 @@ import {
   isRecoverySession,
 } from "@/lib/auth/password-reset-rules";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
-import { isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
+import { getCompanyTrialState, isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
 import { needsAgreement } from "@/lib/legal/acceptance";
 import { getCompanyDemo } from "@/lib/demo/data";
 
@@ -101,7 +102,13 @@ async function signInHere(reason?: string): Promise<string> {
   return loginPath(reason, h.get("x-pathname"));
 }
 
-export async function requireUser(): Promise<User> {
+/* ONCE PER REQUEST (speed plan, 2026-10-07). The layout and the page both ask "who is this?", and
+   so do the guards they call, so one page load ran the sign in check, the single session check and
+   the profile read two or three times over. React cache() shares one answer across a single
+   request (it is never shared between requests or people), including a redirect it throws. */
+export const requireUser = cache(requireUserUncached);
+
+async function requireUserUncached(): Promise<User> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -165,7 +172,9 @@ export async function requireUser(): Promise<User> {
 }
 
 /** Requires a user and returns their profile. */
-export async function requireProfile(): Promise<{
+export const requireProfile = cache(requireProfileUncached);
+
+async function requireProfileUncached(): Promise<{
   user: User;
   profile: Profile;
 }> {
@@ -225,6 +234,16 @@ export async function requireCompany(
     return { user, profile: await applyManageAs(profile) };
   }
   if (!profile.company_id) redirect("/login?reason=no-access");
+  /* SIDE BY SIDE, DECIDED IN ORDER (speed plan, 2026-10-07). The three reads below used to run one
+     after another. They are all read only and request cached, so they are started together here
+     and the redirects that follow still apply in exactly the order and with exactly the
+     conditions they always had. The agreement is only read for the one role it can stop. */
+  const companyId = profile.company_id;
+  await Promise.all([
+    getCompanyTrialState(companyId),
+    getCompanyDemo(companyId),
+    profile.role === "company_admin" && !options.allowUnaccepted ? needsAgreement(companyId) : Promise.resolve(false),
+  ]);
   /* THE COMPANY LOCK, and it comes before the trial lock because it is the stronger of the two:
      a suspended, archived or deleted company is shut whether or not its trial has anything left
      to run. allowLapsed deliberately does NOT open this door — the two billing actions it exists

@@ -162,6 +162,34 @@ async function readAllRows<T>(
   }
 }
 
+/**
+ * The same promise as readAllRows (every row, or throw), with every page asked for at once.
+ * `make(true)` must ask for an exact count; the first page brings the total back, and the rest
+ * are requested together. A fresh query per page, because a builder is changed by .range().
+ */
+async function readAllRowsAtOnce<T>(
+  make: (withCount: boolean) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown; count?: number | null }> },
+  label: string,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const fail = (error: unknown) => {
+    throw new Error(`Training could not read ${label}: ${(error as { message?: string }).message ?? "unknown error"}`);
+  };
+  const first = await make(true).range(0, PAGE - 1);
+  if (first.error) fail(first.error);
+  const out: T[] = [...((first.data as T[] | null) ?? [])];
+  const total = first.count ?? out.length;
+  if (out.length >= total || out.length < PAGE) return out;
+  const rest = await Promise.all(
+    Array.from({ length: Math.ceil((total - PAGE) / PAGE) }, (_, i) => make(false).range((i + 1) * PAGE, (i + 2) * PAGE - 1)),
+  );
+  for (const r of rest) {
+    if (r.error) fail(r.error);
+    out.push(...((r.data as T[] | null) ?? []));
+  }
+  return out;
+}
+
 /** Exported so a Team Member's own view of their training on /my scores each course with the
  *  SAME function as the register, the matrix and the chasing digest. A second copy of this
  *  rule is how somebody ends up amber on their own screen and red in their manager's. */
@@ -296,40 +324,33 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     .order("id", { ascending: true });
   if (branchId) peopleQ = peopleQ.eq("branch_id", branchId);
 
-  const [{ data: coursesRaw }, peopleRows] = await Promise.all([
+  /* ONE WAVE, NOT FOUR (speed plan, 2026-10-07). The People list and the training records used
+     to be read one after the other, and the records a page at a time on top of that, so a
+     company with 1200 records waited for four round trips in a row on every dashboard load.
+     The records are now read by company, at the same time as the People list, and every page
+     of each is asked for at once. Records for somebody not on the list (a leaver, another
+     branch) are simply never looked up below, so the result is exactly what it was. */
+  const recordsQ = (withCount: boolean) =>
+    supabase
+      .from("person_training")
+      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path, booked_for", withCount ? { count: "exact" } : undefined)
+      .eq("company_id", companyId)
+      .order("id", { ascending: true });
+  const [{ data: coursesRaw }, peopleRows, recordRows] = await Promise.all([
     coursesQ,
     readAllRows<PersonRow>(peopleQ, "the People register"),
+    readAllRowsAtOnce<RecordRow>(recordsQ, "training records"),
   ]);
   const courses = (coursesRaw as CourseRow[] | null) ?? [];
-  const personIds = peopleRows.map((p) => p.id);
 
   const byPerson = new Map<string, Map<string, RecordRow>>();
-  if (personIds.length > 0) {
-    /*
-     * PAGED and CHUNKED. Training records are people TIMES courses, so 100 staff on 12 courses is
-     * already 1200 rows and PostgREST caps a response at 1000. Anything past the cut had no
-     * record, and no record renders as "not done", so mandatory training and safeguarding, two
-     * scored PQS measures, came out understated. This bites at a far smaller company than the
-     * people cap does.
-     */
-    const IDS_PER_REQUEST = 200;
-    for (let i = 0; i < personIds.length; i += IDS_PER_REQUEST) {
-      const chunk = personIds.slice(i, i + IDS_PER_REQUEST);
-      const recQ = supabase
-        .from("person_training")
-        .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path, booked_for")
-        .eq("company_id", companyId)
-        .in("person_id", chunk)
-        .order("id", { ascending: true });
-      for (const r of await readAllRows<RecordRow>(recQ, "training records")) {
-        // A record completed AFTER the date being judged did not exist then. Ignoring the date
-        // would let training done last week count towards a period that closed in June.
-        if (asOfIso && r.completed_on && r.completed_on > asOfIso) continue;
-        const m = byPerson.get(r.person_id) ?? new Map<string, RecordRow>();
-        m.set(r.course_id, r);
-        byPerson.set(r.person_id, m);
-      }
-    }
+  for (const r of recordRows) {
+    // A record completed AFTER the date being judged did not exist then. Ignoring the date
+    // would let training done last week count towards a period that closed in June.
+    if (asOfIso && r.completed_on && r.completed_on > asOfIso) continue;
+    const m = byPerson.get(r.person_id) ?? new Map<string, RecordRow>();
+    m.set(r.course_id, r);
+    byPerson.set(r.person_id, m);
   }
 
   let green = 0;
