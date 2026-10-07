@@ -199,7 +199,7 @@ export default function OutcomeLetterDialog({
               </button>
               <button
                 type="button"
-                className="btn-ghost text-xs"
+                className="btn-outline text-xs"
                 disabled={busy || !!sendState.ok}
                 onClick={() => {
                   setFinalLook(null);
