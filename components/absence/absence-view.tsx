@@ -17,6 +17,7 @@ import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
 import OutcomeLetterDialog from "@/components/absence/outcome-letter-dialog";
+import OutcomeInForm from "@/components/absence/outcome-in-form";
 import { stageActionFor, stageActionLines } from "@/lib/absence/stage-actions";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -25,7 +26,7 @@ import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, Con
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { availableStages, recordableStages } from "@/lib/absence/record-meeting";
-import { fieldToNameSelect } from "@/lib/form-schema";
+import { fieldToNameSelect, removeField } from "@/lib/form-schema";
 import { countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
 import { draftMeetingQuestions } from "@/lib/absence/meeting-questions-actions";
@@ -130,13 +131,23 @@ export default function AbsenceView({
   >(null);
   /* Then the outcome letter is offered (Phil, 2026-09-29): straight after the discount question, or
      straight after the save for someone who is not asked it. */
-  const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string } | null>(null);
+  const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string; initialBody?: string | null } | null>(null);
+  /* The outcome generated in each person's meeting form (Phil, 2026-10-07), so the letter step after
+     Save meeting opens on those words. */
+  const formOutcome = useRef<Record<string, string>>({});
   const afterRef = useRef(afterMeeting);
   afterRef.current = afterMeeting;
   // Stable on purpose: DiscountAfterMeeting's success effect lists it (see DEF-079).
   const closeAfterMeeting = useCallback(() => {
     const a = afterRef.current;
-    if (a?.meetingId) setLetterFor({ meetingId: a.meetingId, personName: a.personName });
+    if (a?.meetingId) {
+      setLetterFor({
+        meetingId: a.meetingId,
+        personName: a.personName,
+        initialBody: formOutcome.current[a.personId] || null,
+      });
+      delete formOutcome.current[a.personId];
+    }
     setAfterMeeting(null);
   }, []);
   const closeLetter = useCallback(() => setLetterFor(null), []);
@@ -276,7 +287,9 @@ export default function AbsenceView({
           e.end_date && e.end_date !== e.start_date
             ? `${formatSlashDate(e.start_date)} to ${formatSlashDate(e.end_date)}`
             : formatSlashDate(e.start_date);
-        return `Absence ${n}: ${range}`;
+        // The reason next to each date (Phil, 2026-10-07), as the absence recorded it.
+        const reason = (e.reason ?? "").replace(/\s+/g, " ").trim();
+        return `Absence ${n}: ${range}${reason ? `, ${reason}` : ""}`;
       })
       .join("\n");
 
@@ -284,7 +297,6 @@ export default function AbsenceView({
       purpose_of_meeting:
         "To discuss the employee's attendance record, review absence history, understand any underlying reasons for absence, and agree any appropriate actions and support measures.",
       current_absence_level: `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period`,
-      number_of_absences: String(r.occasions),
       dates_of_absence_discussed: dates,
     };
     if (earliest) {
@@ -295,8 +307,10 @@ export default function AbsenceView({
     // Manager conducting is a drop down of the people who can hold meetings, filled from the
     // booking (Phil, 2026-10-07: "an empty text box doesn't make any sense"). Render side only:
     // the answer is still the name as text, so the stored form version validates as before.
+    // "Number of absences in review period" is gone from the tile (Phil, 2026-10-07): the current
+    // absence level above it already says it. Render side only, like the name drop down.
     const managerSchema = fieldToNameSelect(
-      schema,
+      removeField(schema, "number_of_absences"),
       "manager_conducting",
       conductors.map((c) => c.full_name),
       earliest?.conductor_name ?? null,
@@ -539,12 +553,23 @@ export default function AbsenceView({
                             triggerLabel="Record meeting"
                             triggerClassName="btn-outline px-3 py-1.5 text-xs"
                             submitLabel="Save meeting"
+                            bottomPanel={(ctx) => {
+                              formOutcome.current[r.personId] = ctx.extras.outcome_body ?? "";
+                              return <OutcomeInForm personId={r.personId} meetingId={mf.bookingId} ctx={ctx} />;
+                            }}
                             presetAnswers={mf.presets}
                             hideFields={["name"]}
                             onSaved={(saved) => {
                               const meetingId = saved.data?.meeting_id || null;
                               if (!canDiscount) {
-                                if (meetingId) setLetterFor({ meetingId, personName: r.fullName });
+                                if (meetingId) {
+                                  setLetterFor({
+                                    meetingId,
+                                    personName: r.fullName,
+                                    initialBody: formOutcome.current[r.personId] || null,
+                                  });
+                                  delete formOutcome.current[r.personId];
+                                }
                                 return;
                               }
                               const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
@@ -844,6 +869,7 @@ export default function AbsenceView({
           key={letterFor.meetingId}
           meetingId={letterFor.meetingId}
           personName={letterFor.personName}
+          initialBody={letterFor.initialBody}
           onClose={closeLetter}
         />
       ) : null}

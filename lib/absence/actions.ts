@@ -49,6 +49,7 @@ import type { Answers } from "@/lib/form-schema";
 import { toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { availableStages, stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
+import { normaliseApprovedBody } from "@/lib/absence/outcome-letter";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -379,6 +380,32 @@ export async function recordAbsenceMeeting(
     evidenceId: result.evidenceId,
     finalQuestions: finalAiQuestions(formData),
   });
+
+  // The outcome letter generated in the form (Phil, 2026-10-07) becomes this meeting's draft letter,
+  // so Approve and send opens on it and no second credit is spent. Never fails the save.
+  const outcomeBody = normaliseApprovedBody(formData.get("outcome_body"));
+  if (outcomeBody && meetingId) {
+    const { data: existing } = await supabase
+      .from("absence_outcome_letters")
+      .select("id, status")
+      .eq("meeting_id", meetingId)
+      .maybeSingle();
+    if (!existing) {
+      await supabase.from("absence_outcome_letters").insert({
+        company_id: person.company_id as string,
+        person_id: personId,
+        branch_id: (person.branch_id as string | null) ?? null,
+        meeting_id: meetingId,
+        evidence_id: result.evidenceId,
+        draft_body: outcomeBody,
+        drafted_by: profile.id,
+        drafted_by_name: profile.full_name,
+        drafted_at: new Date().toISOString(),
+      });
+    } else if (existing.status === "drafted") {
+      await supabase.from("absence_outcome_letters").update({ draft_body: outcomeBody }).eq("id", existing.id);
+    }
+  }
 
   await writeAudit({
     companyId: person.company_id as string,

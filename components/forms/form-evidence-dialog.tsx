@@ -62,6 +62,7 @@ export default function FormEvidenceDialog({
   questionsEditable = false,
   questionsNote,
   questionsFooter,
+  bottomPanel,
 }: {
   title: string;
   schema: FormSchema;
@@ -102,6 +103,16 @@ export default function FormEvidenceDialog({
    *  cannot be schema fields, because the server validates every answer against the
    *  stored published version (see lib/forms.ts). Any form can use this: give it a
    *  long_text field to land in and return the payload. */
+  /** A panel under the form, above Save, e.g. the absence meeting's Generate outcome. It sees the
+   *  answers as they will be saved, can post extra fields with the save, and can widen the box. */
+  bottomPanel?: (ctx: {
+    answers: Answers;
+    busy: boolean;
+    /** What the panel set before, kept while the box is closed and reopened, cleared on save. */
+    extras: Record<string, string>;
+    setExtra: (key: string, value: string) => void;
+    setWide: (wide: boolean) => void;
+  }) => ReactNode;
   aiDraft?: {
     action: Action;
     label: string;
@@ -127,6 +138,8 @@ export default function FormEvidenceDialog({
   const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
+  const [panelExtras, setPanelExtras] = useState<Record<string, string>>({});
+  const [wide, setWide] = useState(false);
   const [missing, setMissing] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Bumped when an AI draft lands, to remount the renderer on the new defaults.
@@ -244,6 +257,8 @@ export default function FormEvidenceDialog({
       setFiles({});
       setErrors([]);
       setMissing(null);
+      setPanelExtras({});
+      setWide(false);
       setFormKey((k) => k + 1);
       setOpen(false);
       router.refresh();
@@ -304,6 +319,7 @@ export default function FormEvidenceDialog({
       fd.set("ai_questions_json", JSON.stringify({ questions: aiQuestions, answers: aiAnswers, details: aiDetails }));
     }
     for (const [k, v] of Object.entries(extraFields ?? {})) fd.set(k, v);
+    for (const [k, v] of Object.entries(panelExtras)) if (v) fd.set(k, v);
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
     }
@@ -320,7 +336,11 @@ export default function FormEvidenceDialog({
 
       {open && mounted && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
+          <div
+            className={`flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl ${
+              wide ? "max-w-5xl" : "max-w-2xl"
+            }`}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">{title}</h2>
               <button
@@ -511,6 +531,17 @@ export default function FormEvidenceDialog({
               ) : (
                 <p className="text-sm text-white/50">Opening…</p>
               )}
+
+              {bottomPanel && held.ready
+                ? bottomPanel({
+                    answers: answersToSave(),
+                    busy,
+                    extras: panelExtras,
+                    setExtra: (key, value) =>
+                      setPanelExtras((prev) => (prev[key] === value ? prev : { ...prev, [key]: value })),
+                    setWide,
+                  })
+                : null}
 
               {missing ? <p className="form-error">{missing}</p> : null}
       {state.error ? <p className="form-error">{state.error}</p> : null}

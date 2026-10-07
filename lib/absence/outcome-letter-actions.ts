@@ -42,6 +42,8 @@ import {
   outcomeFacts,
   slashDate,
 } from "@/lib/absence/outcome-letter";
+import { redactName } from "@/lib/absence/meeting-questions";
+import { stageFrom } from "@/lib/absence/record-meeting";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -137,8 +139,13 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
 
 const FINAL = new Set(["sent", "not_emailed"]);
 
+/** What the letter needs, from a recorded meeting or from a meeting form not saved yet. */
+type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employee" | "conductorName"> & {
+  meeting: Pick<Loaded["meeting"], "stage" | "meeting_date" | "meeting_time" | "duration_minutes" | "location">;
+};
+
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
-async function compose(ctx: Loaded, body: string) {
+async function compose(ctx: LetterCtx, body: string) {
   const wording = await letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome");
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
   const stageLabel = stageLabelFor(ctx.meeting.stage, await companyMeetingName(ctx.companyId));
@@ -193,7 +200,7 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
     prompt: buildOutcomePrompt({
       stage: ctx.meeting.stage,
       stageAction: stageActionFor(config, ctx.meeting.stage),
-      facts: outcomeFacts(ctx.answers),
+      facts: outcomeFacts(ctx.answers).map((f) => redactName(f, ctx.employee.name)),
     }),
     maxTokens: 1200,
   });
@@ -395,4 +402,132 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
         ? `Letter sent to ${ctx.employee.email}, with the PDF attached. The PDF is kept on the meeting.`
         : "Letter kept as a PDF on the meeting, marked not emailed. Download it to print and hand over.",
   };
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * GENERATE OUTCOME INSIDE THE MEETING FORM (Phil, 2026-10-07): once the meeting form is filled
+ * in, Generate outcome at the bottom writes the letter from what is on screen, with the real PDF
+ * beside it, before the meeting is saved. Save meeting keeps the words as the meeting's draft
+ * letter, and Approve and send follows as before. Nothing here saves anything.
+ * ------------------------------------------------------------------------------------------- */
+
+async function loadFromForm(
+  formData: FormData,
+  companyId: string,
+): Promise<{ ctx: LetterCtx; answers: Record<string, unknown> } | { error: string }> {
+  const personId = String(formData.get("person_id") ?? "");
+  if (!personId) return { error: "Missing person." };
+  let answers: Record<string, unknown>;
+  try {
+    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Record<string, unknown>;
+  } catch {
+    return { error: "Could not read the meeting form." };
+  }
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, company_id, full_name, work_email, profile_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person || person.company_id !== companyId) return { error: "That record could not be found." };
+  const { data: allowed } = await supabase.rpc("can_prepare_absence_meeting", { p_person_id: personId });
+  if (allowed !== true) return { error: "You cannot write letters for this person's meetings." };
+
+  // The booking this form is recording, when there is one: its time, place and length.
+  const meetingId = String(formData.get("meeting_id") ?? "").trim();
+  let booking: { meeting_time: string | null; duration_minutes: number | null; location: string | null } | null = null;
+  if (meetingId) {
+    const { data: b } = await supabase
+      .from("absence_meetings")
+      .select("person_id, meeting_time, duration_minutes, location, evidence_id")
+      .eq("id", meetingId)
+      .maybeSingle();
+    if (b && b.person_id === personId && !b.evidence_id) {
+      booking = {
+        meeting_time: (b.meeting_time as string | null) ?? null,
+        duration_minutes: (b.duration_minutes as number | null) ?? null,
+        location: (b.location as string | null) ?? null,
+      };
+    }
+  }
+  const { data: company } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
+  let email = (person.work_email as string | null) ?? null;
+  if (!email && person.profile_id) {
+    email = (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
+  }
+  const date = typeof answers.date_of_meeting === "string" ? answers.date_of_meeting : null;
+  const conductor = typeof answers.manager_conducting === "string" ? answers.manager_conducting.trim() : "";
+  return {
+    answers,
+    ctx: {
+      supabase,
+      companyId,
+      companyName: (company?.name as string | undefined) ?? "your employer",
+      employee: {
+        name: (person.full_name as string | undefined) ?? "the employee",
+        email,
+        profileId: (person.profile_id as string | null) ?? null,
+      },
+      conductorName: conductor || "your manager",
+      meeting: {
+        stage: stageFrom(answers.meeting_type),
+        meeting_date: date && /^\d{4}-\d{2}-\d{2}/.test(date) ? date : null,
+        meeting_time: booking?.meeting_time ?? null,
+        duration_minutes: booking?.duration_minutes ?? null,
+        location: booking?.location ?? null,
+      },
+    },
+  };
+}
+
+/** Generate outcome: the AI writes the middle of the letter from the meeting form on screen. */
+export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?: string; error?: string }> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const loaded = await loadFromForm(formData, profile.company_id);
+  if ("error" in loaded) return { error: loaded.error };
+  const facts = outcomeFacts(loaded.answers);
+  if (!facts.some((f) => f.startsWith("Outcome of the meeting:"))) {
+    return { error: "Fill in the outcome of the meeting first, then generate the letter." };
+  }
+  const config = await getAbsenceConfig(profile.company_id);
+  const stage = loaded.ctx.meeting.stage;
+  const result = await runAi({
+    companyId: profile.company_id,
+    feature: "absence_outcome_letter",
+    system: OUTCOME_SYSTEM,
+    prompt: buildOutcomePrompt({
+      stage,
+      stageAction: stageActionFor(config, stage),
+      // The employee's name never goes to the AI: reasons and notes are often written with it.
+      facts: facts.map((f) => redactName(f, loaded.ctx.employee.name)),
+    }),
+    maxTokens: 1200,
+  });
+  if ("error" in result) return { error: result.error };
+  const body = cleanOutcomeBody(result.ok);
+  if (!body) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
+  return { body };
+}
+
+/** The real PDF of the whole letter, for the preview beside the words. Saves and sends nothing. */
+export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ pdf?: string; error?: string }> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const loaded = await loadFromForm(formData, profile.company_id);
+  if ("error" in loaded) return { error: loaded.error };
+  const body = normaliseApprovedBody(formData.get("body"));
+  if (!body) return { error: "Write the outcome, or generate it, to see the letter." };
+  try {
+    const letter = await compose(loaded.ctx, body);
+    const pdf = await renderOutcomeLetterPdf({
+      companyName: loaded.ctx.companyName,
+      letterDate: letter.letterDate,
+      subject: letter.subject,
+      paragraphs: letter.paragraphs,
+    });
+    return { pdf: pdf.toString("base64") };
+  } catch (e) {
+    return { error: `The preview could not be made: ${(e as Error).message}` };
+  }
 }
