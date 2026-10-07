@@ -65,7 +65,10 @@ export function outcomeFacts(answers: Record<string, unknown> | null | undefined
   add("Questions asked and answers", "meeting_questions", 1500);
   add("Outcome of the meeting", "meeting_outcome", 80);
   add("Warning or dismissal", "warning_issued", 40);
-  add("Warning remains live until", "warning_live_until", 20);
+  // Only with a real warning: the date box hides when the warning is None, but an earlier answer
+  // can still be in the form (Phil, 2026-10-07: an NFA letter said a stage "remains live until").
+  const warning = clipText(answers["warning_issued"], 40);
+  if (warning && warning !== "None") add("Warning remains live until", "warning_live_until", 20);
   add("Improvement targets", "improvement_targets");
   add("Review date", "review_date", 20);
   return lines;

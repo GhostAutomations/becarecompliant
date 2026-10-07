@@ -142,3 +142,10 @@ test("what happens next follows the stage after the meeting", () => {
   assert.ok(f.some((x) => x.includes("may lead to a Stage 2 disciplinary hearing, which could result in up to and including a written warning")));
   assert.ok(!f.some((x) => x.includes("Stage 3")));
 });
+
+test("a warning date left behind is not used when the warning is None", () => {
+  const facts = outcomeFacts({ meeting_outcome: "No further action", warning_issued: "None", warning_live_until: "2027-02-17" });
+  assert.ok(!facts.some((f) => f.includes("2027-02-17")));
+  const withWarning = outcomeFacts({ warning_issued: "Written warning", warning_live_until: "2027-02-17" });
+  assert.ok(withWarning.some((f) => f.includes("2027-02-17")));
+});
