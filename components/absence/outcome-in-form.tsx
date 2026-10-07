@@ -64,6 +64,11 @@ export default function OutcomeInForm({
 
   // The words go with Save meeting, and stay while the box is closed and opened again.
   useEffect(() => setExtra("outcome_body", body), [body, setExtra]);
+  // The letter kept with the part-finished form comes back after the panel has drawn.
+  useEffect(() => {
+    if (!body && extras.outcome_body) setBody(extras.outcome_body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extras.outcome_body]);
   useEffect(() => setWide(hasLetter), [hasLetter, setWide]);
 
   const letterSig = useMemo(

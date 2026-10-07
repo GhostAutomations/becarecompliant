@@ -32,6 +32,19 @@ import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { focusFirstError } from "@/components/forms/focus-first-error";
 import { dialogDraftKey, mergeDraft } from "@/lib/forms/draft-key";
 
+/** Keys in the part-finished copy that are not answers: the drafted questions and the panel. */
+const HELD_AI = "__held_ai";
+const HELD_PANEL = "__held_panel";
+
+function parseHeld<T>(raw: unknown): T | null {
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 /** The held copy with the fresh preset keys put back on top. */
 function withFresh(merged: Answers | undefined, presets: Answers | undefined, keys: string[] | undefined): Answers | undefined {
   if (!merged || !presets || !keys?.length) return merged;
@@ -249,13 +262,51 @@ export default function FormEvidenceDialog({
   // will submit have to be brought up to the same place.
   useEffect(() => {
     if (held.restored) {
+      // The drafted questions with what was typed into them, and the bottom panel's values (the
+      // generated outcome letter), kept with the part-finished copy (Phil, 2026-10-07: a reload
+      // lost the answers to the questions). Taken back out before anything is merged.
+      const { [HELD_AI]: heldAi, [HELD_PANEL]: heldPanel, ...restored } = held.restored as Answers & Record<string, unknown>;
+      const ai = parseHeld<{ questions: AiQuestion[]; answers: string[]; details: string[] }>(heldAi);
+      if (ai && Array.isArray(ai.questions) && ai.questions.length > 0) {
+        setAiQuestions(ai.questions);
+        setAiAnswers(ai.questions.map((_, i) => ai.answers?.[i] ?? ""));
+        setAiDetails(ai.questions.map((_, i) => ai.details?.[i] ?? ""));
+      }
+      const panel = parseHeld<Record<string, string>>(heldPanel);
+      if (panel) setPanelExtras(panel);
       // The fresh preset keys stay fresh here too: these are the answers that are saved and that
       // panels such as Generate outcome read, not just what the form shows.
-      const restored = held.restored;
       setAnswers((prev) => withFresh({ ...prev, ...restored }, presetAnswers, freshPresets) ?? prev);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [held.restored]);
+
+  /* Keep the part-finished copy up to date when only the drafted questions or the panel change
+     (the form's own answers are recorded as they are typed, below). */
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const recordHeld = (next: Answers) => {
+    held.record({
+      ...next,
+      [HELD_AI]: aiQuestionsRef.current.length
+        ? JSON.stringify({ questions: aiQuestionsRef.current, answers: aiAnswersRef.current, details: aiDetailsRef.current })
+        : "",
+      [HELD_PANEL]: Object.keys(panelExtrasRef.current).length ? JSON.stringify(panelExtrasRef.current) : "",
+    } as Answers);
+  };
+  const aiQuestionsRef = useRef(aiQuestions);
+  aiQuestionsRef.current = aiQuestions;
+  const aiAnswersRef = useRef(aiAnswers);
+  aiAnswersRef.current = aiAnswers;
+  const aiDetailsRef = useRef(aiDetails);
+  aiDetailsRef.current = aiDetails;
+  const panelExtrasRef = useRef(panelExtras);
+  panelExtrasRef.current = panelExtras;
+  useEffect(() => {
+    if (!open || !held.ready) return;
+    recordHeld(answersRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiQuestions, aiAnswers, aiDetails, panelExtras]);
 
   useEffect(() => {
     // Filed: the part-finished copy has done its job.
@@ -308,9 +359,12 @@ export default function FormEvidenceDialog({
   /** The answers as they will be saved: what the form holds, plus the AI drafted
    *  questions and their answers serialised into their one long_text field. */
   function answersToSave(): Answers {
+    const { [HELD_AI]: _a, [HELD_PANEL]: _p, ...plain } = answers as Answers & Record<string, unknown>;
+    void _a;
+    void _p;
     const key = aiDraft?.questions?.answerKey;
-    if (!key || aiQuestions.length === 0) return answers;
-    return { ...answers, [key]: serialiseAiQuestions(aiQuestions, aiAnswers, aiDetails) };
+    if (!key || aiQuestions.length === 0) return plain as Answers;
+    return { ...(plain as Answers), [key]: serialiseAiQuestions(aiQuestions, aiAnswers, aiDetails) };
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -543,7 +597,7 @@ export default function FormEvidenceDialog({
                   errors={errors}
                   onChange={(next) => {
                     setAnswers(next);
-                    held.record(next);
+                    recordHeld(next);
                   }}
                   onFileSelect={(key, file) =>
                     setFiles((prev) => ({ ...prev, [key]: file }))

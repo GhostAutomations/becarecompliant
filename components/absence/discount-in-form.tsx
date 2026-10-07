@@ -50,6 +50,17 @@ export default function DiscountInForm({
   const [reasonTouched, setReasonTouched] = useState(!!extras.discount_reason);
   const shownReason = reasonTouched ? reason : suggested;
 
+  // Ticks kept with the part-finished form come back after the panel has drawn.
+  useEffect(() => {
+    const held = (extras.discount_ids ?? "").split(",").filter(Boolean);
+    if (held.length && ticked.size === 0) setTicked(new Set(held));
+    if (extras.discount_reason && !reasonTouched) {
+      setReason(extras.discount_reason);
+      setReasonTouched(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extras.discount_ids, extras.discount_reason]);
+
   const chosen = useMemo(() => absences.filter((a) => ticked.has(a.id)), [absences, ticked]);
 
   useEffect(() => {
