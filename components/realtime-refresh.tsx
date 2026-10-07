@@ -29,7 +29,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useLiveTopic } from "@/components/live-topic";
+import { rejoinLive, subscribeLive } from "@/lib/realtime/live-bus";
 
 const PEOPLE_TABLES = ["people", "check_instances", "person_trackers"];
 // Realtime is the primary path (pushes within ~1s). This is only the safety-net
@@ -45,24 +46,31 @@ const POLL_MS = 10_000;
 const SETTLE_MS = 800;
 const MIN_GAP_MS = 3_000;
 
-/**
- * Defaults to the People tables + channel (unchanged). The Service User register
- * passes its own tables (service_users, check_instances, service_user_trackers) and
- * channel, so its RAG rollups update live in exactly the same way. check_instances
- * is shared by both populations, so a completion on either refreshes subscribers.
+/*
+ * BROADCAST, NOT POSTGRES CHANGES (speed plan push 2, 2026-10-07). This used to subscribe to row
+ * changes on each table, which kept a database poller busy around the clock (measured: 20% of a
+ * CPU core with nobody watching) and checked every change against every open tab. The database
+ * now sends one small "this table changed" message per company on a private channel (0418), and
+ * this listens for the tables it was given. Everything below that decides WHEN to refresh is
+ * unchanged. `channel` is kept for the callers but no longer used: the channel is the company's.
  */
 export default function RealtimeRefresh({
   tables = PEOPLE_TABLES,
-  channel: channelName = "people-live",
   pollMs = POLL_MS,
+  topic: topicOverride,
 }: {
   tables?: string[];
+  /** No longer used (one channel per company now); kept so existing callers need not change. */
   channel?: string;
   /** Safety net only. The founder inbox passes a long one: on a screen you READ, a refresh you
    *  did not ask for moves the page under you, so it must be rare (Phil, 2026-09-04). */
   pollMs?: number;
+  /** The founder inbox listens on "founder" rather than a company. */
+  topic?: string;
 } = {}) {
   const router = useRouter();
+  const companyTopic = useLiveTopic();
+  const topic = topicOverride ?? companyTopic;
 
   useEffect(() => {
     const visible = () =>
@@ -85,83 +93,45 @@ export default function RealtimeRefresh({
       const wait = Math.max(SETTLE_MS, lastRefresh + MIN_GAP_MS - Date.now());
       timer = setTimeout(refreshNow, wait);
     };
-    /* True only while the socket is joined. The poll below is a safety net for a dropped socket,
-       so it stays quiet while this is true. */
+    /* True only while the channel is joined. The poll below is a safety net for a dropped
+       channel, so it stays quiet while this is true. */
     let connected = false;
+    const watched = new Set(tables);
+    const stop = topic
+      ? subscribeLive(topic, {
+          onChange: (table) => {
+            if (watched.has(table)) push();
+          },
+          onStatus: (c) => {
+            connected = c;
+          },
+        })
+      : () => {};
 
-    /* SIGNED IN BEFORE SUBSCRIBING (found 2026-10-01: a forms help note reached the founder
-       inbox table and the open inbox never showed it until Phil refreshed). The browser client
-       reads the login from the cookie a moment after it is created, and subscribing straight
-       away raced it: the socket joined as an anonymous visitor (realtime.subscription showed
-       claims_role "anon"), RLS correctly sent that visitor nothing, and the only thing that ever
-       caught up was the slow fallback poll. So the token is handed to Realtime first, and only
-       then does the channel join. Token refreshes after that are passed on by supabase-js. */
-    const supabase = createClient();
-    let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    /* JOIN, AND JOIN AGAIN WHEN IT DROPS (audit B1, measured 3 Oct): a tab left hidden for a few
-       minutes lets the socket's heartbeat lapse, the channel closes, and the page was left on the
-       ten second poll for as long as it stayed open. Coming back to the tab now rebuilds the
-       channel if it is not joined, so the poll is only ever a stop gap. */
-    let joining = false;
-    const join = async () => {
-      // Focus and visibilitychange both fire on return: one rejoin, not two channels.
-      if (joining) return;
-      joining = true;
-      try {
-        await joinOnce();
-      } finally {
-        joining = false;
-      }
-    };
-    const joinOnce = async () => {
-      if (channel) {
-        const old = channel;
-        channel = null;
-        await supabase.removeChannel(old);
-      }
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      await supabase.realtime.setAuth(data.session?.access_token ?? null);
-      if (cancelled) return;
-      const ch = supabase.channel(channelName);
-      for (const table of tables) {
-        ch.on("postgres_changes", { event: "*", schema: "public", table }, push);
-      }
-      channel = ch;
-      ch.subscribe((status) => {
-        if (channel !== ch) return; // a channel we have already replaced
-        connected = status === "SUBSCRIBED";
-      });
-    };
-    void join();
-
-    // Poll fallback for a dropped socket. Only while the tab is being looked at.
+    // Poll fallback for a dropped channel. Only while the tab is being looked at.
     const interval = setInterval(() => {
       if (!connected) push();
     }, pollMs);
 
-    /* Back on the screen: push once, so what changed while you were away is simply there.
-       Unconditional, because a socket that dropped while hidden would have had nothing to
-       report either way. */
+    /* Back on the screen: push once, so what changed while you were away is simply there,
+       and join again if the channel dropped while hidden. */
     const onVisible = () => {
       if (!visible()) return;
-      if (!connected) void join();
+      if (topic && !connected) rejoinLive(topic);
       push();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
 
     return () => {
-      cancelled = true;
       if (timer) clearTimeout(timer);
-      if (channel) void supabase.removeChannel(channel);
+      stop();
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
     // tables is a stable literal from the caller; join for a primitive dep.
-  }, [router, channelName, pollMs, tables.join(",")]);
+  }, [router, topic, pollMs, tables.join(",")]);
 
   return null;
 }

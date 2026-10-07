@@ -303,6 +303,7 @@ export default function EmailClient({
       <RealtimeRefresh
         tables={FOUNDER_EMAIL_TABLES}
         channel="founder-email-live"
+        topic="founder"
         pollMs={120_000}
       />
       {/* ---------------- COMMAND BAR ---------------- */}

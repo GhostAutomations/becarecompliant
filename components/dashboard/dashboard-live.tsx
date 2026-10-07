@@ -17,13 +17,14 @@
  *  - at least MIN_GAP_MS between pushes, nothing while the tab is hidden, one push on coming back;
  *  - every ten minutes while it is being looked at, a refresh picks up the new snapshot;
  *  - Refresh clears this person's snapshot and redraws quietly, with a small spinner.
- * Subscriptions are unfiltered (RLS scopes the events) and joined only once signed in, as in
- * components/realtime-refresh.tsx; a poll stands in while the socket is down.
+ * The signal is the company's private live channel (0418, lib/realtime/live-bus.ts), joined only
+ * once signed in; a poll stands in while the channel is down.
  */
 
 import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useLiveTopic } from "@/components/live-topic";
+import { rejoinLive, subscribeLive } from "@/lib/realtime/live-bus";
 import { refreshDashboardFigures } from "@/app/(app)/dashboard/actions";
 
 const TABLES = [
@@ -34,6 +35,10 @@ const TABLES = [
   "service_user_trackers",
   "rtw_questionnaires",
   "absence_events",
+  "absence_meetings",
+  "holiday_requests",
+  "complaints",
+  "incidents",
 ];
 const SETTLE_MS = 1_500;
 const MIN_GAP_MS = 10_000;
@@ -54,6 +59,7 @@ function timeLabel(iso: string): string {
 
 export default function DashboardLive({ builtAt }: { builtAt: string }) {
   const router = useRouter();
+  const topic = useLiveTopic();
   const [pending, startTransition] = useTransition();
   const refreshRef = useRef<() => void>(() => {});
   refreshRef.current = () => startTransition(() => router.refresh());
@@ -75,38 +81,20 @@ export default function DashboardLive({ builtAt }: { builtAt: string }) {
       timer = setTimeout(refreshNow, wait);
     };
 
-    const supabase = createClient();
-    let cancelled = false;
+    /* BROADCAST (speed plan push 2): one small "table changed" message per company on a private
+       channel (0418), through the shared listener, in place of row level subscriptions. */
     let connected = false;
-    let joining = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    const join = async () => {
-      if (joining) return;
-      joining = true;
-      try {
-        if (channel) {
-          const old = channel;
-          channel = null;
-          await supabase.removeChannel(old);
-        }
-        const { data } = await supabase.auth.getSession();
-        if (cancelled) return;
-        await supabase.realtime.setAuth(data.session?.access_token ?? null);
-        if (cancelled) return;
-        const ch = supabase.channel("dashboard-live");
-        for (const table of TABLES) {
-          ch.on("postgres_changes", { event: "*", schema: "public", table }, push);
-        }
-        channel = ch;
-        ch.subscribe((status) => {
-          if (channel !== ch) return;
-          connected = status === "SUBSCRIBED";
-        });
-      } finally {
-        joining = false;
-      }
-    };
-    void join();
+    const watched = new Set(TABLES);
+    const stop = topic
+      ? subscribeLive(topic, {
+          onChange: (table) => {
+            if (watched.has(table)) push();
+          },
+          onStatus: (c) => {
+            connected = c;
+          },
+        })
+      : () => {};
 
     const interval = setInterval(() => {
       if (!visible()) return;
@@ -121,21 +109,20 @@ export default function DashboardLive({ builtAt }: { builtAt: string }) {
 
     const onVisible = () => {
       if (!visible()) return;
-      if (!connected) void join();
+      if (topic && !connected) rejoinLive(topic);
       push();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
 
     return () => {
-      cancelled = true;
       if (timer) clearTimeout(timer);
-      if (channel) void supabase.removeChannel(channel);
+      stop();
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, []);
+  }, [topic]);
 
   const label = timeLabel(builtAt);
   return (

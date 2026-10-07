@@ -1,4 +1,5 @@
 import { timed } from "@/lib/perf/timing";
+import { LiveTopicProvider } from "@/components/live-topic";
 import Link from "next/link";
 import { isCarerLogin } from "@/lib/auth/carer-login";
 import { redirect } from "next/navigation";
@@ -169,7 +170,15 @@ export default async function AppLayout({
           : "/dashboard";
 
   console.log(`[perf] layout.total ${Date.now() - perfStart}`);
+  /* LIVE UPDATES (speed plan push 2): the private channel this person's screens listen on. */
+  const liveTopic = navCompanyId
+    ? `company:${navCompanyId}`
+    : profile.role === "platform_admin"
+      ? "founder"
+      : null;
+
   return (
+    <LiveTopicProvider topic={liveTopic}>
     <div className="app-bg flex h-dvh overflow-hidden">
       {/* Acme-only: far-left icon rail + collapsible drawer (mirrors the demo). */}
       {navy ? (
@@ -353,5 +362,6 @@ export default async function AppLayout({
       <ToastHost />
       <SessionWatch />
     </div>
+    </LiveTopicProvider>
   );
 }
