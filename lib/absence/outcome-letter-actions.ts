@@ -227,6 +227,16 @@ async function stageFactsFor(
   });
 }
 
+/** The absences this meeting covers (its stage's), for the AI to write about and nothing else. */
+async function coveredFact(ctx: LetterCtx): Promise<string[]> {
+  const { extras, config } = await letterSetup(ctx);
+  const covered = discussedAbsences(extras.absences, ctx.meeting.stage, thresholdsOf(config));
+  if (covered.length === 0) return [];
+  return [
+    `The absences this meeting covered (write ONLY about these): ${covered.map(({ e }) => absenceLine(e)).join("; ")}`,
+  ];
+}
+
 /**
  * THE WHOLE LETTER AS TEXT (Phil, 2026-10-07: the box and the PDF must match). The company's
  * wording with the AI's middle merged in, from the opening line to the appeal paragraph, without
@@ -316,7 +326,11 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
     prompt: buildOutcomePrompt({
       stage: ctx.meeting.stage,
       stageAction: stageActionFor(config, ctx.meeting.stage),
-      facts: [...outcomeFacts(ctx.answers), ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId))].map((f) =>
+      facts: [
+        ...(await coveredFact(ctx)),
+        ...outcomeFacts(ctx.answers),
+        ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId)),
+      ].map((f) =>
         redactName(f, ctx.employee.name),
       ),
     }),
@@ -636,7 +650,9 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
       stage,
       stageAction: stageActionFor(config, stage),
       // The employee's name never goes to the AI: reasons and notes are often written with it.
-      facts: [...facts, ...(await stageFactsFor(config, stage, profile.company_id))].map((f) => redactName(f, loaded.ctx.employee.name)),
+      facts: [...(await coveredFact(loaded.ctx)), ...facts, ...(await stageFactsFor(config, stage, profile.company_id))].map(
+        (f) => redactName(f, loaded.ctx.employee.name),
+      ),
     }),
     // A detailed letter needs room (Phil, 2026-10-07: one stopped mid sentence at 1200), and one
     // that still runs out is refused and its credit given back, never handed over cut short.

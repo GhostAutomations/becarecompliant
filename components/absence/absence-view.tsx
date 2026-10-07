@@ -199,8 +199,10 @@ export default function AbsenceView({
     presets: Record<string, string>;
     /** The booking this Record meeting is for, if any: the drafted questions are kept on it. */
     bookingId: string | null;
+    /** The absences this meeting covers (its stage's), oldest first. */
+    covered: AbsenceEventRow[];
   } {
-    if (!meetingSchema) return { schema: null, presets: {}, bookingId: null };
+    if (!meetingSchema) return { schema: null, presets: {}, bookingId: null, covered: [] };
     // Declined means NOT booked in (Phil, 2026-07-12): declined bookings do
     // not appear as Meeting Type options and do not drive the prefills. The
     // manager rearranges (which resets the response) or cancels them.
@@ -320,7 +322,7 @@ export default function AbsenceView({
     if (withAppeal.sections.some((sec) => sec.fields.some((f) => f.key === "appeal_days"))) {
       presets.appeal_days = DEFAULT_APPEAL_DAYS;
     }
-    return { schema: withAppeal, presets, bookingId: earliest?.id ?? null };
+    return { schema: withAppeal, presets, bookingId: earliest?.id ?? null, covered: discussed.map(({ e }) => e) };
   }
 
   const rankInputFor = (r: AbsencePersonRow): RankInput => ({
@@ -564,7 +566,8 @@ export default function AbsenceView({
                                 <>
                                   {canDiscount ? (
                                     <DiscountInForm
-                                      absences={countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart })}
+                                      // Only the absences this stage covers (Phil, 2026-10-07).
+                                      absences={mf.covered}
                                       ctx={ctx}
                                     />
                                   ) : null}
