@@ -72,6 +72,7 @@ type SummaryRow = {
   last_absence: string | null;
   latest_meeting_stage: number | null;
   not_counted: number | null;
+  absences_since_meeting?: number | null;
 };
 
 /** The Absence register: only active people who HAVE absences in the window. */
@@ -106,6 +107,7 @@ export async function listAbsenceRegister(
         occasions: r.occasions,
         totalDays: Number(r.total_days),
         latestMeetingStage: r.latest_meeting_stage,
+        absencesSinceMeeting: r.absences_since_meeting ?? 0,
       },
       config,
     ),

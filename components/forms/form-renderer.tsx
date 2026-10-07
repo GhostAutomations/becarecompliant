@@ -151,6 +151,9 @@ export default function FormRenderer({
     [onChange, derive],
   );
 
+  // Every question on the form, so a question that depends on a hidden one is hidden too.
+  const allFields = schema.sections.flatMap((sec) => sec.fields);
+
   return (
     <div className="flex flex-col gap-6">
       {schema.sections.map((section) => {
@@ -161,7 +164,7 @@ export default function FormRenderer({
            not need one, because a section IS its questions. */
         const visibleFields = section.fields.filter(
           (field) =>
-            isFieldVisible(field, answers) &&
+            isFieldVisible(field, answers, allFields) &&
             /* Judged on what the form OPENED with, so a question never vanishes mid-answer. */
             !(hideFilledIn && field.prefill && hasOpeningValue(defaultValue?.[field.key])),
         );

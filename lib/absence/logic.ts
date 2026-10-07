@@ -11,6 +11,7 @@
  */
 
 import { type AbsenceWindow, absenceWindowFrom } from "@/lib/absence/window";
+import { stageDueAfterNewAbsence } from "@/lib/absence/next-stage";
 
 export type AbsenceMethod = "stages" | "bradford";
 
@@ -45,6 +46,8 @@ export type AbsenceAggregate = {
   totalDays: number;
   /** Highest stage a formal meeting has recorded, if any. */
   latestMeetingStage: number | null;
+  /** Counted absences that began after the last recorded meeting (0420). */
+  absencesSinceMeeting?: number;
 };
 
 /** What the Absence view shows on a person's card. */
@@ -67,6 +70,8 @@ export type AbsenceStatus = {
    * meeting recorded, so a new absence-management meeting is due.
    */
   meetingDue: boolean;
+  /** The meeting is due because of an absence after the last one, not the count (next-stage.ts). */
+  dueAfterNewAbsence: boolean;
 };
 
 /**
@@ -143,6 +148,24 @@ export function deriveAbsenceStatus(
     }
   }
 
+  /* A NEW ABSENCE AFTER A STAGE MEETING (Phil, 2026-10-07): the next stage is due even when the
+     count alone has not reached it. lib/absence/next-stage.ts. */
+  let dueAfterNewAbsence = false;
+  if (isStageThresholds(config.method, config.thresholds)) {
+    const stagesList = config.thresholds as StageThreshold[];
+    const next = stageDueAfterNewAbsence(
+      meetingStage,
+      Math.max(0, agg.absencesSinceMeeting ?? 0),
+      stagesList.map((s) => s.stage),
+    );
+    if (next != null && (derivedStage == null || next > derivedStage)) {
+      const row = stagesList.find((s) => s.stage === next);
+      derivedStage = next;
+      derivedLabel = row?.label ?? `Stage ${next}`;
+      dueAfterNewAbsence = true;
+    }
+  }
+
   const meetingDue =
     derivedStage != null && (meetingStage == null || derivedStage > meetingStage);
 
@@ -156,6 +179,7 @@ export function deriveAbsenceStatus(
     action,
     meetingStage,
     meetingDue,
+    dueAfterNewAbsence: dueAfterNewAbsence && meetingDue,
   };
 }
 

@@ -11,6 +11,7 @@
  * Manager/Admin only (RLS on the tables + the form).
  */
 
+import { absenceReasonText } from "@/lib/absence/reasons";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { requireCompany } from "@/lib/auth/guards";
@@ -126,7 +127,9 @@ export async function recordAbsence(
     return { error: "Evidence was saved, but no first date of absence was entered." };
   }
   const endDate = isoOrNull(answers["last_date_of_absence"]);
-  const reason = typeof answers["reason"] === "string" ? (answers["reason"] as string) : null;
+  /* The reasons ticked, each with its details, as the one line everything else reads (2026-10-07,
+     lib/absence/reasons.ts). A form from before then still has its single reason box. */
+  const reason = absenceReasonText(answers);
 
   const { error: insErr } = await supabase.from("absence_events").insert({
     company_id: person.company_id as string,
@@ -514,7 +517,7 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
   const [{ data: summary }, config] = await Promise.all([
     supabase
       .from("person_absence_summary")
-      .select("occasions, total_days, latest_meeting_stage")
+      .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
       .eq("person_id", personId)
       .maybeSingle(),
     getAbsenceConfig(person.company_id as string),
@@ -524,6 +527,7 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
       occasions: (summary?.occasions as number | null) ?? 0,
       totalDays: Number(summary?.total_days ?? 0),
       latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
+      absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
     },
     config,
   );

@@ -52,10 +52,25 @@ export function formCompletesCheck(schema: FormSchema, answers: Answers): boolea
   return completesCheck(flattenFields(schema), answers);
 }
 
-/** Is a field visible given the current answers (conditional logic)? */
-export function isFieldVisible(field: FormField, answers: Answers): boolean {
+/**
+ * Is a field visible given the current answers (conditional logic)?
+ *
+ * A CHAIN IS FOLLOWED when the form's fields are passed (2026-10-07). A question that depends on
+ * a question which is itself hidden is hidden too. Without this, ticking Sickness and diarrhoea,
+ * answering "No, not still" and then unticking it left "When were you last sick?" on screen, and
+ * required, for a reason no longer chosen. Depth capped so a mistaken loop cannot hang the form.
+ */
+export function isFieldVisible(
+  field: FormField,
+  answers: Answers,
+  fields?: readonly FormField[],
+  depth = 0,
+): boolean {
   if (!field.visibleWhen) return true;
-  return matchesVisibleWhen(field.visibleWhen.in, answers[field.visibleWhen.field]);
+  if (!matchesVisibleWhen(field.visibleWhen.in, answers[field.visibleWhen.field])) return false;
+  if (!fields || depth >= 10) return true;
+  const controller = fields.find((f) => f.key === field.visibleWhen!.field);
+  return controller ? isFieldVisible(controller, answers, fields, depth + 1) : true;
 }
 
 /**
@@ -98,10 +113,11 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 export function cleanAnswers(schema: FormSchema, answers: Answers): Answers {
   const out: Answers = {};
   const down = standDown(schema, answers);
-  for (const field of flattenFields(schema)) {
+  const all = flattenFields(schema);
+  for (const field of all) {
     if (isPresentational(field.type)) continue;
     if (down.has(field.key)) continue;
-    if (!isFieldVisible(field, answers)) continue;
+    if (!isFieldVisible(field, answers, all)) continue;
     if (field.key in answers) out[field.key] = answers[field.key];
   }
   return out;
@@ -267,10 +283,11 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
 export function validateAnswers(schema: FormSchema, answers: Answers): ValidationResult {
   const errors: FieldError[] = [];
   const down = standDown(schema, answers);
-  for (const field of flattenFields(schema)) {
+  const all = flattenFields(schema);
+  for (const field of all) {
     if (isPresentational(field.type)) continue;
     if (down.has(field.key)) continue;
-    if (!isFieldVisible(field, answers)) continue;
+    if (!isFieldVisible(field, answers, all)) continue;
     const message = validateField(field, answers[field.key]);
     if (message) errors.push({ key: field.key, message });
   }

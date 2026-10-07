@@ -8,6 +8,7 @@
  * completes the matching founder Form and stores immutable Evidence.
  */
 
+import RecordTypeahead from "@/components/register/record-typeahead";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
@@ -120,6 +121,7 @@ export default function AbsenceView({
   const bw = useBranchWord();
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
+  const [pickQuery, setPickQuery] = useState("");
 
   /* After a meeting is saved, a Manager or above is asked which absences it discounted. */
   const [afterMeeting, setAfterMeeting] = useState<
@@ -311,6 +313,17 @@ export default function AbsenceView({
   // left a blank grey line where the branch should be, on exactly the rows 0183 exists to show.
   const branchName = (id: string | null) =>
     branchNames.find((b) => b.id === id)?.name ?? "";
+  /* The people the name picker offers, A to Z, each with their branch to tell two of the same
+     name apart. */
+  const personChoices = useMemo(
+    () =>
+      [...visiblePeople]
+        .sort((a, b) => a.full_name.localeCompare(b.full_name, "en-GB", { sensitivity: "base" }))
+        .map((p) => ({ id: p.id, label: p.full_name, hint: branchName(p.branch_id) || undefined })),
+    // branchName reads branchNames, which only changes with the page's props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visiblePeople, branchNames],
+  );
 
   /** Today in Europe/London, for the Return to Work interview date. Computed from the
    *  shared recurrence helpers so there is one definition of "today" in the app, and
@@ -352,8 +365,13 @@ export default function AbsenceView({
   };
 
 
-  const actionRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) <= 1);
-  const trackingRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) > 1);
+  /* A TO Z BY FIRST NAME inside each section (Phil, 2026-10-07: "let's have them in alphabetical
+     order because at the moment they're a bit all over the place"; popup: by first name). Which
+     section a person is in is still decided by the ranking (lib/absence/rank.ts). */
+  const byFirstName = (a: AbsencePersonRow, b: AbsencePersonRow) =>
+    a.fullName.localeCompare(b.fullName, "en-GB", { sensitivity: "base" });
+  const actionRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) <= 1).sort(byFirstName);
+  const trackingRows = visibleRows.filter((r) => absenceRank(rankInputFor(r)) > 1).sort(byFirstName);
 
   /** One person's absence tile, the same in either section. */
   const renderCard = (r: AbsencePersonRow) => {
@@ -408,7 +426,9 @@ export default function AbsenceView({
                 {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
                 {s.meetingDue && (
                   <p className="text-xs font-medium text-amber-300">
-                    A {s.derivedLabel ?? "stage"} meeting is due.
+                    {s.dueAfterNewAbsence && s.meetingStage != null
+                      ? `A ${s.derivedLabel ?? "stage"} meeting is due: a new absence since the Stage ${s.meetingStage} meeting.`
+                      : `A ${s.derivedLabel ?? "stage"} meeting is due.`}
                   </p>
                 )}
                 {bookingByPerson[r.personId] && (
@@ -723,18 +743,25 @@ export default function AbsenceView({
             <label htmlFor="absence-person" className="form-label">
               Record an absence for
             </label>
-            <select
+            {/* THE INCIDENT FORM'S NAME PICKER (Phil, 2026-10-07): type a few letters and pick from
+                the list, the same searchable list the Incident Report uses, rather than a long
+                drop down. Typing after a pick clears it, so the absence can never be saved
+                against a name that is no longer the one shown. */}
+            <RecordTypeahead
               id="absence-person"
-              value={pickPerson}
-              onChange={(e) => setPickPerson(e.target.value)}
-            >
-              <option value="">Choose a person…</option>
-              {visiblePeople.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.full_name}
-                </option>
-              ))}
-            </select>
+              query={pickQuery}
+              choices={personChoices}
+              placeholder="Start typing a name"
+              noMatchText="Nobody on the register matches that."
+              onQueryChange={(next) => {
+                setPickQuery(next);
+                setPickPerson("");
+              }}
+              onChoose={(choice) => {
+                setPickQuery(choice.label);
+                setPickPerson(choice.id);
+              }}
+            />
           </div>
           {absenceSchema && pickPerson ? (
             <FormEvidenceDialog
