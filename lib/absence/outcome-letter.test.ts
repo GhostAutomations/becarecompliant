@@ -167,3 +167,15 @@ test("the reason for no further action goes to the letter only with that outcome
   );
   assert.ok(!outcomeFacts({ meeting_outcome: "Formal warning issued", nfa_reason: "left over" }).some((f) => f.includes("left over")));
 });
+
+test("the stage line only mentions discounts when some were made", () => {
+  const thresholds = [
+    { stage: 1, occasions: 3, action: "Verbal warning" },
+    { stage: 2, occasions: 4, action: "Written warning" },
+  ];
+  const none = stageFacts({ stage: 2, thresholds, windowWords: "6 months", stageAfter: 1, discountedAtMeeting: 0 });
+  assert.ok(none.some((x) => x.includes("REMAINS AT STAGE 1")));
+  assert.ok(!none.some((x) => /discount/i.test(x)));
+  const some = stageFacts({ stage: 2, thresholds, windowWords: "6 months", stageAfter: 1, discountedAtMeeting: 1 });
+  assert.ok(some.some((x) => x.includes("discounted at this meeting")));
+});

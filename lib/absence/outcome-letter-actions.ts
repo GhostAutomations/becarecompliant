@@ -221,6 +221,7 @@ async function stageFactsFor(
   stage: number | null,
   companyId: string,
   stageAfter?: number | null,
+  discountedAtMeeting = 0,
 ): Promise<string[]> {
   const meetingName = await companyMeetingName(companyId);
   return stageFacts({
@@ -229,6 +230,7 @@ async function stageFactsFor(
     windowWords: windowLabel(config.window),
     label: (n) => stageLabelFor(n, meetingName),
     stageAfter,
+    discountedAtMeeting,
   });
 }
 
@@ -703,7 +705,7 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
       facts: [
         ...(await coveredFact(loaded.ctx)),
         ...facts,
-        ...(await stageFactsFor(config, stage, profile.company_id, stageAfter)),
+        ...(await stageFactsFor(config, stage, profile.company_id, stageAfter, dates.length)),
       ].map(
         (f) => redactName(f, loaded.ctx.employee.name),
       ),

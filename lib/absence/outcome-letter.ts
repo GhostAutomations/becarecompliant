@@ -40,6 +40,7 @@ export const OUTCOME_SYSTEM = [
   "in meaning, so they know what a further absence could lead to. Leave this out only if the record",
   "has no such line.",
   "Where the record says nothing about one of these, leave it out rather than guess.",
+  "Only say an absence was discounted when the record lists it as discounted at this meeting.",
   "Do NOT write a greeting, a sign off, a subject line, anything about the right of appeal, or any",
   "heading: the company's own wording around your text already has those. No markdown, no bullet points.",
 ].join(" ");
@@ -185,6 +186,9 @@ export function stageFacts(opts: {
   /** The stage they are on once this meeting is over (stageAfterMeeting). Null: no stage. When it
    *  differs from `stage`, the letter says so, and "what happens next" follows it. */
   stageAfter?: number | null;
+  /** How many absences this meeting discounted, so the stage line only mentions discounts when
+   *  there were some (Phil, 2026-10-08: an NFA letter said absences were discounted when none were). */
+  discountedAtMeeting?: number;
 }): string[] {
   const label = opts.label ?? ((n: number) => `Stage ${n} meeting`);
   if (!opts.stage) return [];
@@ -195,10 +199,13 @@ export function stageFacts(opts: {
   }
   const after = opts.stageAfter === undefined ? opts.stage : opts.stageAfter;
   if (after !== opts.stage) {
+    const why = (opts.discountedAtMeeting ?? 0) > 0
+      ? `with the absences discounted at this meeting, the record is below the Stage ${opts.stage} trigger`
+      : `no further action was taken, so this meeting does not move the employee on to Stage ${opts.stage}`;
     out.push(
       after
-        ? `Stage after this meeting: with the absences discounted at this meeting, the record is below the Stage ${opts.stage} trigger, so the employee REMAINS AT STAGE ${after}`
-        : `Stage after this meeting: with the absences discounted at this meeting, the record is below every trigger, so the employee is not at any stage`,
+        ? `Stage after this meeting: ${why}, and the employee REMAINS AT STAGE ${after}`
+        : `Stage after this meeting: ${why}, and the employee is not at any stage`,
     );
   }
   // What happens next follows the stage they are on AFTER this meeting (Phil, 2026-10-07: "you
