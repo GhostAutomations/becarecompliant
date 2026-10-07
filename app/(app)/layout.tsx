@@ -1,3 +1,4 @@
+import { timed } from "@/lib/perf/timing";
 import Link from "next/link";
 import { isCarerLogin } from "@/lib/auth/carer-login";
 import { redirect } from "next/navigation";
@@ -27,7 +28,8 @@ import { getCompanyRow } from "@/lib/companies/row";
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { profile } = await requireProfile();
+  const perfStart = Date.now();
+  const { profile } = await timed("layout.requireProfile", requireProfile());
   // Invited users must finish setup (set a password) before using the app.
   if (profile.status === "invited") redirect("/welcome");
   const displayName = profile.full_name || profile.email;
@@ -166,6 +168,7 @@ export default async function AppLayout({
           ? "/my"
           : "/dashboard";
 
+  console.log(`[perf] layout.total ${Date.now() - perfStart}`);
   return (
     <div className="app-bg flex h-dvh overflow-hidden">
       {/* Acme-only: far-left icon rail + collapsible drawer (mirrors the demo). */}

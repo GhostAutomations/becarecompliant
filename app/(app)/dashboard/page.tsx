@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { timed } from "@/lib/perf/timing";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -649,7 +650,8 @@ function fmtWhen(iso: string): string {
 /* ------------------------------------------------------------------ page */
 
 export default async function DashboardPage() {
-  const { user, profile } = await requireCompany();
+  const perfStart = Date.now();
+  const { user, profile } = await timed("dash.requireCompany", requireCompany());
   if (!profile.company_id) redirect("/founder");
   if (profile.role === "team_member") redirect("/people");
   /* On Call used to be sent straight to /on-call from here. It was reasonable while the Dashboard
@@ -674,12 +676,12 @@ export default async function DashboardPage() {
      person to tell. */
   /* A DEMO (Phil, 2026-10-01): "I don't think we need anything to do with billing in the demo
      account". Nobody in a demo can pay, and the founder sets the demo up, so it is never asked. */
-  const demo = await getCompanyDemo(companyId);
+  const demo = await timed("dash.demo", getCompanyDemo(companyId));
   const demoLogin = demo ? await getMyDemoLogin(user.id) : null;
   const showsBilling = profile.role === "company_admin" && !profile.actingAsCompanyId && !demo;
   const setupCard =
     !demo && (profile.role === "company_admin" || profile.role === "platform_admin")
-      ? await getSetupCard(companyId)
+      ? await timed("dash.setupCard", getSetupCard(companyId))
       : null;
   let billingMessage: string | null = null;
   if (showsBilling) {
@@ -741,7 +743,8 @@ export default async function DashboardPage() {
   const dashTodayIso = formatCivilDate(todayInLondon());
   /* SPEED (Phil, 2026-10-07: "it takes too long before the page comes and loads"). The feature
      switches and the company row are read side by side, not one after another. */
-  const [onCallOn, onCallName, canSeePqs, plannerOn, complaintsOn, coRow] = await Promise.all([
+  console.log(`[perf] dash.beforeFlags ${Date.now() - perfStart}`);
+  const [onCallOn, onCallName, canSeePqs, plannerOn, complaintsOn, coRow] = await timed("dash.flags", Promise.all([
     onCallPlus ? featureEnabled(companyId, "on_call") : Promise.resolve(false),
     // The department's name for this company (0276), so the tile does not say "On Call" to a
     // company whose nav calls it something else.
@@ -755,7 +758,7 @@ export default async function DashboardPage() {
     // Supervisor would read a zero and take it to mean there are no complaints.
     COMPLAINTS_ROLES.includes(profile.role) ? featureEnabled(companyId, "complaints") : Promise.resolve(false),
     getCompanyRow(companyId),
-  ]);
+  ]));
   const canSeeOnCall = onCallPlus && onCallOn;
   const canSeePlanner = PLANNER_ROLES.includes(profile.role) && plannerOn;
   const canSeeComplaints = COMPLAINTS_ROLES.includes(profile.role) && complaintsOn;
@@ -774,7 +777,7 @@ export default async function DashboardPage() {
     pqsScopes: Awaited<ReturnType<typeof getPqsScopes>>;
     branchReadiness: BranchReadiness[];
   };
-  const snap = await readSnapshot<Heavy>(user.id, companyId, profile.role);
+  const snap = await timed("dash.readSnapshot", readSnapshot<Heavy>(user.id, companyId, profile.role));
   const workOutHeavy = async (): Promise<Heavy> => {
     const [score, trainingPct, policyCoverage, auditsPct, pqs] = await Promise.all([
       companyWide
@@ -807,27 +810,28 @@ export default async function DashboardPage() {
   };
 
   const [heavy, live] = await Promise.all([
-    snap ? Promise.resolve(snap.payload) : workOutHeavy(),
+    snap ? Promise.resolve(snap.payload) : timed("dash.heavy", workOutHeavy),
     Promise.all([
-      getDuePreview(companyId),
+      timed("dash.due", getDuePreview(companyId)),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       canSeeComplaints
-        ? getComplaintCounts(companyId)
+        ? timed("dash.complaints", getComplaintCounts(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
       canSeeIncidents
-        ? getIncidentActions(companyId)
+        ? timed("dash.incidents", getIncidentActions(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getIncidentActions>> | null),
-      getAbsenceActions(companyId),
-      getPendingHolidayApprovals(companyId),
+      timed("dash.absence", getAbsenceActions(companyId)),
+      timed("dash.holidays", getPendingHolidayApprovals(companyId)),
       // Admin only: both sources are Admin only by RLS, and a Manager reading them would get
       // zeros that look like "nothing spent" rather than "not your business".
       profile.role === "company_admin" || profile.role === "platform_admin"
-        ? getSpendThisMonth(companyId)
+        ? timed("dash.spend", getSpendThisMonth(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getSpendThisMonth>> | null),
-      getRecentActivity(companyId),
+      timed("dash.activity", getRecentActivity(companyId)),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]),
   ]);
+  console.log(`[perf] dash.data ${Date.now() - perfStart}`);
   const builtAt = snap ? snap.builtAt : await writeSnapshot(user.id, companyId, profile.role, heavy);
   const { score, trainingPct, policyCoverage, auditsPct, pqs, pqsScopes, branchReadiness } = heavy;
   const [duePreview, plannerWeek, complaints, incidentActions, absenceActions, holidaysPending, spend, activity, onCallUrgent] = live;

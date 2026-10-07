@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { timed } from "@/lib/perf/timing";
 import { NextResponse, type NextRequest } from "next/server";
 import { canUseModule, disabledKey } from "@/lib/auth/module-catalogue";
 import { moduleForPath, NO_ACCESS_PATH } from "@/lib/auth/module-paths";
@@ -163,7 +164,7 @@ export async function updateSession(request: NextRequest) {
   // Do not run code between createServerClient and auth.getUser().
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await timed("mw.getUser", supabase.auth.getUser());
 
   const { pathname } = request.nextUrl;
 
@@ -212,6 +213,7 @@ export async function updateSession(request: NextRequest) {
    * RLS is still what decides whether a record may be read.
    */
   const moduleKey = user ? moduleForPath(pathname) : null;
+  const gateStart = Date.now();
   if (user && moduleKey) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -272,6 +274,8 @@ export async function updateSession(request: NextRequest) {
       }
     }
   }
+
+  if (user && moduleKey) console.log(`[perf] mw.gate ${Date.now() - gateStart}`);
 
   /* A session made by a reset link is not a signed in person yet (Phil, popup 2026-09-23): "Back to
      sign in" must show the sign in page, not bounce them into the dashboard it cannot reach. */

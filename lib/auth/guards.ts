@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { timed } from "@/lib/perf/timing";
 import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
 import { cookies, headers } from "next/headers";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -104,7 +105,7 @@ export async function requireUser(): Promise<User> {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await timed("guard.getUser", supabase.auth.getUser());
   if (!user) redirect(await signInHere());
 
   const {
@@ -133,10 +134,10 @@ export async function requireUser(): Promise<User> {
        * second computer displaces the first computer, so a shared password still produces the
        * tell that made single session worth having.
        */
-      const { data: slots } = await supabase
-        .from("user_sessions")
-        .select("session_id")
-        .eq("user_id", user.id);
+      const { data: slots } = await timed(
+        "guard.sessions",
+        supabase.from("user_sessions").select("session_id").eq("user_id", user.id).then((r) => r),
+      );
 
       const held = slots ?? [];
       const stillMine = held.some((s) => s.session_id === currentSessionId);
@@ -168,13 +169,17 @@ export async function requireProfile(): Promise<{
   user: User;
   profile: Profile;
 }> {
-  const user = await requireUser();
+  const user = await timed("guard.requireUser", requireUser());
   const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, company_id, full_name, email, role, status, company_role_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const { data: profile } = await timed(
+    "guard.profile",
+    supabase
+      .from("profiles")
+      .select("id, company_id, full_name, email, role, status, company_role_id")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then((r) => r),
+  );
 
   if (!profile || profile.status === "disabled") {
     // GLOBAL on purpose: a switched off login is ended on every device it holds.
