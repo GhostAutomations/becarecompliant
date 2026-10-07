@@ -320,7 +320,10 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
         redactName(f, ctx.employee.name),
       ),
     }),
-    maxTokens: 1200,
+    // A detailed letter needs room (Phil, 2026-10-07: one stopped mid sentence at 1200), and one
+    // that still runs out is refused and its credit given back, never handed over cut short.
+    maxTokens: 3000,
+    refuseIfCut: true,
   });
   if ("error" in result) return { error: result.error };
   const middle = cleanOutcomeBody(result.ok);
@@ -635,7 +638,10 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
       // The employee's name never goes to the AI: reasons and notes are often written with it.
       facts: [...facts, ...(await stageFactsFor(config, stage, profile.company_id))].map((f) => redactName(f, loaded.ctx.employee.name)),
     }),
-    maxTokens: 1200,
+    // A detailed letter needs room (Phil, 2026-10-07: one stopped mid sentence at 1200), and one
+    // that still runs out is refused and its credit given back, never handed over cut short.
+    maxTokens: 3000,
+    refuseIfCut: true,
   });
   if ("error" in result) return { error: result.error };
   const middle = cleanOutcomeBody(result.ok);
