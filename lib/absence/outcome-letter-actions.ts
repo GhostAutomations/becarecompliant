@@ -740,3 +740,45 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
     return { error: `The preview could not be made: ${(e as Error).message}` };
   }
 }
+
+/**
+ * THE FINAL LOOK (Phil, 2026-10-07: "a final chance to see the pdf then approve and send or save to
+ * file or return and edit"). The real PDF of the whole letter for a recorded meeting, and who it
+ * will be emailed to. With download set, it is the copy the manager saves to file, and the audit
+ * log says so. Nothing is sent and the letter stays a draft.
+ */
+export async function outcomeLetterPdfPreview(
+  formData: FormData,
+): Promise<{ pdf?: string; to?: string | null; name?: string; fileName?: string; error?: string }> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const ctx = await load(String(formData.get("meeting_id") ?? ""), profile.company_id);
+  if ("error" in ctx) return { error: ctx.error };
+  const body = normaliseApprovedBody(formData.get("body"));
+  if (!body) return { error: "Write the letter, or generate it, first." };
+  try {
+    const letter = await compose(ctx, body);
+    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
+    if (String(formData.get("download") ?? "") === "1") {
+      await writeAudit({
+        companyId: ctx.companyId,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "absence.outcome_letter_downloaded",
+        entityType: "person",
+        entityId: ctx.meeting.person_id,
+        summary: "Saved the absence meeting outcome letter to file (not sent)",
+        metadata: { meeting_id: ctx.meeting.id },
+      });
+    }
+    return {
+      pdf: pdf.toString("base64"),
+      to: ctx.employee.email,
+      name: ctx.employee.name,
+      fileName: `Outcome letter ${ctx.employee.name}${ctx.meeting.meeting_date ? ` ${ctx.meeting.meeting_date}` : ""}.pdf`.replace(/[\\/:*?"<>|]/g, ""),
+    };
+  } catch (e) {
+    return { error: `The letter could not be prepared: ${(e as Error).message}` };
+  }
+}

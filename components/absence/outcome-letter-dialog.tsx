@@ -16,12 +16,20 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import {
   draftOutcomeLetter,
-  previewOutcomeLetter,
+  outcomeLetterPdfPreview,
   sendOutcomeLetter,
 } from "@/lib/absence/outcome-letter-actions";
-import type { LetterPreview } from "@/lib/absence/letter-preview";
-import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
 import { AiIcon } from "@/components/ai-icon";
+import PolicyReader from "@/components/staff/policy-reader";
+
+function toBytes(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+type FinalLook = { bytes: Uint8Array; to: string | null; name: string; fileName: string };
 
 type Props = {
   meetingId: string;
@@ -59,7 +67,11 @@ export default function OutcomeLetterDialog({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [body, setBody] = useState(initialBody ?? "");
-  const [letters, setLetters] = useState<LetterPreview[] | null>(null);
+  /* THE FINAL LOOK (Phil, 2026-10-07): the real PDF, then Approve and send, Save to file, or Return
+     and edit. A letter already written and checked in the meeting form opens straight on it. */
+  const [finalLook, setFinalLook] = useState<FinalLook | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewing, startPreview] = useTransition();
   const [draftState, draftAction, drafting] = useActionState(draftOutcomeLetter, IDLE_STATE);
@@ -99,44 +111,108 @@ export default function OutcomeLetterDialog({
 
   function check() {
     setPreviewError(null);
+    setSavedNote(null);
     const f = fd();
     startPreview(async () => {
-      const result = await previewOutcomeLetter(f);
-      if (result.letters) setLetters(result.letters);
-      else setPreviewError(result.error ?? "The letter could not be prepared.");
+      const result = await outcomeLetterPdfPreview(f);
+      if (result.pdf) {
+        setFinalLook({
+          bytes: toBytes(result.pdf),
+          to: result.to ?? null,
+          name: result.name ?? personName,
+          fileName: result.fileName ?? "Outcome letter.pdf",
+        });
+      } else setPreviewError(result.error ?? "The letter could not be prepared.");
     });
   }
 
-  const busy = drafting || draftPressed || previewing || sending;
+  // Opened on a letter written in the meeting form: straight to the final look.
+  const openedOnFinal = useRef(false);
+  useEffect(() => {
+    if (openedOnFinal.current || !initialBody?.trim()) return;
+    openedOnFinal.current = true;
+    check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Save to file: the PDF, downloaded, nothing sent. The letter stays a draft on the meeting. */
+  async function saveToFile() {
+    if (!finalLook) return;
+    setSaving(true);
+    const f = fd();
+    f.set("download", "1");
+    const result = await outcomeLetterPdfPreview(f); // logs the download
+    setSaving(false);
+    const bytes = result.pdf ? toBytes(result.pdf) : finalLook.bytes;
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.fileName ?? finalLook.fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    setSavedNote("Saved to your downloads. The letter has not been sent and stays as a draft on the meeting.");
+  }
+
+  const busy = drafting || draftPressed || previewing || sending || saving;
   if (!mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
       <div
         className={`max-h-[94vh] w-full overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl ${
-          letters ? "max-w-2xl" : "max-w-xl"
+          finalLook ? "max-w-3xl" : "max-w-xl"
         }`}
       >
         <h2 className="text-sm font-semibold text-white">
-          {letters ? "Check the letter" : "Outcome letter"}: {personName}
+          {finalLook ? "Check the letter" : "Outcome letter"}: {personName}
         </h2>
 
-        {letters ? (
-          <LetterPreviewPanel
-            letters={letters}
-            intro="This is the letter that will go, with a PDF copy that is also kept on the meeting. Once approved it cannot be changed."
-            approveLabel="Approve and send"
-            workingLabel="Sending…"
-            pending={sending}
-            error={sendState.error}
-            ok={sendState.ok}
-            onBack={() => setLetters(null)}
-            onApprove={() => {
-              const f = fd();
-              startTransition(() => sendAction(f));
-            }}
-            onClose={onClose}
-          />
+        {finalLook ? (
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-white/60">
+              {finalLook.to
+                ? `This is the letter as it will go. Approve and send emails it to ${finalLook.to} with this PDF attached, and keeps the PDF on the meeting. Once sent it cannot be changed.`
+                : `${finalLook.name} has no email address, so this letter will not be emailed. Approving keeps it as a PDF on the meeting, marked not emailed, for you to print and hand over.`}
+            </p>
+            <div className="h-[60vh] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+              <PolicyReader url="" data={finalLook.bytes} onRendered={() => {}} onFailed={() => {}} />
+            </div>
+            {sendState.error ? <p className="form-error">{sendState.error}</p> : null}
+            {sendState.ok ? <p className="text-sm text-emerald-300">{sendState.ok}</p> : null}
+            {savedNote ? <p className="text-sm text-emerald-300">{savedNote}</p> : null}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                className="btn-primary text-xs"
+                disabled={busy || !!sendState.ok}
+                onClick={() => {
+                  const f = fd();
+                  startTransition(() => sendAction(f));
+                }}
+              >
+                {sending ? "Sending…" : finalLook.to ? "Approve and send" : "Approve and keep"}
+              </button>
+              <button type="button" className="btn-outline text-xs" disabled={busy || !!sendState.ok} onClick={saveToFile}>
+                {saving ? "Saving…" : "Save to file"}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                disabled={busy || !!sendState.ok}
+                onClick={() => {
+                  setFinalLook(null);
+                  setSavedNote(null);
+                }}
+              >
+                Return and edit
+              </button>
+              <button type="button" className="btn-ghost ml-auto text-xs" disabled={sending} onClick={onClose}>
+                {sendState.ok ? "Close" : "Not now"}
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="mt-3 space-y-3">
             <p className="text-xs text-white/60">
