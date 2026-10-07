@@ -18,6 +18,8 @@ import { runAi } from "@/lib/ai/anthropic";
 import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor } from "@/lib/absence/stage-actions";
+import { availableStages } from "@/lib/absence/record-meeting";
+import { deriveAbsenceStatus } from "@/lib/absence/logic";
 import { absenceCountState, countedAbsences, windowStartIso } from "@/lib/absence/discount";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { StageThreshold } from "@/lib/absence/logic";
@@ -25,6 +27,7 @@ import {
   MEETING_QUESTIONS_SYSTEM,
   buildMeetingPrompt,
   discussedAbsences,
+  redactName,
   meetingNotesFromAnswers,
   rtwNotesFromAnswers,
   rtwNotesFromPortal,
@@ -66,7 +69,7 @@ export async function draftMeetingQuestions(
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("id, company_id, branch_id")
+    .select("id, company_id, branch_id, full_name")
     .eq("id", personId)
     .maybeSingle();
   if (!person || person.company_id !== profile.company_id) {
@@ -168,13 +171,38 @@ export async function draftMeetingQuestions(
     notes: meetingNotesFromAnswers(pastAnswers.get(m.evidence_id)),
   }));
 
+  /* A meeting not booked here: when only one stage is available it can only be that stage, so the
+     model is told how formal it is (Phil, 2026-10-07). With more than one, it stays unstated. */
+  let promptStage = stage;
+  if (promptStage === null && config.method === "stages") {
+    const { data: summary } = await supabase
+      .from("person_absence_summary")
+      .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
+      .eq("person_id", personId)
+      .maybeSingle();
+    const derived = deriveAbsenceStatus(
+      {
+        occasions: (summary?.occasions as number | null) ?? 0,
+        totalDays: Number(summary?.total_days ?? 0),
+        latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
+        absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
+      },
+      config,
+    );
+    const offered = availableStages(derived.meetingStage, derived.derivedStage);
+    if (offered.length === 1) promptStage = offered[0];
+  }
+
+  /* The employee's name never goes to the AI: the reasons and notes are often written with it. */
+  const fullName = (person.full_name as string | null) ?? "";
+  const scrub = <T extends { reason: string | null }>(a: T): T => ({ ...a, reason: redactName(a.reason, fullName) });
   const prompt = buildMeetingPrompt({
-    stage,
-    stageAction: stageActionFor(config, stage),
-    discussed: discussed.map((d) => ({ n: d.n, a: d.e })),
-    otherCounted: otherCounted.map((d) => ({ n: d.n, a: d.e })),
-    rtw,
-    earlierMeetings,
+    stage: promptStage,
+    stageAction: stageActionFor(config, promptStage),
+    discussed: discussed.map((d) => ({ n: d.n, a: scrub(d.e) })),
+    otherCounted: otherCounted.map((d) => ({ n: d.n, a: scrub(d.e) })),
+    rtw: rtw.map((r) => ({ ...r, notes: redactName(r.notes, fullName) })),
+    earlierMeetings: earlierMeetings.map((m) => ({ ...m, notes: redactName(m.notes, fullName) })),
     discountedCount,
   });
 

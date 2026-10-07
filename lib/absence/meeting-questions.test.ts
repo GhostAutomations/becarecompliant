@@ -8,6 +8,8 @@ import {
   rtwNotesFromAnswers,
   rtwNotesFromPortal,
   MEETING_QUESTIONS_SYSTEM,
+  redactName,
+  weekdayOf,
 } from "./meeting-questions.ts";
 
 const thresholds = [
@@ -118,4 +120,17 @@ test("the instructions keep the guardrails and have no dashes in what the model 
   assert.match(MEETING_QUESTIONS_SYSTEM, /Never diagnose/);
   assert.match(MEETING_QUESTIONS_SYSTEM, /never suggest an outcome, a warning or dismissal/);
   assert.match(MEETING_QUESTIONS_SYSTEM, /STRICT JSON/);
+});
+
+test("weekday of a civil date", () => {
+  assert.equal(weekdayOf("2026-10-07"), "Wednesday");
+  assert.equal(weekdayOf("2028-02-29"), "Tuesday");
+  assert.equal(weekdayOf(null), null);
+});
+
+test("the employee's name is taken out of the reason text", () => {
+  assert.equal(redactName("Zoe said she doesn't feel well", "Zoe Sample"), "the employee said she doesn't feel well");
+  assert.equal(redactName("Sam's wife called. SAMPLE was off", "Sam Sample"), "the employee's wife called. the employee was off");
+  assert.equal(redactName("Samantha phoned", "Sam Sample"), "Samantha phoned"); // whole words only
+  assert.equal(redactName(null, "Sam Sample"), "");
 });

@@ -12,10 +12,23 @@
 
 export const ALL_STAGES = [1, 2, 3, 4] as const;
 
-/** The stages Record meeting offers: the booked ones, or all four when nothing is booked. */
-export function recordableStages(bookedStages: number[]): number[] {
+/**
+ * THE STAGES THAT CAN BE CHOSEN (Phil, 2026-10-07: "only the available stages should be in a drop
+ * down ... if they've had four absences but haven't yet had a stage one meeting, then it should
+ * show stage one and stage two"). From the stage after the last one held or booked, up to the
+ * stage their absences call for; always at least that next stage, so a first meeting can be held
+ * after one absence. Book meeting, Record meeting and the server all use this one rule.
+ */
+export function availableStages(lastStage: number | null, derivedStage: number | null): number[] {
+  const lo = (lastStage ?? 0) + 1;
+  const hi = Math.max(derivedStage ?? 0, lo);
+  return ALL_STAGES.filter((s) => s >= lo && s <= hi);
+}
+
+/** The stages Record meeting offers: the booked ones, or the available ones when nothing is booked. */
+export function recordableStages(bookedStages: number[], available: number[] = [...ALL_STAGES]): number[] {
   const booked = [...new Set(bookedStages.filter((s) => s >= 1 && s <= 4))].sort((a, b) => a - b);
-  return booked.length > 0 ? booked : [...ALL_STAGES];
+  return booked.length > 0 ? booked : available;
 }
 
 /** "Stage 2" to 2; anything else to null. */

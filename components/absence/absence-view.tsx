@@ -24,7 +24,8 @@ import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
-import { recordableStages } from "@/lib/absence/record-meeting";
+import { availableStages, recordableStages } from "@/lib/absence/record-meeting";
+import { fieldToNameSelect } from "@/lib/form-schema";
 import { countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
 import { draftMeetingQuestions } from "@/lib/absence/meeting-questions-actions";
@@ -232,7 +233,10 @@ export default function AbsenceView({
           f.key === "meeting_type" && "options" in f
             ? {
                 ...f,
-                options: recordableStages(bookedStages).map((st) => ({
+                options: recordableStages(
+                  bookedStages,
+                  availableStages(r.status.meetingStage, r.status.derivedStage),
+                ).map((st) => ({
                   label: `Stage ${st}`,
                   value: `Stage ${st}`,
                 })),
@@ -288,7 +292,16 @@ export default function AbsenceView({
       if (earliest.conductor_name) presets.manager_conducting = earliest.conductor_name;
       if (earliest.meeting_date) presets.date_of_meeting = earliest.meeting_date;
     }
-    return { schema, presets, bookingId: earliest?.id ?? null };
+    // Manager conducting is a drop down of the people who can hold meetings, filled from the
+    // booking (Phil, 2026-10-07: "an empty text box doesn't make any sense"). Render side only:
+    // the answer is still the name as text, so the stored form version validates as before.
+    const managerSchema = fieldToNameSelect(
+      schema,
+      "manager_conducting",
+      conductors.map((c) => c.full_name),
+      earliest?.conductor_name ?? null,
+    );
+    return { schema: managerSchema, presets, bookingId: earliest?.id ?? null };
   }
 
   const rankInputFor = (r: AbsencePersonRow): RankInput => ({
@@ -490,7 +503,7 @@ export default function AbsenceView({
                       personName={r.fullName}
                       defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
                       minStage={(s.meetingStage ?? 0) + 1}
-                      maxStage={s.derivedStage ?? 0}
+                      maxStage={Math.max(0, ...availableStages(s.meetingStage, s.derivedStage))}
                       conductors={conductors}
                       offices={offices}
                       stageActions={stageActionMap}

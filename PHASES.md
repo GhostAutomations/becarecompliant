@@ -4032,3 +4032,28 @@ Decided by popup, 2026-10-06:
 Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft), Access Group (130+ policies, Evo AI drafts amendments to THEIR library, from £2.75/user/month), Care Daily, PolicyPro, CuraFlow, ComplyPlus, Carebound, W&P, e-Care Hub (template packs). No product drafts a policy for the company's own service with sources and checks the company's own policy for gaps. Wales regulation 12 (SI 2017/1264) lists the mandatory policies. Acas and other public sector content is reusable under the Open Government Licence with attribution.
 
 Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.
+
+### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
+
+To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
+(0411 to 0416) are applied.
+
+- [ ] **Dashboard live push.** Open the dashboard in one tab. In another tab, complete one overdue
+  check on Bevan. The Overdue tile goes down by one (for example 23 → 22) within a few seconds,
+  with no page reload or flash. Phil asked to be reminded about this one.
+- [ ] **Frozen policy covers.** Open an older approved version of a policy. Its cover shows the
+  logo, colours, approver and dates as they were when that version was approved, not today's
+  settings.
+- [ ] **Review table after a morning approval.** Approve a policy before midday London time. The
+  "Audit Checklist and Report" table on page 2 does not show a second, later review on the same
+  day.
+- [ ] **Founder's writer role tiles.** As the founder in manage-as, tick and untick a role under
+  Role access for writing and approving policies. It saves and stays ticked after a reload.
+- [ ] **Colours reset.** In Settings, Branding, change both policy colours and save. The pickers
+  show the new colours straight away, not the old ones.
+- [ ] **Meeting letter fixes.** Send an absence meeting invitation. Exactly one copy is kept in the
+  Evidence history (under Absence), dated the day it was sent; resending the same slot does not
+  add a second copy; the letter opens from the history.
+
+Also to do, agreed 2026-10-07: tomorrow night, a fresh database export first, then the Supabase
+Micro → Small upgrade, then cut the reads per page, then remove the temporary `[perf]` timings.

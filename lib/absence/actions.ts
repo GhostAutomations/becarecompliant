@@ -48,7 +48,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import { toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
-import { stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
+import { availableStages, stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -281,6 +281,35 @@ export async function recordAbsenceMeeting(
       todayIso: formatCivilDate(todayInLondon()),
     });
     if (problem) return { error: problem };
+    /* Only the stages that are available (Phil, 2026-10-07), the same rule as the drop down. */
+    const [{ data: summary }, config] = await Promise.all([
+      supabase
+        .from("person_absence_summary")
+        .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
+        .eq("person_id", personId)
+        .maybeSingle(),
+      getAbsenceConfig(person.company_id as string),
+    ]);
+    if (config.method === "stages") {
+      const derived = deriveAbsenceStatus(
+        {
+          occasions: (summary?.occasions as number | null) ?? 0,
+          totalDays: Number(summary?.total_days ?? 0),
+          latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
+          absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
+        },
+        config,
+      );
+      const offered = availableStages(derived.meetingStage, derived.derivedStage);
+      const chosen = stageFrom(answers["meeting_type"]);
+      if (chosen && !offered.includes(chosen)) {
+        return {
+          error: offered.length
+            ? `Only ${offered.map((s) => `Stage ${s}`).join(" or ")} can be recorded for this person now.`
+            : "Every stage has already been held for this person.",
+        };
+      }
+    }
   }
 
   // Up to and including (Phil, 2026-09-29): a warning above what the stage allows in Settings,
@@ -531,13 +560,14 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
     },
     config,
   );
-  const derivedStage = derived.derivedStage ?? 0;
-  if (config.method === "stages" && stage > derivedStage) {
+  /* The same rule as the drop down (lib/absence/record-meeting.ts availableStages): the stage after
+     the last one, up to what their absences call for, and always at least that next stage. */
+  const offered = availableStages(maxStage, derived.derivedStage);
+  if (config.method === "stages" && !offered.includes(stage)) {
     return {
-      error:
-        derivedStage > 0
-          ? `Their absence level calls for Stage ${derivedStage} at most. A Stage ${stage} meeting cannot be booked yet.`
-          : "Their absence level does not call for a formal meeting yet.",
+      error: offered.length
+        ? `Only ${offered.map((s) => `Stage ${s}`).join(" or ")} can be booked for this person now.`
+        : "Every stage has already been held or booked for this person.",
     };
   }
 

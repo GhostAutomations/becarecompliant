@@ -52,14 +52,26 @@ export const MEETING_QUESTIONS_SYSTEM = [
   'The JSON is one object with exactly one key, "questions": an array of 5 to 8 objects, each with',
   '"question" (one short question written to be read aloud to the employee), "type" (exactly one of',
   '"text", "yes_no" or "choice") and, only when the type is "choice", "options" (2 to 4 short answers).',
-  "The set MUST cover: their explanation of the absences this meeting discusses (by date or pattern,",
-  "not one question per absence), whether anything at work caused or worsened them, whether there is",
-  "an underlying reason they would like the company to know about or whether an occupational health",
-  "referral might help, what support or adjustments would help their attendance, and whether they",
-  "understand the attendance level expected of them. When an earlier meeting set targets or agreed",
-  "support, ask how that has gone. Use what they said at their Return to Work interviews: follow up",
-  "on anything they raised or support that was agreed, rather than asking it all again.",
-  "Ask one thing per question and never ask the same thing twice in different words.",
+  "THE QUESTIONS MUST BE BUILT FROM THIS PERSON'S RECORD, NOT A GENERIC CHECKLIST. Read the reason",
+  "given for every absence and ask about what was actually said, naming the absence by its date and",
+  "its reason (for example: the flat tyre on 18 July, or the shift handed back on 27 August because pay",
+  "arrived late). Group absences that share a reason or a theme into one question. Point out any",
+  "pattern you can see in the dates, weekdays or reasons (the same weekday, next to a weekend or a",
+  "rest day, the same reason more than once, absences getting closer together) as a neutral question",
+  "for them to explain, never as an accusation.",
+  "Fit each question to the kind of reason: for an illness, how they are now, whether it is linked to",
+  "an earlier absence and whether they saw a GP; for a family or caring emergency, whether it is still",
+  "going on and whether something like emergency leave or flexible working would help; for transport,",
+  "money or pay problems, whether it is resolved and what would stop it costing a shift again; for a",
+  "personal or legal matter, only what affects their availability for work, asked neutrally, never",
+  "about the matter itself. Ask about an underlying health condition or an occupational health",
+  "referral ONLY when the reasons are health related and recur, or point to a condition, and then",
+  "about that condition. Where a reason is missing or vague, ask them to say more about that date.",
+  "When an earlier meeting set targets or agreed support, ask how that has gone. Use what they said at",
+  "their Return to Work interviews: follow up on it rather than asking it all again.",
+  "Finish with one question on what support would help their attendance and one checking they",
+  "understand the attendance level expected of them. Ask one thing per question and never ask the",
+  "same thing twice in different words.",
 ].join(" ");
 
 export type MeetingContext = {
@@ -80,10 +92,41 @@ export function clip(text: string | null | undefined, max = 600): string {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** The weekday of a civil date (YYYY-MM-DD), so the model can see weekday patterns. */
+export function weekdayOf(iso: string | null | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  if (!m) return null;
+  return WEEKDAYS[new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay()];
+}
+
+/**
+ * Takes the employee's own name out of free text before it goes to the AI (the reasons are
+ * often written as "Zoe said she feels unwell"). Each name part of two letters or more is
+ * replaced with "the employee", whole words only, any case, including a possessive.
+ */
+export function redactName(text: string | null | undefined, fullName: string | null | undefined): string {
+  let out = text ?? "";
+  const parts = (fullName ?? "")
+    .split(/\s+/)
+    .map((p) => p.replace(/[^\p{L}'-]/gu, ""))
+    .filter((p) => p.length >= 2)
+    .sort((x, y) => y.length - x.length);
+  for (const p of parts) {
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`(?<![\\p{L}])${esc}('s)?(?![\\p{L}])`, "giu"), (_m, poss) =>
+      poss ? "the employee's" : "the employee",
+    );
+  }
+  return out;
+}
+
 function line(n: number, a: MeetingAbsence): string {
   const range = a.end_date && a.end_date !== a.start_date ? `${a.start_date} to ${a.end_date}` : a.start_date;
   const days = a.days === null ? "days not recorded" : `${a.days} ${Number(a.days) === 1 ? "day" : "days"}`;
-  return `- Absence ${n}: ${range}, ${days}, reason given: ${clip(a.reason, 200) || "not recorded"}`;
+  const day = weekdayOf(a.start_date);
+  return `- Absence ${n}: ${range}, ${days}, reason given: ${clip(a.reason, 200) || "not recorded"}${day ? ` (started on a ${day})` : ""}`;
 }
 
 export function buildMeetingPrompt(ctx: MeetingContext): string {
