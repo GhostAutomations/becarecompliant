@@ -1,6 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { absenceLine, addressLines, buildInvitationLetter, letterDate, letterDay } from "./invitation-letter.ts";
+import {
+  absenceLine,
+  addressLines,
+  appealDays,
+  buildInvitationLetter,
+  buildOutcomeLetterDoc,
+  letterBodyParagraphs,
+  letterDate,
+  letterDay,
+} from "./invitation-letter.ts";
 
 test("dates read the way Thistle's letters write them", () => {
   assert.equal(letterDate("2026-10-02"), "2nd October 2026");
@@ -65,4 +74,39 @@ test("the letter carries everything Thistle's did", () => {
   assert.deepEqual(l.opening, ["This is your formal invitation."]);
   assert.deepEqual(l.closing, ["It could lead to a first written warning.", "You may be accompanied."]);
   assert.ok(!/[–—]/.test(l.plainText));
+});
+
+test("outcome letter: laid out like the invitation, greeting and sign off not printed twice", () => {
+  const doc = buildOutcomeLetterDoc({
+    companyName: "Sample Care Ltd",
+    letterheadAddress: "1 Office Road, Townville, AB1 2CD",
+    letterheadPhone: "01234 567890",
+    letterDateIso: "2026-10-07",
+    recipientName: "Jo Sample",
+    recipientAddress: "2 Home Street\nTownville",
+    stage: 2,
+    meetingTitle: "Disciplinary Hearing",
+    conductorName: "Sam Manager",
+    conductorRole: "Registered Manager",
+    wordingParagraphs: ["Jo Sample,", "Thank you for attending.", "", "The outcome.", "Yours sincerely,\nSam Manager"],
+  });
+  assert.equal(doc.date, "7th October 2026");
+  assert.equal(doc.salutation, "Dear Jo");
+  assert.equal(doc.reLine, "RE: Stage 2 Disciplinary Hearing Outcome");
+  assert.deepEqual(doc.recipientLines, ["Jo Sample", "2 Home Street", "Townville"]);
+  assert.deepEqual(doc.letterheadLines, ["1 Office Road", "Townville", "AB1 2CD"]);
+  assert.deepEqual(doc.phoneLines, ["Tel: 01234 567890"]);
+  assert.deepEqual(doc.paragraphs, ["Thank you for attending.", "", "The outcome."]);
+  assert.deepEqual(doc.signOff, { closing: "Yours sincerely", name: "Sam Manager", role: "Registered Manager" });
+});
+
+test("letter body keeps a paragraph that only mentions the name", () => {
+  assert.deepEqual(letterBodyParagraphs(["Dear Jo,", "Jo explained the absences."], "Jo Sample"), ["Jo explained the absences."]);
+});
+
+test("appeal days default to seven", () => {
+  assert.equal(appealDays("14"), "14");
+  assert.equal(appealDays(""), "7");
+  assert.equal(appealDays("abc"), "7");
+  assert.equal(appealDays(undefined), "7");
 });

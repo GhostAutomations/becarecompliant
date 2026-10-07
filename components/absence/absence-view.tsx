@@ -26,6 +26,7 @@ import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, Con
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { availableStages, recordableStages } from "@/lib/absence/record-meeting";
+import { DEFAULT_APPEAL_DAYS } from "@/lib/absence/invitation-letter";
 import { fieldToNameSelect, removeField } from "@/lib/form-schema";
 import { countedAbsences } from "@/lib/absence/discount";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
@@ -306,7 +307,20 @@ export default function AbsenceView({
       conductors.map((c) => c.full_name),
       earliest?.conductor_name ?? null,
     );
-    return { schema: managerSchema, presets, bookingId: earliest?.id ?? null };
+    // Who hears an appeal (Phil, 2026-10-07): a drop down of the same people, leaving out whoever is
+    // holding this meeting when anyone else can. The days to appeal default to seven.
+    const appealNames = conductors
+      .map((c) => c.full_name)
+      .filter((n) => n !== earliest?.conductor_name);
+    const withAppeal = fieldToNameSelect(
+      managerSchema,
+      "appeal_heard_by",
+      appealNames.length > 0 ? appealNames : conductors.map((c) => c.full_name),
+    );
+    if (withAppeal.sections.some((sec) => sec.fields.some((f) => f.key === "appeal_days"))) {
+      presets.appeal_days = DEFAULT_APPEAL_DAYS;
+    }
+    return { schema: withAppeal, presets, bookingId: earliest?.id ?? null };
   }
 
   const rankInputFor = (r: AbsencePersonRow): RankInput => ({

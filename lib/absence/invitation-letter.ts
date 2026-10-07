@@ -194,3 +194,111 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
     plainText,
   };
 }
+
+/* ---------------------------------------------------------------------------------------------
+ * THE OUTCOME LETTER AS A LETTER (Phil, 2026-10-07: "the same kind of format as the Thistle Care
+ * letter"): laid out exactly like the invitation letter above, and kept in this file so both share
+ * the same date and address rules. Letterhead, date,
+ * the employee's name and home address, "Dear Jo", a RE line, the company's wording with the
+ * outcome in the middle, then Yours sincerely, the manager's name and their role.
+ * ------------------------------------------------------------------------------------------- */
+
+
+/** The days an employee can be given to appeal (Phil, 2026-10-07). Seven unless chosen. */
+export const APPEAL_DAY_CHOICES = ["5", "7", "10", "14"] as const;
+export const DEFAULT_APPEAL_DAYS = "7";
+
+/** "7", or the default when nothing usable was chosen. */
+export function appealDays(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim() : typeof raw === "number" ? String(raw) : "";
+  return /^\d{1,2}$/.test(v) && Number(v) > 0 ? v : DEFAULT_APPEAL_DAYS;
+}
+
+export type OutcomeLetterInput = {
+  companyName: string;
+  letterheadAddress: string | null;
+  letterheadPhone: string | null;
+  letterDateIso: string;
+  recipientName: string;
+  recipientAddress: string | null;
+  stage: number | null;
+  /** "Disciplinary Hearing": the meeting name as a heading. */
+  meetingTitle: string;
+  conductorName: string;
+  conductorRole: string | null;
+  /** The company's outcome wording, merged, split into paragraphs. */
+  wordingParagraphs: string[];
+};
+
+export type OutcomeLetterDoc = {
+  companyName: string;
+  letterheadLines: string[];
+  phoneLines: string[];
+  date: string;
+  recipientLines: string[];
+  salutation: string;
+  reLine: string;
+  paragraphs: string[];
+  signOff: { closing: string; name: string; role: string | null };
+  plainText: string;
+};
+
+const SIGN_OFF = /^(yours sincerely|yours faithfully|kind regards|best wishes|regards)\b/i;
+
+/**
+ * The wording without its own greeting or sign off: the letter prints "Dear Jo" and the sign off
+ * itself, so a company whose wording still starts "Jo Bloggs," or ends "Yours sincerely" does not
+ * get them twice.
+ */
+export function letterBodyParagraphs(paragraphs: string[], recipientName: string): string[] {
+  const name = recipientName.trim().toLowerCase();
+  const first = name.split(/\s+/)[0] ?? "";
+  const kept = paragraphs.filter((p) => {
+    const t = p.trim();
+    if (!t) return true; // a space the manager added
+    if (SIGN_OFF.test(t)) return false;
+    const greet = t.toLowerCase().replace(/^dear\s+/, "").replace(/[,.:]$/, "").trim();
+    if (t.length <= 80 && (greet === name || greet === first)) return false;
+    return true;
+  });
+  while (kept.length && !kept[0].trim()) kept.shift();
+  while (kept.length && !kept[kept.length - 1].trim()) kept.pop();
+  return kept;
+}
+
+export function buildOutcomeLetterDoc(i: OutcomeLetterInput): OutcomeLetterDoc {
+  const firstName = i.recipientName.trim().split(/\s+/)[0] || i.recipientName.trim();
+  const letterheadLines = addressLines(i.letterheadAddress);
+  const phoneLines = String(i.letterheadPhone ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((p) => `Tel: ${p}`);
+  const recipientLines = [i.recipientName.trim(), ...addressLines(i.recipientAddress)];
+  const reLine = `RE: ${i.stage ? `Stage ${i.stage} ` : ""}${i.meetingTitle} Outcome`;
+  const date = letterDate(i.letterDateIso);
+  const salutation = `Dear ${firstName}`;
+  const paragraphs = letterBodyParagraphs(i.wordingParagraphs, i.recipientName);
+  const signOff = { closing: "Yours sincerely", name: i.conductorName, role: i.conductorRole };
+  const plainText = [
+    [i.companyName, ...letterheadLines, ...phoneLines].join("\n"),
+    date,
+    recipientLines.join("\n"),
+    salutation,
+    reLine,
+    ...paragraphs,
+    [signOff.closing, signOff.name, signOff.role ?? ""].filter(Boolean).join("\n"),
+  ].join("\n\n");
+  return {
+    companyName: i.companyName,
+    letterheadLines,
+    phoneLines,
+    date,
+    recipientLines,
+    salutation,
+    reLine,
+    paragraphs,
+    signOff,
+    plainText,
+  };
+}

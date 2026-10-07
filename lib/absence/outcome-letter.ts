@@ -93,10 +93,16 @@ export function cleanOutcomeBody(raw: string): string {
   return t.trim().slice(0, OUTCOME_BODY_LIMIT);
 }
 
-/** What the manager approved, ready to merge: trimmed, capped, paragraphs kept. */
+/** What the manager approved, ready to merge: trimmed and capped. Extra blank lines are KEPT (up
+ *  to four in a row): the manager presses Enter to space the letter (Phil, 2026-10-07). */
 export function normaliseApprovedBody(body: unknown): string {
   if (typeof body !== "string") return "";
-  return body.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, OUTCOME_BODY_LIMIT);
+  return body
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{6,}/g, "\n\n\n\n\n")
+    .trim()
+    .slice(0, OUTCOME_BODY_LIMIT);
 }
 
 /** dd/mm/yyyy from an ISO date, or the input unchanged. */
@@ -111,8 +117,14 @@ export function letterParagraphs(template: string, values: Record<string, string
   const merged = template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (whole, token: string) =>
     Object.prototype.hasOwnProperty.call(values, token) ? values[token] : whole,
   );
-  return merged
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  // A blank line starts a new paragraph; each EXTRA blank line is kept as an empty paragraph, so
+  // the letter shows the space the manager added. Empty ones at either end are dropped.
+  const parts = merged
+    .replace(/\r\n/g, "\n")
+    .split(/\n[ \t]*\n/)
+    .map((p) => p.replace(/^\n+|\n+$/g, "").trim());
+  while (parts.length && !parts[0]) parts.shift();
+  while (parts.length && !parts[parts.length - 1]) parts.pop();
+  return parts;
 }
+

@@ -31,7 +31,9 @@ import { sendEmail } from "@/lib/email/resend";
 import { claimNotification, releaseNotification, settleNotification } from "@/lib/notifications/log";
 import { outcomeLetterPath, sha256Hex, uploadOutcomeLetter } from "@/lib/evidence/storage";
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
-import { companyMeetingName, stageLabelFor } from "@/lib/absence/letter-extras";
+import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
+import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
+import { appealDays, buildOutcomeLetterDoc, type OutcomeLetterDoc } from "@/lib/absence/invitation-letter";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   OUTCOME_SYSTEM,
@@ -66,6 +68,8 @@ type Loaded = {
     recorded_by: string | null;
   };
   answers: Record<string, unknown>;
+  personId: string;
+  conductorId: string | null;
   employee: { name: string; email: string | null; profileId: string | null };
   conductorName: string;
   letter: {
@@ -128,6 +132,8 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
       recorded_by: (m.recorded_by as string | null) ?? null,
     },
     answers,
+    personId: m.person_id as string,
+    conductorId: (m.conducted_by as string | null) ?? null,
     employee: {
       name: (person?.full_name as string | undefined) ?? "the employee",
       email,
@@ -141,19 +147,26 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
 const FINAL = new Set(["sent", "not_emailed"]);
 
 /** What the letter needs, from a recorded meeting or from a meeting form not saved yet. */
-type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employee" | "conductorName"> & {
+type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employee" | "conductorName" | "answers"> & {
   meeting: Pick<Loaded["meeting"], "stage" | "meeting_date" | "meeting_time" | "duration_minutes" | "location">;
+  personId: string;
+  /** The manager holding the meeting, for their role under the sign off. */
+  conductorId: string | null;
 };
 
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
 async function compose(ctx: LetterCtx, body: string) {
-  const wording = await letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome");
+  const [wording, extras, config] = await Promise.all([
+    letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome"),
+    loadLetterExtras({ companyId: ctx.companyId, personId: ctx.personId, conductorId: ctx.conductorId ?? NO_ONE }),
+    getAbsenceConfig(ctx.companyId),
+  ]);
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
-  const stageLabel = stageLabelFor(ctx.meeting.stage, await companyMeetingName(ctx.companyId));
+  const stageLabel = stageLabelFor(ctx.meeting.stage, extras.meetingName);
   const meetingDate = slashDate(ctx.meeting.meeting_date);
   const time = ctx.meeting.meeting_time ? String(ctx.meeting.meeting_time).slice(0, 5) : "";
-  const config = await getAbsenceConfig(ctx.companyId);
-  const letterDate = slashDate(formatCivilDate(todayInLondon()));
+  const todayIso = formatCivilDate(todayInLondon());
+  const appealBy = typeof ctx.answers.appeal_heard_by === "string" ? ctx.answers.appeal_heard_by.trim() : "";
   const values: Record<string, string> = {
     recipient_name: ctx.employee.name,
     employee_name: ctx.employee.name,
@@ -169,17 +182,53 @@ async function compose(ctx: LetterCtx, body: string) {
     location: ctx.meeting.location ?? "",
     duration: ctx.meeting.duration_minutes ? `${ctx.meeting.duration_minutes} minutes` : "",
     outcome_body: body,
-    letter_date: letterDate,
+    letter_date: slashDate(todayIso),
+    // Chosen in the meeting's Outcome section (Phil, 2026-10-07); seven days unless changed.
+    appeal_days: appealDays(ctx.answers.appeal_days),
+    appeal_manager: appealBy || "a manager",
   };
   const subject = renderLetterSubject(wording.subject, values) || `Outcome of your ${stageLabel}`;
+  // Laid out like the invitation letter (Phil, 2026-10-07).
+  const doc = buildOutcomeLetterDoc({
+    companyName: ctx.companyName,
+    letterheadAddress: extras.letterheadAddress,
+    letterheadPhone: extras.letterheadPhone,
+    letterDateIso: todayIso,
+    recipientName: ctx.employee.name,
+    recipientAddress: extras.homeAddress,
+    stage: ctx.meeting.stage,
+    meetingTitle: meetingNameAsTitle(extras.meetingName),
+    conductorName: ctx.conductorName,
+    conductorRole: extras.conductorRole,
+    wordingParagraphs: letterParagraphs(wording.body, values),
+  });
   const html = noticeEmailHtml({
     preheader: subject,
     heading: subject,
-    bodyHtml: `<p style="margin:0 0 10px 0;">${letterDate}</p>${renderLetterHtml(wording.body, values)}`,
+    bodyHtml: letterDocHtml(doc),
     footerNote: `This letter is attached as a PDF for you to keep. It is sent on behalf of ${ctx.companyName}.`,
   });
-  const paragraphs = letterParagraphs(wording.body, values);
-  return { subject, html, paragraphs, letterDate };
+  return { subject, html, doc, logoDataUrl: extras.logoDataUrl };
+}
+
+/** An id no profile has, for a letter whose manager has no login: no role is found for them. */
+const NO_ONE = "00000000-0000-0000-0000-000000000000";
+
+function esc(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** The letter in the email body, in the same order as the PDF. */
+function letterDocHtml(doc: OutcomeLetterDoc): string {
+  const p = (t: string, style = "") =>
+    `<p style="margin:0 0 10px 0;${style}">${t ? esc(t).replace(/\n/g, "<br>") : "&nbsp;"}</p>`;
+  return [
+    p(doc.date),
+    p(doc.salutation),
+    p(doc.reLine, "font-weight:700;"),
+    ...doc.paragraphs.map((t) => p(t)),
+    p([doc.signOff.closing, "", doc.signOff.name, doc.signOff.role ?? ""].filter((x, i) => i === 1 || x).join("\n")),
+  ].join("");
 }
 
 /** AI drafts the middle of the letter. Returns the saved draft without spending when there is one. */
@@ -298,17 +347,12 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
   }
 
   const letter = await compose(ctx, body);
-  const letterText = [letter.letterDate, letter.subject, ...letter.paragraphs].join("\n\n");
+  const letterText = letter.doc.plainText;
 
   // The PDF first: it is the copy kept on the meeting whatever happens to the email.
   let pdf: Buffer;
   try {
-    pdf = await renderOutcomeLetterPdf({
-      companyName: ctx.companyName,
-      letterDate: letter.letterDate,
-      subject: letter.subject,
-      paragraphs: letter.paragraphs,
-    });
+    pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
   } catch (e) {
     return { error: `The letter's PDF could not be made: ${(e as Error).message}` };
   }
@@ -436,11 +480,11 @@ async function loadFromForm(
 
   // The booking this form is recording, when there is one: its time, place and length.
   const meetingId = String(formData.get("meeting_id") ?? "").trim();
-  let booking: { meeting_time: string | null; duration_minutes: number | null; location: string | null } | null = null;
+  let booking: { meeting_time: string | null; duration_minutes: number | null; location: string | null; conducted_by: string | null } | null = null;
   if (meetingId) {
     const { data: b } = await supabase
       .from("absence_meetings")
-      .select("person_id, meeting_time, duration_minutes, location, evidence_id")
+      .select("person_id, meeting_time, duration_minutes, location, evidence_id, conducted_by")
       .eq("id", meetingId)
       .maybeSingle();
     if (b && b.person_id === personId && !b.evidence_id) {
@@ -448,6 +492,7 @@ async function loadFromForm(
         meeting_time: (b.meeting_time as string | null) ?? null,
         duration_minutes: (b.duration_minutes as number | null) ?? null,
         location: (b.location as string | null) ?? null,
+        conducted_by: (b.conducted_by as string | null) ?? null,
       };
     }
   }
@@ -458,11 +503,26 @@ async function loadFromForm(
   }
   const date = typeof answers.date_of_meeting === "string" ? answers.date_of_meeting : null;
   const conductor = typeof answers.manager_conducting === "string" ? answers.manager_conducting.trim() : "";
+  // Their login, for the role under the sign off: the booking's, or the person of that name.
+  let conductorId = booking?.conducted_by ?? null;
+  if (!conductorId && conductor) {
+    const { data: byName } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("full_name", conductor)
+      .limit(1)
+      .maybeSingle();
+    conductorId = (byName?.id as string | undefined) ?? null;
+  }
   return {
     answers,
     ctx: {
       supabase,
       companyId,
+      answers,
+      personId,
+      conductorId,
       companyName: (company?.name as string | undefined) ?? "your employer",
       employee: {
         name: (person.full_name as string | undefined) ?? "the employee",
@@ -524,12 +584,7 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
   if (!body) return { error: "Write the outcome, or generate it, to see the letter." };
   try {
     const letter = await compose(loaded.ctx, body);
-    const pdf = await renderOutcomeLetterPdf({
-      companyName: loaded.ctx.companyName,
-      letterDate: letter.letterDate,
-      subject: letter.subject,
-      paragraphs: letter.paragraphs,
-    });
+    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
     return { pdf: pdf.toString("base64") };
   } catch (e) {
     return { error: `The preview could not be made: ${(e as Error).message}` };

@@ -23,10 +23,14 @@ import { useEffect, useRef, useState } from "react";
 
 export default function PolicyReader({
   url,
+  data,
   onRendered,
   onFailed,
 }: {
   url: string;
+  /** The PDF itself, when it was made in the browser (the outcome letter preview). Used instead
+   *  of fetching `url`, which pdf.js cannot do for a blob: link. */
+  data?: Uint8Array;
   /** Every page is drawn. Until this fires, "the bottom" is not the end. */
   onRendered: () => void;
   onFailed: () => void;
@@ -57,7 +61,8 @@ export default function PolicyReader({
           import.meta.url,
         ).toString();
 
-        const doc = await pdfjs.getDocument({ url, withCredentials: true }).promise;
+        // pdf.js takes ownership of the bytes it is given, so it gets a copy.
+        const doc = await pdfjs.getDocument(data ? { data: data.slice() } : { url, withCredentials: true }).promise;
         if (cancelled) return;
         setPages(doc.numPages);
 
@@ -120,7 +125,7 @@ export default function PolicyReader({
       cancelled = true;
       observer?.disconnect();
     };
-  }, [url]);
+  }, [url, data]);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">

@@ -133,15 +133,15 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
       "The letter confirming what was decided at an absence meeting. The middle of it, what was discussed and the outcome, is drafted from the meeting record and checked by the manager before it goes. This is your fixed wording around it: the opening, the right of appeal and the sign off. It is emailed to the employee with a PDF copy, and the PDF is kept on the meeting.",
     sentTo: "The employee the meeting was about",
     defaultSubject: "Outcome of your {{stage_label}}",
+    // No greeting or sign off here (Phil, 2026-10-07): the letter is laid out like the invitation
+    // letter and prints "Dear Jo" and Yours sincerely, the manager's name and role itself.
     defaultBody: [
-      "{{recipient_name}},",
       "Thank you for attending the {{stage_label}} on {{meeting_date}}, held by {{conductor_name}}. This letter confirms what was discussed and the outcome.",
       "{{outcome_body}}",
-      "If you disagree with this outcome, you have the right to appeal. Please write to us within five working days of receiving this letter, setting out why you are appealing, and your appeal will be heard by a manager who was not involved in this meeting.",
-      "Yours sincerely,\n{{conductor_name}}\n{{company_name}}",
+      "If you disagree with this outcome, you have the right to appeal. Please write to us within {{appeal_days}} working days of receiving this letter, setting out why you are appealing. Your appeal will be heard by {{appeal_manager}}, who was not involved in this meeting.",
     ].join("\n\n"),
     systemNote:
-      "The meeting's own outcome is written into {{outcome_body}} each time, drafted from the meeting record and approved by the manager. The PDF copy is attached automatically.",
+      "The meeting's own outcome is written into {{outcome_body}} each time, drafted from the meeting record and approved by the manager. Who hears an appeal and the days allowed are chosen in the meeting's Outcome section. The letter adds Dear, the RE line and the sign off with the manager's name and role itself, and the PDF copy is attached automatically.",
     extraPlaceholders: [
       {
         token: "outcome_body",
@@ -150,6 +150,8 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
           "At the meeting we discussed your two absences in September. We agreed that you will let your manager know by 7am on any day you cannot attend.\n\nThe outcome of the meeting is a verbal warning, which will remain on your record until 29/03/2027.",
       },
       { token: "letter_date", label: "Date of the letter", example: "30/09/2026" },
+      { token: "appeal_days", label: "Working days to appeal (chosen at the meeting, 7 unless changed)", example: "7" },
+      { token: "appeal_manager", label: "Who will hear an appeal (chosen at the meeting)", example: "Sam Idris" },
     ],
     requiredTokens: ["outcome_body"],
   },

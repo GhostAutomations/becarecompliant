@@ -248,7 +248,12 @@ export default function FormEvidenceDialog({
   // A draft has landed: the renderer is remounted on it by its key, and the answers we
   // will submit have to be brought up to the same place.
   useEffect(() => {
-    if (held.restored) setAnswers((prev) => ({ ...prev, ...held.restored }));
+    if (held.restored) {
+      // The fresh preset keys stay fresh here too: these are the answers that are saved and that
+      // panels such as Generate outcome read, not just what the form shows.
+      const restored = held.restored;
+      setAnswers((prev) => withFresh({ ...prev, ...restored }, presetAnswers, freshPresets) ?? prev);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [held.restored]);
 

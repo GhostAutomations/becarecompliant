@@ -28,13 +28,13 @@ type Ctx = {
 };
 
 /** The answers the letter's wording depends on, so the PDF redraws when one of them changes. */
-const LETTER_KEYS = ["meeting_type", "date_of_meeting", "manager_conducting"];
+const LETTER_KEYS = ["meeting_type", "date_of_meeting", "manager_conducting", "appeal_heard_by", "appeal_days"];
 
-function toBlobUrl(base64: string): string {
+function toBytes(base64: string): Uint8Array {
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  return bytes;
 }
 
 export default function OutcomeInForm({
@@ -52,6 +52,7 @@ export default function OutcomeInForm({
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
   const urlRef = useRef<string | null>(null);
@@ -92,7 +93,10 @@ export default function OutcomeInForm({
       if (cancelled) return;
       setDrawing(false);
       if (res.pdf) {
-        const url = toBlobUrl(res.pdf);
+        const bytes = toBytes(res.pdf);
+        setPdfBytes(bytes);
+        // The same PDF as a link for Open full size (a new tab is allowed to show it).
+        const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
         if (urlRef.current) URL.revokeObjectURL(urlRef.current);
         urlRef.current = url;
         setPdfUrl(url);
@@ -193,7 +197,13 @@ export default function OutcomeInForm({
                 /* Drawn page by page with pdf.js, the same reader policies use: a PDF in a frame is
                    blocked by the site's no framing rule, and an iPhone only shows its first page. */
                 <div className="h-[560px] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
-                  <PolicyReader key={pdfUrl} url={pdfUrl} onRendered={() => {}} onFailed={() => {}} />
+                  <PolicyReader
+                    key={pdfUrl}
+                    url={pdfUrl}
+                    data={pdfBytes ?? undefined}
+                    onRendered={() => {}}
+                    onFailed={() => {}}
+                  />
                 </div>
               ) : (
                 <div className="flex h-[560px] w-full items-center justify-center rounded-lg border border-white/10 text-sm text-white/50">

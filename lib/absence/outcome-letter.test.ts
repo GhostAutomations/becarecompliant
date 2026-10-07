@@ -52,8 +52,9 @@ test("cleanOutcomeBody strips markdown, bullets and dashes and keeps paragraphs"
   assert.equal(cleanOutcomeBody(raw), "At the meeting we talked, briefly.\n\nYou agreed to call in.\nOutcome\nNo further action.");
 });
 
-test("normaliseApprovedBody trims and collapses extra blank lines", () => {
-  assert.equal(normaliseApprovedBody("  a\r\n\r\n\r\n\r\nb  "), "a\n\nb");
+test("normaliseApprovedBody trims and keeps the spacing the manager added", () => {
+  assert.equal(normaliseApprovedBody("  a\r\n\r\n\r\n\r\nb  "), "a\n\n\n\nb");
+  assert.equal(normaliseApprovedBody("a" + "\n".repeat(12) + "b"), "a\n\n\n\n\nb");
   assert.equal(normaliseApprovedBody(undefined), "");
 });
 
@@ -69,4 +70,9 @@ test("letterParagraphs merges the drafted middle into the company wording", () =
     company_name: "Acme",
   });
   assert.deepEqual(paras, ["Jane,", "First.", "Second.", "Yours sincerely,\nAcme"]);
+});
+
+test("an extra blank line is kept as a space in the letter", () => {
+  assert.deepEqual(letterParagraphs("A.\n\n\n\nB.", {}), ["A.", "", "B."]);
+  assert.deepEqual(letterParagraphs("\n\nA.\nline two\n\n\n\n", {}), ["A.\nline two"]);
 });
