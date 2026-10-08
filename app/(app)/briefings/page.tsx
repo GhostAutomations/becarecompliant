@@ -206,9 +206,9 @@ export default async function BriefingsPage() {
                       />
                     </div>
                   </div>
-                  {/* Plain names in columns, four across (two on a phone), not pills (Phil,
+                  {/* Plain names in columns, five across (two on a phone), not pills (Phil,
                       2026-10-08). Red is overdue; "opened" means they have looked but not done it. */}
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-5">
                     {g.people.map((p) => (
                       <li
                         key={p.id}
