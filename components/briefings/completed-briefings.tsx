@@ -117,7 +117,7 @@ export default function CompletedBriefings({ completed }: { completed: Assignmen
                     href={`/api/briefings/report?${g.kind}=${g.targetId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-outline px-3 py-2 text-xs"
+                    className="btn-outline btn-xs"
                   >
                     {g.kind === "notice" ? "Who has responded" : "Who has signed"}
                   </a>

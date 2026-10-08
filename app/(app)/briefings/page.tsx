@@ -8,6 +8,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import SendBriefing from "@/components/briefings/send-briefing";
 import CompletedBriefings from "@/components/briefings/completed-briefings";
 import NoticesSent from "@/components/briefings/notices-sent";
+import FoldSection from "@/components/briefings/fold-section";
 import { listMemoSenders } from "@/lib/briefings/senders";
 import { cancelAssignment } from "@/lib/assignments/actions";
 import type { AssignmentRow } from "@/lib/assignments/types";
@@ -109,10 +110,7 @@ export default async function BriefingsPage() {
         </p>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Outstanding ({open.length})
-        </h2>
+      <FoldSection title="Outstanding" count={open.length}>
         {open.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">Nothing outstanding.</div>
         ) : (
@@ -136,7 +134,7 @@ export default async function BriefingsPage() {
                       hidden={{ assignment_id: a.id }}
                       label="Withdraw"
                       savedLabel="Withdrawn"
-                      buttonClassName="btn-ghost px-3 py-2 text-xs"
+                      buttonClassName="btn-outline btn-xs"
                       className=""
                       confirm="Withdraw this briefing? It disappears from their list."
                     />
@@ -146,7 +144,7 @@ export default async function BriefingsPage() {
             })}
           </div>
         )}
-      </section>
+      </FoldSection>
 
       <NoticesSent assignments={assignments} />
 

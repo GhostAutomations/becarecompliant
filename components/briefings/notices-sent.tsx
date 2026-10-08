@@ -6,6 +6,7 @@
 
 import ActionForm from "@/components/action-form";
 import NoticeText from "@/components/briefings/notice-text";
+import FoldSection from "@/components/briefings/fold-section";
 import { withdrawNotice } from "@/lib/briefings/notice-actions";
 import type { AssignmentRow } from "@/lib/assignments/types";
 import {
@@ -72,10 +73,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
   const rows = [...byNotice.values()].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-        Memos and messages sent ({rows.length})
-      </h2>
+    <FoldSection title="Memos and messages sent" count={rows.length}>
       {rows.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">
           Nothing sent yet. Use Send a memo or message to send the team a memo, a short message
@@ -136,7 +134,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                     href={`/api/briefings/report?notice=${r.noticeId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-outline px-3 py-2 text-xs"
+                    className="btn-outline btn-xs"
                   >
                     Who has responded
                   </a>
@@ -145,7 +143,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                       href={`/api/briefings/notices/${r.noticeId}/memo`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn-ghost px-3 py-2 text-xs"
+                      className="btn-outline btn-xs"
                     >
                       Memo PDF
                     </a>
@@ -156,7 +154,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                       hidden={{ notice_id: r.noticeId }}
                       label="Withdraw"
                       savedLabel="Withdrawn"
-                      buttonClassName="btn-ghost px-3 py-2 text-xs"
+                      buttonClassName="btn-outline btn-xs"
                       className=""
                       confirm={`Withdraw this from the ${r.open} ${r.open === 1 ? "person" : "people"} who have not done it yet? It disappears from their list.`}
                     />
@@ -167,6 +165,6 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
           })}
         </div>
       )}
-    </section>
+    </FoldSection>
   );
 }
