@@ -2212,7 +2212,11 @@ happens to Acme once Thistle is real.
   approved"); every page marked as a draft preview; nothing stored, no credit spent. No migration. BUILT 8 Oct:
   tsc clean, 1612 tests pass, diff reviewed (three cover fixes: a new version keeps its policy's title, a typed
   reference shows, the founder managing a company is named as approver). Tests PT1 to PT7 in
-  TEST-CHECKLIST-POLICIES.md, to run now.
+  TEST-CHECKLIST-POLICIES.md: PT2 to PT6 PASSED 8 Oct in Phil's Chrome. Then Phil, 8 Oct: "those drop downs don't
+  look like any drop downs that we've ever made ... two columns worth of drop downs" (popup: sections two per row,
+  the rest full width). Every fold on the page is now the Settings > Users dropdown (CollapsibleSection, given a
+  floating mode): the register sections two per row opening over the page, Review register and Library full width
+  opening underneath; the staff portal fold put back as it was. PT1 and PT7 to rerun.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 

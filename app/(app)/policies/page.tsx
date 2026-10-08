@@ -6,7 +6,7 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
-import MySection from "@/components/staff/my-section";
+import CollapsibleSection from "@/components/settings/collapsible-section";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
 import { listOpenDrafts, topicsForCompany } from "@/lib/policies/data";
 import { checklistFor, policyReviewRag } from "@/lib/policies/review";
@@ -160,24 +160,27 @@ export default async function PoliciesPage() {
             {policyRegister.filter((l) => haveTopic.has(l.topic_key)).length} of {policyRegister.length} policies on your register
             are in place.
           </p>
-          {/* Each section folded, its count beside the heading instead of inside the card (Phil,
-              2026-10-07: "next to safeguarding, it should say 0 of 3 in place"). */}
-          <div className="space-y-3">
+          {/* Each section a dropdown like Settings > Users, its count on the button, two per row and
+              opening over the page (Phil, 2026-10-07 and 2026-10-08: "next to safeguarding, it should
+              say 0 of 3 in place"; "two columns worth of drop downs so the page isn't so long"). */}
+          <div className="grid gap-3 sm:grid-cols-2">
             {registerSections.map(({ section, lines }) => (
-              <MySection
+              <CollapsibleSection
                 key={section}
+                floating
                 title={section}
                 detail={`${lines.filter((l) => haveTopic.has(l.topic_key)).length} of ${lines.length} in place`}
               >
-                <div className="glass-card p-5">
+                <div className="px-2 py-1">
                   <TopicChecklist
+                    columns={1}
                     topics={lines.map((l) => ({ key: l.topic_key, title: l.title }))}
                     have={haveTopic}
                     writer={writer}
                     tag={(key) => (/reg 12\(1\)/i.test(lines.find((l) => l.topic_key === key)?.legal_basis ?? "") ? "reg 12" : null)}
                   />
                 </div>
-              </MySection>
+              </CollapsibleSection>
             ))}
           </div>
           {writer ? (
@@ -187,15 +190,16 @@ export default async function PoliciesPage() {
           ) : null}
         </>
       ) : (
-        <>
-      <MySection
+        <div className="grid gap-3 sm:grid-cols-2">
+      <CollapsibleSection
+          floating
           title={`Policies your regulator expects${regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}`}
           detail={topics.length === 0 ? undefined : `${expected.length - missing.length} of ${expected.length} in place`}
         >
           {topics.length === 0 ? (
-            <div className="glass-card p-5 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
+            <div className="px-2 py-1 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
           ) : (
-            <div className="glass-card p-5">
+            <div className="px-2 py-1">
               {regulators.includes("ciw") ? (
                 <p className="mb-3 text-sm text-white/70">
                   Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales)
@@ -203,6 +207,7 @@ export default async function PoliciesPage() {
                 </p>
               ) : null}
               <TopicChecklist
+                columns={1}
                 topics={expected}
                 have={haveTopic}
                 writer={writer}
@@ -215,24 +220,25 @@ export default async function PoliciesPage() {
               ) : null}
             </div>
           )}
-        </MySection>
+        </CollapsibleSection>
   
         {hrTopics.length > 0 ? (
-          <MySection title="HR policies" detail={`${hrTopics.length - hrMissing.length} of ${hrTopics.length} in place`}>
-            <div className="glass-card p-5">
+          <CollapsibleSection floating title="HR policies" detail={`${hrTopics.length - hrMissing.length} of ${hrTopics.length} in place`}>
+            <div className="px-2 py-1">
               <p className="mb-3 text-sm text-white/70">
                 Employment law is the same in England and Wales, so these are written from Acas and GOV.UK
                 guidance, including the Employment Rights Act 2025 changes.
               </p>
-              <TopicChecklist topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
+              <TopicChecklist columns={1} topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
             </div>
-          </MySection>
+          </CollapsibleSection>
         ) : null}
-        </>
+        </div>
       )}
 
-      {/* Folded (Phil, 2026-10-07). */}
-      <MySection title="Review register" count={register.length}>
+      {/* A dropdown like Settings > Users, full width because its rows carry dropdowns and buttons
+          (Phil, 2026-10-08). */}
+      <CollapsibleSection wide title="Review register" count={register.length}>
         {register.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">No policies yet.</div>
         ) : (
@@ -297,10 +303,10 @@ export default async function PoliciesPage() {
             })}
           </div>
         )}
-      </MySection>
+      </CollapsibleSection>
 
-      {/* Folded (Phil, 2026-10-07). */}
-      <MySection title="Library" count={active.length}>
+      {/* The same, full width (Phil, 2026-10-08). */}
+      <CollapsibleSection wide title="Library" count={active.length}>
         {writer && config ? (
           <PolicyLibrary policies={active} config={config} />
         ) : active.length === 0 ? (
@@ -318,7 +324,7 @@ export default async function PoliciesPage() {
             ))}
           </div>
         )}
-      </MySection>
+      </CollapsibleSection>
 
       {writer && archived.length > 0 ? (
         <section className="space-y-2">
@@ -343,14 +349,17 @@ function TopicChecklist({
   have,
   writer,
   tag,
+  columns = 2,
 }: {
   topics: Array<{ key: string; title: string }>;
   have: Map<string, unknown>;
   writer: boolean;
   tag: (key: string) => string | null;
+  /** One column inside a dropdown, which is only half the page wide. */
+  columns?: 1 | 2;
 }) {
   return (
-    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+    <div className={`grid gap-x-6 gap-y-1${columns === 2 ? " sm:grid-cols-2" : ""}`}>
       {[...topics]
         .sort((a, b) => Number(have.has(a.key)) - Number(have.has(b.key)))
         .map((t) => {
