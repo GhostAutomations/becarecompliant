@@ -30,11 +30,12 @@ import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { cleanChangeSummary, reviewReasonFrom } from "@/lib/policies/cover";
 import { buildCoverPage, coverPatchFrom, keepLogoForVersion, referenceFor, releaseReference } from "@/lib/policies/cover-data";
-import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
+import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { isBriefableFormKey } from "@/lib/assignments/briefable";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
+import { resolveBriefingAudience } from "@/lib/assignments/audience";
 import { notifyHolidayRequested } from "@/lib/notifications/holiday";
 import {
   DRAWN_KEY,
@@ -405,39 +406,15 @@ export async function assignItems(
     }
   }
 
-  // The audience. "Everyone" and "a whole branch" are resolved HERE, not in the
-  // browser, so the list cannot be tampered with and RLS still decides who is
-  // reachable: a Branch Manager's "everyone" is their own branch, by definition.
-  const scopeRaw = String(formData.get("scope") ?? "people");
-  const scope: BriefingScope =
-    scopeRaw === "company" || scopeRaw === "branch" ? scopeRaw : "people";
-  const branchId = String(formData.get("branch_id") ?? "");
-  let personIds: string[];
-
-  if (scope === "company" || scope === "branch") {
-    if (scope === "branch" && !branchId) return { error: "Choose a branch." };
-    let q = supabase
-      .from("people")
-      .select("id")
-      .eq("company_id", companyId)
-      .neq("employment_status", "leaver")
-      .is("archived_at", null);
-    if (scope === "branch") q = q.eq("branch_id", branchId);
-    const { data: audience, error: audienceError } = await q;
-    if (audienceError) return { error: audienceError.message };
-    personIds = ((audience ?? []) as Array<{ id: string }>).map((r) => r.id);
-    if (personIds.length === 0) {
-      return {
-        error:
-          scope === "branch"
-            ? "Nobody on the register is in that branch."
-            : "There is nobody on your register to send this to.",
-      };
-    }
-  } else {
-    personIds = formData.getAll("person_ids").map(String).filter(Boolean);
-    if (personIds.length === 0) return { error: "Choose at least one person." };
-  }
+  // The audience, resolved on the server (lib/assignments/audience.ts).
+  const audience = await resolveBriefingAudience(supabase, companyId, {
+    scope: formData.get("scope"),
+    branchId: formData.get("branch_id"),
+    personIds: formData.getAll("person_ids"),
+  });
+  if (!audience.ok) return { error: audience.error };
+  const { scope, personIds } = audience;
+  const branchId = audience.branchId ?? "";
 
   // A policy assignment names the version being signed.
   let policyVersion: number | null = null;

@@ -19,12 +19,31 @@
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import ReadAndSign from "@/components/staff/read-and-sign";
+import NoticeReader from "@/components/staff/notice-reader";
 import MySection from "@/components/staff/my-section";
 import type { FormSchema } from "@/lib/form-schema";
 import { briefingRenderSchema } from "@/lib/assignments/render";
 import type { AssignmentRow, PolicyConfig } from "@/lib/assignments/types";
 import { completeAssignedForm } from "@/lib/assignments/actions";
 import { signingSchema, type SignatureMode } from "@/lib/assignments/signing";
+import {
+  NOTICE_KIND_LABELS,
+  NOTICE_RESPONSE_ASKS,
+  NOTICE_RESPONSE_DONE,
+} from "@/lib/briefings/notice-rules";
+
+/** The acknowledgement form says "this policy"; a memo is not one (0435). */
+function noticeSigningSchema(schema: FormSchema): FormSchema {
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) =>
+        f.key === "confirmed" ? { ...f, label: "I confirm I have read and understood this" } : f,
+      ),
+    })),
+  };
+}
 
 function fmtSigned(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
@@ -67,6 +86,10 @@ export default function AssignedToMe({
   const signed = assignments
     .filter((a) => a.status === "completed" && a.kind === "policy")
     .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
+  const readNotices = assignments
+    .filter((a) => a.status === "completed" && a.kind === "notice" && a.notice_id && a.notice_kind)
+    .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
+  const companyMode = policyConfig.signature_mode as SignatureMode;
 
   // Per policy now (0137): two briefings on the same screen can legitimately want
   // different signing methods, so the schema is filtered per row rather than once.
@@ -78,8 +101,8 @@ export default function AssignedToMe({
     <div className="space-y-6">
       {open.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">
-          Nothing to do at the moment. When your manager sends you a policy to sign or a
-          form to complete, it will appear here.
+          Nothing to do at the moment. When your manager sends you a policy to sign, a form
+          to complete, or a memo or message, it will appear here.
         </div>
       ) : (
         <ul className="space-y-3">
@@ -92,7 +115,11 @@ export default function AssignedToMe({
                   <div>
                     <p className="text-base font-semibold text-white">{a.title}</p>
                     <p className="text-xs text-white/50">
-                      {a.kind === "policy"
+                      {a.kind === "notice"
+                        ? `${a.notice_kind ? NOTICE_KIND_LABELS[a.notice_kind] : "Briefing"} · ${
+                            a.notice_response ? NOTICE_RESPONSE_ASKS[a.notice_response] : "To read"
+                          }${a.notice_files.length > 0 ? ` · ${a.notice_files.length} ${a.notice_files.length === 1 ? "file" : "files"}` : ""}`
+                        : a.kind === "policy"
                         ? `Read and sign${a.policy_version ? `, version ${a.policy_version}` : ""}`
                         : "Form to complete"}
                     </p>
@@ -104,7 +131,33 @@ export default function AssignedToMe({
                   ) : null}
                 </div>
 
-                {a.kind === "policy" && a.policy_id ? (
+                {a.kind === "notice" && a.notice_id && a.notice_kind && a.notice_response ? (
+                  <NoticeReader
+                    assignmentId={a.id}
+                    noticeId={a.notice_id}
+                    title={a.title}
+                    kind={a.notice_kind}
+                    body={a.notice_body}
+                    files={a.notice_files}
+                    response={a.notice_response}
+                    done={false}
+                    schema={
+                      a.notice_response === "sign" && ackSchema
+                        ? noticeSigningSchema(signingSchema(ackSchema, companyMode))
+                        : null
+                    }
+                    mode={companyMode}
+                    triggerLabel={
+                      a.notice_response === "sign"
+                        ? "Read and sign"
+                        : a.notice_kind === "memo"
+                          ? "Read the memo"
+                          : a.notice_kind === "message"
+                            ? "Read the message"
+                            : "Open"
+                    }
+                  />
+                ) : a.kind === "policy" && a.policy_id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     {ackSchema ? (
                       // ONE button, one panel: the document and the signature together
@@ -146,6 +199,44 @@ export default function AssignedToMe({
           })}
         </ul>
       )}
+
+      <MySection title="Memos and messages" count={readNotices.length}>
+        {readNotices.length === 0 ? (
+          <div className="glass-card p-5 text-sm text-white/60">
+            Nothing yet. Memos and messages you have read stay here so you can read them again.
+          </div>
+        ) : (
+          <div className="glass-card divide-y divide-white/10">
+            {readNotices.map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{a.title}</p>
+                  <p className="text-xs text-white/45">
+                    {a.notice_kind ? NOTICE_KIND_LABELS[a.notice_kind] : "Briefing"}
+                    {a.completed_at
+                      ? ` · ${a.notice_response ? NOTICE_RESPONSE_DONE[a.notice_response] : "Read"} ${fmtSigned(a.completed_at)}`
+                      : ""}
+                  </p>
+                </div>
+                <NoticeReader
+                  assignmentId={a.id}
+                  noticeId={a.notice_id as string}
+                  title={a.title}
+                  kind={a.notice_kind!}
+                  body={a.notice_body}
+                  files={a.notice_files}
+                  response={a.notice_response ?? "read"}
+                  done
+                  schema={null}
+                  mode={companyMode}
+                  triggerLabel="Read again"
+                  triggerClassName="btn-outline px-3 py-2 text-xs"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </MySection>
 
       {/* Signed history: same rows as "Forms I have sent in", and folded away, so
           what is still to do owns the screen (Phil, 2026-07-27). */}

@@ -4,9 +4,12 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import ActionForm from "@/components/action-form";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import AssignPanel from "@/components/assignments/assign-panel";
+import SendBriefing from "@/components/briefings/send-briefing";
 import CompletedBriefings from "@/components/briefings/completed-briefings";
+import NoticesSent from "@/components/briefings/notices-sent";
 import { cancelAssignment } from "@/lib/assignments/actions";
+import type { AssignmentRow } from "@/lib/assignments/types";
+import { NOTICE_KIND_LABELS, NOTICE_RESPONSE_ASKS } from "@/lib/briefings/notice-rules";
 import {
   listAssignments,
   listAssignableForms,
@@ -33,6 +36,16 @@ const MANAGER_PLUS = [
   "platform_admin",
 ];
 
+/** What the outstanding line says it is. */
+function whatItIs(a: AssignmentRow): string {
+  if (a.kind === "notice") {
+    const label = a.notice_kind ? NOTICE_KIND_LABELS[a.notice_kind] : "Briefing";
+    const ask = a.notice_response ? NOTICE_RESPONSE_ASKS[a.notice_response].toLowerCase() : "to read";
+    return `${label} ${ask}${a.read_at ? `, opened ${fmtDate(a.read_at.slice(0, 10))}` : ""}`;
+  }
+  return a.kind === "policy" ? "To read and confirm" : "Form to complete";
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return "No date";
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
@@ -58,7 +71,8 @@ export default async function BriefingsPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const open = assignments.filter((a) => a.status === "assigned");
-  const done = assignments.filter((a) => a.status === "completed");
+  // Memos and messages have their own list below, one row per thing sent.
+  const done = assignments.filter((a) => a.status === "completed" && a.kind !== "notice");
 
   return (
     <div className="page-shell space-y-6">
@@ -66,13 +80,13 @@ export default async function BriefingsPage() {
       <div>
         <h1 className="page-title">Briefings</h1>
         <p className="page-subtitle">
-          Policies to read and sign, and forms to complete, sent out to your team. They see
-          these when they log in, and what comes back is filed as Evidence against their
-          record.
+          Policies to read and sign, forms to complete, and memos, messages and documents for
+          your team. They are emailed and see them when they log in, and you can see who has
+          read, confirmed or signed. Signatures and forms are filed as Evidence on their record.
         </p>
       </div>
 
-      <AssignPanel forms={forms} policies={policies} people={people} />
+      <SendBriefing forms={forms} policies={policies} people={people} />
 
       {policies.length === 0 && (
         <p className="text-xs text-amber-300">
@@ -96,8 +110,7 @@ export default async function BriefingsPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-white">{a.title}</p>
                     <p className="text-xs text-white/50">
-                      {a.person_name ?? "Someone"} ·{" "}
-                      {a.kind === "policy" ? "To read and confirm" : "Form to complete"}
+                      {a.person_name ?? "Someone"} · {whatItIs(a)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -120,6 +133,8 @@ export default async function BriefingsPage() {
           </div>
         )}
       </section>
+
+      <NoticesSent assignments={assignments} />
 
       <CompletedBriefings completed={done} />
     </div>

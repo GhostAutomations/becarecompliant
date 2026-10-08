@@ -75,6 +75,8 @@ export type ReportPerson = {
   doneAt?: string | null;
   dueDate?: string | null;
   daysLate?: number | null;
+  /** A memo or message they have opened but not yet confirmed or signed (0435). */
+  openedAt?: string | null;
 };
 
 export type BriefingReport = {
@@ -82,7 +84,9 @@ export type BriefingReport = {
   /** The company's word for a branch (0354); Branch when not given. */
   branchLabel?: string;
   title: string;
-  kind: "policy" | "form";
+  kind: "policy" | "form" | "notice";
+  /** For a notice: Read, Confirmed or Signed. */
+  verb?: string;
   version: number | null;
   generatedAt: Date;
   done: ReportPerson[];
@@ -112,7 +116,7 @@ function shortDate(iso: string): string {
 export async function renderBriefingReport(r: BriefingReport): Promise<Buffer> {
   const sent = r.done.length + r.outstanding.length;
   const overdue = r.outstanding.filter((p) => (p.daysLate ?? 0) > 0).length;
-  const verb = r.kind === "policy" ? "Signed" : "Completed";
+  const verb = r.verb ?? (r.kind === "policy" ? "Signed" : "Completed");
 
   return renderToBuffer(
     <Document title={`${r.title}: who has signed`} author={r.companyName}>
@@ -186,7 +190,11 @@ export async function renderBriefingReport(r: BriefingReport): Promise<Buffer> {
                 <Text style={styles.branch}>{p.branch ?? "—"}</Text>
                 <Text style={styles.when}>{p.dueDate ? shortDate(p.dueDate) : "No date"}</Text>
                 <Text style={{ ...styles.state, color: (p.daysLate ?? 0) > 0 ? RED : MUTED }}>
-                  {(p.daysLate ?? 0) > 0 ? `${p.daysLate}d late` : "Waiting"}
+                  {(p.daysLate ?? 0) > 0
+                    ? `${p.daysLate}d late`
+                    : p.openedAt
+                      ? `Opened ${shortDate(p.openedAt)}`
+                      : "Waiting"}
                 </Text>
               </View>
             ))}

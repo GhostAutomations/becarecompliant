@@ -47,20 +47,25 @@ export async function GET(request: NextRequest) {
 
   const policyId = request.nextUrl.searchParams.get("policy");
   const formId = request.nextUrl.searchParams.get("form");
-  if (!policyId && !formId) {
+  const noticeId = request.nextUrl.searchParams.get("notice");
+  if (!policyId && !formId && !noticeId) {
     return NextResponse.json({ error: "Choose a policy or a form." }, { status: 400 });
   }
-  const kind: "policy" | "form" = policyId ? "policy" : "form";
+  const kind: "policy" | "form" | "notice" = policyId ? "policy" : noticeId ? "notice" : "form";
 
   const supabase = await createClient();
   let query = supabase
     .from("assignments")
     .select(
-      "id, status, due_date, completed_at, policy_version, people:person_id(full_name, branches:branch_id(name)), company_policies:policy_id(title, version), forms:form_id(name)",
+      "id, status, due_date, completed_at, read_at, policy_version, people:person_id(full_name, branches:branch_id(name)), company_policies:policy_id(title, version), forms:form_id(name), briefing_notices:notice_id(title, response)",
     )
     .eq("company_id", profile.company_id)
     .neq("status", "cancelled");
-  query = policyId ? query.eq("policy_id", policyId) : query.eq("form_id", formId as string);
+  query = policyId
+    ? query.eq("policy_id", policyId)
+    : noticeId
+      ? query.eq("notice_id", noticeId)
+      : query.eq("form_id", formId as string);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -68,7 +73,9 @@ export async function GET(request: NextRequest) {
     status: string;
     due_date: string | null;
     completed_at: string | null;
+    read_at: string | null;
     policy_version: number | null;
+    briefing_notices: { title: string; response: string } | { title: string; response: string }[] | null;
     people: { full_name: string; branches: { name: string } | { name: string }[] | null } | null;
     company_policies: { title: string; version: number } | { title: string; version: number }[] | null;
     forms: { name: string } | { name: string }[] | null;
@@ -80,13 +87,17 @@ export async function GET(request: NextRequest) {
       status: r.status,
       due_date: r.due_date,
       completed_at: r.completed_at,
+      read_at: r.read_at,
+      response: one(r.briefing_notices)?.response ?? null,
       version: r.policy_version,
       name: person?.full_name ?? "Someone",
       branch: one(person?.branches ?? null)?.name ?? null,
       title:
-        kind === "policy"
-          ? (one(r.company_policies)?.title ?? "Policy")
-          : (one(r.forms)?.name ?? "Form"),
+        kind === "notice"
+          ? (one(r.briefing_notices)?.title ?? "Briefing")
+          : kind === "policy"
+            ? (one(r.company_policies)?.title ?? "Policy")
+            : (one(r.forms)?.name ?? "Form"),
     };
   });
 
@@ -106,6 +117,7 @@ export async function GET(request: NextRequest) {
       branch: r.branch,
       dueDate: r.due_date,
       daysLate: daysLate(r.due_date, today),
+      openedAt: r.read_at,
     }))
     // Latest first: the people who have been waiting longest are the ones a
     // manager has to act on.
@@ -122,6 +134,14 @@ export async function GET(request: NextRequest) {
     branchLabel: (company?.branch_word as string | null) || "Branch",
     title: rows[0].title,
     kind,
+    verb:
+      kind === "notice"
+        ? rows[0].response === "sign"
+          ? "Signed"
+          : rows[0].response === "confirm"
+            ? "Confirmed"
+            : "Read"
+        : undefined,
     version: kind === "policy" ? (rows[0].version ?? null) : null,
     generatedAt: new Date(),
     done,
@@ -134,8 +154,8 @@ export async function GET(request: NextRequest) {
     actorEmail: profile.email,
     actorRole: profile.role,
     action: "briefing.report_downloaded",
-    entityType: kind === "policy" ? "policy" : "form",
-    entityId: policyId ?? formId,
+    entityType: kind === "policy" ? "policy" : kind === "notice" ? "briefing_notice" : "form",
+    entityId: policyId ?? noticeId ?? formId,
     summary: `Checked who has responded to "${rows[0].title}"`,
     metadata: { done: done.length, outstanding: outstanding.length },
   });

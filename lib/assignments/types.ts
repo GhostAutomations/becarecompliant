@@ -1,6 +1,9 @@
 /** Be Care Compliant — assignments and policies (isomorphic types). */
 
-export type AssignmentKind = "form" | "policy";
+import type { NoticeFile, NoticeKind, NoticeResponse } from "@/lib/briefings/notice-rules";
+
+/** notice = a memo, a message or attachments (0435, Phil 2026-10-08). */
+export type AssignmentKind = "form" | "policy" | "notice";
 export type AssignmentStatus = "assigned" | "completed" | "cancelled";
 
 export type CompanyPolicy = {
@@ -63,6 +66,14 @@ export type AssignmentRow = {
   policy_body: string | null;
   /** How this particular policy must be signed (0137). */
   policy_signature_mode: PolicyConfig["signature_mode"] | null;
+  /** For a memo, message or attachment (0435). */
+  notice_id: string | null;
+  notice_kind: NoticeKind | null;
+  notice_body: string | null;
+  notice_files: NoticeFile[];
+  notice_response: NoticeResponse | null;
+  /** The first time the person opened it (notices only). */
+  read_at: string | null;
 };
 
 /**

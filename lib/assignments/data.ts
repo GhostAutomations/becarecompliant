@@ -18,10 +18,11 @@ import type {
   PolicyConfig,
   PolicyVersion,
 } from "@/lib/assignments/types";
+import { isNoticeKind, isNoticeResponse, type NoticeFile } from "@/lib/briefings/notice-rules";
 
 type RawAssignment = {
   id: string;
-  kind: "form" | "policy";
+  kind: "form" | "policy" | "notice";
   status: "assigned" | "completed" | "cancelled";
   due_date: string | null;
   assigned_at: string;
@@ -31,10 +32,34 @@ type RawAssignment = {
   form_id: string | null;
   policy_id: string | null;
   policy_version: number | null;
+  notice_id: string | null;
+  read_at: string | null;
   people: { full_name: string } | { full_name: string }[] | null;
   forms: { name: string } | { name: string }[] | null;
   company_policies: PolicyJoin | PolicyJoin[] | null;
+  briefing_notices: NoticeJoin | NoticeJoin[] | null;
 };
+
+type NoticeJoin = {
+  kind: string;
+  title: string;
+  body: string | null;
+  files: unknown;
+  response: string;
+};
+
+function noticeFiles(v: unknown): NoticeFile[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((f): f is Record<string, unknown> => !!f && typeof f === "object")
+    .map((f) => ({
+      path: String(f.path ?? ""),
+      name: String(f.name ?? "File"),
+      size: Number(f.size ?? 0),
+      type: String(f.type ?? ""),
+    }))
+    .filter((f) => f.path);
+}
 
 type PolicyJoin = {
   title: string;
@@ -48,9 +73,10 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 const SELECT =
-  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body, signature_mode)";
+  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, notice_id, read_at, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body, signature_mode), briefing_notices:notice_id(kind, title, body, files, response)";
 
 function shape(r: RawAssignment): AssignmentRow {
+  const notice = one(r.briefing_notices);
   return {
     id: r.id,
     policy_version: r.policy_version,
@@ -63,15 +89,23 @@ function shape(r: RawAssignment): AssignmentRow {
     person_id: r.person_id,
     person_name: one(r.people)?.full_name ?? null,
     title:
-      r.kind === "policy"
-        ? (one(r.company_policies)?.title ?? "Policy")
-        : (one(r.forms)?.name ?? "Form"),
+      r.kind === "notice"
+        ? (notice?.title ?? "Briefing")
+        : r.kind === "policy"
+          ? (one(r.company_policies)?.title ?? "Policy")
+          : (one(r.forms)?.name ?? "Form"),
     form_id: r.form_id,
     policy_id: r.policy_id,
     policy_source: (one(r.company_policies)?.source as "upload" | "text" | null) ?? null,
     policy_body: one(r.company_policies)?.body ?? null,
     policy_signature_mode:
       (one(r.company_policies)?.signature_mode as "draw" | "type" | "either" | "both" | null) ?? null,
+    notice_id: r.notice_id,
+    notice_kind: notice && isNoticeKind(notice.kind) ? notice.kind : null,
+    notice_body: notice?.body ?? null,
+    notice_files: noticeFiles(notice?.files),
+    notice_response: notice && isNoticeResponse(notice.response) ? notice.response : null,
+    read_at: r.read_at,
   };
 }
 
@@ -84,7 +118,7 @@ export async function listAssignments(companyId: string): Promise<AssignmentRow[
     .eq("company_id", companyId)
     .neq("status", "cancelled")
     .order("assigned_at", { ascending: false })
-    .limit(300);
+    .limit(1000);
   return ((data ?? []) as RawAssignment[]).map(shape);
 }
 

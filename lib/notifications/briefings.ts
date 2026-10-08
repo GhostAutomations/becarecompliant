@@ -27,6 +27,12 @@ import { isSendableAddress, sendEmailBatch } from "@/lib/email/resend";
 import { escapeHtml, formatDateUk, noticeEmailHtml } from "@/lib/email/templates";
 import { claimNotification, settleNotifications } from "@/lib/notifications/log";
 import { siteUrl } from "@/lib/site";
+import {
+  NOTICE_KIND_LABELS,
+  noticeSubject,
+  type NoticeKind,
+  type NoticeResponse,
+} from "@/lib/briefings/notice-rules";
 
 export type BriefingSendOutcome = {
   /** Emails handed to Resend successfully. */
@@ -50,7 +56,7 @@ type PersonRow = {
 /** An outstanding briefing, flattened for the digest. */
 export type OutstandingBriefing = {
   assignmentId: string;
-  kind: "form" | "policy";
+  kind: "form" | "policy" | "notice";
   title: string;
   dueDate: string | null;
   personId: string;
@@ -64,8 +70,42 @@ function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-function subjectFor(kind: "form" | "policy", title: string): string {
+type NoticeInfo = { kind: NoticeKind; response: NoticeResponse; fileCount: number };
+
+function subjectFor(kind: "form" | "policy" | "notice", title: string, notice?: NoticeInfo): string {
+  if (kind === "notice" && notice) return noticeSubject(notice.kind, notice.response, title);
   return kind === "policy" ? `Please read and sign: ${title}` : `Please complete: ${title}`;
+}
+
+/** What a memo, message or attachment email says. The words stay in Be Care Compliant: the email
+ *  only says it is there, so opening it is what counts as reading it, and nothing about the team
+ *  sits in an inbox. */
+function noticeEmailParts(notice: NoticeInfo, title: string): { what: string; heading: string; preheader: string; how: string } {
+  const thing = notice.kind === "attachment" ? "some documents" : `a ${NOTICE_KIND_LABELS[notice.kind].toLowerCase()}`;
+  const t = `<strong style="color:#ffffff;">${escapeHtml(title)}</strong>`;
+  const files = notice.fileCount > 0 ? ` It comes with ${notice.fileCount === 1 ? "a file" : `${notice.fileCount} files`}.` : "";
+  if (notice.response === "sign") {
+    return {
+      what: `read and sign ${thing}, ${t}`,
+      heading: "Something to read and sign",
+      preheader: `${title} is waiting for your signature.`,
+      how: `${HOW_TO_SIGN}${files}`,
+    };
+  }
+  if (notice.response === "confirm") {
+    return {
+      what: `read ${thing}, ${t}, and confirm you have read it`,
+      heading: "Something to read and confirm",
+      preheader: `${title} is waiting for you to read.`,
+      how: `Open it, read it, and press "I have read this".${files}`,
+    };
+  }
+  return {
+    what: `read ${thing}, ${t}`,
+    heading: notice.kind === "memo" ? "A new memo" : notice.kind === "message" ? "A new message" : "Documents for you",
+    preheader: `${title} is waiting for you to read.`,
+    how: `Open it on your phone or a computer.${files}`,
+  };
 }
 
 /**
@@ -79,8 +119,10 @@ const HOW_TO_SIGN =
 /** Email everyone a briefing has just been sent to. Best effort: never blocks the send. */
 export async function notifyBriefingSent(opts: {
   companyId: string;
-  kind: "form" | "policy";
+  kind: "form" | "policy" | "notice";
   title: string;
+  /** For a memo, message or attachment. */
+  notice?: NoticeInfo;
   dueDate: string | null;
   assignments: Array<{ id: string; personId: string }>;
 }): Promise<BriefingSendOutcome> {
@@ -99,7 +141,8 @@ export async function notifyBriefingSent(opts: {
     ]);
     const byId = new Map(((peopleRows ?? []) as PersonRow[]).map((p) => [p.id, p]));
     const companyName = (company?.name as string | null) ?? "your company";
-    const subject = subjectFor(opts.kind, opts.title);
+    const subject = subjectFor(opts.kind, opts.title, opts.notice);
+    const noticeParts = opts.kind === "notice" && opts.notice ? noticeEmailParts(opts.notice, opts.title) : null;
 
     // Who can actually be emailed.
     const targets: Array<{ assignmentId: string; person: PersonRow }> = [];
@@ -144,8 +187,10 @@ export async function notifyBriefingSent(opts: {
       const due = opts.dueDate
         ? ` Please do it by <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.dueDate))}</strong>.`
         : "";
-      const what =
-        opts.kind === "policy"
+      const how = noticeParts?.how ?? HOW_TO_SIGN;
+      const what = noticeParts
+        ? noticeParts.what
+        : opts.kind === "policy"
           ? `read and sign <strong style="color:#ffffff;">${escapeHtml(opts.title)}</strong>`
           : `complete the form <strong style="color:#ffffff;">${escapeHtml(opts.title)}</strong>`;
       toSend.push({
@@ -154,16 +199,19 @@ export async function notifyBriefingSent(opts: {
         subject,
         html: noticeEmailHtml({
           preheader:
-            opts.kind === "policy"
+            noticeParts?.preheader ??
+            (opts.kind === "policy"
               ? `${opts.title} is waiting for your signature.`
-              : `${opts.title} is waiting to be completed.`,
-          heading: opts.kind === "policy" ? "A policy to read and sign" : "A form to complete",
+              : `${opts.title} is waiting to be completed.`),
+          heading:
+            noticeParts?.heading ??
+            (opts.kind === "policy" ? "A policy to read and sign" : "A form to complete"),
           bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml(person.full_name.split(" ")[0] ?? person.full_name)},</p>
             <p style="margin:0 0 12px;">${escapeHtml(companyName)} has asked you to ${what}.${due}</p>
             <p style="margin:0;">${
               hasLogin
-                ? HOW_TO_SIGN
-                : `${HOW_TO_SIGN} Look out for a separate email inviting you to set up your login, then it will be waiting for you.`
+                ? how
+                : `${how} Look out for a separate email inviting you to set up your login, then it will be waiting for you.`
             }</p>`,
           ctaLabel: hasLogin ? "Open my briefings" : undefined,
           ctaUrl: hasLogin ? `${siteUrl()}/my` : undefined,
@@ -210,7 +258,7 @@ export async function getOutstandingBriefings(companyId: string): Promise<Outsta
   const { data, error } = await supabase
     .from("assignments")
     .select(
-      "id, kind, due_date, person_id, people:person_id(full_name, work_email, profile_id, branch_id), forms:form_id(name), company_policies:policy_id(title)",
+      "id, kind, due_date, person_id, people:person_id(full_name, work_email, profile_id, branch_id), forms:form_id(name), company_policies:policy_id(title), briefing_notices:notice_id(title)",
     )
     .eq("company_id", companyId)
     .eq("status", "assigned");
@@ -218,21 +266,24 @@ export async function getOutstandingBriefings(companyId: string): Promise<Outsta
 
   return ((data ?? []) as Array<{
     id: string;
-    kind: "form" | "policy";
+    kind: "form" | "policy" | "notice";
     due_date: string | null;
     person_id: string;
     people: PersonRow | PersonRow[] | null;
     forms: { name: string } | { name: string }[] | null;
     company_policies: { title: string } | { title: string }[] | null;
+    briefing_notices: { title: string } | { title: string }[] | null;
   }>).map((r) => {
     const person = one(r.people);
     return {
       assignmentId: r.id,
       kind: r.kind,
       title:
-        r.kind === "policy"
-          ? (one(r.company_policies)?.title ?? "Policy")
-          : (one(r.forms)?.name ?? "Form"),
+        r.kind === "notice"
+          ? (one(r.briefing_notices)?.title ?? "Briefing")
+          : r.kind === "policy"
+            ? (one(r.company_policies)?.title ?? "Policy")
+            : (one(r.forms)?.name ?? "Form"),
       dueDate: r.due_date,
       personId: r.person_id,
       personName: person?.full_name ?? "Someone",
@@ -400,7 +451,7 @@ export function managerOutstandingHtml(opts: {
       : "";
   return noticeEmailHtml({
     preheader: `${opts.items.length} overdue at ${opts.companyName}.`,
-    heading: "Briefings nobody has signed",
+    heading: "Briefings still outstanding",
     bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml(opts.recipientName.split(" ")[0] ?? opts.recipientName)},</p>
       <p style="margin:0 0 12px;">These briefings are past their date at ${escapeHtml(opts.companyName)}:</p>
       <ul style="margin:0 0 12px; padding-left:18px;">${rows}</ul>${more}

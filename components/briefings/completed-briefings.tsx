@@ -14,10 +14,14 @@
 
 import { useState } from "react";
 import type { AssignmentRow } from "@/lib/assignments/types";
+import { NOTICE_KIND_LABELS, NOTICE_RESPONSE_DONE } from "@/lib/briefings/notice-rules";
 
 type Group = {
   key: string;
-  kind: "policy" | "form";
+  kind: "policy" | "form" | "notice";
+  /** For a notice: "Memo", and "read" / "confirmed" / "signed". */
+  noticeLabel: string | null;
+  doneWord: string;
   targetId: string | null;
   title: string;
   version: number | null;
@@ -40,7 +44,7 @@ export default function CompletedBriefings({ completed }: { completed: Assignmen
 
   const byThing = new Map<string, Group>();
   for (const a of completed) {
-    const targetId = a.kind === "policy" ? a.policy_id : a.form_id;
+    const targetId = a.kind === "notice" ? a.notice_id : a.kind === "policy" ? a.policy_id : a.form_id;
     // Version is part of the key on purpose: signing v1 and signing v2 are two
     // different things to have done, and an inspector cares which.
     const key = `${a.kind}:${targetId ?? a.title}:${a.policy_version ?? ""}`;
@@ -52,6 +56,15 @@ export default function CompletedBriefings({ completed }: { completed: Assignmen
       byThing.set(key, {
         key,
         kind: a.kind,
+        noticeLabel: a.kind === "notice" && a.notice_kind ? NOTICE_KIND_LABELS[a.notice_kind] : null,
+        doneWord:
+          a.kind === "notice"
+            ? a.notice_response
+              ? NOTICE_RESPONSE_DONE[a.notice_response].toLowerCase()
+              : "read"
+            : a.kind === "policy"
+              ? "signed"
+              : "completed",
         targetId,
         title: a.title,
         version: a.policy_version,
@@ -93,20 +106,20 @@ export default function CompletedBriefings({ completed }: { completed: Assignmen
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">{g.title}</p>
                   <p className="text-xs text-white/45">
-                    {g.count} {g.count === 1 ? "person" : "people"}
-                    {g.kind === "policy" ? " signed" : " completed"}
+                    {g.noticeLabel ? `${g.noticeLabel} · ` : ""}
+                    {g.count} {g.count === 1 ? "person" : "people"} {g.doneWord}
                     {g.version ? ` · version ${g.version}` : ""}
                     {g.latest ? ` · latest ${fmt(g.latest)}` : ""}
                   </p>
                 </div>
                 {g.targetId ? (
                   <a
-                    href={`/api/briefings/report?${g.kind === "policy" ? "policy" : "form"}=${g.targetId}`}
+                    href={`/api/briefings/report?${g.kind}=${g.targetId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-outline px-3 py-2 text-xs"
                   >
-                    Who has signed
+                    {g.kind === "notice" ? "Who has responded" : "Who has signed"}
                   </a>
                 ) : null}
               </div>
