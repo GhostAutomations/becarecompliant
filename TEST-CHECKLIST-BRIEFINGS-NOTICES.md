@@ -33,3 +33,8 @@ Still to test: N6 to N10 and the staff half of N13 (need a Bevan carer login), N
 | N20 | Test company send says emails are switched off | PASS |
 | N21 | Old "Sent" line clears as soon as the title is changed | PASS |
 | N22 | A wrong file type shows its error under Files | PASS |
+| N23 | Paste plain text with • bullets: they become bullets | PASS 8 Oct (Bevan) |
+| N24 | Paste from Google Docs, Word and Outlook keeps headings, bullets, numbers and bold | PASS 8 Oct for the converter run in the page on sample Docs, Word and Outlook clipboards; live paste after the fix push still to try with a real Word document |
+| N25 | "What was sent" shows real bullets | PASS 8 Oct |
+| N26 | Office team copy: sent to office logins only, never the sender; tick clears after send; test company says it was not sent | PASS 8 Oct (only ZZ Test Supervisor was queued, Bev excluded) |
+| N27 | Office team copy arrives on a real company with the words in the email | Not tested (needs a real company) |

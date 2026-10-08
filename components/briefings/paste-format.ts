@@ -38,6 +38,7 @@ function inline(node: Node, bold = false): string {
 }
 
 const BLOCK = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "UL", "OL", "TABLE", "TR", "BLOCKQUOTE", "SECTION", "ARTICLE"]);
+const BLOCK_SELECTOR = [...BLOCK].map((t) => t.toLowerCase()).join(",");
 
 export function htmlToNoticeText(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -80,11 +81,13 @@ export function htmlToNoticeText(html: string): string {
       if (text) push(/^(\d{1,3}|[a-zA-Z])[.)]$/.test(mark) ? `${mark} ${text}` : `- ${text}`);
       return;
     }
-    const hasBlockChild = Array.from(el.children).some((c) => BLOCK.has(c.tagName));
-    if (hasBlockChild) {
+    // Anything holding blocks is walked through, whatever its own tag: Google Docs wraps the whole
+    // paste in one <b>, and Outlook in <div>s and <span>s.
+    if (el.querySelector(BLOCK_SELECTOR)) {
       el.childNodes.forEach((ch) => {
-        if (ch instanceof HTMLElement && BLOCK.has(ch.tagName)) walk(ch, listDepthTag, counter);
-        else {
+        if (ch instanceof HTMLElement && (BLOCK.has(ch.tagName) || ch.querySelector(BLOCK_SELECTOR))) {
+          walk(ch, listDepthTag, counter);
+        } else {
           const t = inline(ch).trim();
           if (t) {
             gap();
@@ -107,7 +110,7 @@ export function htmlToNoticeText(html: string): string {
   // rest of the spacing to single blank lines.
   return lines
     .join("\n")
-    .replace(/\*\*\s*\*\*/g, "")
+    .replace(/\*\*(\s*)\*\*/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
