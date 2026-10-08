@@ -538,6 +538,42 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
     }
   }
 
+  /* A COPY TO WHOEVER SENT IT (Phil, 2026-10-08): the same email, PDF attached, to the manager who
+     pressed Approve and send, so they have exactly what the employee received. Only once the
+     employee's copy has gone; a copy that fails never fails the send, it is said in the message. */
+  let copyNote = "";
+  const senderEmail = (profile.email ?? "").trim();
+  if (status === "sent" && senderEmail && senderEmail.toLowerCase() !== (ctx.employee.email ?? "").toLowerCase()) {
+    const copyLog = await claimNotification({
+      companyId: ctx.companyId,
+      branchId: ctx.meeting.branch_id,
+      recipientProfileId: profile.id,
+      channel: "email",
+      kind: "absence_outcome_letter_copy",
+      dedupeKey: `absence_outcome_letter_copy:${ctx.meeting.id}`,
+      toAddress: senderEmail,
+      subject: `Copy: ${letter.subject}`,
+    });
+    if (copyLog) {
+      const copy = await sendEmail({
+        companyId: ctx.companyId,
+        to: senderEmail,
+        subject: `Copy: ${letter.subject}`,
+        html: letter.html,
+        attachments: [
+          { filename: "outcome-letter.pdf", content: pdf.toString("base64"), contentType: "application/pdf" },
+        ],
+      });
+      if (copy.sent) {
+        await settleNotification(copyLog, "sent");
+        copyNote = ` A copy has been sent to you at ${senderEmail}.`;
+      } else {
+        await releaseNotification(copyLog);
+        copyNote = " Your own copy could not be emailed; download the PDF from the meeting if you need it.";
+      }
+    }
+  }
+
   const now = new Date().toISOString();
   const { error: updErr } = await ctx.supabase
     .from("absence_outcome_letters")
@@ -572,7 +608,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
         : status === "not_emailed"
           ? "Kept the absence meeting outcome letter as a PDF to hand over (no email address)"
           : "The absence meeting outcome letter could not be emailed",
-    metadata: { meeting_id: ctx.meeting.id, letter_id: letterId, status, error: emailError },
+    metadata: { meeting_id: ctx.meeting.id, letter_id: letterId, status, error: emailError, copy_to: copyNote.startsWith(" A copy") ? senderEmail : null },
   });
 
   revalidatePath("/people/absence");
@@ -583,7 +619,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
   return {
     ok:
       status === "sent"
-        ? `Letter sent to ${ctx.employee.email}, with the PDF attached. The PDF is kept on the meeting.`
+        ? `Letter sent to ${ctx.employee.email}, with the PDF attached. The PDF is kept on the meeting.${copyNote}`
         : "Letter kept as a PDF on the meeting, marked not emailed. Download it to print and hand over.",
   };
 }
