@@ -68,14 +68,20 @@ export async function runAi(opts: {
 
   let res: Response;
   const timeoutMs = opts.timeoutMs ?? 120_000;
-  try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
+  /* THINKING OFF (Zoe Whant, Thistle, 2026-10-08). Claude Sonnet 5 thinks before it answers
+     unless told not to, and the thinking counts against max_tokens: on an outcome letter it spent
+     all 3000 and wrote nothing ("The AI returned nothing (max_tokens, blocks: thinking)"). Every
+     feature here writes a document from facts we give it, so thinking is turned off. Some models
+     refuse "disabled" with a 400; then the same request is sent once without the field. */
+  const send = (withThinkingOff: boolean) =>
+    fetch("https://api.anthropic.com/v1/messages", {
       signal: AbortSignal.timeout(timeoutMs),
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model,
         max_tokens: opts.maxTokens ?? 1500,
+        ...(withThinkingOff ? { thinking: { type: "disabled" } } : {}),
         ...(opts.system ? { system: opts.system } : {}),
         messages: [
           {
@@ -87,6 +93,15 @@ export async function runAi(opts: {
         ],
       }),
     });
+  try {
+    res = await send(true);
+    if (res.status === 400) {
+      const detail = await res.clone().text().catch(() => "");
+      if (/thinking/i.test(detail)) {
+        console.warn("[ai] model refused thinking off, sending without it", { feature: opts.feature });
+        res = await send(false);
+      }
+    }
   } catch (e) {
     await refund();
     const name = (e as Error).name;
