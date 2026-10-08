@@ -22,3 +22,14 @@ Built 2026-10-08. Test on Bevan (emails muted) as Bev Admin, then as a Bevan car
 
 Fixed after the 8 Oct run: old "Sent" or error lines now clear as soon as anything is changed; a file problem shows under Files, not by Send; on the test company the result says emails are switched off instead of "1 could not be emailed".
 Still to test: N6 to N10 and the staff half of N13 (need a Bevan carer login), N14 (real company email), N15 (overdue chase).
+
+## Round 2, 8 Oct evening (Bevan, Bev Admin)
+| # | Check | Result |
+|---|-------|--------|
+| N16 | Preview PDF with nothing written says "Write the title and the memo first" | PASS |
+| N17 | Preview PDF opens a new tab with the memo (200, PDF); nothing is saved | PASS (layout checked by rendering the same component; Chrome's viewer cannot be screenshotted) |
+| N18 | Memo footer shows company, "Preview, not yet sent" and page number; a single line break stays one line | PASS (rendered) |
+| N19 | Absence invitation and outcome letters show "Private and confidential" and Page x of y on every page | PASS (rendered, 1 and 2 page letters); old copy confirmed missing it |
+| N20 | Test company send says emails are switched off | PASS |
+| N21 | Old "Sent" line clears as soon as the title is changed | PASS |
+| N22 | A wrong file type shows its error under Files | PASS |

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
@@ -89,9 +90,14 @@ export default async function BriefingsPage() {
       <SendBriefing forms={forms} policies={policies} people={people} />
 
       {policies.length === 0 && (
-        <p className="text-xs text-amber-300">
-          You have no policies uploaded yet. Add them in Settings, Policies before you can
-          send one out.
+        // Policies are their own department now (2026-10-06), and a memo or message can be sent
+        // without one, so this only explains the empty policy list (Phil, 2026-10-08).
+        <p className="text-xs text-white/60">
+          No policies yet, so there are none to send. Add them in{" "}
+          <Link href="/policies" className="text-amber-200 underline decoration-white/30 underline-offset-2">
+            Policies
+          </Link>
+          . You can still send memos and messages{forms.length > 0 ? ", and forms" : ""}.
         </p>
       )}
 
