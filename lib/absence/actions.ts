@@ -900,9 +900,11 @@ export async function bookAbsenceMeeting(
     return { error: `The meeting could not be booked: ${insErr?.message ?? "no id returned"}` };
   }
 
-  // Formal letter invitations: employee + conductor. Save and print keeps the employee's letter to
-  // print instead of emailing it (Phil, 2026-10-08).
-  const printEmployee = String(formData.get("delivery") ?? "") === "print";
+  // Formal letter invitations: employee + conductor. Save and print, and Save to history, keep the
+  // employee's letter instead of emailing it (Phil, 2026-10-08); print also opens it to print.
+  const deliveryRaw = String(formData.get("delivery") ?? "");
+  const delivery = deliveryRaw === "print" || deliveryRaw === "history" ? deliveryRaw : "send";
+  const printEmployee = delivery !== "send";
   const sent = await sendMeetingLetters(
     {
       ...letterArgsFrom(plan),
@@ -912,7 +914,7 @@ export async function bookAbsenceMeeting(
       bodyOverride: bodyFromForm(formData),
     },
     { id: user.id, name: profile.full_name || profile.email },
-    { printEmployee },
+    { printEmployee, employeeOutcome: delivery === "history" ? "kept_not_sent" : "printed" },
   );
   const inviteOutcomes = sent.outcomes;
 
@@ -935,7 +937,7 @@ export async function bookAbsenceMeeting(
       conducted_by: conductor.id,
       invites: inviteOutcomes,
       letter_copy: sent.copyNote ?? "kept",
-      delivery: printEmployee ? "print" : "send",
+      delivery,
     },
   });
 
@@ -944,7 +946,7 @@ export async function bookAbsenceMeeting(
   if (printEmployee) {
     const conductorSent = inviteOutcomes.conductor === "sent";
     const parts = [
-      sent.letterId ? "Meeting booked. Their letter is open to print." : "Meeting booked.",
+      delivery === "print" && sent.letterId ? "Meeting booked. Their letter is opening to print." : "Meeting booked. Their letter was not emailed to them.",
       conductorSent ? "The person holding the meeting has been emailed their invite." : null,
       sent.copyNote ?? "A copy of the letter is in their Evidence history.",
     ].filter(Boolean);
@@ -1055,7 +1057,7 @@ async function sendMeetingLetters(
   sentBy: { id: string; name: string | null },
   /* Save and print (Phil, 2026-10-08): the employee's letter is printed and posted or handed over
      instead of emailed. The person holding the meeting is still emailed their calendar invite. */
-  opts: { printEmployee?: boolean } = {},
+  opts: { printEmployee?: boolean; employeeOutcome?: string } = {},
 ): Promise<MeetingLettersSent> {
   const outcomes: Record<string, string> = {};
   const slot = `${args.meetingDate}:${args.timeHHMM}`;
@@ -1073,7 +1075,7 @@ async function sendMeetingLetters(
 
   for (const letter of letters) {
     if (opts.printEmployee && letter.key === "employee") {
-      outcomes[letter.key] = "printed";
+      outcomes[letter.key] = opts.employeeOutcome ?? "printed";
       continue;
     }
     if (!letter.email) {

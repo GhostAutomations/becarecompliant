@@ -162,7 +162,9 @@ function BookMeetingForm({
 
   const [result, setResult] = useState<ActionState>(IDLE_STATE);
   const [saving, startSaving] = useTransition();
-  const [savingAs, setSavingAs] = useState<"send" | "print" | null>(null);
+  const [savingAs, setSavingAs] = useState<"send" | "print" | "history" | null>(null);
+  /** A booked letter the browser would not open by itself: offered as a button instead. */
+  const [blockedLetter, setBlockedLetter] = useState<string | null>(null);
   const busy = saving || !!result.ok;
 
   function readDetails(): string {
@@ -229,26 +231,24 @@ function BookMeetingForm({
   // The letter on screen matches the details and the words, so saving sends or prints exactly it.
   const current = ready && !drawing && drawnSig === sig && !pdfError;
 
-  /* Both buttons run the booking from this closure, not through an effect: booking moves the
-     person's card (Tracking to Action required), which can unmount this box before an effect runs
-     (found in Chrome, 2026-10-08). Save and print opens its tab on the click, so it is never
-     blocked as a pop up, and points it at the kept letter once the booking is done. */
-  function save(delivery: "send" | "print") {
+  /* The booking runs from this closure, not through an effect: booking moves the person's card
+     (Tracking to Action required), which can unmount this box before an effect runs (found in
+     Chrome, 2026-10-08). Save and print shows Saving… on the button, then opens the kept letter
+     once it is ready, with no blank tab first (Phil, 2026-10-08). If the browser holds it back as a
+     pop up, an Open the letter button is offered here instead. */
+  function save(delivery: "send" | "print" | "history") {
     const fd = bookingData();
     if (!fd || !current) return;
     fd.set("delivery", delivery);
     setResult(IDLE_STATE);
+    setBlockedLetter(null);
     setSavingAs(delivery);
-    const tab = delivery === "print" ? window.open("", "_blank") : null;
-    tab?.document.write('<p style="font-family:sans-serif">Preparing the letter…</p>');
     startSaving(async () => {
       const res = await bookAbsenceMeeting(IDLE_STATE, fd);
-      if (delivery === "print") {
-        if (res.ok && res.data?.letterId) {
-          if (tab) tab.location.href = `/api/absence/meeting-letter/${res.data.letterId}`;
-        } else {
-          tab?.close();
-        }
+      if (delivery === "print" && res.ok && res.data?.letterId) {
+        const href = `/api/absence/meeting-letter/${res.data.letterId}`;
+        const tab = window.open(href, "_blank");
+        if (!tab) setBlockedLetter(href);
       }
       setResult(res);
     });
@@ -258,10 +258,12 @@ function BookMeetingForm({
   useEffect(() => {
     if (result.ok) {
       router.refresh();
+      // A letter still to open keeps the box up until it is opened.
+      if (blockedLetter) return;
       const t = setTimeout(onClose, 1200);
       return () => clearTimeout(t);
     }
-  }, [result.ok, router, onClose]);
+  }, [result.ok, blockedLetter, router, onClose]);
 
   const hint = "mt-1 text-[10px] text-white/40";
 
@@ -274,8 +276,9 @@ function BookMeetingForm({
           <div>
             <h2 className="text-sm font-semibold text-white">Book meeting: {personName}</h2>
             <p className="mt-1 text-xs text-white/50">
-              Fill in the meeting, check the words and the letter, then save and send it or save and print it.
-              The person holding the meeting is emailed their invite either way. Nothing is booked until you choose.
+              Fill in the meeting and check the letter. Save and send emails it to them; Save and print opens it
+              to print and post or hand over; Save to history keeps it on their record without sending it. The
+              person holding the meeting is emailed their invite every time. Nothing is booked until you choose.
             </p>
           </div>
           <button type="button" className="btn-ghost text-xs" disabled={saving} onClick={onClose}>
@@ -441,6 +444,11 @@ function BookMeetingForm({
           ) : null}
           {result.error ? <p className="form-error">{result.error}</p> : null}
           {result.ok ? <p className="text-sm text-emerald-300">{result.ok}</p> : null}
+          {blockedLetter ? (
+            <a href={blockedLetter} target="_blank" rel="noreferrer" className="btn-primary text-xs" onClick={() => setTimeout(onClose, 300)}>
+              Open the letter to print
+            </a>
+          ) : null}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {emailTo || !current ? (
               <button type="button" className="btn-primary text-xs" disabled={!current || busy} onClick={() => save("send")}>
@@ -454,6 +462,9 @@ function BookMeetingForm({
               onClick={() => save("print")}
             >
               {saving && savingAs === "print" ? "Saving…" : "Save and print"}
+            </button>
+            <button type="button" className="btn-outline text-xs" disabled={!current || busy} onClick={() => save("history")}>
+              {saving && savingAs === "history" ? "Saving…" : "Save to history"}
             </button>
           </div>
         </div>
