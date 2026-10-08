@@ -36,6 +36,7 @@ import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { isBriefableFormKey } from "@/lib/assignments/briefable";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
 import { resolveBriefingAudience } from "@/lib/assignments/audience";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { notifyHolidayRequested } from "@/lib/notifications/holiday";
 import {
   DRAWN_KEY,
@@ -316,6 +317,7 @@ export async function uploadPolicy(
     bytes: file.size,
     created_by: user.id,
   });
+  await queueCloudCopy({ companyId, kind: "policy_version", sourceId: `${policy.id}:1` });
 
   await writeAudit({
     companyId,
@@ -1060,6 +1062,7 @@ async function freezeWrittenVersion(opts: {
     cover: cover.frozen,
   });
   if (verErr) return { ok: false, error: `The version could not be recorded: ${verErr.message}` };
+  await queueCloudCopy({ companyId: opts.companyId, kind: "policy_version", sourceId: `${opts.policyId}:${opts.version}` });
 
   const { error: polErr } = await supabase
     .from("company_policies")
@@ -1126,6 +1129,7 @@ export async function uploadPolicyVersion(
     created_by: user.id,
   });
   if (verErr) return { error: `The version could not be recorded: ${verErr.message}` };
+  await queueCloudCopy({ companyId, kind: "policy_version", sourceId: `${policyId}:${nextVersion}` });
 
   await supabase
     .from("company_policies")

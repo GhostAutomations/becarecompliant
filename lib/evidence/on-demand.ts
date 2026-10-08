@@ -283,8 +283,11 @@ export async function evidenceSignedPdfUrl(input: {
  * Authorises via the caller's RLS read. Does not upload or sign. */
 export async function renderEvidenceBytes(
   evidenceId: string,
+  opts: { trusted?: boolean } = {},
 ): Promise<{ ok: true; bytes: Buffer; ref: string } | { ok: false; error: string }> {
-  const supabase = await createClient();
+  // trusted: the cloud drive copier (lib/cloud/sources.ts), which runs with no signed in user
+  // and has already pinned the evidence to its company. Everyone else goes through their RLS.
+  const supabase = opts.trusted ? createServiceClient() : await createClient();
   const { data, error } = await supabase
     .from("evidence")
     .select(
@@ -310,7 +313,7 @@ export async function renderEvidenceBytes(
     paperCompletedOn: paperCompletedOn(data.answers),
     evidenceRef: shortRef(data.id),
   };
-  const attachments = await loadEvidenceAttachments(data.id);
+  const attachments = await loadEvidenceAttachments(data.id, { trusted: opts.trusted });
   const bytes = await renderEvidencePdf(
     data.schema_snapshot as FormSchema,
     data.answers ?? {},

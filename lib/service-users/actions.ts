@@ -20,6 +20,7 @@ import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
 import { profilesById } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -162,6 +163,9 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
     return { error: error.message };
   }
 
+  // Their folder in the company's cloud drive, when one is connected (0437).
+  await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `service_user:${su.id}` });
+
   // Auto-apply active definitions, each scheduled from the package start date. On a
   // Complex branch the Care Plan Review (REV1) is due at the Complex cadence.
   const definitions = await listServiceUserCheckDefinitions(companyId);
@@ -189,6 +193,7 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
         .from("service_users")
         .update({ care_plan_path: up.path, care_plan_uploaded_at: new Date().toISOString() })
         .eq("id", su.id);
+      await queueCloudCopy({ companyId, kind: "care_plan", sourceId: su.id, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
     }
   }
 
@@ -1282,6 +1287,7 @@ export async function uploadCarePlan(_prev: ActionState, formData: FormData): Pr
     .select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
+  await queueCloudCopy({ companyId: su.company_id as string, kind: "care_plan", sourceId: su.id as string, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
 
   await writeAudit({
     companyId: su.company_id as string,

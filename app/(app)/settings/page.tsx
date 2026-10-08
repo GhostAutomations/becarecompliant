@@ -116,6 +116,13 @@ export default async function SettingsPage() {
             Your company logo, used on invoices and other documents.
           </p>
         </Link>
+        <Link href="/settings/cloud" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Cloud drive</h2>
+          <p className="text-sm text-white/60">
+            Keep a copy of every completed form, certificate and policy in your own OneDrive or
+            SharePoint, with a folder for each person and service user.
+          </p>
+        </Link>
         <Link href="/settings/complaints" className="app-tile">
           <h2 className="text-base font-semibold text-white">Complaints</h2>
           <p className="text-sm text-white/60">

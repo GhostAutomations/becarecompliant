@@ -23,6 +23,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import {
   type Answers,
   type FormSchema,
@@ -198,6 +199,15 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
       files: fileRecords.length,
     },
   });
+
+  // A copy in the company's own cloud drive, when they have connected one (0437). Never throws,
+  // never slows the save: the copy runs after the response.
+  await queueCloudCopy({ companyId, kind: "evidence", sourceId: evidenceId });
+  for (const f of fileRecords) {
+    if (f.kind === "upload") {
+      await queueCloudCopy({ companyId, kind: "evidence_file", sourceId: `${evidenceId}|${String(f.storage_path)}` });
+    }
+  }
 
   return { ok: true, evidenceId };
 }

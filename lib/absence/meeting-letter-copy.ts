@@ -15,6 +15,7 @@ import "server-only";
 
 import { createHash, randomUUID } from "crypto";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 
 const BUCKET = "evidence";
 
@@ -94,5 +95,6 @@ export async function keepMeetingLetter(
     await supabase.storage.from(BUCKET).remove([path]);
     return { ok: false, error: `the copy could not be saved (${error.message})` };
   }
+  await queueCloudCopy({ companyId: input.companyId, kind: "meeting_letter", sourceId: id });
   return { ok: true, id };
 }

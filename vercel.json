@@ -34,6 +34,10 @@
     {
       "path": "/api/cron/policy-sources",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/cloud-copies",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

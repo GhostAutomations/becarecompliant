@@ -17,6 +17,7 @@ import { scwRenewalFromIssue } from "@/lib/people/scw";
  * cycle) are left as-is, not flagged, since that is normal for this company.
  */
 
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { createClient } from "@/lib/supabase/server";
 import { parseCivilDate, daysBetween } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -206,6 +207,7 @@ export async function commitPeople(
       flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
+    await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `person:${person.id}` });
 
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
@@ -290,6 +292,7 @@ export async function commitServiceUsers(
       flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
+    await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `service_user:${su.id}` });
 
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({

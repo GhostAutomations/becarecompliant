@@ -27,6 +27,7 @@ import { getCompanyFormByKey } from "@/lib/people/data";
 import { getPolicyConfig } from "@/lib/assignments/data";
 import { resolveBriefingAudience } from "@/lib/assignments/audience";
 import { listMemoSenders } from "@/lib/briefings/senders";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import { DRAWN_KEY, TYPED_KEY, signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
 import { emailOfficeCopy, notifyBriefingSent } from "@/lib/notifications/briefings";
@@ -205,6 +206,12 @@ export async function sendNotice(input: {
     .select("id, person_id");
   if (error) return { error: error.message };
   const created = rows?.length ?? 0;
+
+  // Copies in the company's cloud drive (0437): the memo PDF and every file, into Briefings.
+  await queueCloudCopy({ companyId, kind: "notice", sourceId: noticeId });
+  for (let i = 0; i < files.length; i++) {
+    await queueCloudCopy({ companyId, kind: "notice_file", sourceId: `${noticeId}|${i + 1}` });
+  }
 
   const emailOutcome = await notifyBriefingSent({
     companyId,

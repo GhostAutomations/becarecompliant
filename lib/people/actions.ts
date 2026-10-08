@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { inviteStaffForPerson, followPersonEmailChange } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -163,6 +164,9 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     .single();
 
   if (error) return { error: error.message };
+
+  // Their folder in the company's cloud drive, when one is connected (0437).
+  await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `person:${person.id}` });
 
   // Auto-apply active definitions. Spot Check and Audit get a due date on add; the rest
   // (supervision, appraisal, manual handling, medication competency) start blank.

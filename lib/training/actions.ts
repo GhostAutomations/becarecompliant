@@ -12,6 +12,7 @@ import { deriveRenewalDate, impossibleTrainingDate } from "@/lib/training/renewa
 import { trainingWritePlan } from "@/lib/training/booking";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { canRecordTrainingAnywhere } from "@/lib/auth/manage-scope";
 import { uploadTrainingCertificate, deleteTrainingCertificate } from "@/lib/training/storage";
 import type { ActionState } from "@/lib/forms";
@@ -243,6 +244,13 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
     const res = await uploadTrainingCertificate(person.company_id, up.id, file);
     if (!res.ok) return { error: res.error };
     await supabase.from("person_training").update({ certificate_path: res.path }).eq("id", up.id);
+    // A copy in the company's cloud drive (0437). A new certificate on the same course is a new copy.
+    await queueCloudCopy({
+      companyId: person.company_id,
+      kind: "training_cert",
+      sourceId: up.id,
+      dedupeKey: `training_cert:${up.id}:${res.path}:${Date.now()}`,
+    });
   }
 
   await writeAudit({

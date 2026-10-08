@@ -19,6 +19,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { runAi } from "@/lib/ai/anthropic";
 import { writeAudit } from "@/lib/audit";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import type { ActionState } from "@/lib/forms";
 import type { LetterPreviewState } from "@/lib/absence/letter-preview";
 import { profilesById } from "@/lib/auth/company-profiles";
@@ -630,6 +631,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
     })
     .eq("id", letterId);
   if (updErr) return { error: `The letter went out but could not be recorded: ${updErr.message}` };
+  await queueCloudCopy({ companyId: ctx.companyId, kind: "outcome_letter", sourceId: letterId, dedupeKey: `outcome_letter:${letterId}:${path}` });
 
   await writeAudit({
     companyId: ctx.companyId,

@@ -42,10 +42,15 @@ type FileRow = {
   bytes: number | null;
 };
 
-export async function loadEvidenceAttachments(evidenceId: string): Promise<EvidenceAttachments> {
+export async function loadEvidenceAttachments(
+  evidenceId: string,
+  opts: { trusted?: boolean } = {},
+): Promise<EvidenceAttachments> {
   const out: EvidenceAttachments = {};
   try {
-    const supabase = await createClient();
+    // trusted: a background job (the cloud drive copier) that has already scoped the evidence
+    // to its company. Everything else reads through the caller's own RLS.
+    const supabase = opts.trusted ? createServiceClient() : await createClient();
     const { data, error } = await supabase
       .from("evidence_files")
       .select("field_key, kind, file_name, storage_path, mime_type, bytes")
