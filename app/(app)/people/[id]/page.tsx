@@ -1087,7 +1087,7 @@ export default async function PersonPage({
                                   <span className="text-white/50">
                                     {letter.status === "sent"
                                       ? `Emailed ${formatDisplayDate(letter.sentAt ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(letter.sentAt)) : null)}`
-                                      : "Not emailed: no address. Print it and hand it over."}
+                                      : "Not emailed. Print it and hand it over."}
                                   </span>
                                 </>
                               ) : (
