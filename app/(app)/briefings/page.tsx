@@ -89,7 +89,13 @@ export default async function BriefingsPage() {
         </p>
       </div>
 
-      <SendBriefing forms={forms} policies={policies} people={people} senders={senders} />
+      <SendBriefing
+        forms={forms}
+        policies={policies}
+        people={people}
+        /* "Me" is already the first choice, so you are not listed twice. */
+        senders={senders.filter((s) => s.id !== profile.id)}
+      />
 
       {policies.length === 0 && (
         // Policies are their own department now (2026-10-06), and a memo or message can be sent
