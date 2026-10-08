@@ -94,14 +94,17 @@ export function CentreDialog({
 export default function PanelDialog({
   title,
   count,
+  defaultOpen = false,
   children,
 }: {
   title: string;
   /** Shown after the title, as the folded version showed it. */
   count?: number;
+  /** Open when the page loads, e.g. Manage record reached from Make them a leaver (2026-10-08). */
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const close = useCallback(() => setOpen(false), []);
   const label = `${title}${count && count > 0 ? ` (${count})` : ""}`;
 

@@ -21,13 +21,18 @@ export default function WorkingStatusForm({
   personId,
   current,
   todayIso,
+  dismissedOn,
 }: {
   personId: string;
   current: EmploymentStatus;
   todayIso: string;
+  /** Opened from a dismissal (Phil, 2026-10-08): Leaver chosen, the leaving date the last day of
+   *  employment and the reason Dismissed, ready to finish and save. Nothing is saved until then. */
+  dismissedOn?: string | null;
 }) {
-  const [status, setStatus] = useState<EmploymentStatus>(current);
-  const [reason, setReason] = useState("");
+  const fromDismissal = Boolean(dismissedOn) && current !== "leaver";
+  const [status, setStatus] = useState<EmploymentStatus>(fromDismissal ? "leaver" : current);
+  const [reason, setReason] = useState(fromDismissal ? "dismissed" : "");
   const [competitor, setCompetitor] = useState("");
   const asking = status === "leaver" && current !== "leaver";
 
@@ -68,7 +73,7 @@ export default function WorkingStatusForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="leaving_date" className="form-label">Leaving date</label>
-              <input id="leaving_date" name="leaving_date" type="date" defaultValue={todayIso} required />
+              <input id="leaving_date" name="leaving_date" type="date" defaultValue={fromDismissal && dismissedOn ? dismissedOn : todayIso} required />
               <p className="form-hint">
                 Today or a later date: they stay on the register and in the emails until the end
                 of that day. An earlier date makes them a leaver straight away.

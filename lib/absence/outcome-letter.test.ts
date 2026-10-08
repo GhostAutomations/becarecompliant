@@ -27,11 +27,11 @@ test("outcomeFacts keeps the record and never the name or signatures", () => {
   });
   assert.deepEqual(facts, [
     "Meeting: Stage 1",
-    "Date of the meeting: 2026-09-29",
+    "Date of the meeting: 29th September 2026",
     "The employee's explanation: Two colds.",
     "Outcome of the meeting: Formal warning issued",
     "Warning or dismissal: Verbal warning",
-    "Warning remains live until: 2027-03-29",
+    "Warning remains live until: 29th March 2027",
   ]);
   assert.deepEqual(outcomeFacts(null), []);
 });
@@ -147,7 +147,8 @@ test("a warning date left behind is not used when the warning is None", () => {
   const facts = outcomeFacts({ meeting_outcome: "No further action", warning_issued: "None", warning_live_until: "2027-02-17" });
   assert.ok(!facts.some((f) => f.includes("2027-02-17")));
   const withWarning = outcomeFacts({ warning_issued: "Written warning", warning_live_until: "2027-02-17" });
-  assert.ok(withWarning.some((f) => f.includes("2027-02-17")));
+  // Written as the letter writes dates (Phil, 2026-10-08).
+  assert.ok(withWarning.some((f) => f.includes("17th February 2027")));
 });
 
 test("the reason for no further action goes to the letter only with that outcome", () => {

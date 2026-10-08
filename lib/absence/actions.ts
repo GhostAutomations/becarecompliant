@@ -29,6 +29,7 @@ import { writeAudit } from "@/lib/audit";
 import { renderCalendarInvite, sendCalendarInvite } from "@/lib/notifications/invites";
 import type { LetterPreview, LetterPreviewState } from "@/lib/absence/letter-preview";
 import { sendEmail } from "@/lib/email/resend";
+import { isMessagingMuted } from "@/lib/email/muted";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
 import { ukDate } from "@/lib/dates";
@@ -52,6 +53,7 @@ import { toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { availableStages, stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
 import { normaliseApprovedBody, stageAfterMeeting } from "@/lib/absence/outcome-letter";
+import { dismissalAnswersProblem } from "@/lib/absence/dismissal";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -248,6 +250,13 @@ export async function recordAbsenceMeeting(
       return { error: "The outcome is a formal warning, so choose which warning in Warning or dismissal." };
     }
   }
+
+  /* A DISMISSAL (Phil, 2026-10-08): its own outcome, with the last day of employment and the
+     notice, both named in the outcome letter. Warning or dismissal follows it, so the stage's
+     "up to and including" check below holds it to Stage 4 (or whatever allows dismissal). */
+  const dismissalProblem = dismissalAnswersProblem(answers);
+  if (dismissalProblem) return { error: dismissalProblem };
+  if (String(answers["meeting_outcome"] ?? "") === "Dismissal") answers = { ...answers, warning_issued: "Dismissal" };
 
   /* Absences the meeting agreed not to count, ticked in the form (Phil, 2026-10-07). Checked
      BEFORE anything is saved, so a refusal leaves nothing half done; discounted after the save. */
@@ -525,9 +534,16 @@ export async function recordAbsenceMeeting(
     : discounted > 0
       ? ` ${discounted === 1 ? "1 absence" : `${discounted} absences`} discounted.`
       : "";
+  // A dismissal offers Make them a leaver, with the last day as the leaving date (Phil, 2026-10-08).
+  const leaverDate = String(answers["meeting_outcome"] ?? "") === "Dismissal" ? String(answers["last_day_of_employment"] ?? "") : "";
   return {
     ok: `${attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded."}${discountNote}`,
-    data: { meeting_stage: validStage ? String(validStage) : "", meeting_date: meetingDate ?? "", meeting_id: meetingId ?? "" },
+    data: {
+      meeting_stage: validStage ? String(validStage) : "",
+      meeting_date: meetingDate ?? "",
+      meeting_id: meetingId ?? "",
+      ...(isoOrNull(leaverDate) ? { leaver_date: leaverDate } : {}),
+    },
   };
 }
 
@@ -956,7 +972,9 @@ export async function bookAbsenceMeeting(
   const base =
     sentCount > 0
       ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
-      : "Meeting booked. No invitations could be sent (check email addresses).";
+      : (await isMessagingMuted(plan.companyId))
+        ? "Meeting booked. Nothing was emailed: this is a test company with emails switched off."
+        : "Meeting booked. No invitations could be sent (check email addresses).";
   // A copy that could not be kept is said out loud, never swallowed.
   // Always ok: the meeting IS booked and the letters went, so the dialog must not invite a second
   // booking. A copy that could not be kept is said in the same message, never swallowed.

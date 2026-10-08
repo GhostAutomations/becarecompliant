@@ -23,7 +23,7 @@ export const OUTCOME_SYSTEM = [
   "record). Write it as plain text with a blank line between paragraphs, in this order:",
   "1. What was discussed: ONE SHORT PARAGRAPH FOR EACH ABSENCE the meeting covered (Phil, 2026-10-07:",
   "each absence on its own so they do not blend together), in date order. Start each paragraph with",
-  "the absence's date and reason, for example \"Your absence on 22 September 2026 (childcare):\", then",
+  "the absence's date and reason, for example \"Your absence on 22nd September 2026 (childcare):\", then",
   "what the employee explained about it and anything they confirmed, such as a problem now being",
   "resolved, using their answers to the questions asked. Anything discussed that is not about one",
   "absence, such as a pattern in the dates, goes in its own short paragraph after them.",
@@ -39,6 +39,9 @@ export const OUTCOME_SYSTEM = [
   "4. What happens next: use the 'If attendance does not improve' line from the record, word for word",
   "in meaning, so they know what a further absence could lead to. Leave this out only if the record",
   "has no such line.",
+  "When the outcome is a dismissal, say so plainly and give the last day of employment and the notice",
+  "(worked, or paid in lieu) exactly as the record gives them; leave out step 4 for a dismissal.",
+  "Write every date in full with its ordinal, for example 1st October 2026, never 01/10/2026.",
   "Where the record says nothing about one of these, leave it out rather than guess.",
   "Only say an absence was discounted when the record lists it as discounted at this meeting.",
   "Do NOT write a greeting, a sign off, a subject line, anything about the right of appeal, or any",
@@ -52,6 +55,23 @@ export function clipText(text: unknown, max = 700): string {
 }
 
 /** The parts of the meeting's Evidence the letter is written from. Names and signatures left out. */
+const FACT_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "2026-10-01" as "1st October 2026", the way the letter writes dates; anything else as it is. */
+export function fullDate(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return value;
+  const d = Number(m[3]);
+  const suffix = d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th";
+  return `${d}${suffix} ${FACT_MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+}
+
+/** A dismissal, by the outcome or the warning chosen (Phil, 2026-10-08). */
+export function isDismissal(answers: Record<string, unknown> | null | undefined): boolean {
+  if (!answers) return false;
+  return String(answers["meeting_outcome"] ?? "").trim() === "Dismissal" || String(answers["warning_issued"] ?? "").trim() === "Dismissal";
+}
+
 export function outcomeFacts(answers: Record<string, unknown> | null | undefined): string[] {
   if (!answers) return [];
   const lines: string[] = [];
@@ -59,8 +79,13 @@ export function outcomeFacts(answers: Record<string, unknown> | null | undefined
     const t = clipText(answers[key], max);
     if (t) lines.push(`${label}: ${t}`);
   };
+  // Dates go to the AI as the letter writes them, so it never copies 2026-10-01 or 01/10/2026.
+  const addDate = (label: string, key: string) => {
+    const t = clipText(answers[key], 20);
+    if (t) lines.push(`${label}: ${fullDate(t)}`);
+  };
   add("Meeting", "meeting_type", 40);
-  add("Date of the meeting", "date_of_meeting", 20);
+  addDate("Date of the meeting", "date_of_meeting");
   add("Absences discussed", "dates_of_absence_discussed", 500);
   add("The employee's explanation", "employees_explanation");
   add("The manager's comments", "managers_comments");
@@ -69,15 +94,18 @@ export function outcomeFacts(answers: Record<string, unknown> | null | undefined
   add("Outcome of the meeting", "meeting_outcome", 80);
   // Why no further action was taken (Phil, 2026-10-08): only with that outcome.
   if (clipText(answers["meeting_outcome"], 80) === "No further action") add("Reason for no further action", "nfa_reason");
-  // Why no further action was taken (Phil, 2026-10-08): only with that outcome.
-  if (clipText(answers["meeting_outcome"], 80) === "No further action") add("Reason for no further action", "nfa_reason");
   add("Warning or dismissal", "warning_issued", 40);
   // Only with a real warning: the date box hides when the warning is None, but an earlier answer
   // can still be in the form (Phil, 2026-10-07: an NFA letter said a stage "remains live until").
   const warning = clipText(answers["warning_issued"], 40);
-  if (warning && warning !== "None") add("Warning remains live until", "warning_live_until", 20);
+  if (warning && warning !== "None" && warning !== "Dismissal") addDate("Warning remains live until", "warning_live_until");
+  // A dismissal (Phil, 2026-10-08): the last day of employment and the notice go in the letter.
+  if (isDismissal(answers)) {
+    addDate("Last day of employment", "last_day_of_employment");
+    add("Notice", "dismissal_notice", 60);
+  }
   add("Improvement targets", "improvement_targets");
-  add("Review date", "review_date", 20);
+  addDate("Review date", "review_date");
   return lines;
 }
 

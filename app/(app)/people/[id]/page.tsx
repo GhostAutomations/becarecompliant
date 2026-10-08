@@ -129,11 +129,14 @@ export default async function PersonPage({
     from?: string;
     /** "failed" when their Team Member login could not be created as they were added. */
     login?: string;
+    /** yyyy-mm-dd: opened from a dismissal to make them a leaver on that date (Phil, 2026-10-08). */
+    leaver?: string;
   }>;
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, history, from, login: loginBanner } = await searchParams;
+  const { completed, recorded, history, from, login: loginBanner, leaver: leaverParam } = await searchParams;
+  const leaverDate = leaverParam && /^\d{4}-\d{2}-\d{2}$/.test(leaverParam) ? leaverParam : null;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
   // only accept in-app /people paths to avoid an open redirect.
   const backHref = from && from.startsWith("/people") ? from : "/people";
@@ -1132,7 +1135,7 @@ export default async function PersonPage({
 
       {/* Management */}
       {canManage ? (
-        <PanelDialog title="Manage record">
+        <PanelDialog title="Manage record" defaultOpen={Boolean(leaverDate) && person.employment_status !== "leaver"}>
           {/*
            * THREE FORMS, SAID OUT LOUD (Phil, 2026-09-16). This panel holds three independent
            * actions with three save buttons, and nothing on screen said so. Changing the job
@@ -1176,6 +1179,7 @@ export default async function PersonPage({
                 personId={person.id}
                 current={person.employment_status}
                 todayIso={formatCivilDate(todayInLondon())}
+                dismissedOn={leaverDate}
               />
               {/* Archive is only offered once a person is a Leaver; Restore shows for
                   an archived record. Active/LTS/Mat Leave staff cannot be archived. */}

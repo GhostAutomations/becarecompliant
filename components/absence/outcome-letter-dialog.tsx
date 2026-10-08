@@ -36,6 +36,8 @@ type Props = {
   personName: string;
   /** A saved draft (or the approved words of a send that failed), so no second credit is spent. */
   initialBody?: string | null;
+  /** After a dismissal (Phil, 2026-10-08): the leaver form on their record, with the date set. */
+  leaverHref?: string | null;
 };
 
 /** A button that opens the letter, for the meeting on a person's record. */
@@ -61,6 +63,7 @@ export default function OutcomeLetterDialog({
   meetingId,
   personName,
   initialBody,
+  leaverHref,
   onClose,
 }: Props & { onClose: () => void }) {
   const router = useRouter();
@@ -168,6 +171,17 @@ export default function OutcomeLetterDialog({
         <h2 className="text-sm font-semibold text-white">
           {finalLook ? "Check the letter" : "Outcome letter"}: {personName}
         </h2>
+
+        {/* A dismissal was recorded: one press to the leaver form, the leaving date already the
+            last day of employment. Nothing changes until it is saved there (Phil, 2026-10-08). */}
+        {leaverHref ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-xs text-white/70">This meeting ended in dismissal. When you are ready, make them a leaver.</p>
+            <a href={leaverHref} className="btn-outline px-3 py-1.5 text-xs">
+              Make them a leaver
+            </a>
+          </div>
+        ) : null}
 
         {finalLook ? (
           <div className="mt-3 space-y-3">

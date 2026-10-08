@@ -180,7 +180,11 @@ async function letterSetup(ctx: LetterCtx) {
   ]);
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
   const stageLabel = stageLabelFor(ctx.meeting.stage, extras.meetingName);
-  const meetingDate = slashDate(ctx.meeting.meeting_date);
+  /* Dates in the letter read like the rest of it, "1st October 2026", not 01/10/2026 (Phil,
+     2026-10-08, the four stage test). */
+  const meetingDate = /^\d{4}-\d{2}-\d{2}$/.test(String(ctx.meeting.meeting_date ?? ""))
+    ? letterDate(String(ctx.meeting.meeting_date))
+    : slashDate(ctx.meeting.meeting_date);
   const time = ctx.meeting.meeting_time ? String(ctx.meeting.meeting_time).slice(0, 5) : "";
   const todayIso = formatCivilDate(todayInLondon());
   const appealBy = typeof ctx.answers.appeal_heard_by === "string" ? ctx.answers.appeal_heard_by.trim() : "";
@@ -199,7 +203,7 @@ async function letterSetup(ctx: LetterCtx) {
     location: ctx.meeting.location ?? "",
     duration: ctx.meeting.duration_minutes ? `${ctx.meeting.duration_minutes} minutes` : "",
     outcome_body: "",
-    letter_date: slashDate(todayIso),
+    letter_date: letterDate(todayIso),
     // Chosen in the meeting's Outcome section (Phil, 2026-10-07); seven days unless changed.
     appeal_days: appealDays(ctx.answers.appeal_days),
     appeal_manager: appealBy || "a manager",
@@ -521,8 +525,12 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
         await settleNotification(logId, "sent");
       } else {
         status = "send_failed";
+        /* Say why it was not sent: a test company has emails switched off (Phil, 2026-10-08: the
+           RESEND message read as a fault on Bevan), anything else is passed on as it is. */
         emailError = result.skippedReason
-          ? "Email is not set up for this service (RESEND_API_KEY / RESEND_FROM)."
+          ? /RESEND/.test(result.skippedReason)
+            ? "Email is not set up for this service (RESEND_API_KEY / RESEND_FROM)."
+            : result.skippedReason
           : `The email could not be sent: ${result.error ?? "unknown error"}`;
         // Given back so Approve and send can try again; the attempt is in the audit log below.
         await releaseNotification(logId);

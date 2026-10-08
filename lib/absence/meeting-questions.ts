@@ -42,6 +42,17 @@ export function discussedAbsences<T>(
   return scoped.length > 0 ? scoped : all;
 }
 
+/** The company's stage thresholds as discussedAbsences wants them; none for a points method. */
+export function stageThresholds(
+  method: string | null | undefined,
+  thresholds: unknown,
+): Array<{ stage: number; occasions: number }> {
+  if (method !== "stages" || !Array.isArray(thresholds)) return [];
+  return (thresholds as Array<{ stage?: unknown; occasions?: unknown }>)
+    .filter((t) => typeof t.occasions === "number" && Number.isFinite(Number(t.stage)))
+    .map((t) => ({ stage: Number(t.stage), occasions: Number(t.occasions) }));
+}
+
 export const MEETING_QUESTIONS_SYSTEM = [
   "You are helping a UK care sector manager prepare for a formal absence management meeting held",
   "under the company's attendance procedure. Your job is to prepare the questions, not to decide anything.",

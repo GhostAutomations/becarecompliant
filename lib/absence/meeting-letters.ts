@@ -18,6 +18,7 @@ import { siteUrl } from "@/lib/site";
 import { buildInvitationLetter, type InvitationLetter } from "@/lib/absence/invitation-letter";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
+import { discussedAbsences, stageThresholds } from "@/lib/absence/meeting-questions";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
 import { COPIES_KEPT_FROM, keepMeetingLetter, REBUILT_NOTICE } from "@/lib/absence/meeting-letter-copy";
 
@@ -112,7 +113,14 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
 
   // What this stage can lead to (Settings, Absence; Phil 2026-09-29). Read here rather than
   // passed in, so booking and rearranging can never disagree about it.
-  const stageAction = stageActionFor(await getAbsenceConfig(args.companyId), args.stage);
+  const config = await getAbsenceConfig(args.companyId);
+  const stageAction = stageActionFor(config, args.stage);
+  /* Only the absences this stage is about (Phil, 2026-10-08, the four stage test): Stage 1 the
+     ones up to its trigger, each later stage the new ones since the last. The same rule the
+     meeting form and the outcome letter use, so all three always list the same absences. */
+  const stageAbsences = discussedAbsences(extras.absences, args.stage, stageThresholds(config.method, config.thresholds)).map(
+    ({ e }) => e,
+  );
   values.stage_action = stageAction ?? "";
   values.stage_action_sentence = stageActionSentence(args.stage, stageAction);
 
@@ -147,7 +155,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     conductorRole: extras.conductorRole,
     wordingParagraphs: paragraphsOf(employeeLetter.body),
     rearrangedNote: args.rearranged ? paragraphsOf(rearrangedLetter.body).join(" ") || null : null,
-    absences: extras.absences,
+    absences: stageAbsences,
     windowWords: extras.windowWords,
     bodyOverride: args.bodyOverride ?? null,
   });

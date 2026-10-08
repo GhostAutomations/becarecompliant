@@ -155,6 +155,10 @@ export default function FormEvidenceDialog({
     if (openOnMount) setOpen(true);
   }, [openOnMount]);
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
+  /* A refused save's message goes once they change the form (Phil, 2026-10-08: "A Stage 1
+     meeting allows up to and including a verbal warning" stayed in red after it was fixed). */
+  const [errorSeen, setErrorSeen] = useState(false);
+  useEffect(() => setErrorSeen(false), [state]);
   /* WHICH form this is: the title plus the hidden fields the dialog posts. The same
      dialog opened about someone else is a different draft. */
   const held = useFormDraft({
@@ -598,6 +602,7 @@ export default function FormEvidenceDialog({
                   onChange={(next) => {
                     setAnswers(next);
                     recordHeld(next);
+                    if (state.error) setErrorSeen(true);
                   }}
                   onFileSelect={(key, file) =>
                     setFiles((prev) => ({ ...prev, [key]: file }))
@@ -619,7 +624,7 @@ export default function FormEvidenceDialog({
                 : null}
 
               {missing ? <p className="form-error">{missing}</p> : null}
-      {state.error ? <p className="form-error">{state.error}</p> : null}
+      {state.error && !errorSeen ? <p className="form-error">{state.error}</p> : null}
 
               <div className="flex items-center gap-3">
                 <button type="submit" className="btn-primary" disabled={busy}>

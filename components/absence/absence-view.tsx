@@ -128,7 +128,7 @@ export default function AbsenceView({
 
   /* After Save meeting the outcome letter is offered (Phil, 2026-09-29). Discounting moved into the
      meeting form itself (Phil, 2026-10-07). */
-  const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string; initialBody?: string | null } | null>(null);
+  const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string; initialBody?: string | null; leaverHref?: string | null } | null>(null);
   /* The outcome generated in each person's meeting form (Phil, 2026-10-07), so the letter step after
      Save meeting opens on those words. */
   const formOutcome = useRef<Record<string, string>>({});
@@ -583,10 +583,14 @@ export default function AbsenceView({
                               // straight to the outcome letter.
                               const meetingId = saved.data?.meeting_id || null;
                               if (meetingId) {
+                                const leaverDate = saved.data?.leaver_date || null;
                                 setLetterFor({
                                   meetingId,
                                   personName: r.fullName,
                                   initialBody: formOutcome.current[r.personId] || null,
+                                  leaverHref: leaverDate
+                                    ? `/people/${r.personId}?leaver=${leaverDate}&from=${encodeURIComponent("/people/absence")}`
+                                    : null,
                                 });
                               }
                               delete formOutcome.current[r.personId];
@@ -871,6 +875,7 @@ export default function AbsenceView({
           meetingId={letterFor.meetingId}
           personName={letterFor.personName}
           initialBody={letterFor.initialBody}
+          leaverHref={letterFor.leaverHref}
           onClose={closeLetter}
         />
       ) : null}

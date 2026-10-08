@@ -15,7 +15,8 @@
  * The stage due because of an absence since the last meeting, or null when there is none.
  *
  * @param meetingStage          the highest stage held or booked inside the window, or null
- * @param absencesSinceMeeting  counted absences that began after the last RECORDED meeting
+ * @param absencesSinceMeeting  counted absences that began after the last meeting held or booked
+ *                              (0427: a booking counts, so booking a stage never makes the next one due)
  * @param stages                the company's stage numbers (e.g. [1, 2, 3, 4])
  */
 export function stageDueAfterNewAbsence(
