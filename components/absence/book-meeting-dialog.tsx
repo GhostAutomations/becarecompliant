@@ -16,6 +16,9 @@
  * form stays mounted (hidden) behind the letters, so Back returns to it with
  * every choice kept, and it is submitted by hand rather than as a form action
  * so React never resets it.
+ *
+ * Save and send, or Save and print (Phil, 2026-10-08: some post the letter out). Save and print
+ * books it, keeps the letter and opens it to print; only the person holding the meeting is emailed.
  */
 
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
@@ -151,11 +154,37 @@ function BookMeetingForm({
     });
   }
 
-  function approveAndSend() {
-    const fd = approved.current;
-    if (!fd) return;
+  /** The tab the printable letter opens in. Opened on the click itself, so it is never blocked as a
+   *  pop up, then pointed at the letter once the booking has kept it. */
+  const printTab = useRef<Window | null>(null);
+  const [printing, setPrinting] = useState(false);
+
+  function approve(delivery: "send" | "print") {
+    const details = approved.current;
+    if (!details) return;
+    const fd = new FormData();
+    for (const [k, v] of details.entries()) fd.append(k, v);
+    fd.set("delivery", delivery);
+    setPrinting(delivery === "print");
+    if (delivery === "print") {
+      printTab.current = window.open("", "_blank");
+      printTab.current?.document.write("<p style=\"font-family:sans-serif\">Preparing the letter…</p>");
+    }
     startTransition(() => action(fd));
   }
+
+  // The letter to print, once kept; a refused booking closes the waiting tab.
+  useEffect(() => {
+    const tab = printTab.current;
+    if (!tab) return;
+    if (state.ok && state.data?.letterId) {
+      tab.location.href = `/api/absence/meeting-letter/${state.data.letterId}`;
+      printTab.current = null;
+    } else if (state.error || state.ok) {
+      tab.close();
+      printTab.current = null;
+    }
+  }, [state]);
 
   // Close on success and refresh the register (booked meetings advance the stage).
   useEffect(() => {
@@ -179,14 +208,15 @@ function BookMeetingForm({
         {letters ? (
           <LetterPreviewPanel
             letters={letters}
-            intro="These are the emails that will be sent. Nothing is booked or sent until you approve."
-            approveLabel="Approve and send"
+            intro="Save and send emails both letters. Save and print opens the employee's letter to print and post or hand over, and only emails the person holding the meeting. Nothing is booked until you choose."
+            approveLabel="Save and send"
             workingLabel="Sending…"
             pending={pending}
             error={state.error}
             ok={state.ok}
             onBack={() => setPreview(null)}
-            onApprove={approveAndSend}
+            onApprove={() => approve("send")}
+            print={{ label: "Save and print", workingLabel: "Saving…", onClick: () => approve("print"), working: printing }}
             onClose={onClose}
           />
         ) : (

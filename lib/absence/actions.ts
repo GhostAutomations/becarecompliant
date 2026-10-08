@@ -865,7 +865,9 @@ export async function bookAbsenceMeeting(
     return { error: `The meeting could not be booked: ${insErr?.message ?? "no id returned"}` };
   }
 
-  // Formal letter invitations: employee + conductor.
+  // Formal letter invitations: employee + conductor. Save and print keeps the employee's letter to
+  // print instead of emailing it (Phil, 2026-10-08).
+  const printEmployee = String(formData.get("delivery") ?? "") === "print";
   const sent = await sendMeetingLetters(
     {
       ...letterArgsFrom(plan),
@@ -874,6 +876,7 @@ export async function bookAbsenceMeeting(
       rearranged: false,
     },
     { id: user.id, name: profile.full_name || profile.email },
+    { printEmployee },
   );
   const inviteOutcomes = sent.outcomes;
 
@@ -896,11 +899,21 @@ export async function bookAbsenceMeeting(
       conducted_by: conductor.id,
       invites: inviteOutcomes,
       letter_copy: sent.copyNote ?? "kept",
+      delivery: printEmployee ? "print" : "send",
     },
   });
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
+  if (printEmployee) {
+    const conductorSent = inviteOutcomes.conductor === "sent";
+    const parts = [
+      sent.letterId ? "Meeting booked. Their letter is open to print." : "Meeting booked.",
+      conductorSent ? "The person holding the meeting has been emailed their invite." : null,
+      sent.copyNote ?? "A copy of the letter is in their Evidence history.",
+    ].filter(Boolean);
+    return { ok: parts.join(" "), data: sent.letterId ? { letterId: sent.letterId } : undefined };
+  }
   const sentCount = Object.values(inviteOutcomes).filter((v) => v === "sent").length;
   const base =
     sentCount > 0
@@ -985,6 +998,8 @@ type MeetingLettersSent = {
   outcomes: Record<string, string>;
   /** Null when the letter PDF could not be made; the emails still went, without it. */
   copyNote: string | null;
+  /** The kept copy of the employee's letter, when one was kept. */
+  letterId?: string;
 };
 
 /** Sends the pair with the letter PDF attached, then keeps the employee's letter as a copy in their
@@ -1002,6 +1017,9 @@ function letterAsHtml(text: string): string {
 async function sendMeetingLetters(
   args: MeetingLetterArgs,
   sentBy: { id: string; name: string | null },
+  /* Save and print (Phil, 2026-10-08): the employee's letter is printed and posted or handed over
+     instead of emailed. The person holding the meeting is still emailed their calendar invite. */
+  opts: { printEmployee?: boolean } = {},
 ): Promise<MeetingLettersSent> {
   const outcomes: Record<string, string> = {};
   const slot = `${args.meetingDate}:${args.timeHHMM}`;
@@ -1018,6 +1036,10 @@ async function sendMeetingLetters(
   const fileName = `${invitation.reLine.replace(/^RE:\s*/, "").replace(/[^A-Za-z0-9 ]+/g, "").trim().replace(/\s+/g, "-") || "Invitation"}.pdf`;
 
   for (const letter of letters) {
+    if (opts.printEmployee && letter.key === "employee") {
+      outcomes[letter.key] = "printed";
+      continue;
+    }
     if (!letter.email) {
       outcomes[letter.key] = "skipped_no_email";
       continue;
@@ -1053,7 +1075,12 @@ async function sendMeetingLetters(
   }
 
   if (!pdf) {
-    return { outcomes, copyNote: `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.` };
+    return {
+      outcomes,
+      copyNote: opts.printEmployee
+        ? `The letter PDF could not be made (${pdfError}), so there is nothing to print yet. Try Invitation letter PDF on their record shortly.`
+        : `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.`,
+    };
   }
   /* A deduped send (this slot's email already went) needs no new copy only when the latest copy is
      already for this slot. Moving a meeting A to B and back to A dedupes A's email, but the latest
@@ -1088,7 +1115,12 @@ async function sendMeetingLetters(
   });
   return {
     outcomes,
-    copyNote: kept.ok ? null : `The letter went, but its copy could not be kept: ${kept.error}.`,
+    copyNote: kept.ok
+      ? null
+      : opts.printEmployee
+        ? `The meeting is booked, but the letter to print could not be kept: ${kept.error}.`
+        : `The letter went, but its copy could not be kept: ${kept.error}.`,
+    letterId: kept.ok ? kept.id : undefined,
   };
 }
 

@@ -21,6 +21,7 @@ export default function LetterPreviewPanel({
   onBack,
   onApprove,
   onClose,
+  print,
 }: {
   letters: LetterPreview[];
   intro: string;
@@ -32,6 +33,9 @@ export default function LetterPreviewPanel({
   onBack: () => void;
   onApprove: () => void;
   onClose: () => void;
+  /** A second way to approve: Save and print (Book meeting, Phil 2026-10-08). The employee's letter
+   *  is printed instead of emailed; the person holding the meeting is still emailed. */
+  print?: { label: string; workingLabel: string; onClick: () => void; working: boolean };
 }) {
   const [shown, setShown] = useState(0);
   const letter = letters[shown] ?? letters[0];
@@ -98,8 +102,13 @@ export default function LetterPreviewPanel({
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-2">
           <button type="button" className="btn-primary text-xs" disabled={pending || !!ok} onClick={onApprove}>
-            {pending ? workingLabel : sendable > 0 ? approveLabel : approveLabel.replace(/ and send$/, "")}
+            {pending && !print?.working ? workingLabel : sendable > 0 ? approveLabel : approveLabel.replace(/ and send$/, "")}
           </button>
+          {print ? (
+            <button type="button" className="btn-outline text-xs" disabled={pending || !!ok} onClick={print.onClick}>
+              {pending && print.working ? print.workingLabel : print.label}
+            </button>
+          ) : null}
           <button type="button" className="btn-outline text-xs" disabled={pending || !!ok} onClick={onBack}>
             Back
           </button>
