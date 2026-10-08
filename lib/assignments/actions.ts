@@ -40,6 +40,7 @@ import {
   DRAWN_KEY,
   TYPED_KEY,
   signatureGiven,
+  SIGNATURE_MODES,
   type ReassignMode,
   type SignatureMode,
 } from "@/lib/assignments/signing";
@@ -84,7 +85,7 @@ function signingRulesFrom(formData: FormData): {
   const sig = String(formData.get("signature_mode") ?? "");
   const re = String(formData.get("reassign_on_new_version") ?? "");
   return {
-    signature_mode: (["draw", "type", "either"].includes(sig) ? sig : "either") as SignatureMode,
+    signature_mode: ((SIGNATURE_MODES as string[]).includes(sig) ? sig : "either") as SignatureMode,
     reassign_on_new_version: (["always", "ask", "never"].includes(re)
       ? re
       : "always") as ReassignMode,

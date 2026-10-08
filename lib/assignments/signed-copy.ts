@@ -147,7 +147,11 @@ export async function appendSignaturePage(
     left + 260,
     y,
     "How they signed",
-    meta.signaturePng ? "Signed by hand on a screen" : "Typed their full name",
+    meta.signaturePng && meta.typedSignature
+      ? "Drew a signature and typed their name"
+      : meta.signaturePng
+        ? "Signed by hand on a screen"
+        : "Typed their full name",
   );
   y -= 54;
 
@@ -171,9 +175,11 @@ export async function appendSignaturePage(
         color: MUTED,
       });
     }
-  } else if (meta.typedSignature) {
+  }
+  // Typed beside the drawing when they did both (draw and type, 2026-10-08), else on its own.
+  if (meta.typedSignature) {
     page.drawText(meta.typedSignature, {
-      x: left,
+      x: meta.signaturePng ? left + 260 : left,
       y: y + 30,
       size: 20,
       font: regular,
@@ -185,7 +191,9 @@ export async function appendSignaturePage(
   page.drawLine({ start: { x: left, y }, end: { x: left + 280, y }, thickness: 0.5, color: MUTED });
   page.drawText(meta.signerName, { x: left, y: y - 14, size: 10, font: regular, color: INK });
 
-  const note = meta.signaturePng
+  const note = meta.signaturePng && meta.typedSignature
+    ? "Signed by hand on a screen and by typing their full name, in Be Care Compliant."
+    : meta.signaturePng
     ? "Signed by hand on a screen in Be Care Compliant."
     : "Signed by typing their full name, which their employer accepts as their signature.";
   page.drawText(note, { x: left, y: 92, size: 8, font: regular, color: MUTED });

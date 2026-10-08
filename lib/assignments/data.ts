@@ -71,7 +71,7 @@ function shape(r: RawAssignment): AssignmentRow {
     policy_source: (one(r.company_policies)?.source as "upload" | "text" | null) ?? null,
     policy_body: one(r.company_policies)?.body ?? null,
     policy_signature_mode:
-      (one(r.company_policies)?.signature_mode as "draw" | "type" | "either" | null) ?? null,
+      (one(r.company_policies)?.signature_mode as "draw" | "type" | "either" | "both" | null) ?? null,
   };
 }
 

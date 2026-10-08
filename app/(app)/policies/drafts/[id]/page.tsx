@@ -23,7 +23,7 @@ export default async function PolicyDraftPage({ params }: { params: Promise<{ id
     .order("title");
   const existing = (mine as Array<{ id: string; title: string; topic_key: string | null }> | null) ?? [];
   const owners = await listPolicyOwners(profile.company_id as string);
-  const sameTopic = existing.find((p) => p.topic_key === draft.topic_key) ?? null;
+  const sameTopic = draft.topic_key ? (existing.find((p) => p.topic_key === draft.topic_key) ?? null) : null;
 
   return (
     <div className="page-shell space-y-6">

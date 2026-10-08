@@ -18,6 +18,10 @@ export default function PolicyImproveForm({ topics, policies, initial }: { topic
   const start = policies.find((p) => p.id === initial) ?? null;
   const [policyId, setPolicyId] = useState(start?.id ?? (policies.length ? "" : "paste"));
   const [topicKey, setTopicKey] = useState(start?.topic_key ?? "");
+  /* Alphabetical, optional, and set from the policy chosen (Phil, 2026-10-08): a policy saved as
+     "Not one of the standard policies" stays that way here, and is checked against the core care
+     rules for your nation instead of one topic's guidance. */
+  const sorted = [...topics].sort((a, b) => a.title.localeCompare(b.title));
 
   return (
     <ActionForm action={reviewPolicyWithAi} label="Check my policy" savingLabel="Checking your policy… this takes up to a minute" buttonClassName="btn-primary">
@@ -35,7 +39,7 @@ export default function PolicyImproveForm({ topics, policies, initial }: { topic
               const id = e.target.value || "paste";
               setPolicyId(id);
               const p = policies.find((x) => x.id === id);
-              if (p?.topic_key) setTopicKey(p.topic_key);
+              if (p) setTopicKey(p.topic_key ?? "");
             }}
           >
             <option value="">Upload or paste a different one</option>
@@ -64,14 +68,18 @@ export default function PolicyImproveForm({ topics, policies, initial }: { topic
           </div>
         ) : null}
         <div>
-          <label htmlFor="topic_key" className="form-label">Which standard policy is it? *</label>
-          <select id="topic_key" name="topic_key" value={topicKey} onChange={(e) => setTopicKey(e.target.value)} required>
-            <option value="">Choose</option>
-            {topics.map((t) => (
+          <label htmlFor="topic_key" className="form-label">Which standard policy is it? (optional)</label>
+          <select id="topic_key" name="topic_key" value={topicKey} onChange={(e) => setTopicKey(e.target.value)}>
+            <option value="">Not one of the standard policies</option>
+            {sorted.map((t) => (
               <option key={t.key} value={t.key}>{t.title}</option>
             ))}
           </select>
-          <p className="form-hint">So it is checked against the right legislation and guidance.</p>
+          <p className="form-hint">
+            {topicKey
+              ? "It is checked against that policy's legislation and guidance."
+              : "It is checked against the core care rules for your nation, rather than one policy's guidance."}
+          </p>
         </div>
         <p className="form-hint">Uses {POLICY_IMPROVE_CREDITS} AI credits. Nothing changes until you approve the result.</p>
       </div>

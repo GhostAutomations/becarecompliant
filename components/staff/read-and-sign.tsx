@@ -323,6 +323,8 @@ export default function ReadAndSign({
                         ? "Type your full name above to sign."
                         : mode === "draw"
                           ? "Sign in the box above with your finger."
+                          : mode === "both"
+                            ? "Sign in the box with your finger and type your full name."
                           : "Sign with your finger, or type your full name."}
                   </p>
                 </form>

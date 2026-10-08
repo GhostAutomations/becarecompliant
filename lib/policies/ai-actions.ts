@@ -41,6 +41,7 @@ import {
   writeSystemPrompt,
 } from "./ai-prompt";
 import { composeDraftWording } from "./compose";
+import { GENERAL_TOPIC } from "./general";
 
 /* England and Wales are different law (Phil, 2026-10-06): a policy is only ever written for the
    nation the company's regulator says, so with no regulator there is nothing safe to write. */
@@ -143,8 +144,12 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
   if (!companyId) return { error: "No company context." };
   const regulatorFirst = (await companyFacts(companyId)).regulator;
   if (!regulatorFirst) return { error: NO_REGULATOR };
-  const topic = await offeredTopic(companyId, regulatorFirst, String(fd.get("topic_key") ?? ""));
-  if (!topic) return { error: "Choose which standard policy this is, so it can be checked against the right guidance." };
+  /* Optional since 2026-10-08 (Phil): left as "Not one of the standard policies", it is checked
+     against the core care rules for the company's nation (lib/policies/general). */
+  const topicKey = String(fd.get("topic_key") ?? "").trim();
+  const standard = topicKey ? await offeredTopic(companyId, regulatorFirst, topicKey) : null;
+  if (topicKey && !standard) return { error: "That is not one of your standard policies. Choose another, or Not one of the standard policies." };
+  const topic = standard ?? GENERAL_TOPIC;
 
   const policyId = String(fd.get("policy_id") ?? "").trim() || null;
   const pasted = String(fd.get("pasted") ?? "").trim();
@@ -226,7 +231,14 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     timeoutMs: 250_000,
     attachments,
     system: improveSystemPrompt(nationOf(facts.regulator).label),
-    prompt: improvePrompt({ topicTitle: title, facts, policyText, sources, settings: await companySystemSettings(companyId, topic.key) }),
+    prompt: improvePrompt({
+      topicTitle: title,
+      facts,
+      policyText,
+      sources,
+      settings: standard ? await companySystemSettings(companyId, standard.key) : [],
+      general: !standard,
+    }),
   });
   if ("error" in r) return { error: r.error };
   const review = parseImproveReview(r.ok);
@@ -240,7 +252,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     .from("policy_drafts")
     .insert({
       company_id: companyId,
-      topic_key: topic.key,
+      topic_key: standard?.key ?? null,
       kind: "improve",
       policy_id: policyId,
       nation: facts.regulator,
@@ -266,7 +278,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     entityType: "policy_draft",
     entityId: draft.id as string,
     summary: `AI reviewed "${title}": ${review.gaps.length} gaps found`,
-    metadata: { topic: topic.key, policy_id: policyId, gaps: review.gaps.length },
+    metadata: { topic: standard?.key ?? null, policy_id: policyId, gaps: review.gaps.length },
   });
   revalidatePath("/policies");
   return { ok: "Reviewed.", redirectTo: `/policies/drafts/${draft.id}` };
@@ -326,7 +338,7 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
     policyId = target;
   } else {
     form.set("title", title);
-    form.set("topic_key", draft.topic_key);
+    if (draft.topic_key) form.set("topic_key", draft.topic_key);
     result = await createWrittenPolicy({}, form);
   }
   if (result.error) {
@@ -336,7 +348,7 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
 
   if (!policyId) {
     policyId = result.data?.policyId ?? null;
-  } else {
+  } else if (draft.topic_key) {
     await supabase.from("company_policies").update({ topic_key: draft.topic_key }).eq("id", policyId).is("topic_key", null);
   }
   /* The owner chosen on the draft goes onto the policy. */

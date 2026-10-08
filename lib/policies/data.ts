@@ -120,7 +120,8 @@ export async function promptSources(topic: PolicyTopic, regulator: string | null
 
 export type PolicyDraft = {
   id: string;
-  topic_key: string;
+  /** Null when it was not one of the standard policies (a general check, 2026-10-08). */
+  topic_key: string | null;
   kind: "write" | "improve";
   policy_id: string | null;
   title: string;

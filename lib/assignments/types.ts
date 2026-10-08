@@ -38,7 +38,7 @@ export type PolicyVersion = {
  * The live rule for a given policy lives on the policy itself.
  */
 export type PolicyConfig = {
-  signature_mode: "draw" | "type" | "either";
+  signature_mode: "draw" | "type" | "either" | "both";
   reassign_on_new_version: "always" | "ask" | "never";
 };
 

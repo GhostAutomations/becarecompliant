@@ -104,11 +104,13 @@ export function improvePrompt(opts: {
   policyText: string | null;
   sources: PromptSource[];
   settings?: string[];
+  /** Not one of the standard policies: checked against the core care rules, not a topic's guidance. */
+  general?: boolean;
 }): string {
   return `Review ${opts.facts.name}'s "${opts.topicTitle}" policy.
 Branches: ${opts.facts.branches.join(", ") || "Not recorded"}. Services: ${opts.facts.services}.
 ${settingsBlock(opts.settings, true)}
-
+${opts.general ? "\nThis is not one of the standard policies, so there is no guidance written for its subject. Check it against the core care rules below (how policies must be kept, person centred and safe care, consent and capacity, equality, data protection, risk), say in the summary that it was a general check against the core care rules rather than guidance for its subject, and do not invent requirements the sources do not support.\n" : ""}
 ${opts.policyText ? `THE PROVIDER'S CURRENT POLICY:\n${opts.policyText.slice(0, 60_000)}` : "THE PROVIDER'S CURRENT POLICY is the attached PDF."}
 
 Official sources:

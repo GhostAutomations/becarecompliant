@@ -100,6 +100,8 @@ export default async function PoliciesPage() {
   const hrTopics = topics.filter((t) => t.required_by.includes("hr"));
   const hrMissing = hrTopics.filter((t) => !haveTopic.has(t.key));
   const topicTitle = new Map(topics.map((t) => [t.key, t.title]));
+  /* Every "Which standard policy" list is alphabetical (Phil, 2026-10-08). */
+  const byTitle = [...topics].sort((a, b) => a.title.localeCompare(b.title));
   /* A company's own register (0405): its sections, in the register's order, each its own card. */
   const registerSections: Array<{ section: string; lines: typeof policyRegister }> = [];
   for (const line of policyRegister) {
@@ -126,7 +128,7 @@ export default async function PoliciesPage() {
             {config ? (
               <AddPolicy
                 config={config}
-                topics={[...topics].sort((a, b) => a.title.localeCompare(b.title)).map((t) => ({ key: t.key, title: t.title }))}
+                topics={byTitle.map((t) => ({ key: t.key, title: t.title }))}
               />
             ) : null}
             <Link href="/policies/improve" className="btn-outline">Improve a policy with AI</Link>
@@ -279,7 +281,7 @@ export default async function PoliciesPage() {
                           <div className="w-52">
                             <select id={`topic-${r.id}`} name="topic_key" defaultValue={r.topic_key ?? ""}>
                               <option value="">Not one of the standard policies</option>
-                              {topics.map((t) => (
+                              {byTitle.map((t) => (
                                 <option key={t.key} value={t.key}>{t.title}</option>
                               ))}
                             </select>
