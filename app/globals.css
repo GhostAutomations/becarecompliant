@@ -1647,3 +1647,30 @@ details.setup-card-gold:not([open]) .setup-card-count {
   background: color-mix(in srgb, var(--color-gold-400) 15%, transparent);
   color: var(--color-gold-300);
 }
+
+/* LETTER PAPER (Phil, 2026-10-08): the Book meeting letter box drawn as a sheet of A4 the same width
+   as the PDF page beside it, with the letter's margins (56pt of 595pt each side), type size (10pt)
+   and line spacing, so the words wrap where the printed letter wraps. Unlayered so it overrides the
+   dark form defaults for this one box; sized from the sheet's own width (container units). */
+.letter-paper { container-type: inline-size; }
+.letter-paper textarea {
+  display: block;
+  width: 100%;
+  min-height: calc(100cqw * 842 / 595);
+  field-sizing: content;
+  background: #ffffff;
+  color: #111827;
+  border: 0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.25);
+  backdrop-filter: none;
+  padding: calc(100cqw * 34 / 595) calc(100cqw * 56 / 595);
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: calc(100cqw * 10 / 595);
+  line-height: 1.35;
+  resize: none;
+}
+.letter-paper textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 45%, transparent);
+}

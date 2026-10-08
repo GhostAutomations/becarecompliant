@@ -368,16 +368,23 @@ function BookMeetingForm({
             </div>
             {ready ? (
               <>
-                <textarea
-                  id="bm-letter"
-                  className="h-[68vh] min-h-72"
-                  value={body}
-                  disabled={busy || (!edited && !body)}
-                  onChange={(e) => {
-                    setBody(e.target.value);
-                    setEdited(true);
-                  }}
-                />
+                {/* A sheet of A4 the same width as the PDF page beside it, with the letter's own margins
+                    and type size, so the words wrap where the letter wraps (Phil, 2026-10-08). */}
+                <div className="h-[68vh] min-h-72 overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                  <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">
+                    <div className="letter-paper">
+                      <textarea
+                        id="bm-letter"
+                        value={body}
+                        disabled={busy || (!edited && !body)}
+                        onChange={(e) => {
+                          setBody(e.target.value);
+                          setEdited(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
                 <p className={hint}>
                   The whole letter between the RE line and Yours sincerely, exactly as the PDF prints it, for
                   this letter only. Leave a blank line between paragraphs and press Enter again for more space.
