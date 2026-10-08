@@ -15,11 +15,10 @@ export const READ_BY = [
   "Managers and office staff must read and sign",
   "Available to read, no signature needed",
 ] as const;
-export const RETENTION = [
-  "Kept for 8 years after it is replaced",
-  "Kept for 6 years after it is replaced",
-  "Kept for 10 years after it is replaced",
-] as const;
+/* 3 to 10 years, shortest first, 8 still the default (Phil, 2026-10-08). The wording of 6, 8 and
+   10 is unchanged, so every policy already saved keeps its choice. */
+export const RETENTION = [3, 4, 5, 6, 7, 8, 9, 10].map((y) => `Kept for ${y} years after it is replaced`);
+export const DEFAULT_RETENTION = "Kept for 8 years after it is replaced";
 export const CLASSIFICATION = ["Internal", "Public", "Confidential"] as const;
 
 export type CoverChoices = {
@@ -33,7 +32,7 @@ export type CoverChoices = {
 export const DEFAULT_COVER: CoverChoices = {
   applies_to: APPLIES_TO[0],
   read_by: READ_BY[0],
-  retention: RETENTION[0],
+  retention: DEFAULT_RETENTION,
   classification: CLASSIFICATION[0],
   approver_id: null,
 };
