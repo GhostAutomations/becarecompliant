@@ -129,6 +129,10 @@ test("stage after a meeting: No further action with absences discounted stays wh
   assert.equal(stageAfterMeeting({ stage: 2, outcome: "No further action", remaining: 4, priorHeld: 1, thresholds }), 2);
   // NFA below every trigger with no earlier meeting: no stage.
   assert.equal(stageAfterMeeting({ stage: 1, outcome: "No further action", remaining: 2, priorHeld: null, thresholds }), null);
+  // Recheck 2026-10-08: another outcome with no warning and nothing discounted stays at its stage.
+  assert.equal(stageAfterMeeting({ stage: 2, outcome: "Informal support and monitoring", warning: "None", remaining: 3, priorHeld: 1, thresholds, discounted: 0 }), 2);
+  // The same with an absence discounted drops back.
+  assert.equal(stageAfterMeeting({ stage: 2, outcome: "Informal support and monitoring", warning: "None", remaining: 3, priorHeld: 1, thresholds, discounted: 1 }), 1);
 });
 
 test("what happens next follows the stage after the meeting", () => {

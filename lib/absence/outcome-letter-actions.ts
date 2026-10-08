@@ -82,8 +82,14 @@ type Loaded = {
     evidence_id: string;
     conducted_by: string | null;
     recorded_by: string | null;
+    /** The stage they are on after it, as decided when it was recorded (0423, 0433); null when the
+     *  meeting predates that, or no stage. */
+    stage_after: number | null;
   };
   answers: Record<string, unknown>;
+  /** A recorded meeting's letter counts absences as they stood on its day (absence recheck). */
+  asOfIso?: string;
+  discountedFrom?: string;
   personId: string;
   conductorId: string | null;
   employee: { name: string; email: string | null; profileId: string | null };
@@ -101,7 +107,7 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
   const supabase = await createClient();
   const { data: m } = await supabase
     .from("absence_meetings")
-    .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, location, evidence_id, conducted_by, recorded_by")
+    .select("id, company_id, branch_id, person_id, stage, stage_after, meeting_date, meeting_time, duration_minutes, location, evidence_id, conducted_by, recorded_by")
     .eq("id", meetingId)
     .maybeSingle();
   if (!m || m.company_id !== companyId) return { error: "That meeting could not be found." };
@@ -146,8 +152,11 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
       evidence_id: m.evidence_id as string,
       conducted_by: (m.conducted_by as string | null) ?? null,
       recorded_by: (m.recorded_by as string | null) ?? null,
+      stage_after: (m.stage_after as number | null) ?? null,
     },
     answers,
+    asOfIso: (m.meeting_date as string | null) ?? undefined,
+    discountedFrom: (m.meeting_date as string | null) ?? undefined,
     personId: m.person_id as string,
     conductorId: (m.conducted_by as string | null) ?? null,
     employee: {
@@ -168,6 +177,8 @@ type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employ
   personId: string;
   /** The manager holding the meeting, for their role under the sign off. */
   conductorId: string | null;
+  asOfIso?: string;
+  discountedFrom?: string;
 };
 
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
@@ -175,7 +186,13 @@ type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employ
 async function letterSetup(ctx: LetterCtx) {
   const [wording, extras, config] = await Promise.all([
     letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome"),
-    loadLetterExtras({ companyId: ctx.companyId, personId: ctx.personId, conductorId: ctx.conductorId ?? NO_ONE }),
+    loadLetterExtras({
+      companyId: ctx.companyId,
+      personId: ctx.personId,
+      conductorId: ctx.conductorId ?? NO_ONE,
+      asOfIso: ctx.asOfIso,
+      countDiscountedFrom: ctx.discountedFrom,
+    }),
     getAbsenceConfig(ctx.companyId),
   ]);
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
@@ -271,6 +288,7 @@ async function stageAfterFor(
     remaining: extras.absences.filter((a) => !gone.has(a.start_date)).length,
     priorHeld: await priorHeldStage(ctx, excludeMeetingId),
     thresholds: thresholdsOf(config),
+    discounted: gone.size,
   });
 }
 
@@ -369,6 +387,21 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
   if (kept) return { ok: "Drafted", data: { body: kept } };
 
   const config = await getAbsenceConfig(ctx.companyId);
+  /* A MEETING ALREADY RECORDED (the absence recheck, 2026-10-08): its absences as they stood that
+     day, the ones discounted at it marked, and the stage after it as decided when it was saved.
+     Built from today's record it listed the wrong stage's absences and said nothing was discounted. */
+  const { extras: asHeld } = await letterSetup(ctx);
+  const discountedDates = asHeld.discountedHere.map((d) => d.start_date);
+  const discount = discountedDates.length
+    ? {
+        dates: discountedDates,
+        whens: discountedDates.map((d) => letterDate(d)),
+        reason: asHeld.discountedHere.find((d) => d.reason)?.reason ?? "",
+      }
+    : undefined;
+  const stageAfter = ctx.meeting.stage_after != null
+    ? ctx.meeting.stage_after || null
+    : await stageAfterFor(ctx, discountedDates, ctx.meeting.id);
   const result = await runAi({
     companyId: ctx.companyId,
     feature: "absence_outcome_letter",
@@ -379,7 +412,7 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
       facts: [
         ...(await coveredFact(ctx)),
         ...outcomeFacts(ctx.answers),
-        ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId, await stageAfterFor(ctx, [], ctx.meeting.id))),
+        ...(await stageFactsFor(config, ctx.meeting.stage, ctx.companyId, stageAfter, discountedDates.length)),
       ].map((f) =>
         redactName(f, ctx.employee.name),
       ),
@@ -392,7 +425,7 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
   if ("error" in result) return { error: result.error };
   const middle = cleanOutcomeBody(result.ok);
   if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
-  const body = await fullLetterText(ctx, middle);
+  const body = await fullLetterText(ctx, middle, discount);
 
   if (ctx.letter) {
     await ctx.supabase
@@ -524,14 +557,17 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
       if (result.sent) {
         status = "sent";
         await settleNotification(logId, "sent");
+      } else if (result.skippedReason && !/RESEND/.test(result.skippedReason)) {
+        /* NOT SENT ON PURPOSE (the absence recheck, 2026-10-08): a test company, or an address that
+           can never be sent to. Trying again changes nothing, so it is kept as a PDF, marked not
+           emailed, and the message says why without "try again". */
+        status = "not_emailed";
+        emailError = result.skippedReason;
+        await releaseNotification(logId);
       } else {
         status = "send_failed";
-        /* Say why it was not sent: a test company has emails switched off (Phil, 2026-10-08: the
-           RESEND message read as a fault on Bevan), anything else is passed on as it is. */
         emailError = result.skippedReason
-          ? /RESEND/.test(result.skippedReason)
-            ? "Email is not set up for this service (RESEND_API_KEY / RESEND_FROM)."
-            : result.skippedReason
+          ? "Email is not set up for this service (RESEND_API_KEY / RESEND_FROM)."
           : `The email could not be sent: ${result.error ?? "unknown error"}`;
         // Given back so Approve and send can try again; the attempt is in the audit log below.
         await releaseNotification(logId);
@@ -607,7 +643,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
       status === "sent"
         ? `Sent the outcome letter for the ${ctx.meeting.stage ? `Stage ${ctx.meeting.stage} ` : ""}absence meeting to ${ctx.employee.email}`
         : status === "not_emailed"
-          ? "Kept the absence meeting outcome letter as a PDF to hand over (no email address)"
+          ? `Kept the absence meeting outcome letter as a PDF to hand over (${emailError ? "not sent: " + emailError : "no email address"})`
           : "The absence meeting outcome letter could not be emailed",
     metadata: { meeting_id: ctx.meeting.id, letter_id: letterId, status, error: emailError, copy_to: copyNote.startsWith(" A copy") ? senderEmail : null },
   });
@@ -621,7 +657,9 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
     ok:
       status === "sent"
         ? `Letter sent to ${ctx.employee.email}, with the PDF attached. The PDF is kept on the meeting.${copyNote}`
-        : "Letter kept as a PDF on the meeting, marked not emailed. Download it to print and hand over.",
+        : emailError
+          ? `Letter kept as a PDF on the meeting, marked not emailed. ${emailError} Download it to print and hand over.`
+          : "Letter kept as a PDF on the meeting, marked not emailed. Download it to print and hand over.",
   };
 }
 

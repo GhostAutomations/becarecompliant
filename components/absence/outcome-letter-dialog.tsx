@@ -76,6 +76,9 @@ export default function OutcomeLetterDialog({
   const [saving, setSaving] = useState(false);
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  /* The final look's PDF did not draw (the absence recheck, 2026-10-08): said, and nothing can be
+     sent from a blank box. Cleared each time a new final look is made. */
+  const [pdfFailed, setPdfFailed] = useState(false);
   const [previewing, startPreview] = useTransition();
   const [draftState, draftAction, drafting] = useActionState(draftOutcomeLetter, IDLE_STATE);
   const [sendState, sendAction, sending] = useActionState(sendOutcomeLetter, IDLE_STATE);
@@ -119,6 +122,7 @@ export default function OutcomeLetterDialog({
     startPreview(async () => {
       const result = await outcomeLetterPdfPreview(f);
       if (result.pdf) {
+        setPdfFailed(false);
         setFinalLook({
           bytes: toBytes(result.pdf),
           to: result.to ?? null,
@@ -191,8 +195,11 @@ export default function OutcomeLetterDialog({
                 : `${finalLook.name} has no email address, so this letter will not be emailed. Approving keeps it as a PDF on the meeting, marked not emailed, for you to print and hand over.`}
             </p>
             <div className="h-[60vh] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
-              <PolicyReader url="" data={finalLook.bytes} onRendered={() => {}} onFailed={() => {}} />
+              <PolicyReader url="" data={finalLook.bytes} onRendered={() => setPdfFailed(false)} onFailed={() => setPdfFailed(true)} />
             </div>
+            {pdfFailed ? (
+              <p className="form-error">The letter could not be shown. Press Return and edit, then try again. Nothing has been sent.</p>
+            ) : null}
             {sendState.error ? <p className="form-error">{sendState.error}</p> : null}
             {sendState.ok ? <p className="text-sm text-emerald-300">{sendState.ok}</p> : null}
             {savedNote ? <p className="text-sm text-emerald-300">{savedNote}</p> : null}
@@ -200,7 +207,7 @@ export default function OutcomeLetterDialog({
               <button
                 type="button"
                 className="btn-primary text-xs"
-                disabled={busy || !!sendState.ok}
+                disabled={busy || !!sendState.ok || pdfFailed}
                 onClick={() => {
                   const f = fd();
                   startTransition(() => sendAction(f));

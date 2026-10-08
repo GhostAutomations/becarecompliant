@@ -286,8 +286,14 @@ export function stageAfterMeeting(o: {
   /** The highest stage held at an earlier meeting in the window (not this one). */
   priorHeld: number | null;
   thresholds: Array<{ stage: number; occasions: number }>;
+  /** How many absences this meeting discounted. */
+  discounted?: number;
 }): number | null {
   if (!o.stage) return null;
+  /* Only No further action, or a meeting that discounted absences, can leave them below its stage
+     (the absence recheck, 2026-10-08): "Informal support" with no warning and nothing discounted
+     was being treated as no further action. */
+  if (o.outcome.trim() !== "No further action" && (o.discounted ?? 0) === 0) return o.stage;
   // No warning given (Phil, 2026-10-08: "Informal support and monitoring" with no warning drops
   // back too); a meeting that gave a warning, or dismissed, stays at its stage.
   const w = (o.warning ?? "").trim();

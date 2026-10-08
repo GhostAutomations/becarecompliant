@@ -40,6 +40,14 @@ test("discussedAbsences: no stage, no thresholds or an empty slice means all of 
   assert.equal(discussedAbsences(["a"], 3, thresholds).length, 1);
 });
 
+test("discussedAbsences: an empty stage slice gives the newest ones, never all (recheck 2026-10-08)", () => {
+  // Stage 3 spans absences 6 and 7; only four exist: the newest two, not all four.
+  assert.deepEqual(discussedAbsences(["a", "b", "c", "d"], 3, thresholds), [
+    { e: "c", n: 3 },
+    { e: "d", n: 4 },
+  ]);
+});
+
 test("clip collapses whitespace and cuts long text", () => {
   assert.equal(clip("  a \n b  "), "a b");
   assert.equal(clip("abcdef", 4), "abc…");

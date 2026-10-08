@@ -220,6 +220,11 @@ export default function AbsenceView({
     // meeting already held"); the server then insists the date is today or earlier, and no
     // letter or invite is sent.
     const nothingBooked = bookedStages.length === 0;
+    /* Nothing booked: the highest stage triggered is chosen to start with, and the absences listed
+       are that stage's (Phil, 2026-10-08: when several stages are triggered the manager picks, the
+       higher one chosen by default). */
+    const triggered = r.status.triggeredStages ?? [];
+    const defaultUnbooked = nothingBooked && triggered.length > 0 ? Math.max(...triggered) : null;
     const schema: FormSchema = {
       ...meetingSchema,
       sections: meetingSchema.sections.map((s) => ({
@@ -257,7 +262,7 @@ export default function AbsenceView({
     // (2026-09-29: this list used every absence ever recorded, which would have put a Stage 1 onto
     // absences from years ago). The same rule the drafted questions use: discussedAbsences.
     const chronological = countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
-    const bookedStage = earliest?.stage ?? null;
+    const bookedStage = earliest?.stage ?? defaultUnbooked;
     const discussed = discussedAbsences(
       chronological,
       bookedStage,
@@ -293,6 +298,7 @@ export default function AbsenceView({
       }`,
       dates_of_absence_discussed: dates,
     };
+    if (!earliest && defaultUnbooked) presets.meeting_type = `Stage ${defaultUnbooked}`;
     if (earliest) {
       if (earliest.stage) presets.meeting_type = `Stage ${earliest.stage}`;
       if (earliest.conductor_name) presets.manager_conducting = earliest.conductor_name;
@@ -413,6 +419,14 @@ export default function AbsenceView({
   /** One person's absence tile, the same in either section. */
   const renderCard = (r: AbsencePersonRow) => {
             const s = r.status;
+            /* Every stage triggered and not yet held (Phil, 2026-10-08: "show all the stages that
+               have been triggered"). */
+            const triggeredList = (s.triggeredStages ?? []).map((n) => `Stage ${n}`);
+            const several = triggeredList.length > 1;
+            const pillLabel = several ? triggeredList.join(", ") : s.derivedLabel;
+            const severalLine = several
+              ? `${triggeredList.slice(0, -1).join(", ")} and ${triggeredList[triggeredList.length - 1]} have ${triggeredList.length === 2 ? "both" : "all"} been triggered.`
+              : "";
             const pill =
               s.derivedStage != null && s.derivedStage >= 2
                 ? "pill pill-red"
@@ -433,7 +447,7 @@ export default function AbsenceView({
                       <p className="text-[11px] text-white/45">{branchName(r.branchId)}</p>
                     )}
                   </div>
-                  <span className={pill}>{s.derivedLabel ?? "Below threshold"}</span>
+                  <span className={pill}>{pillLabel ?? "Below threshold"}</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -464,7 +478,9 @@ export default function AbsenceView({
                 {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
                 {s.meetingDue && (
                   <p className="text-xs font-medium text-amber-300">
-                    {s.dueAfterNewAbsence && s.meetingStage != null
+                    {several
+                      ? severalLine
+                      : s.dueAfterNewAbsence && s.meetingStage != null
                       ? `A ${s.derivedLabel ?? "stage"} meeting is due: a new absence since the Stage ${s.meetingStage} meeting.`
                       : `A ${s.derivedLabel ?? "stage"} meeting is due.`}
                   </p>
@@ -526,7 +542,7 @@ export default function AbsenceView({
                     <BookMeetingDialog
                       personId={r.personId}
                       personName={r.fullName}
-                      defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
+                      defaultStage={Math.min(4, Math.max(1, ...(s.triggeredStages?.length ? s.triggeredStages : [(s.meetingStage ?? 0) + 1])))}
                       minStage={(s.meetingStage ?? 0) + 1}
                       maxStage={Math.max(0, ...availableStages(s.meetingStage, s.derivedStage))}
                       conductors={conductors}

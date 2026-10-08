@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ScrollIntoView from "@/components/scroll-into-view";
 import { ABSENCE } from "@/lib/evidence/history-filter";
 import Link from "next/link";
 import { NoFormLinked } from "@/components/forms/no-form-linked";
@@ -1174,7 +1175,8 @@ export default async function PersonPage({
 
             </div>
 
-            <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
+            <div id="working-status" className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
+              {leaverDate && person.employment_status !== "leaver" ? <ScrollIntoView targetId="working-status" /> : null}
               <WorkingStatusForm
                 personId={person.id}
                 current={person.employment_status}

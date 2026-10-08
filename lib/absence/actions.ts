@@ -381,13 +381,18 @@ export async function recordAbsenceMeeting(
         warning: String(answers["warning_issued"] ?? ""),
         remaining: Math.max(0, ((summary?.occasions as number | null) ?? 0) - toDiscount.length),
         priorHeld: prior.length ? Math.max(...prior) : null,
+        discounted: toDiscount.length,
         thresholds: (config.thresholds as StageThreshold[])
           .filter((t) => typeof t.occasions === "number")
           .map((t) => ({ stage: Number(t.stage), occasions: Number(t.occasions) })),
       });
     }
   }
-  const stageAfterColumn = stageAfter === validStage ? null : (stageAfter ?? 0);
+  /* Stored every time from 0433 (null only when no stage was chosen), so the summary knows the stage
+     after was decided here and never works it out again. The warning goes beside it: On Call cannot
+     read the Evidence it is in. */
+  const stageAfterColumn = validStage ? (stageAfter ?? 0) : null;
+  const warningColumn = String(answers["warning_issued"] ?? "").trim() || null;
 
   const result = await submitEvidence({
     formVersionId: form.versionId,
@@ -409,6 +414,7 @@ export async function recordAbsenceMeeting(
         meeting_date: meetingDate,
         stage: validStage,
         stage_after: stageAfterColumn,
+        warning_issued: warningColumn,
         recorded_by: user.id,
       })
       .eq("id", openBooking.id);
@@ -426,6 +432,7 @@ export async function recordAbsenceMeeting(
         person_id: personId,
         stage: validStage,
         stage_after: stageAfterColumn,
+        warning_issued: warningColumn,
         meeting_date: meetingDate,
         evidence_id: result.evidenceId,
         recorded_by: user.id,
@@ -896,6 +903,8 @@ export async function bookAbsenceMeeting(
     .select("id, response_token")
     .single();
   if (insErr || !meeting) {
+    // A second press while the first was saving (0433 allows one open booking per stage).
+    if (insErr?.code === "23505") return { error: `A Stage ${stage} meeting is already booked for this person. Refresh to see it.` };
     return { error: `The meeting could not be booked: ${insErr?.message ?? "no id returned"}` };
   }
 

@@ -29,6 +29,9 @@ export type LetterExtras = {
   logoDataUrl: string | null;
   conductorRole: string | null;
   absences: InvitationAbsence[];
+  /** Of those, the ones discounted on or after countDiscountedFrom (discounted at the meeting), with
+   *  the reason given. Empty unless countDiscountedFrom was passed. */
+  discountedHere: Array<{ start_date: string; reason: string | null }>;
   windowWords: string;
 };
 
@@ -52,6 +55,10 @@ export async function loadLetterExtras(opts: {
   /** Count absences as they stood on this day (yyyy-mm-dd). A copy made afterwards counts as of the
    *  booking day, so it lists what the original letter listed. Today when not given. */
   asOfIso?: string;
+  /** For a meeting already recorded (the absence recheck, 2026-10-08): absences discounted on or
+   *  after this day (yyyy-mm-dd, the meeting day) still counted when it was held, so they are in
+   *  its list, marked as discounted at the meeting. */
+  countDiscountedFrom?: string;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
   const [{ data: person }, { data: branches }, { data: conductorPerson }, { data: conductorProfile }, { data: events }, meetingName, logoDataUrl, config] =
@@ -62,7 +69,7 @@ export async function loadLetterExtras(opts: {
       admin.from("profiles").select("role").eq("id", opts.conductorId).maybeSingle(),
       admin
         .from("absence_events")
-        .select("start_date, end_date, days, reason, discounted_at")
+        .select("start_date, end_date, days, reason, discounted_at, discount_reason")
         .eq("company_id", opts.companyId)
         .eq("person_id", opts.personId),
       companyMeetingName(opts.companyId),
@@ -80,8 +87,13 @@ export async function loadLetterExtras(opts: {
 
   const today = opts.asOfIso && /^\d{4}-\d{2}-\d{2}$/.test(opts.asOfIso) ? opts.asOfIso : formatCivilDate(todayInLondon());
   const windowStart = windowStartIso(today, config.window);
+  const from = opts.countDiscountedFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.countDiscountedFrom) ? opts.countDiscountedFrom : null;
+  const raw = ((events ?? []) as Array<InvitationAbsence & { discounted_at: string | null; discount_reason: string | null }>)
+    .filter((e) => e.start_date <= today);
+  const here = from ? raw.filter((e) => e.discounted_at && e.discounted_at.slice(0, 10) >= from) : [];
+  const hereDates = new Set(here.map((e) => e.start_date));
   const counted = countedAbsences(
-    ((events ?? []) as Array<InvitationAbsence & { discounted_at: string | null }>).filter((e) => e.start_date <= today),
+    raw.map((e) => (hereDates.has(e.start_date) ? { ...e, discounted_at: null } : e)),
     { windowStart },
   );
 
@@ -95,6 +107,9 @@ export async function loadLetterExtras(opts: {
     logoDataUrl,
     conductorRole: jobTitle || ROLE_LABELS[role] || null,
     absences: counted.map((e) => ({ start_date: e.start_date, end_date: e.end_date, days: e.days, reason: e.reason })),
+    discountedHere: here
+      .filter((e) => counted.some((c) => c.start_date === e.start_date))
+      .map((e) => ({ start_date: e.start_date, reason: e.discount_reason ?? null })),
     windowWords: windowLabel(config.window),
   };
 }

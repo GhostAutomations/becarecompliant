@@ -39,7 +39,10 @@ export function discussedAbsences<T>(
   const lo = stage > 1 ? occAt(stage - 1) ?? 0 : 0;
   if (!hi) return all;
   const scoped = all.slice(lo, hi);
-  return scoped.length > 0 ? scoped : all;
+  /* Never every absence (the absence recheck, 2026-10-08): when the stage's own absences are not
+     there (some aged out, or the stage came from a new absence after a meeting), the newest ones,
+     as many as the stage spans, which are the ones since the last meeting. */
+  return scoped.length > 0 ? scoped : all.slice(-Math.max(1, hi - lo));
 }
 
 /** The company's stage thresholds as discussedAbsences wants them; none for a points method. */

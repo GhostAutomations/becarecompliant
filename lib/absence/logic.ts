@@ -58,12 +58,14 @@ export type AbsenceAggregate = {
   discountedAtMeeting?: number | null;
   /** 0429: the warning recorded at that meeting ("None" or blank when none was given). */
   heldMeetingWarning?: string | null;
+  /** 0433: that meeting's stage after was decided when it was recorded, so it is trusted as it is. */
+  heldStageAfterSet?: boolean;
 };
 
 /** The person_absence_summary columns every stage decision reads (0429). One list, so the screens
  *  and the server checks can never read different things. */
 export const SUMMARY_STAGE_COLUMNS =
-  "occasions, total_days, latest_meeting_stage, absences_since_meeting, held_meeting_stage, last_held_stage, counted_at_meeting, discounted_at_meeting, held_meeting_warning";
+  "occasions, total_days, latest_meeting_stage, absences_since_meeting, held_meeting_stage, last_held_stage, counted_at_meeting, discounted_at_meeting, held_meeting_warning, held_meeting_stage_after_set";
 
 /** A person_absence_summary row (or none) as the aggregate deriveAbsenceStatus takes. */
 export function aggregateFromSummary(row: Record<string, unknown> | null | undefined): AbsenceAggregate {
@@ -78,6 +80,7 @@ export function aggregateFromSummary(row: Record<string, unknown> | null | undef
     countedAtMeeting: n(row?.counted_at_meeting),
     discountedAtMeeting: n(row?.discounted_at_meeting),
     heldMeetingWarning: typeof row?.held_meeting_warning === "string" ? (row.held_meeting_warning as string) : null,
+    heldStageAfterSet: row?.held_meeting_stage_after_set === true,
   };
 }
 
@@ -108,6 +111,9 @@ export type AbsenceStatus = {
   lastHeldStage: number | null;
   /** True when a meeting's absences were discounted below its trigger and they dropped back. */
   droppedBack: boolean;
+  /** Every stage triggered and not yet held, lowest first (Phil, 2026-10-08: "show all the stages
+   *  that have been triggered"). Empty when no meeting is due. */
+  triggeredStages: number[];
 };
 
 /**
@@ -193,7 +199,10 @@ export function deriveAbsenceStatus(
      the window do not do this (the 7 October rule below stands for them). An open booking above
      that stage still counts, so the card never jumps while a meeting is booked (0427). */
   let droppedBack = false;
-  if (isStageThresholds(config.method, config.thresholds) && agg.heldMeetingStage && agg.countedAtMeeting != null) {
+  /* A meeting recorded from 0433 on carries the stage after decided when it was recorded, which
+     already allows for its discounts: working it out again against today's window counted them
+     twice (the absence recheck, 2026-10-08). Only an older meeting is worked out here. */
+  if (isStageThresholds(config.method, config.thresholds) && !agg.heldStageAfterSet && agg.heldMeetingStage && agg.countedAtMeeting != null) {
     const stagesAll = config.thresholds as StageThreshold[];
     const trigger = stagesAll.find((s) => s.stage === agg.heldMeetingStage)?.occasions ?? null;
     // Only when no warning was given: a meeting that gave a warning leaves them at its stage.
@@ -231,6 +240,10 @@ export function deriveAbsenceStatus(
 
   const meetingDue =
     derivedStage != null && (meetingStage == null || derivedStage > meetingStage);
+  const triggeredStages: number[] = [];
+  if (meetingDue && derivedStage != null && isStageThresholds(config.method, config.thresholds)) {
+    for (let st = (meetingStage ?? 0) + 1; st <= derivedStage; st++) triggeredStages.push(st);
+  }
 
   return {
     method: config.method,
@@ -245,6 +258,7 @@ export function deriveAbsenceStatus(
     dueAfterNewAbsence: dueAfterNewAbsence && meetingDue,
     lastHeldStage: agg.lastHeldStage ?? agg.latestMeetingStage ?? null,
     droppedBack,
+    triggeredStages,
   };
 }
 
