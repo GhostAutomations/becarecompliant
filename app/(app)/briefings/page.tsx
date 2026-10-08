@@ -8,6 +8,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import SendBriefing from "@/components/briefings/send-briefing";
 import CompletedBriefings from "@/components/briefings/completed-briefings";
 import NoticesSent from "@/components/briefings/notices-sent";
+import { listMemoSenders } from "@/lib/briefings/senders";
 import { cancelAssignment } from "@/lib/assignments/actions";
 import type { AssignmentRow } from "@/lib/assignments/types";
 import { NOTICE_KIND_LABELS, NOTICE_RESPONSE_ASKS } from "@/lib/briefings/notice-rules";
@@ -63,11 +64,12 @@ export default async function BriefingsPage() {
   if (isCarerLogin(profile.role)) redirect("/my");
   if (!MANAGER_PLUS.includes(profile.role)) redirect("/dashboard");
 
-  const [assignments, forms, policies, people] = await Promise.all([
+  const [assignments, forms, policies, people, senders] = await Promise.all([
     listAssignments(profile.company_id),
     listAssignableForms(profile.company_id),
     listPolicies(profile.company_id),
     listBriefingAudience(profile.company_id),
+    listMemoSenders(profile.company_id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -87,7 +89,7 @@ export default async function BriefingsPage() {
         </p>
       </div>
 
-      <SendBriefing forms={forms} policies={policies} people={people} />
+      <SendBriefing forms={forms} policies={policies} people={people} senders={senders} />
 
       {policies.length === 0 && (
         // Policies are their own department now (2026-10-06), and a memo or message can be sent

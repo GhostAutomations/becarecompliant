@@ -25,6 +25,8 @@ export type NoticeForCaller = {
   response: string;
   created_by: string | null;
   created_at: string;
+  from_name: string | null;
+  from_role: string | null;
 };
 
 /** The notice, if the caller may see it. */
@@ -33,7 +35,7 @@ export async function noticeForCaller(noticeId: string): Promise<NoticeForCaller
   const supabase = await createClient();
   const { data } = await supabase
     .from("briefing_notices")
-    .select("id, company_id, kind, title, body, files, response, created_by, created_at")
+    .select("id, company_id, kind, title, body, files, response, created_by, created_at, from_name, from_role")
     .eq("id", noticeId)
     .maybeSingle();
   return (data as NoticeForCaller | null) ?? null;
@@ -97,6 +99,8 @@ export async function renderNoticeMemo(
   const files = Array.isArray(notice.files) ? (notice.files as Array<{ name?: string }>) : [];
   return renderMemoPdf({
     ...parts,
+    // Sent on someone else's behalf (0436): it is from them, as frozen when it was sent.
+    ...(notice.from_name ? { from: notice.from_role ? `${notice.from_name}, ${notice.from_role}` : notice.from_name } : {}),
     to: recipient ?? "The team",
     date: letterDate(notice.created_at.slice(0, 10)),
     subject: notice.title,
@@ -114,10 +118,13 @@ export async function renderMemoPreview(opts: {
   body: string;
   fileNames: string[];
   todayIso: string;
+  /** "Jane Smith, Registered Manager" when it is being sent on their behalf. */
+  from?: string | null;
 }): Promise<Buffer> {
   const parts = await memoParts(opts.companyId, opts.senderId);
   return renderMemoPdf({
     ...parts,
+    ...(opts.from ? { from: opts.from } : {}),
     to: "The team",
     date: letterDate(opts.todayIso),
     subject: opts.title,

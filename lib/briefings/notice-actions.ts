@@ -26,6 +26,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { getPolicyConfig } from "@/lib/assignments/data";
 import { resolveBriefingAudience } from "@/lib/assignments/audience";
+import { listMemoSenders } from "@/lib/briefings/senders";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import { DRAWN_KEY, TYPED_KEY, signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
 import { emailOfficeCopy, notifyBriefingSent } from "@/lib/notifications/briefings";
@@ -97,6 +98,11 @@ export async function sendNotice(input: {
   files: Array<{ path: string; name: string }>;
   /** Also email the office team a copy, for information (not tracked). */
   copyOffice?: boolean;
+  /** Sent on someone else's behalf (0436): an office team member's id, or "other" with a typed
+   *  name and title. Empty = from the sender. */
+  fromProfileId?: string | null;
+  fromName?: string | null;
+  fromRole?: string | null;
 }): Promise<{ ok: string } | { error: string }> {
   const s = await sender();
   if ("error" in s) return { error: s.error as string };
@@ -114,6 +120,22 @@ export async function sendNotice(input: {
   if (!isNoticeKind(kind)) return { error: "Choose a memo, a message or an attachment." };
   if (!isNoticeResponse(response)) return { error: "Choose what they must do." };
   const dueDate = isoOrNull(input?.dueDate);
+
+  // Who it is from. Resolved here, never trusted from the browser: an office team member is
+  // looked up by id in THIS company, and their name and title are frozen as sent.
+  let from: { profileId: string | null; name: string; role: string | null } | null = null;
+  const fromId = String(input?.fromProfileId ?? "").trim();
+  if (fromId === "other") {
+    const name = String(input?.fromName ?? "").trim();
+    const role = String(input?.fromRole ?? "").trim();
+    if (!name) return { error: "Type who the memo is from, or choose them from the list." };
+    if (name.length > 120 || role.length > 120) return { error: "Keep the name and job title short." };
+    from = { profileId: null, name, role: role || null };
+  } else if (fromId && fromId !== user.id) {
+    const sender = (await listMemoSenders(companyId)).find((x) => x.id === fromId);
+    if (!sender) return { error: "That person is not in your office team. Choose again." };
+    from = { profileId: sender.id, name: sender.name, role: sender.title || null };
+  }
 
   const supabase = await createClient();
   const audience = await resolveBriefingAudience(supabase, companyId, {
@@ -158,6 +180,9 @@ export async function sendNotice(input: {
     files,
     response,
     created_by: user.id,
+    from_profile_id: from?.profileId ?? null,
+    from_name: from?.name ?? null,
+    from_role: from?.role ?? null,
   });
   if (noticeErr) {
     // The same notice sent twice (a double tap, a retry): the first one stands.
@@ -186,7 +211,7 @@ export async function sendNotice(input: {
     kind: "notice",
     title,
     dueDate,
-    notice: { kind, response, fileCount: files.length },
+    notice: { kind, response, fileCount: files.length, from: from ? (from.role ? `${from.name}, ${from.role}` : from.name) : null },
     assignments: ((rows ?? []) as Array<{ id: string; person_id: string }>).map((r) => ({ id: r.id, personId: r.person_id })),
   });
 
@@ -203,7 +228,7 @@ export async function sendNotice(input: {
       companyId,
       noticeId,
       senderProfileId: user.id,
-      senderName: profile.full_name || "Your manager",
+      senderName: from?.name || profile.full_name || "Your manager",
       noticeKind: kind,
       title,
       bodyHtml: noticeEmailBodyHtml(parseNoticeText(body)),
@@ -235,6 +260,7 @@ export async function sendNotice(input: {
       email_failed: emailOutcome.failed,
       office_copy: input?.copyOffice === true,
       office_copied: officeCopy.emailed,
+      on_behalf_of: from ? from.name : null,
     },
   });
 

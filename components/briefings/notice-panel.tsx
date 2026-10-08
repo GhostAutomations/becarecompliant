@@ -21,6 +21,7 @@ import AudiencePicker from "@/components/briefings/audience-picker";
 import { htmlToNoticeText, plainToNoticeText } from "@/components/briefings/paste-format";
 import { sendNotice, startNoticeUpload } from "@/lib/briefings/notice-actions";
 import type { BriefingPerson, BriefingScope } from "@/lib/assignments/types";
+import type { MemoSender } from "@/lib/briefings/senders";
 import {
   NOTICE_ACCEPT,
   NOTICE_BODY_MAX,
@@ -54,9 +55,12 @@ function card(active: boolean): string {
 
 export default function NoticePanel({
   people,
+  senders,
   onClose,
 }: {
   people: BriefingPerson[];
+  /** The office team, for "From" when sending on someone's behalf (0436). */
+  senders: MemoSender[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -68,6 +72,10 @@ export default function NoticePanel({
   const [response, setResponse] = useState<NoticeResponse>("confirm");
   const [dueDate, setDueDate] = useState("");
   const [copyOffice, setCopyOffice] = useState(false);
+  // "" = from me. An office team member's id, or "other" to type a name and title.
+  const [fromId, setFromId] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [fromRole, setFromRole] = useState("");
   const [scope, setScope] = useState<BriefingScope>("company");
   const [branchId, setBranchId] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -140,7 +148,7 @@ export default function NoticePanel({
       const res = await fetch("/api/briefings/notices/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body, fileNames: files.map((f) => f.name) }),
+        body: JSON.stringify({ title, body, fileNames: files.map((f) => f.name), fromProfileId: fromId, fromName, fromRole }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -180,6 +188,10 @@ export default function NoticePanel({
       return;
     }
     setFileError(null);
+    if (fromId === "other" && !fromName.trim()) {
+      setError("Type who it is from, or choose them from the list.");
+      return;
+    }
     if (scope === "branch" && !branchId) {
       setError("Choose who it is for.");
       return;
@@ -226,6 +238,9 @@ export default function NoticePanel({
         personIds: scope === "people" ? picked : [],
         files: started.uploads.map((u, i) => ({ path: u.path, name: files[i].name })),
         copyOffice,
+        fromProfileId: fromId || null,
+        fromName: fromId === "other" ? fromName : null,
+        fromRole: fromId === "other" ? fromRole : null,
       });
       setStatus(null);
       if ("error" in result) {
@@ -275,6 +290,66 @@ export default function NoticePanel({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="notice-from" className="form-label">
+              From
+            </label>
+            <select
+              id="notice-from"
+              value={fromId}
+              onChange={(e) => {
+                touch();
+                setFromId(e.target.value);
+              }}
+            >
+              <option value="">Me</option>
+              {senders.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title ? `${p.name}, ${p.title}` : p.name}
+                </option>
+              ))}
+              <option value="other">Someone else…</option>
+            </select>
+            <p className="form-hint">
+              Sending it on someone&apos;s behalf? Choose them. It shows as from them, and you are still
+              recorded as the one who sent it.
+            </p>
+          </div>
+          {fromId === "other" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="notice-from-name" className="form-label">
+                  Their name *
+                </label>
+                <input
+                  id="notice-from-name"
+                  value={fromName}
+                  maxLength={120}
+                  onChange={(e) => {
+                    touch();
+                    setFromName(e.target.value);
+                  }}
+                />
+              </div>
+              <div>
+                <label htmlFor="notice-from-role" className="form-label">
+                  Their job title
+                </label>
+                <input
+                  id="notice-from-role"
+                  value={fromRole}
+                  maxLength={120}
+                  onChange={(e) => {
+                    touch();
+                    setFromRole(e.target.value);
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div>

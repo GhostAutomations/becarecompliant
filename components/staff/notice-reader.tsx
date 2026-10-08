@@ -43,6 +43,7 @@ export default function NoticeReader({
   mode,
   triggerLabel,
   triggerClassName = "btn-primary px-3 py-2 text-sm",
+  from = null,
 }: {
   assignmentId: string;
   noticeId: string;
@@ -58,6 +59,8 @@ export default function NoticeReader({
   mode: SignatureMode;
   triggerLabel: string;
   triggerClassName?: string;
+  /** "Jane Smith, Registered Manager" when sent on someone's behalf. */
+  from?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -213,6 +216,7 @@ export default function NoticeReader({
                 <h2 className="truncate text-base font-semibold text-white">{title}</h2>
                 <p className="text-xs text-white/50">
                   {NOTICE_KIND_LABELS[kind]}
+                  {from ? ` from ${from}` : ""}
                   {kind === "memo" ? (
                     <>
                       {" · "}

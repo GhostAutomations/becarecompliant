@@ -38,3 +38,4 @@ Still to test: N6 to N10 and the staff half of N13 (need a Bevan carer login), N
 | N25 | "What was sent" shows real bullets | PASS 8 Oct |
 | N26 | Office team copy: sent to office logins only, never the sender; tick clears after send; test company says it was not sent | PASS 8 Oct (only ZZ Test Supervisor was queued, Bev excluded) |
 | N27 | Office team copy arrives on a real company with the words in the email | Not tested (needs a real company) |
+| N28 | Real company (Thistle): memo to Lauren Morgan emailed, she opened it as the PDF (memo opened 2026-10-08 21:53), pressed "I have read this" at 21:56, report checked at 21:57 | PASS 8 Oct (from the database and audit log) |

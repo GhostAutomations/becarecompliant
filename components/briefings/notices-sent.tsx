@@ -24,6 +24,7 @@ type Sent = {
   files: number;
   fileNames: string[];
   body: string | null;
+  from: string | null;
   sent: number;
   done: number;
   opened: number;
@@ -54,6 +55,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
         files: a.notice_files.length,
         fileNames: a.notice_files.map((f) => f.name),
         body: a.notice_body,
+        from: a.notice_from,
         sent: 0,
         done: 0,
         opened: 0,
@@ -92,6 +94,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                   <p className="truncate text-sm font-semibold text-white">{r.title}</p>
                   <p className="text-xs text-white/50">
                     {label} {ask}
+                    {r.from ? ` · from ${r.from}` : ""}
                     {r.files > 0 ? ` · ${r.files} ${r.files === 1 ? "file" : "files"}` : ""} · Sent{" "}
                     {fmt(r.sentAt)}
                   </p>

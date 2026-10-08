@@ -72,6 +72,8 @@ export type AssignmentRow = {
   notice_body: string | null;
   notice_files: NoticeFile[];
   notice_response: NoticeResponse | null;
+  /** "Jane Smith, Registered Manager" when sent on someone's behalf (0436). */
+  notice_from: string | null;
   /** The first time the person opened it (notices only). */
   read_at: string | null;
 };

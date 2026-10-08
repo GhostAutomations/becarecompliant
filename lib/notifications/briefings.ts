@@ -73,7 +73,13 @@ function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-type NoticeInfo = { kind: NoticeKind; response: NoticeResponse; fileCount: number };
+type NoticeInfo = {
+  kind: NoticeKind;
+  response: NoticeResponse;
+  fileCount: number;
+  /** "Jane Smith, Registered Manager" when sent on someone's behalf (0436). */
+  from?: string | null;
+};
 
 function subjectFor(kind: "form" | "policy" | "notice", title: string, notice?: NoticeInfo): string {
   if (kind === "notice" && notice) return noticeSubject(notice.kind, notice.response, title);
@@ -210,7 +216,11 @@ export async function notifyBriefingSent(opts: {
             noticeParts?.heading ??
             (opts.kind === "policy" ? "A policy to read and sign" : "A form to complete"),
           bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml(person.full_name.split(" ")[0] ?? person.full_name)},</p>
-            <p style="margin:0 0 12px;">${escapeHtml(companyName)} has asked you to ${what}.${due}</p>
+            <p style="margin:0 0 12px;">${escapeHtml(companyName)} has asked you to ${what}.${due}</p>${
+              opts.notice?.from
+                ? `<p style="margin:0 0 12px;">It is from ${escapeHtml(opts.notice.from)}.</p>`
+                : ""
+            }
             <p style="margin:0;">${
               hasLogin
                 ? how

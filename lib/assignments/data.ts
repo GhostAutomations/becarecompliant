@@ -46,6 +46,8 @@ type NoticeJoin = {
   body: string | null;
   files: unknown;
   response: string;
+  from_name: string | null;
+  from_role: string | null;
 };
 
 function noticeFiles(v: unknown): NoticeFile[] {
@@ -73,7 +75,7 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 const SELECT =
-  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, notice_id, read_at, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body, signature_mode), briefing_notices:notice_id(kind, title, body, files, response)";
+  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, notice_id, read_at, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body, signature_mode), briefing_notices:notice_id(kind, title, body, files, response, from_name, from_role)";
 
 function shape(r: RawAssignment): AssignmentRow {
   const notice = one(r.briefing_notices);
@@ -105,6 +107,11 @@ function shape(r: RawAssignment): AssignmentRow {
     notice_body: notice?.body ?? null,
     notice_files: noticeFiles(notice?.files),
     notice_response: notice && isNoticeResponse(notice.response) ? notice.response : null,
+    notice_from: notice?.from_name
+      ? notice.from_role
+        ? `${notice.from_name}, ${notice.from_role}`
+        : notice.from_name
+      : null,
     read_at: r.read_at,
   };
 }

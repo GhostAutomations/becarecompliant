@@ -140,6 +140,7 @@ export default function AssignedToMe({
                     body={a.notice_body}
                     files={a.notice_files}
                     response={a.notice_response}
+                    from={a.notice_from}
                     done={false}
                     schema={
                       a.notice_response === "sign" && ackSchema
@@ -226,6 +227,7 @@ export default function AssignedToMe({
                   body={a.notice_body}
                   files={a.notice_files}
                   response={a.notice_response ?? "read"}
+                  from={a.notice_from}
                   done
                   schema={null}
                   mode={companyMode}
