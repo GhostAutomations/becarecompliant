@@ -34,7 +34,7 @@ import { REASSIGN_MODE_LABELS, SIGNATURE_MODE_LABELS } from "@/lib/assignments/s
  * name and never chase anyone. One company switch forced the strictest policy's
  * rules onto all of them.
  */
-function SigningFields({
+export function SigningFields({
   idPrefix,
   signatureMode,
   reassign,
@@ -108,9 +108,8 @@ export default function PolicyLibrary({
   policies: CompanyPolicy[];
   config: PolicyConfig;
 }) {
-  /* No "Add a policy" here any more (Phil, 2026-10-07: removed completely). New policies are
-     written with AI on the Policies page, and an existing one comes in through Improve a policy
-     with AI, which takes an uploaded document or pasted wording. */
+  /* No "Add a policy" here: it moved to the top of the Policies page as "Add current policy to
+     library" (Phil, 2026-10-08), components/policies/add-policy.tsx. */
   const [versioning, setVersioning] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [signingFor, setSigningFor] = useState<string | null>(null);
@@ -120,7 +119,7 @@ export default function PolicyLibrary({
     <div className="space-y-5">
       {policies.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">
-          No policies yet. Write one with AI, then send it out from Briefings.
+          No policies yet. Add your current one at the top of the page, or write one with AI, then send it out from Briefings.
         </div>
       ) : (
         <div className="glass-card divide-y divide-white/10">

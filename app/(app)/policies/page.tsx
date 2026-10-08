@@ -6,6 +6,7 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
+import AddPolicy from "@/components/policies/add-policy";
 import CollapsibleSection, { CollapsibleRow } from "@/components/settings/collapsible-section";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
 import { listOpenDrafts, topicsForCompany } from "@/lib/policies/data";
@@ -120,7 +121,14 @@ export default async function PoliciesPage() {
         </div>
         {writer ? (
           <div className="flex flex-wrap gap-2">
-            <Link href="/policies/write" className="btn-primary">Write a policy with AI</Link>
+            {/* "Add current policy to library" in place of Write a policy with AI, which stays on every
+                missing line of the register (Phil, 2026-10-08). */}
+            {config ? (
+              <AddPolicy
+                config={config}
+                topics={[...topics].sort((a, b) => a.title.localeCompare(b.title)).map((t) => ({ key: t.key, title: t.title }))}
+              />
+            ) : null}
             <Link href="/policies/improve" className="btn-outline">Improve a policy with AI</Link>
           </div>
         ) : null}

@@ -2216,7 +2216,10 @@ happens to Acme once Thistle is real.
   look like any drop downs that we've ever made ... two columns worth of drop downs" (popup: sections two per row,
   the rest full width). Every fold on the page is now the Settings > Users dropdown (CollapsibleSection, given a
   floating mode): the register sections two per row opening over the page, Review register and Library full width
-  opening underneath; the staff portal fold put back as it was. PT1 and PT7 to rerun.
+  opening underneath; the staff portal fold put back as it was. PT1 and PT7 to rerun. Then 8 Oct: Review register left and Library right
+  on one line, Write with AI never wraps on a phone; PT1 to PT7 ALL PASS (PT7 on Phil's iPhone). Then Phil reversed the
+  removal: "Add current policy to library" (upload or paste, how it is signed, and now which standard policy it is)
+  replaces Write a policy with AI at the top; tests PA1 to PA5.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
