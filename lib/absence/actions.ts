@@ -802,23 +802,35 @@ export async function previewBookAbsenceMeeting(formData: FormData): Promise<Let
  */
 export async function previewBookingLetterPdf(
   formData: FormData,
-): Promise<{ pdf?: string; to?: string | null; error?: string }> {
+): Promise<{ pdf?: string; to?: string | null; standard?: string; error?: string }> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const plan = await planBooking(formData);
   if ("error" in plan) return { error: plan.error };
   try {
-    const { invitation, logoDataUrl } = await buildMeetingLetters({
+    const { invitation, logoDataUrl, standardWording } = await buildMeetingLetters({
       ...letterArgsFrom(plan),
       meetingId: "preview",
       responseToken: "preview",
       rearranged: false,
+      wordingOverride: wordingFromForm(formData),
     });
     const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
-    return { pdf: pdf.toString("base64"), to: plan.employee.email };
+    return { pdf: pdf.toString("base64"), to: plan.employee.email, standard: standardWording.join("\n\n") };
   } catch (e) {
     return { error: `The letter could not be drawn: ${(e as Error).message}` };
   }
+}
+
+/** The letter's words as edited in Book meeting: paragraphs split on blank lines, capped. Nothing
+ *  (so the company's own wording) when the box was left as it was or emptied. */
+function wordingFromForm(formData: FormData): string[] | undefined {
+  const raw = String(formData.get("letter_body") ?? "").replace(/\r\n/g, "\n").slice(0, 12_000);
+  const paragraphs = raw
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return paragraphs.length ? paragraphs : undefined;
 }
 
 function letterArgsFrom(plan: {
@@ -901,6 +913,7 @@ export async function bookAbsenceMeeting(
       meetingId: meeting.id as string,
       responseToken: meeting.response_token as string,
       rearranged: false,
+      wordingOverride: wordingFromForm(formData),
     },
     { id: user.id, name: profile.full_name || profile.email },
     { printEmployee },
