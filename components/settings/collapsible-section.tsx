@@ -24,7 +24,50 @@
  * thin wrapper and nothing about the list moves to the client.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+
+/** The button itself: the one look every dropdown section shares. */
+function DropdownButton({
+  title,
+  count,
+  detail,
+  open,
+  onClick,
+  hint,
+  fieldWidth = false,
+}: {
+  title: string;
+  count?: number;
+  detail?: string;
+  open: boolean;
+  onClick: () => void;
+  hint?: string;
+  /** A field's width on a wide screen rather than its whole column. */
+  fieldWidth?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      title={hint}
+      className={`flex w-full items-center justify-between gap-3 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-left text-sm text-white shadow-sm backdrop-blur${
+        fieldWidth ? " sm:max-w-sm" : ""
+      }`}
+    >
+      <span className="min-w-0 truncate">
+        {title}
+        {count !== undefined ? ` (${count})` : ""}
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        {detail ? <span className="text-xs text-white/55">{detail}</span> : null}
+        <span aria-hidden className={`opacity-60 transition-transform ${open ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export default function CollapsibleSection({
   title,
@@ -70,26 +113,15 @@ export default function CollapsibleSection({
   }, [open, floating]);
 
   const button = (
-    <button
-      type="button"
+    <DropdownButton
+      title={title}
+      count={count}
+      detail={detail}
+      open={open}
       onClick={() => setOpen((v) => !v)}
-      aria-expanded={open}
-      title={floating ? subtitle : undefined}
-      className={`flex w-full items-center justify-between gap-3 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-left text-sm text-white shadow-sm backdrop-blur${
-        wide || floating ? "" : " sm:max-w-sm"
-      }`}
-    >
-      <span className="min-w-0 truncate">
-        {title}
-        {count !== undefined ? ` (${count})` : ""}
-      </span>
-      <span className="flex shrink-0 items-center gap-2">
-        {detail ? <span className="text-xs text-white/55">{detail}</span> : null}
-        <span aria-hidden className={`opacity-60 transition-transform ${open ? "rotate-180" : ""}`}>
-          ▾
-        </span>
-      </span>
-    </button>
+      hint={floating ? subtitle : undefined}
+      fieldWidth={!(wide || floating)}
+    />
   );
 
   if (floating) {
@@ -115,5 +147,59 @@ export default function CollapsibleSection({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Several dropdowns on ONE LINE, each opening its contents FULL WIDTH underneath the row (Phil,
+ * 2026-10-08: "can we get review register to the left and then library to the right so they're
+ * both on one line"). Their rows carry dropdowns and buttons, so half the page would make every row
+ * tall again; the contents take the whole width instead. Each opens and closes on its own.
+ *
+ * On a phone the buttons stack, and each one's contents open directly under ITS button rather than
+ * under the last one: the grid order is set per screen size (button, contents, button, contents on
+ * a phone; the buttons first, then the contents, on a wide screen).
+ */
+export function CollapsibleRow({
+  items,
+}: {
+  items: Array<{ key: string; title: string; count?: number; detail?: string; children: ReactNode }>;
+}) {
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const n = items.length;
+  const order = (phone: number, wide: number) => ({ "--o": phone, "--o-sm": wide }) as CSSProperties;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {items.flatMap((it, i) => {
+        const open = openKeys.includes(it.key);
+        const cells = [
+          <div key={`${it.key}-button`} style={order(2 * i + 1, i + 1)} className="[order:var(--o)] sm:[order:var(--o-sm)]">
+            <DropdownButton
+              title={it.title}
+              count={it.count}
+              detail={it.detail}
+              open={open}
+              onClick={() => setOpenKeys((k) => (k.includes(it.key) ? k.filter((x) => x !== it.key) : [...k, it.key]))}
+            />
+          </div>,
+        ];
+        if (open) {
+          cells.push(
+            <div
+              key={`${it.key}-contents`}
+              style={order(2 * i + 2, n + i + 1)}
+              className="space-y-2 [order:var(--o)] sm:col-span-2 sm:[order:var(--o-sm)]"
+            >
+              {openKeys.length > 1 ? (
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">{it.title}</p>
+              ) : null}
+              {it.children}
+            </div>,
+          );
+        }
+        return cells;
+      })}
+    </div>
   );
 }

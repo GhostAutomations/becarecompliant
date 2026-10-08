@@ -6,7 +6,7 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
-import CollapsibleSection from "@/components/settings/collapsible-section";
+import CollapsibleSection, { CollapsibleRow } from "@/components/settings/collapsible-section";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
 import { listOpenDrafts, topicsForCompany } from "@/lib/policies/data";
 import { checklistFor, policyReviewRag } from "@/lib/policies/review";
@@ -236,9 +236,16 @@ export default async function PoliciesPage() {
         </div>
       )}
 
-      {/* A dropdown like Settings > Users, full width because its rows carry dropdowns and buttons
-          (Phil, 2026-10-08). */}
-      <CollapsibleSection wide title="Review register" count={register.length}>
+      {/* Review register on the left, Library on the right, one line; whichever is open shows full
+          width underneath, because its rows carry dropdowns and buttons (Phil, 2026-10-08). */}
+      <CollapsibleRow
+        items={[
+          {
+            key: "register",
+            title: "Review register",
+            count: register.length,
+            children: (
+              <>
         {register.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">No policies yet.</div>
         ) : (
@@ -303,10 +310,15 @@ export default async function PoliciesPage() {
             })}
           </div>
         )}
-      </CollapsibleSection>
-
-      {/* The same, full width (Phil, 2026-10-08). */}
-      <CollapsibleSection wide title="Library" count={active.length}>
+              </>
+            ),
+          },
+          {
+            key: "library",
+            title: "Library",
+            count: active.length,
+            children: (
+              <>
         {writer && config ? (
           <PolicyLibrary policies={active} config={config} />
         ) : active.length === 0 ? (
@@ -324,7 +336,11 @@ export default async function PoliciesPage() {
             ))}
           </div>
         )}
-      </CollapsibleSection>
+              </>
+            ),
+          },
+        ]}
+      />
 
       {writer && archived.length > 0 ? (
         <section className="space-y-2">
@@ -367,13 +383,14 @@ function TopicChecklist({
           const label = tag(t.key);
           return (
             <div key={t.key} className="flex items-center justify-between gap-3 py-1 text-sm">
-              <span className={got ? "text-white/80" : "text-white"}>
+              <span className={`min-w-0 ${got ? "text-white/80" : "text-white"}`}>
                 {got ? "✓ " : "✗ "}
                 {t.title}
                 {label ? <span className="ml-1 text-xs text-white/40">{label}</span> : null}
               </span>
               {!got && writer ? (
-                <Link href={`/policies/write?topic=${t.key}`} className="text-xs text-gold-300 hover:underline">
+                /* Never wraps, so every one lines up on the right on a phone (Phil, 2026-10-08). */
+                <Link href={`/policies/write?topic=${t.key}`} className="shrink-0 whitespace-nowrap text-xs text-gold-300 hover:underline">
                   Write with AI
                 </Link>
               ) : null}
