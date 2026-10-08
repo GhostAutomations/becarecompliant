@@ -9,7 +9,7 @@
  * and files the signature as Evidence on their record.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
@@ -21,6 +21,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { confirmNotice, openNotice, signNotice } from "@/lib/briefings/notice-actions";
 import { signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
 import NoticeText from "@/components/briefings/notice-text";
+import PolicyReader from "@/components/staff/policy-reader";
 import {
   NOTICE_KIND_LABELS,
   fileSizeLabel,
@@ -69,6 +70,71 @@ export default function NoticeReader({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [missing, setMissing] = useState<string | null>(null);
   const [changed, setChanged] = useState(false);
+  // A memo is read AS its PDF on the letterhead (Phil, 2026-10-08: "if it is a memo as a pdf the
+  // main thing should be to open and read the pdf"). The words only show if the PDF cannot be drawn.
+  const [pdfFailed, setPdfFailed] = useState(false);
+
+  // Phil, 2026-10-08: the button stays locked until they reach the end of the memo, exactly as a
+  // policy's Sign bar does (read-and-sign.tsx, where the reasons for each piece are written up).
+  // Only for a memo shown as its PDF that still needs confirming or signing.
+  const gated = kind === "memo" && !done && response !== "read";
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [docReady, setDocReady] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [readToEnd, setReadToEnd] = useState(false);
+
+  const measure = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const { scrollTop, clientHeight, scrollHeight } = node;
+    if (clientHeight < 40 || scrollHeight < 40) return;
+    const scrollable = scrollHeight - clientHeight;
+    if (scrollable <= 8) {
+      setProgress(1);
+      if (docReady && settled) setReadToEnd(true);
+      return;
+    }
+    setProgress(Math.min(1, (scrollTop + clientHeight) / scrollHeight));
+    if (docReady && scrollTop + clientHeight >= scrollHeight - 24) setReadToEnd(true);
+  }, [docReady, settled]);
+
+  useEffect(() => {
+    if (!open) {
+      setSettled(false);
+      return;
+    }
+    setSettled(false);
+    const timer = setTimeout(() => setSettled(true), 600);
+    return () => clearTimeout(timer);
+  }, [open, docReady]);
+
+  useEffect(() => {
+    if (!open) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    measure();
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [open, measure]);
+
+  // Every opening starts fresh: reopening it is not evidence of reading it.
+  useEffect(() => {
+    if (!open) return;
+    setReadToEnd(false);
+    setProgress(0);
+    setPdfFailed(false);
+    setDocReady(false);
+  }, [open]);
+
+  // A PDF that cannot be drawn cannot be scroll-tracked; the words are shown instead, unlocked.
+  const unlocked = !gated || readToEnd || pdfFailed;
 
   useEffect(() => setMounted(true), []);
 
@@ -156,7 +222,7 @@ export default function NoticeReader({
                         rel="noopener noreferrer"
                         className="underline decoration-white/30 underline-offset-2"
                       >
-                        Download as a PDF
+                        Download the PDF
                       </a>
                     </>
                   ) : null}
@@ -167,10 +233,24 @@ export default function NoticeReader({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+              ref={scrollRef}
+              onScroll={measure}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            >
               <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pb-6 pt-4">
                 {openError ? <p className="form-error">{openError}</p> : null}
-                <NoticeText body={body} />
+                {kind === "memo" && !pdfFailed ? (
+                  <div className="-mx-4">
+                    <PolicyReader
+                      url={`/api/briefings/notices/${noticeId}/memo`}
+                      onRendered={() => setDocReady(true)}
+                      onFailed={() => setPdfFailed(true)}
+                    />
+                  </div>
+                ) : (
+                  <NoticeText body={body} />
+                )}
 
                 {files.length > 0 ? (
                   <div className="space-y-2">
@@ -212,7 +292,21 @@ export default function NoticeReader({
 
             <div className="border-t border-white/10 bg-navy-900/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
               {confirmState.error ? <p className="form-error mb-2">{confirmState.error}</p> : null}
-              {done || response === "read" ? (
+              {gated && !pdfFailed ? (
+                <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-full rounded-full transition-all ${unlocked ? "bg-emerald-400/80" : "bg-amber-400/80"}`}
+                    style={{ width: `${Math.max(2, Math.round((unlocked ? 1 : progress) * 100))}%` }}
+                  />
+                </div>
+              ) : null}
+              {!unlocked ? (
+                <button type="button" className="btn-outline w-full py-3 opacity-60" disabled>
+                  {docReady
+                    ? `Keep reading to the end · ${Math.round(progress * 100)}%`
+                    : "Opening the memo…"}
+                </button>
+              ) : done || response === "read" ? (
                 <button type="button" className="btn-primary w-full py-3" onClick={close}>
                   {done ? "Close" : "Done"}
                 </button>
