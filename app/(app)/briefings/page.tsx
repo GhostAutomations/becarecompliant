@@ -10,7 +10,7 @@ import CompletedBriefings from "@/components/briefings/completed-briefings";
 import NoticesSent from "@/components/briefings/notices-sent";
 import FoldSection from "@/components/briefings/fold-section";
 import { listMemoSenders } from "@/lib/briefings/senders";
-import { cancelAssignment } from "@/lib/assignments/actions";
+import { withdrawBriefing } from "@/lib/assignments/actions";
 import type { AssignmentRow } from "@/lib/assignments/types";
 import { NOTICE_KIND_LABELS, NOTICE_RESPONSE_ASKS } from "@/lib/briefings/notice-rules";
 import {
@@ -39,14 +39,67 @@ const MANAGER_PLUS = [
   "platform_admin",
 ];
 
-/** What the outstanding line says it is. */
+/** What an outstanding briefing is. */
 function whatItIs(a: AssignmentRow): string {
   if (a.kind === "notice") {
     const label = a.notice_kind ? NOTICE_KIND_LABELS[a.notice_kind] : "Briefing";
     const ask = a.notice_response ? NOTICE_RESPONSE_ASKS[a.notice_response].toLowerCase() : "to read";
-    return `${label} ${ask}${a.read_at ? `, opened ${fmtDate(a.read_at.slice(0, 10))}` : ""}`;
+    return `${label} ${ask}`;
   }
-  return a.kind === "policy" ? "To read and confirm" : "Form to complete";
+  if (a.kind === "policy") return `Policy to read and sign${a.policy_version ? `, version ${a.policy_version}` : ""}`;
+  return "Form to complete";
+}
+
+/**
+ * Outstanding, one tile per thing sent with everyone still to do it named inside (Phil,
+ * 2026-10-08: "Cardiff meeting minutes, a list of names, the due date next to it, and then a
+ * withdraw button"). A policy is grouped per version, because signing v1 and v2 are different.
+ */
+type OutstandingGroup = {
+  key: string;
+  kind: "policy" | "form" | "notice";
+  targetId: string;
+  version: number | null;
+  title: string;
+  what: string;
+  dueDates: string[];
+  people: Array<{ id: string; name: string; overdue: boolean; opened: boolean }>;
+  latest: string;
+};
+
+function groupOutstanding(open: AssignmentRow[], today: string): OutstandingGroup[] {
+  const map = new Map<string, OutstandingGroup>();
+  for (const a of open) {
+    const targetId = (a.kind === "notice" ? a.notice_id : a.kind === "policy" ? a.policy_id : a.form_id) ?? a.id;
+    const key = `${a.kind}:${targetId}:${a.kind === "policy" ? (a.policy_version ?? "") : ""}`;
+    const g =
+      map.get(key) ??
+      ({
+        key,
+        kind: a.kind,
+        targetId,
+        version: a.kind === "policy" ? a.policy_version : null,
+        title: a.title,
+        what: whatItIs(a),
+        dueDates: [],
+        people: [],
+        latest: a.assigned_at,
+      } satisfies OutstandingGroup);
+    if (a.due_date && !g.dueDates.includes(a.due_date)) g.dueDates.push(a.due_date);
+    g.people.push({
+      id: a.id,
+      name: a.person_name ?? "Someone",
+      overdue: a.due_date != null && a.due_date < today,
+      opened: a.read_at != null,
+    });
+    if (a.assigned_at > g.latest) g.latest = a.assigned_at;
+    map.set(key, g);
+  }
+  for (const g of map.values()) {
+    g.dueDates.sort();
+    g.people.sort((x, y) => x.name.localeCompare(y.name));
+  }
+  return [...map.values()].sort((x, y) => y.latest.localeCompare(x.latest));
 }
 
 function fmtDate(iso: string | null): string {
@@ -75,6 +128,7 @@ export default async function BriefingsPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const open = assignments.filter((a) => a.status === "assigned");
+  const outstanding = groupOutstanding(open, today);
   // Memos and messages have their own list below, one row per thing sent.
   const done = assignments.filter((a) => a.status === "completed" && a.kind !== "notice");
 
@@ -110,39 +164,59 @@ export default async function BriefingsPage() {
         </p>
       )}
 
-      <FoldSection title="Outstanding" count={open.length}>
-        {open.length === 0 ? (
+      <FoldSection title="Outstanding" count={outstanding.length}>
+        {outstanding.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">Nothing outstanding.</div>
         ) : (
-          // Compact tiles, four across on a wide screen (Phil, 2026-10-08: "such a big gap in between
-          // the memo name and ... due ... withdraw"). Two on a tablet, one on a phone.
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {open.map((a) => {
-              const overdue = a.due_date != null && a.due_date < today;
+          <div className="grid gap-3 lg:grid-cols-2">
+            {outstanding.map((g) => {
+              const anyOverdue = g.people.some((p) => p.overdue);
+              const due =
+                g.dueDates.length === 0
+                  ? "No date"
+                  : g.dueDates.length === 1
+                    ? `Due ${fmtDate(g.dueDates[0])}`
+                    : `Due ${fmtDate(g.dueDates[0])} to ${fmtDate(g.dueDates[g.dueDates.length - 1])}`;
               return (
-                <div key={a.id} className="glass-card flex flex-col gap-2 p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white" title={a.title}>
-                      {a.title}
-                    </p>
-                    <p className="truncate text-xs text-white/50">
-                      {a.person_name ?? "Someone"} · {whatItIs(a)}
-                    </p>
+                <div key={g.key} className="glass-card flex flex-col gap-2 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white" title={g.title}>
+                        {g.title}
+                      </p>
+                      <p className="text-xs text-white/50">
+                        {g.what} · {g.people.length} still to do it
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={anyOverdue ? "pill pill-red" : "pill pill-neutral"}>{due}</span>
+                      <ActionForm
+                        action={withdrawBriefing}
+                        hidden={{
+                          kind: g.kind,
+                          target_id: g.targetId,
+                          policy_version: g.version != null ? String(g.version) : "",
+                        }}
+                        label="Withdraw"
+                        savedLabel="Withdrawn"
+                        buttonClassName="btn-outline btn-xs"
+                        className=""
+                        confirm={`Withdraw this from all ${g.people.length} ${g.people.length === 1 ? "person" : "people"} still to do it? It disappears from their lists.`}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-auto flex flex-wrap items-center gap-2">
-                    <span className={overdue ? "pill pill-red" : "pill pill-neutral"}>
-                      {a.due_date ? `Due ${fmtDate(a.due_date)}` : "No date"}
-                    </span>
-                    <ActionForm
-                      action={cancelAssignment}
-                      hidden={{ assignment_id: a.id }}
-                      label="Withdraw"
-                      savedLabel="Withdrawn"
-                      buttonClassName="btn-outline btn-xs"
-                      className=""
-                      confirm="Withdraw this briefing? It disappears from their list."
-                    />
-                  </div>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {g.people.map((p) => (
+                      <li
+                        key={p.id}
+                        className={p.overdue ? "pill pill-red" : "pill pill-neutral"}
+                        title={p.overdue ? "Overdue" : p.opened ? "Opened, not yet done" : undefined}
+                      >
+                        {p.name}
+                        {p.opened ? <span className="text-white/45">· opened</span> : null}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               );
             })}

@@ -569,6 +569,55 @@ export async function cancelAssignment(
 }
 
 /**
+ * Withdraw a briefing from EVERYONE still to do it (Phil, 2026-10-08: "If we withdraw it for one,
+ * we withdraw it for all"). One policy (one version), one form or one memo or message. RLS on
+ * assignments limits it to the people the caller looks after, so a Branch Manager withdraws it
+ * from their own branch only. Done ones stay done.
+ */
+export async function withdrawBriefing(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const kind = String(formData.get("kind") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  const version = Number(formData.get("policy_version") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(targetId) || !["policy", "form", "notice"].includes(kind)) {
+    return { error: "That briefing could not be found." };
+  }
+  const column = kind === "policy" ? "policy_id" : kind === "form" ? "form_id" : "notice_id";
+
+  const supabase = await createClient();
+  let q = supabase
+    .from("assignments")
+    .update({ status: "cancelled" })
+    .eq("company_id", profile.company_id)
+    .eq("status", "assigned")
+    .eq(column, targetId);
+  if (kind === "policy" && Number.isInteger(version) && version > 0) q = q.eq("policy_version", version);
+  const { data, error } = await q.select("id");
+  if (error) return { error: error.message };
+  const n = data?.length ?? 0;
+  if (n === 0) return { error: "There is nobody left to withdraw it from." };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "assignment.withdrawn_all",
+    entityType: kind === "notice" ? "briefing_notice" : kind,
+    entityId: targetId,
+    summary: `Withdrew a briefing from ${n} ${n === 1 ? "person" : "people"}`,
+    metadata: { kind, policy_version: kind === "policy" ? version || null : null, people: n },
+  });
+
+  revalidatePath("/briefings");
+  return { ok: `Withdrawn from ${n} ${n === 1 ? "person" : "people"}.` };
+}
+
+/**
  * A Team Member SIGNS a policy (Phil, 2026-07-26: "think docusign / adobe").
  *
  * The signature is drawn or typed, whichever the company allows, and it is stored
