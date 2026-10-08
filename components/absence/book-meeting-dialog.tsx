@@ -11,23 +11,19 @@
  * successful booking always starts clean (a stale success state was closing
  * the dialog instantly: Phil, 2026-07-12).
  *
- * Two steps (Phil, 2026-09-29): the details, then both letters shown read only
- * for approval. Nothing is booked or sent until Approve and send. The details
- * form stays mounted (hidden) behind the letters, so Back returns to it with
- * every choice kept, and it is submitted by hand rather than as a form action
- * so React never resets it.
- *
- * Save and send, or Save and print (Phil, 2026-10-08: some post the letter out). Save and print
- * books it, keeps the letter and opens it to print; only the person holding the meeting is emailed.
+ * Built like the outcome letter (Phil, 2026-10-08): the details on the left and the real invitation
+ * letter PDF on the right, redrawn a second after they change. Then Save and send (emailed with a
+ * calendar invite) or Save and print (kept, opened to print and post or hand over). The person
+ * holding the meeting is emailed their invite either way. Nothing is booked until one is pressed,
+ * and only once the letter on screen matches the details.
  */
 
-import { startTransition, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
-import { bookAbsenceMeeting, previewBookAbsenceMeeting } from "@/lib/absence/actions";
-import type { LetterPreviewState } from "@/lib/absence/letter-preview";
-import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
+import { bookAbsenceMeeting, previewBookingLetterPdf } from "@/lib/absence/actions";
+import PolicyReader from "@/components/staff/policy-reader";
 import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
@@ -112,6 +108,16 @@ export default function BookMeetingDialog({
   );
 }
 
+function toBytes(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/** The fields the letter is built from; the preview redraws when any of them changes. */
+const LETTER_FIELDS = ["stage", "conducted_by", "meeting_date", "meeting_time", "duration", "location_choice"];
+
 function BookMeetingForm({
   personId,
   personName,
@@ -134,189 +140,256 @@ function BookMeetingForm({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [stage, setStage] = useState(defaultStage);
   const stageAction = stageActions[stage];
-  const [state, action, pending] = useActionState(bookAbsenceMeeting, IDLE_STATE);
-  const [preview, setPreview] = useState<LetterPreviewState | null>(null);
-  const [previewing, startPreview] = useTransition();
-  /** Exactly the details the letters were built from; Approve and send posts these. */
-  const approved = useRef<FormData | null>(null);
-  const letters = preview?.letters ?? null;
 
-  function showLetters(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    startPreview(async () => {
-      const result = await previewBookAbsenceMeeting(fd);
-      approved.current = result.letters ? fd : null;
-      setPreview(result);
-    });
+  /* The letter as a PDF, redrawn a second after the details stop changing (like the outcome
+     letter). sig is what the PDF on screen was drawn from; saving posts exactly those details. */
+  const [sig, setSig] = useState("");
+  const [drawnSig, setDrawnSig] = useState<string | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [emailTo, setEmailTo] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const urlRef = useRef<string | null>(null);
+
+  const [result, setResult] = useState<ActionState>(IDLE_STATE);
+  const [saving, startSaving] = useTransition();
+  const [savingAs, setSavingAs] = useState<"send" | "print" | null>(null);
+  const busy = saving || !!result.ok;
+
+  function readSig(): string {
+    const f = formRef.current;
+    if (!f) return "";
+    const fd = new FormData(f);
+    return LETTER_FIELDS.map((k) => String(fd.get(k) ?? "")).join("|");
   }
+  const ready = (() => {
+    const [, who, date, , , place] = sig.split("|");
+    return Boolean(who && date && place);
+  })();
 
-  /* Save and print runs the booking itself rather than through the effect below: booking moves the
-     person's card (Tracking to Action required), which unmounts this dialog before an effect could
-     point the tab at the letter (found in Chrome, 2026-10-08). The tab is opened on the click, so it
-     is never blocked as a pop up, and filled from this closure once the letter is kept. */
-  const [printState, setPrintState] = useState<ActionState>(IDLE_STATE);
-  const [printing, startPrint] = useTransition();
-  const shown = printState.ok || printState.error ? printState : state;
-  const busy = pending || previewing || printing;
-
-  function approve(delivery: "send" | "print") {
-    const details = approved.current;
-    if (!details) return;
-    const fd = new FormData();
-    for (const [k, v] of details.entries()) fd.append(k, v);
-    fd.set("delivery", delivery);
-    setPrintState(IDLE_STATE);
-    if (delivery === "send") {
-      startTransition(() => action(fd));
-      return;
-    }
-    const tab = window.open("", "_blank");
-    tab?.document.write("<p style=\"font-family:sans-serif\">Preparing the letter…</p>");
-    startPrint(async () => {
-      const result = await bookAbsenceMeeting(IDLE_STATE, fd);
-      if (result.ok && result.data?.letterId) {
-        if (tab) tab.location.href = `/api/absence/meeting-letter/${result.data.letterId}`;
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const f = formRef.current;
+      if (!f) return;
+      setDrawing(true);
+      const res = await previewBookingLetterPdf(new FormData(f));
+      if (cancelled) return;
+      setDrawing(false);
+      if (res.pdf) {
+        const bytes = toBytes(res.pdf);
+        setPdfBytes(bytes);
+        const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+        urlRef.current = url;
+        setPdfUrl(url);
+        setPdfError(null);
+        setEmailTo(res.to ?? null);
+        setDrawnSig(sig);
       } else {
-        tab?.close();
+        setPdfError(res.error ?? "The letter could not be drawn.");
+        setDrawnSig(null);
       }
-      setPrintState(result);
+    }, 1000);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [sig, ready]);
+
+  useEffect(
+    () => () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    },
+    [],
+  );
+
+  // The letter on screen matches the details, so saving sends or prints exactly what was seen.
+  const current = ready && !drawing && drawnSig === sig && !pdfError;
+
+  /* Both buttons run the booking from this closure, not through an effect: booking moves the
+     person's card (Tracking to Action required), which can unmount this box before an effect runs
+     (found in Chrome, 2026-10-08). Save and print opens its tab on the click, so it is never
+     blocked as a pop up, and points it at the kept letter once the booking is done. */
+  function save(delivery: "send" | "print") {
+    const f = formRef.current;
+    if (!f || !current) return;
+    const fd = new FormData(f);
+    fd.set("delivery", delivery);
+    setResult(IDLE_STATE);
+    setSavingAs(delivery);
+    const tab = delivery === "print" ? window.open("", "_blank") : null;
+    tab?.document.write('<p style="font-family:sans-serif">Preparing the letter…</p>');
+    startSaving(async () => {
+      const res = await bookAbsenceMeeting(IDLE_STATE, fd);
+      if (delivery === "print") {
+        if (res.ok && res.data?.letterId) {
+          if (tab) tab.location.href = `/api/absence/meeting-letter/${res.data.letterId}`;
+        } else {
+          tab?.close();
+        }
+      }
+      setResult(res);
     });
   }
 
   // Close on success and refresh the register (booked meetings advance the stage).
   useEffect(() => {
-    if (shown.ok) {
+    if (result.ok) {
       router.refresh();
       const t = setTimeout(onClose, 1200);
       return () => clearTimeout(t);
     }
-  }, [shown.ok, router, onClose]);
+  }, [result.ok, router, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div
-        className={`max-h-[94vh] w-full overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl ${
-          letters ? "max-w-2xl" : "max-w-sm"
-        }`}
-      >
-        <h2 className="text-sm font-semibold text-white">
-          {letters ? "Check the letters" : "Book meeting"}: {personName}
-        </h2>
-        {letters ? (
-          <LetterPreviewPanel
-            letters={letters}
-            intro="Save and send emails both letters. Save and print opens the employee's letter to print and post or hand over, and only emails the person holding the meeting. Nothing is booked until you choose."
-            approveLabel="Save and send"
-            workingLabel="Sending…"
-            pending={pending || printing}
-            error={shown.error}
-            ok={shown.ok}
-            onBack={() => setPreview(null)}
-            onApprove={() => approve("send")}
-            print={{ label: "Save and print", workingLabel: "Saving…", onClick: () => approve("print"), working: printing }}
-            onClose={onClose}
-          />
-        ) : (
-          <p className="mt-1 text-xs text-white/50">
-            The employee and the person holding the meeting receive a formal
-            letter invitation with a calendar invite. You will see both letters
-            before anything is sent.
-          </p>
-        )}
-        <form onSubmit={showLetters} className={letters ? "hidden" : "mt-4 space-y-3"}>
-          <input type="hidden" name="person_id" value={personId} />
-          <div>
-            <label htmlFor="bm-stage" className="form-label">Stage</label>
-            <select
-              id="bm-stage"
-              name="stage"
-              value={String(stage)}
-              onChange={(e) => setStage(Number(e.target.value))}
-              disabled={busy}
-            >
-              {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
-                <option key={s} value={s}>Stage {s}</option>
-              ))}
-            </select>
-            {stageAction ? (
-              <p className="mt-1 text-[10px] text-white/50">
-                Up to and including: <span className="font-semibold text-white/80">{stageAction}</span>. The invitation tells them.
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <label htmlFor="bm-conductor" className="form-label">Who is holding the meeting</label>
-            <select id="bm-conductor" name="conducted_by" defaultValue="" required disabled={busy}>
-              <option value="" disabled>Choose a Manager or Admin</option>
-              {conductors.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {(c.full_name || c.email) + (c.role === "company_admin" ? " (Admin)" : " (Manager)")}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="bm-date" className="form-label">Date</label>
-            <input
-              id="bm-date"
-              name="meeting_date"
-              type="date"
-              min={minNoticeDate()}
-              required
-              disabled={busy}
-            />
-            <p className="mt-1 text-[10px] text-white/40">
-              Formal meetings need at least 48 hours notice.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+      <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">Book meeting: {personName}</h2>
+          <button type="button" className="btn-ghost text-xs" disabled={saving} onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-white/50">
+          Fill in the meeting and the invitation letter appears on the right. Save and send emails it with a
+          calendar invite; Save and print opens it to print and post or hand over. The person holding the
+          meeting is emailed their invite either way. Nothing is booked until you choose.
+        </p>
+
+        <div className="mt-4 grid gap-5 lg:grid-cols-[20rem_1fr]">
+          <form
+            ref={formRef}
+            onSubmit={(e) => e.preventDefault()}
+            onChange={() => setSig(readSig())}
+            className="space-y-3"
+          >
+            <input type="hidden" name="person_id" value={personId} />
             <div>
-              <label htmlFor="bm-time" className="form-label">Time</label>
-              <input id="bm-time" name="meeting_time" type="time" defaultValue="10:00" required disabled={busy} />
+              <label htmlFor="bm-stage" className="form-label">Stage</label>
+              <select
+                id="bm-stage"
+                name="stage"
+                value={String(stage)}
+                onChange={(e) => setStage(Number(e.target.value))}
+                disabled={busy}
+              >
+                {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
+                  <option key={s} value={s}>Stage {s}</option>
+                ))}
+              </select>
+              {stageAction ? (
+                <p className="mt-1 text-[10px] text-white/50">
+                  Up to and including: <span className="font-semibold text-white/80">{stageAction}</span>. The letter tells them.
+                </p>
+              ) : null}
             </div>
             <div>
-              <label htmlFor="bm-duration" className="form-label">Duration</label>
-              <select id="bm-duration" name="duration" defaultValue="60" disabled={busy}>
-                {DURATIONS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
+              <label htmlFor="bm-conductor" className="form-label">Who is holding the meeting</label>
+              <select id="bm-conductor" name="conducted_by" defaultValue="" required disabled={busy}>
+                <option value="" disabled>Choose a Manager or Admin</option>
+                {conductors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {(c.full_name || c.email) + (c.role === "company_admin" ? " (Admin)" : " (Manager)")}
+                  </option>
                 ))}
               </select>
             </div>
-          </div>
+            <div>
+              <label htmlFor="bm-date" className="form-label">Date</label>
+              <input id="bm-date" name="meeting_date" type="date" min={minNoticeDate()} required disabled={busy} />
+              <p className="mt-1 text-[10px] text-white/40">Formal meetings need at least 48 hours notice.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="bm-time" className="form-label">Time</label>
+                <input id="bm-time" name="meeting_time" type="time" defaultValue="10:00" required disabled={busy} />
+              </div>
+              <div>
+                <label htmlFor="bm-duration" className="form-label">Duration</label>
+                <select id="bm-duration" name="duration" defaultValue="60" disabled={busy}>
+                  {DURATIONS.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="bm-location" className="form-label">Location</label>
+              <select id="bm-location" name="location_choice" defaultValue="" required disabled={busy}>
+                <option value="" disabled>Choose a location</option>
+                {offices.map((o) => (
+                  <option key={o.id} value={o.id} disabled={!o.hasAddress}>
+                    {o.label}{o.hasAddress ? "" : " (no address set)"}
+                  </option>
+                ))}
+                <option value="teams">Teams</option>
+              </select>
+              <p className="mt-1 text-[10px] text-white/40">
+                An office prints its full address (Settings, Branches) in the letter. Teams tells them an
+                invite will follow shortly.
+              </p>
+            </div>
+          </form>
+
           <div>
-            <label htmlFor="bm-location" className="form-label">Location</label>
-            <select id="bm-location" name="location_choice" defaultValue="" required disabled={busy}>
-              <option value="" disabled>Choose a location</option>
-              {offices.map((o) => (
-                <option key={o.id} value={o.id} disabled={!o.hasAddress}>
-                  {o.label}{o.hasAddress ? "" : " (no address set)"}
-                </option>
-              ))}
-              <option value="teams">Teams</option>
-            </select>
-            <p className="mt-1 text-[10px] text-white/40">
-              An office prints its full address (Settings, Branches) in the
-              letters. Teams tells them an invite will follow shortly.
-            </p>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="form-label">The invitation letter</span>
+              <span className="text-xs text-white/50">
+                {drawing ? "Updating…" : pdfUrl && current ? (
+                  <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">
+                    Open full size
+                  </a>
+                ) : null}
+              </span>
+            </div>
+            {pdfUrl && ready ? (
+              /* Drawn page by page with pdf.js, the same reader the outcome letter uses: a PDF in a
+                 frame is blocked by the site's no framing rule, and an iPhone shows only page one. */
+              <div className="h-[560px] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                <PolicyReader key={pdfUrl} url={pdfUrl} data={pdfBytes ?? undefined} onRendered={() => {}} onFailed={() => {}} />
+              </div>
+            ) : (
+              <div className="flex h-[560px] w-full items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
+                {!ready
+                  ? "Choose who is holding the meeting, the date and the location, and the letter appears here."
+                  : pdfError ?? "Preparing the letter…"}
+              </div>
+            )}
+            {pdfUrl && ready && pdfError ? <p className="form-error mt-2">{pdfError}</p> : null}
+            {current ? (
+              <p className="mt-2 text-xs text-white/60">
+                {emailTo
+                  ? `Save and send emails this letter to ${personName} (${emailTo}).`
+                  : `${personName} has no email address, so print this letter and post it or hand it over.`}
+              </p>
+            ) : null}
+
+            {result.error ? <p className="form-error mt-2">{result.error}</p> : null}
+            {result.ok ? <p className="mt-2 text-sm text-emerald-300">{result.ok}</p> : null}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {emailTo || !current ? (
+                <button type="button" className="btn-primary text-xs" disabled={!current || busy} onClick={() => save("send")}>
+                  {saving && savingAs === "send" ? "Sending…" : "Save and send"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={emailTo || !current ? "btn-outline text-xs" : "btn-primary text-xs"}
+                disabled={!current || busy}
+                onClick={() => save("print")}
+              >
+                {saving && savingAs === "print" ? "Saving…" : "Save and print"}
+              </button>
+            </div>
           </div>
-          {preview?.error && <p className="form-error">{preview.error}</p>}
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <button type="submit" className="btn-primary text-xs" disabled={busy}>
-              {previewing ? "Preparing letters…" : "Check the letters"}
-            </button>
-            <button
-              type="button"
-              className="btn-ghost text-xs"
-              disabled={busy}
-              onClick={onClose}
-            >
-              Close
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

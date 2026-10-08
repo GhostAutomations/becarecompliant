@@ -794,6 +794,33 @@ export async function previewBookAbsenceMeeting(formData: FormData): Promise<Let
   };
 }
 
+/**
+ * The invitation letter as a PDF while the meeting is being booked (Phil, 2026-10-08: "the same as
+ * the outcome letter build"): the details on the left, this on the right, redrawn as they change.
+ * Built by the same functions the booking uses, so what is shown is what is sent or printed.
+ * Nothing is booked, kept or sent.
+ */
+export async function previewBookingLetterPdf(
+  formData: FormData,
+): Promise<{ pdf?: string; to?: string | null; error?: string }> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const plan = await planBooking(formData);
+  if ("error" in plan) return { error: plan.error };
+  try {
+    const { invitation, logoDataUrl } = await buildMeetingLetters({
+      ...letterArgsFrom(plan),
+      meetingId: "preview",
+      responseToken: "preview",
+      rearranged: false,
+    });
+    const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
+    return { pdf: pdf.toString("base64"), to: plan.employee.email };
+  } catch (e) {
+    return { error: `The letter could not be drawn: ${(e as Error).message}` };
+  }
+}
+
 function letterArgsFrom(plan: {
   supabase: ServerClient;
   personId: string;

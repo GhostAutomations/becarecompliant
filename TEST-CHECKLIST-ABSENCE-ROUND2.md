@@ -296,3 +296,13 @@ Item 5 results, 2026-09-29 (deploy 5dede7cd READY, migrations 0344 and 0345 appl
 Item 5: F1 to F10 all pass (2026-09-29).
 - Test data left: ZZ TEST Senior now has Phil's mobile; absences 1 to 10 Sep (Return to Work
   recorded) and 22 Sep (a copied set, answered by Phil, not recorded).
+
+## Save and send, or Save and print (Phil, 2026-10-08)
+
+Book meeting's letter check now offers Save and send (both emailed, as before) or Save and print (booked, the employee's letter kept as "printed" and opened in a new tab to print and post; only the person holding the meeting is emailed).
+
+- SP1 Book meeting shows Save and send and Save and print under the letters.
+- SP2 Save and print books the meeting, keeps the letter (send outcome "printed", not emailed to the employee) and opens the PDF in a new tab.
+- SP3 The person holding the meeting is still emailed their invite (Thistle; Bevan is a test company with emails off).
+- Results 8 Oct (Claude in Phil's Chrome, Bevan, ZZ Audit Walk Person): SP1 PASS. SP2 first try (deploy dpl_216ZDizs, 691b796) booked and kept the letter but the tab stayed blank: booking moved the card from Tracking to Action required, unmounting the dialog before it could open the letter. Fixed (fdcfd5b, deploy dpl_JQDxmCfx): Stage 3 for 15 Oct booked, letter kept as printed, and "Stage 3 Disciplinary Hearing Invitation" opened in a new tab. SP2 PASS. SP3 not testable on Bevan (emails off; audit shows the conductor send attempted, skipped as a test company). Test meetings left on ZZ Audit Walk Person: Stage 2 on 14 Oct and Stage 3 on 15 Oct.
+- Also 8 Oct: Thistle's Return to Work for Sarah Harris (13 to 14 Aug, imported, no questions sent) removed at Phil's request (rtw_due_date cleared, audit_log absence.rtw_removed). Janet Oladunni (21 Sep) and Sarah Harris (24 to 25 Sep), both with answers received, kept.
