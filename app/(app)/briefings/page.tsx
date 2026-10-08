@@ -114,18 +114,22 @@ export default async function BriefingsPage() {
         {open.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">Nothing outstanding.</div>
         ) : (
-          <div className="glass-card divide-y divide-white/10">
+          // Compact tiles, four across on a wide screen (Phil, 2026-10-08: "such a big gap in between
+          // the memo name and ... due ... withdraw"). Two on a tablet, one on a phone.
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {open.map((a) => {
               const overdue = a.due_date != null && a.due_date < today;
               return (
-                <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div key={a.id} className="glass-card flex flex-col gap-2 p-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{a.title}</p>
-                    <p className="text-xs text-white/50">
+                    <p className="truncate text-sm font-semibold text-white" title={a.title}>
+                      {a.title}
+                    </p>
+                    <p className="truncate text-xs text-white/50">
                       {a.person_name ?? "Someone"} · {whatItIs(a)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="mt-auto flex flex-wrap items-center gap-2">
                     <span className={overdue ? "pill pill-red" : "pill pill-neutral"}>
                       {a.due_date ? `Due ${fmtDate(a.due_date)}` : "No date"}
                     </span>

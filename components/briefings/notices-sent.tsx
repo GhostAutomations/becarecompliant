@@ -80,16 +80,19 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
           or some documents.
         </div>
       ) : (
-        <div className="glass-card divide-y divide-white/10">
+        // Two across on a wide screen, one on a phone (Phil, 2026-10-08).
+        <div className="grid gap-3 lg:grid-cols-2">
           {rows.map((r) => {
             const label = r.kind ? NOTICE_KIND_LABELS[r.kind] : "Briefing";
             const ask = r.response ? NOTICE_RESPONSE_ASKS[r.response].toLowerCase() : "to read";
             const doneWord = r.response ? NOTICE_RESPONSE_DONE[r.response].toLowerCase() : "read";
             const allDone = r.open === 0;
             return (
-              <div key={r.noticeId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div key={r.noticeId} className="glass-card flex flex-col gap-2 p-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">{r.title}</p>
+                  <p className="truncate text-sm font-semibold text-white" title={r.title}>
+                    {r.title}
+                  </p>
                   <p className="text-xs text-white/50">
                     {label} {ask}
                     {r.from ? ` · from ${r.from}` : ""}
@@ -123,7 +126,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                     </details>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="mt-auto flex flex-wrap items-center gap-2">
                   <span className={allDone ? "pill pill-green" : "pill pill-neutral"}>
                     {r.done} of {r.sent} {doneWord}
                   </span>
