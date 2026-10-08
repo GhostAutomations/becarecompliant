@@ -168,7 +168,8 @@ export default async function BriefingsPage() {
         {outstanding.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">Nothing outstanding.</div>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
+          // One briefing per row, full width, so its names have room for four columns.
+          <div className="grid gap-3">
             {outstanding.map((g) => {
               const anyOverdue = g.people.some((p) => p.overdue);
               const due =
@@ -205,15 +206,17 @@ export default async function BriefingsPage() {
                       />
                     </div>
                   </div>
-                  <ul className="flex flex-wrap gap-1.5">
+                  {/* Plain names in columns, four across (two on a phone), not pills (Phil,
+                      2026-10-08). Red is overdue; "opened" means they have looked but not done it. */}
+                  <ul className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
                     {g.people.map((p) => (
                       <li
                         key={p.id}
-                        className={p.overdue ? "pill pill-red" : "pill pill-neutral"}
-                        title={p.overdue ? "Overdue" : p.opened ? "Opened, not yet done" : undefined}
+                        className={`truncate text-xs ${p.overdue ? "text-red-300" : "text-white/80"}`}
+                        title={`${p.name}${p.overdue ? ", overdue" : p.opened ? ", opened, not yet done" : ""}`}
                       >
                         {p.name}
-                        {p.opened ? <span className="text-white/45">· opened</span> : null}
+                        {p.opened ? <span className="text-white/40"> · opened</span> : null}
                       </li>
                     ))}
                   </ul>
