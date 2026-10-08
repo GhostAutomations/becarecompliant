@@ -16,8 +16,10 @@ const INK = "#111827";
 const MUTED = "#4b5563";
 const RULE = "#d1d5db";
 
+// No lineHeight on the page itself: with one there, react-pdf 4 silently drops the fixed footer
+// (found 2026-10-08). The paragraphs carry their own line height instead.
 const styles = StyleSheet.create({
-  page: { paddingTop: 34, paddingBottom: 48, paddingHorizontal: 56, fontSize: 10, color: INK, lineHeight: 1.4 },
+  page: { paddingTop: 34, paddingBottom: 48, paddingHorizontal: 56, fontSize: 10, color: INK },
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
   logo: { maxWidth: 170, maxHeight: 70, objectFit: "contain" },
   companyName: { fontSize: 16, fontWeight: 700 },
@@ -31,6 +33,9 @@ const styles = StyleSheet.create({
   metaValue: { flex: 1 },
   rule: { borderBottomWidth: 1, borderBottomColor: RULE, marginTop: 8, marginBottom: 14 },
   para: { marginBottom: 9 },
+  // fontSize set here too: a line height is worked out from the size on the SAME style, not the
+  // inherited one, so without it 1.4 came out as 1.4 x 18pt.
+  line: { fontSize: 10, lineHeight: 1.4 },
   footer: { position: "absolute", bottom: 26, left: 56, right: 56, flexDirection: "row", justifyContent: "space-between" },
   footerText: { fontSize: 8, color: MUTED },
 });
@@ -46,6 +51,8 @@ export type MemoPdfInput = {
   subject: string;
   paragraphs: string[];
   attachments: string[];
+  /** A preview before sending: the footer says so, nothing else changes. */
+  preview?: boolean;
 };
 
 export async function renderMemoPdf(m: MemoPdfInput): Promise<Buffer> {
@@ -80,8 +87,14 @@ export async function renderMemoPdf(m: MemoPdfInput): Promise<Buffer> {
         ))}
         <View style={styles.rule} />
 
+        {/* A line break they typed stays a line break: one Text per line, because a "\n" inside a
+            Text with a line height doubles the gap in react-pdf. */}
         {m.paragraphs.map((p, i) => (
-          <Text key={i} style={styles.para}>{p}</Text>
+          <View key={i} style={styles.para}>
+            {p.split("\n").map((line, j) => (
+              <Text key={j} style={styles.line}>{line}</Text>
+            ))}
+          </View>
         ))}
 
         {m.attachments.length > 0 ? (
@@ -94,7 +107,9 @@ export async function renderMemoPdf(m: MemoPdfInput): Promise<Buffer> {
         ) : null}
 
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>{m.companyName} · Memo</Text>
+          <Text style={styles.footerText}>
+            {m.companyName} · Memo{m.preview ? " · Preview, not yet sent" : ""}
+          </Text>
           <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

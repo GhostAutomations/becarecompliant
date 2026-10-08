@@ -34,7 +34,9 @@ const styles = StyleSheet.create({
   re: { fontWeight: 700, marginBottom: 8 },
   signOff: { marginTop: 4 },
   signName: { marginTop: 16, fontWeight: 700 },
-  footer: { position: "absolute", bottom: 26, left: 56, right: 56, flexDirection: "row", justifyContent: "space-between" },
+  // Placed from the TOP of the A4 page (841.89pt), not with bottom: 26. With a lineHeight on the
+  // page, react-pdf 4 silently drops a fixed footer placed with bottom (found 2026-10-08).
+  footer: { position: "absolute", top: 806, left: 56, right: 56, flexDirection: "row", justifyContent: "space-between" },
   footerText: { fontSize: 8, color: MUTED },
 });
 

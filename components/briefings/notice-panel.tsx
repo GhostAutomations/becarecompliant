@@ -72,6 +72,7 @@ export default function NoticePanel({
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const busy = status !== null;
 
@@ -95,6 +96,45 @@ export default function NoticePanel({
       setFiles(next);
     }
     if (picker.current) picker.current.value = "";
+  }
+
+  /** Draw the memo exactly as it will be sent, in a new tab. Nothing is saved or sent. */
+  async function preview() {
+    if (previewing || busy) return;
+    if (!title.trim() || !body.trim()) {
+      setError("Write the title and the memo first, then preview it.");
+      return;
+    }
+    setError(null);
+    // Opened straight away, inside the click, so the browser does not block it as a popup.
+    const tab = window.open("", "_blank");
+    setPreviewing(true);
+    try {
+      const res = await fetch("/api/briefings/notices/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, body, fileNames: files.map((f) => f.name) }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        tab?.close();
+        setError(j?.error ?? "The preview could not be drawn. Try again.");
+        return;
+      }
+      if (!tab) {
+        // Never navigate this page away: that would lose what they have written.
+        setError("Your browser blocked the preview tab. Allow pop ups for this site and press Preview PDF again.");
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      tab.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      tab?.close();
+      setError(`The preview could not be drawn: ${(err as Error).message}`);
+    } finally {
+      setPreviewing(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -247,7 +287,9 @@ export default function NoticePanel({
           />
           <p className="form-hint">
             {body.length} of {max} characters.
-            {kind === "memo" ? " It is kept as a PDF on your letterhead, so they can download it." : ""}
+            {kind === "memo"
+              ? " It is kept as a PDF on your letterhead, so they can download it. Press Preview PDF to see it before you send."
+              : ""}
           </p>
         </div>
 
@@ -365,6 +407,16 @@ export default function NoticePanel({
           <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={busy}>
             {status ?? "Send"}
           </button>
+          {kind === "memo" ? (
+            <button
+              type="button"
+              className="btn-outline px-4 py-2 text-sm"
+              onClick={preview}
+              disabled={busy || previewing}
+            >
+              {previewing ? "Drawing the PDF…" : "Preview PDF"}
+            </button>
+          ) : null}
           {done ? (
             <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={onClose}>
               Close
