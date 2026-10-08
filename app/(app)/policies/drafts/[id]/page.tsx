@@ -37,11 +37,17 @@ export default async function PolicyDraftPage({ params }: { params: Promise<{ id
               ? "Read it through, answer anything listed under To be completed, then approve it. Nobody sees it until you do."
               : "Here is what is missing or out of date, and suggested wording for each section. Choose what to keep, then approve."}
         </p>
-        {draft.nation ? (
-          <p className="mt-2">
-            <span className="pill pill-neutral">
-              Written for {draft.nation === "ciw" ? "Wales (Care Inspectorate Wales)" : "England (CQC)"}
-            </span>
+        {draft.nation || (draft.kind === "improve" && !draft.topic_key) ? (
+          <p className="mt-2 flex flex-wrap gap-2">
+            {draft.nation ? (
+              <span className="pill pill-neutral">
+                Written for {draft.nation === "ciw" ? "Wales (Care Inspectorate Wales)" : "England (CQC)"}
+              </span>
+            ) : null}
+            {/* Not one of the standard policies (Phil, 2026-10-08): said plainly, not left to the summary. */}
+            {draft.kind === "improve" && !draft.topic_key ? (
+              <span className="pill pill-neutral">General check: core care rules</span>
+            ) : null}
           </p>
         ) : null}
         <p className="form-hint">
