@@ -24,7 +24,7 @@
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { IDLE_STATE } from "@/lib/forms";
+import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { bookAbsenceMeeting, previewBookAbsenceMeeting } from "@/lib/absence/actions";
 import type { LetterPreviewState } from "@/lib/absence/letter-preview";
 import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
@@ -141,7 +141,6 @@ function BookMeetingForm({
   const [previewing, startPreview] = useTransition();
   /** Exactly the details the letters were built from; Approve and send posts these. */
   const approved = useRef<FormData | null>(null);
-  const busy = pending || previewing;
   const letters = preview?.letters ?? null;
 
   function showLetters(e: React.FormEvent<HTMLFormElement>) {
@@ -154,10 +153,14 @@ function BookMeetingForm({
     });
   }
 
-  /** The tab the printable letter opens in. Opened on the click itself, so it is never blocked as a
-   *  pop up, then pointed at the letter once the booking has kept it. */
-  const printTab = useRef<Window | null>(null);
-  const [printing, setPrinting] = useState(false);
+  /* Save and print runs the booking itself rather than through the effect below: booking moves the
+     person's card (Tracking to Action required), which unmounts this dialog before an effect could
+     point the tab at the letter (found in Chrome, 2026-10-08). The tab is opened on the click, so it
+     is never blocked as a pop up, and filled from this closure once the letter is kept. */
+  const [printState, setPrintState] = useState<ActionState>(IDLE_STATE);
+  const [printing, startPrint] = useTransition();
+  const shown = printState.ok || printState.error ? printState : state;
+  const busy = pending || previewing || printing;
 
   function approve(delivery: "send" | "print") {
     const details = approved.current;
@@ -165,35 +168,32 @@ function BookMeetingForm({
     const fd = new FormData();
     for (const [k, v] of details.entries()) fd.append(k, v);
     fd.set("delivery", delivery);
-    setPrinting(delivery === "print");
-    if (delivery === "print") {
-      printTab.current = window.open("", "_blank");
-      printTab.current?.document.write("<p style=\"font-family:sans-serif\">Preparing the letter…</p>");
+    setPrintState(IDLE_STATE);
+    if (delivery === "send") {
+      startTransition(() => action(fd));
+      return;
     }
-    startTransition(() => action(fd));
+    const tab = window.open("", "_blank");
+    tab?.document.write("<p style=\"font-family:sans-serif\">Preparing the letter…</p>");
+    startPrint(async () => {
+      const result = await bookAbsenceMeeting(IDLE_STATE, fd);
+      if (result.ok && result.data?.letterId) {
+        if (tab) tab.location.href = `/api/absence/meeting-letter/${result.data.letterId}`;
+      } else {
+        tab?.close();
+      }
+      setPrintState(result);
+    });
   }
-
-  // The letter to print, once kept; a refused booking closes the waiting tab.
-  useEffect(() => {
-    const tab = printTab.current;
-    if (!tab) return;
-    if (state.ok && state.data?.letterId) {
-      tab.location.href = `/api/absence/meeting-letter/${state.data.letterId}`;
-      printTab.current = null;
-    } else if (state.error || state.ok) {
-      tab.close();
-      printTab.current = null;
-    }
-  }, [state]);
 
   // Close on success and refresh the register (booked meetings advance the stage).
   useEffect(() => {
-    if (state.ok) {
+    if (shown.ok) {
       router.refresh();
       const t = setTimeout(onClose, 1200);
       return () => clearTimeout(t);
     }
-  }, [state.ok, router, onClose]);
+  }, [shown.ok, router, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -211,9 +211,9 @@ function BookMeetingForm({
             intro="Save and send emails both letters. Save and print opens the employee's letter to print and post or hand over, and only emails the person holding the meeting. Nothing is booked until you choose."
             approveLabel="Save and send"
             workingLabel="Sending…"
-            pending={pending}
-            error={state.error}
-            ok={state.ok}
+            pending={pending || printing}
+            error={shown.error}
+            ok={shown.ok}
             onBack={() => setPreview(null)}
             onApprove={() => approve("send")}
             print={{ label: "Save and print", workingLabel: "Saving…", onClick: () => approve("print"), working: printing }}
