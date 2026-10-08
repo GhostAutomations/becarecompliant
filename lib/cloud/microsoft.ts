@@ -133,7 +133,7 @@ export async function graph<T = Record<string, unknown>>(
   if (res.status === 404) throw new CloudNotFoundError("Not found in the drive.");
   if (!res.ok) {
     const j = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
-    const e = new Error(j?.error?.message ?? `Microsoft returned ${res.status}.`) as Error & { code?: string; status?: number };
+    const e = new Error(friendlyGraphError(j?.error?.message) ?? `Microsoft returned ${res.status}.`) as Error & { code?: string; status?: number };
     e.code = j?.error?.code;
     e.status = res.status;
     throw e;
@@ -253,4 +253,16 @@ export async function uploadMsFile(
   }
   if (!last) throw new Error("The upload did not finish.");
   return last;
+}
+
+/** Microsoft's own wording for the problems an Admin can actually fix, put in plain English. */
+function friendlyGraphError(message: string | undefined): string | undefined {
+  if (!message) return message;
+  if (/SPO license/i.test(message) || /does not have a SharePoint/i.test(message)) {
+    return "This Microsoft 365 account has no SharePoint or OneDrive. Its plan needs to include them (Business Basic or above does), or connect with an account from an organisation that has them.";
+  }
+  if (/mysite not found|user's mysite/i.test(message)) {
+    return "This account's OneDrive has not been set up yet. Open OneDrive once at onedrive.com with this account, then try again.";
+  }
+  return message;
 }

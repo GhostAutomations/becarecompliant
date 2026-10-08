@@ -139,6 +139,12 @@ export default async function CloudSettingsPage({
             People, Service Users, Complaints, Incidents, Policies and Briefings inside.
           </p>
           <LocationChooser />
+          <p className="text-xs text-white/50">
+            Wrong account?{" "}
+            <a href="/api/cloud/microsoft/start" className="text-gold-300 hover:underline">
+              Connect a different account
+            </a>
+          </p>
         </section>
       ) : null}
 
