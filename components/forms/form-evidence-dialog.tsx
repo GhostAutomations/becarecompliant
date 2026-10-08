@@ -83,6 +83,7 @@ export default function FormEvidenceDialog({
   questionsEditable = false,
   questionsNote,
   questionsFooter,
+  questionsExtraFields,
   bottomPanel,
   freshPresets,
 }: {
@@ -114,6 +115,10 @@ export default function FormEvidenceDialog({
   /** Shown under the drafted questions, e.g. a Send to employee panel. It receives the
    *  questions as they are on screen now, and can lock them once they have gone. */
   questionsFooter?: (ctx: { questions: AiQuestion[]; locked: boolean; lock: () => void }) => ReactNode;
+  /** Form fields shown at the end of the drafted questions instead of in their own section, while
+   *  drafted questions are on screen (Phil, 2026-10-08: Employee comments sits with the Return to
+   *  Work questions). Held here and folded into the answers on save, like the questions. */
+  questionsExtraFields?: string[];
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
    *  drafting, so a draft they dislike costs a credit and leaves no record.
@@ -192,6 +197,8 @@ export default function FormEvidenceDialog({
     (initialAi?.questions ?? []).map((_, i) => initialAi?.details?.[i] ?? ""),
   );
   const [questionsLocked, setQuestionsLocked] = useState(false);
+  /* The questionsExtraFields typed in the questions card, by key. */
+  const [outsideVals, setOutsideVals] = useState<Record<string, string>>({});
   /* Saved questions can change underneath a closed dialog (the employee answers, the page
      refreshes). Take the new copy while it is closed; never while someone is typing in it. */
   const initialAiKey = JSON.stringify(initialAi ?? null);
@@ -224,6 +231,13 @@ export default function FormEvidenceDialog({
   // the user two places to type the same thing and a box that fights back.
   const hidden = new Set(hideFields ?? []);
   if (aiQuestions.length > 0 && aiDraft?.questions) hidden.add(aiDraft.questions.answerKey);
+  const outsideKeys =
+    aiQuestions.length > 0 && aiDraft?.questions
+      ? (questionsExtraFields ?? []).filter((k) => schema.sections.some((s) => s.fields.some((f) => f.key === k)))
+      : [];
+  for (const k of outsideKeys) hidden.add(k);
+  const outsideValue = (k: string): string =>
+    outsideVals[k] ?? (typeof answers[k] === "string" ? (answers[k] as string) : "");
   const effectiveSchema: FormSchema =
     hidden.size > 0
       ? {
@@ -270,11 +284,12 @@ export default function FormEvidenceDialog({
       // generated outcome letter), kept with the part-finished copy (Phil, 2026-10-07: a reload
       // lost the answers to the questions). Taken back out before anything is merged.
       const { [HELD_AI]: heldAi, [HELD_PANEL]: heldPanel, ...restored } = held.restored as Answers & Record<string, unknown>;
-      const ai = parseHeld<{ questions: AiQuestion[]; answers: string[]; details: string[] }>(heldAi);
+      const ai = parseHeld<{ questions: AiQuestion[]; answers: string[]; details: string[]; outside?: Record<string, string> }>(heldAi);
       if (ai && Array.isArray(ai.questions) && ai.questions.length > 0) {
         setAiQuestions(ai.questions);
         setAiAnswers(ai.questions.map((_, i) => ai.answers?.[i] ?? ""));
         setAiDetails(ai.questions.map((_, i) => ai.details?.[i] ?? ""));
+        if (ai.outside && typeof ai.outside === "object") setOutsideVals(ai.outside);
       }
       const panel = parseHeld<Record<string, string>>(heldPanel);
       if (panel) setPanelExtras(panel);
@@ -293,7 +308,7 @@ export default function FormEvidenceDialog({
     held.record({
       ...next,
       [HELD_AI]: aiQuestionsRef.current.length
-        ? JSON.stringify({ questions: aiQuestionsRef.current, answers: aiAnswersRef.current, details: aiDetailsRef.current })
+        ? JSON.stringify({ questions: aiQuestionsRef.current, answers: aiAnswersRef.current, details: aiDetailsRef.current, outside: outsideValsRef.current })
         : "",
       [HELD_PANEL]: Object.keys(panelExtrasRef.current).length ? JSON.stringify(panelExtrasRef.current) : "",
     } as Answers);
@@ -306,11 +321,13 @@ export default function FormEvidenceDialog({
   aiDetailsRef.current = aiDetails;
   const panelExtrasRef = useRef(panelExtras);
   panelExtrasRef.current = panelExtras;
+  const outsideValsRef = useRef(outsideVals);
+  outsideValsRef.current = outsideVals;
   useEffect(() => {
     if (!open || !held.ready) return;
     recordHeld(answersRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiQuestions, aiAnswers, aiDetails, panelExtras]);
+  }, [aiQuestions, aiAnswers, aiDetails, panelExtras, outsideVals]);
 
   useEffect(() => {
     // Filed: the part-finished copy has done its job.
@@ -325,6 +342,7 @@ export default function FormEvidenceDialog({
       setAiAnswers([]);
       setAiDetails([]);
       setQuestionsLocked(false);
+      setOutsideVals({});
       setAnswers(presetAnswers ?? {});
       setDraftDefaults(undefined);
       setFiles({});
@@ -368,7 +386,13 @@ export default function FormEvidenceDialog({
     void _p;
     const key = aiDraft?.questions?.answerKey;
     if (!key || aiQuestions.length === 0) return plain as Answers;
-    return { ...(plain as Answers), [key]: serialiseAiQuestions(aiQuestions, aiAnswers, aiDetails) };
+    const out: Answers = { ...(plain as Answers), [key]: serialiseAiQuestions(aiQuestions, aiAnswers, aiDetails) };
+    for (const k of outsideKeys) {
+      const v = outsideValue(k);
+      if (v.trim()) out[k] = v;
+      else delete out[k];
+    }
+    return out;
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -578,6 +602,27 @@ export default function FormEvidenceDialog({
                       </div>
                     ))}
                   </div>
+                  {outsideKeys.map((k) => {
+                    const field = schema.sections.flatMap((s) => s.fields).find((f) => f.key === k);
+                    return (
+                      <div key={`ai-x-${k}`} className="mt-5 flex flex-col gap-1.5">
+                        <label htmlFor={`ai-x-${k}`} className="form-label">
+                          {field?.label ?? k}
+                        </label>
+                        <textarea
+                          id={`ai-x-${k}`}
+                          rows={3}
+                          maxLength={5000}
+                          value={outsideValue(k)}
+                          disabled={busy}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setOutsideVals((prev) => ({ ...prev, [k]: v }));
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
                   {questionsFooter ? (
                     <div className="mt-5">
                       {questionsFooter({

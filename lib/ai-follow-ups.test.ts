@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   followUpLabel, followUpPrompt, inferFollowUp, isAiFollowUp, needsDetail,
-  withRequiredFollowUps, SUPPORT_QUESTION, RAISE_QUESTION,
+  withRequiredFollowUps, isAdjustmentQuestion, RAISE_QUESTION,
 } from "./ai-follow-ups.ts";
 
 test("inferFollowUp recognises the three by wording", () => {
@@ -42,26 +42,27 @@ test("isAiFollowUp", () => {
 type Q = { question: string; type: string; followUp?: "fit_note" | "need" | "raise" };
 const make = (question: string, followUp: "need" | "raise" | "fit_note"): Q => ({ question, type: "yes_no", followUp });
 
-test("withRequiredFollowUps adds the support and anything else questions when missing", () => {
+test("withRequiredFollowUps adds the anything else question when missing, and no support question", () => {
   const out = withRequiredFollowUps<Q>([{ question: "How are you feeling?", type: "text" }], make);
-  assert.deepEqual(out.map((q) => q.followUp ?? null), [null, "need", "raise"]);
-  assert.equal(out[1].question, SUPPORT_QUESTION);
-  assert.equal(out[2].question, RAISE_QUESTION);
+  assert.deepEqual(out.map((q) => q.followUp ?? null), [null, "raise"]);
+  assert.equal(out[1].question, RAISE_QUESTION);
 });
 
-test("withRequiredFollowUps keeps the AI's own and moves anything else to the end", () => {
+test("withRequiredFollowUps takes out support and adjustment questions and moves anything else to the end", () => {
   const out = withRequiredFollowUps<Q>([
     { question: "Anything else?", type: "yes_no", followUp: "raise" },
     { question: "Any support?", type: "yes_no", followUp: "need" },
+    { question: "Would you like any adjustments to settle back into your shifts?", type: "yes_no" },
+    { question: "Would a change to your working hours help?", type: "text" },
     { question: "How are you?", type: "text" },
   ], make);
-  assert.deepEqual(out.map((q) => q.question), ["Any support?", "How are you?", "Anything else?"]);
+  assert.deepEqual(out.map((q) => q.question), ["How are you?", "Anything else?"]);
 });
 
 test("withRequiredFollowUps leaves a complete set alone", () => {
   const set: Q[] = [
     { question: "Fit note?", type: "yes_no", followUp: "fit_note" },
-    { question: "Any support?", type: "yes_no", followUp: "need" },
+    { question: "Did you call in at least 48 hours before your shift?", type: "yes_no" },
     { question: "Anything else?", type: "yes_no", followUp: "raise" },
   ];
   assert.deepEqual(withRequiredFollowUps<Q>(set, make), set);
@@ -71,6 +72,13 @@ test("withRequiredFollowUps stays within the limit by dropping the last plain qu
   const plain: Q[] = Array.from({ length: 8 }, (_, i) => ({ question: `Q${i + 1}`, type: "text" }));
   const out = withRequiredFollowUps<Q>(plain, make, 8);
   assert.equal(out.length, 8);
-  assert.deepEqual(out.slice(0, 6).map((q) => q.question), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"]);
-  assert.deepEqual(out.slice(6).map((q) => q.followUp), ["need", "raise"]);
+  assert.deepEqual(out.slice(0, 7).map((q) => q.question), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]);
+  assert.equal(out[7].followUp, "raise");
+});
+
+test("isAdjustmentQuestion", () => {
+  assert.equal(isAdjustmentQuestion({ question: "Is there any support that would help?" }), true);
+  assert.equal(isAdjustmentQuestion({ question: "Would flexible working help?" }), true);
+  assert.equal(isAdjustmentQuestion({ question: "Do you feel fit to return to your normal duties?" }), false);
+  assert.equal(isAdjustmentQuestion({ question: "Anything?", followUp: "need" }), true);
 });

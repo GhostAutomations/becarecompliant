@@ -2,7 +2,8 @@
  * Follow ups on AI drafted Yes/No questions (Phil, 2026-09-29, Absence round 2 item 5).
  *
  *   fit_note  "Do you have a fit note?" A Yes asks them to upload it there and then.
- *   need      "Is there any support that would help?" A Yes asks "What do you need?".
+ *   need      "Is there any support that would help?" A Yes asks "What do you need?". No longer
+ *             asked (Phil, 2026-10-08); kept so sets saved before then still read back.
  *   raise     "Is there anything else you would like to raise?" A Yes asks "What would you like
  *             to raise?".
  *
@@ -45,20 +46,25 @@ export function needsDetail(f: AiFollowUp | null | undefined, answer: string | n
   return (f === "need" || f === "raise") && (answer ?? "").trim() === "Yes";
 }
 
-export const SUPPORT_QUESTION = "Is there any support or adjustment that would help you back at work?";
 export const RAISE_QUESTION = "Is there anything else you would like to raise?";
 
-/** THE TWO THAT ARE ALWAYS ASKED (Phil, 2026-09-29): a support question and, last, an anything
- *  else question. The AI is told to write both; if a draft comes back without one, it is added
- *  here so the set never goes out without them. The anything else question is moved to the end,
- *  and the set is kept within `limit` by dropping the last questions that are not follow ups. */
+/** A question about adjustments, support or changing their hours (Phil, 2026-10-08, all
+ *  companies): never asked in a Return to Work, because asked of everyone it invites a flexible
+ *  working request after every absence. Sets saved before this keep theirs. */
+const ADJUSTMENT_RE =
+  /\b(adjustments?|support|availability|flexib\w*|phased return|working (hours|pattern)|your (hours|shifts|rota)|reduced hours)\b/i;
+export function isAdjustmentQuestion(q: { question: string; followUp?: AiFollowUp }): boolean {
+  return q.followUp === "need" || ADJUSTMENT_RE.test(q.question);
+}
+
+/** THE ONE THAT IS ALWAYS ASKED: an anything else question, last (Phil, 2026-09-29). The AI is
+ *  told to write it; if a draft comes back without it, it is added here. Any adjustment or support
+ *  question the AI wrote anyway is taken out (Phil, 2026-10-08: the support question is no longer
+ *  asked). The set is kept within `limit` by dropping the last questions that are not follow ups. */
 export function withRequiredFollowUps<
   Q extends { question: string; type: string; followUp?: AiFollowUp },
 >(questions: Q[], make: (question: string, followUp: AiFollowUp) => Q, limit = Infinity): Q[] {
-  const out = [...questions];
-  if (!out.some((q) => q.type === "yes_no" && q.followUp === "need")) {
-    out.push(make(SUPPORT_QUESTION, "need"));
-  }
+  const out = questions.filter((q) => !isAdjustmentQuestion(q));
   const raiseAt = out.findIndex((q) => q.type === "yes_no" && q.followUp === "raise");
   const raise = raiseAt >= 0 ? out.splice(raiseAt, 1)[0] : make(RAISE_QUESTION, "raise");
   out.push(raise);

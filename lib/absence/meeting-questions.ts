@@ -187,6 +187,7 @@ export function rtwNotesFromAnswers(answers: Record<string, unknown> | null | un
   add("referral", "referral", 80);
   add("follow up date", "follow_up_date", 20);
   add("employee comments", "employee_comments", 300);
+  add("manager comments", "manager_comments", 300);
   return bits.join(". ");
 }
 

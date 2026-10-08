@@ -766,10 +766,11 @@ export default function AbsenceView({
                         lock={lock}
                       />
                     )}
+                    questionsExtraFields={["employee_comments"]}
                     aiDraft={{
                       action: draftReturnToWork,
                       label: "Draft it for me",
-                      hint: "Write the summary, and the whole set of questions for this particular absence, from the record. They cover fitness to return, adjustments, anything at work that played a part and what support would help, in words written for this absence. The questions become boxes you fill in as you talk. You can change every word before saving, and nothing is stored until you do.",
+                      hint: "Write the summary, and the whole set of questions for this particular absence, from the record. They cover fitness to return and anything at work that played a part, in words written for this absence. The questions become boxes you fill in as you talk. You can change every word before saving, and nothing is stored until you do.",
                       extraFields: { absence_event_id: r.absenceEventId },
                       // Phil: not every absence is the same, so the questions are
                       // written per absence by the AI rather than fixed in the schema.

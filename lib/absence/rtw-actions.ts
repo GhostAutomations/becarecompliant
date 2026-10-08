@@ -63,23 +63,26 @@ const RTW_SYSTEM = [
   '"questions": an array of 5 to 8 objects, each with "question" (one short question the manager',
   'should ask, written to be read aloud), "type" (exactly one of "text", "yes_no" or "choice") and,',
   'only when the type is "choice", "options" (an array of 2 to 4 short answers to choose from).',
-  "The questions are the whole conversation, so the set MUST cover all four of these, each in at",
+  "The questions are the whole conversation, so the set MUST cover both of these, each in at",
   "least one question and worded for this particular absence: whether they feel fit to return to",
-  "their normal duties, whether any adjustments would help them come back, whether anything at work",
-  "caused the absence or made it worse, and what support would help them now.",
+  "their normal duties, and whether anything at work caused the absence or made it worse.",
+  // NO ADJUSTMENTS (Phil, 2026-10-08, all companies). "Would you like any adjustments?" drew
+  // "Change my availability", and asked of everyone it invites a flexible working request after
+  // every absence. Anything the employee wants to say goes in Employee comments instead.
+  "NEVER ask about adjustments, support, help, changes to their hours, shifts, rota, availability or",
+  "working pattern, flexible working, reduced hours or a phased return, in any wording.",
   "Then use the remaining questions on what THIS absence calls for: the reason given, how long it",
   "lasted, and the pattern of their other absences on record. A back injury, a stomach bug and a run",
-  "of single days do not deserve the same questions. Ask about a fit note, medication, appointments,",
-  "a phased return or a pattern of absence only where this record makes it relevant.",
+  "of single days do not deserve the same questions. Ask about a fit note, medication, appointments",
+  "or a pattern of absence only where this record makes it relevant.",
   "Ask one thing per question and never ask the same thing twice in different words.",
   // Follow ups (Phil, 2026-09-29, migration 0344). Marked on the question so the employee's
   // portal can ask the next thing on a Yes: upload the fit note, say what they need, say what
   // they want to raise.
   'A yes_no question may carry "followUp". When you ask whether they have a fit note, make it a',
-  'yes_no question with "followUp": "fit_note". The support question MUST be a yes_no question',
-  'asking whether there is any support that would help them, with "followUp": "need". The LAST',
-  'question MUST be the yes_no question "Is there anything else you would like to raise?" with',
-  '"followUp": "raise". These count towards the 5 to 8 questions.',
+  'yes_no question with "followUp": "fit_note". The LAST question MUST be the yes_no question',
+  '"Is there anything else you would like to raise?" with "followUp": "raise". These count towards',
+  'the 5 to 8 questions.',
 ].join(" ");
 
 // KEPT AS THE FALLBACK. If the model ignores the JSON instruction (or returns JSON we
