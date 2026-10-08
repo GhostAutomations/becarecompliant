@@ -484,8 +484,9 @@ const BRIEFINGS_ROLES = ["company_admin", "registered_individual", "registered_m
  * "Also email the office team": an FYI copy of a memo, message or attachment to the office
  * logins (Admins, RI, RM, Managers, Supervisors), who mostly have no People record and so cannot
  * be given it to read and sign. The words are IN this email, because a copy is not tracked and
- * not everyone copied can open Briefings. Never the sender, never anyone who already got it as a
- * person, never twice for the same briefing.
+ * not everyone copied can open Briefings. The sender gets one too, so there is a record in their
+ * own inbox (Phil, 2026-10-08). Never anyone who already got it as a person, never twice for the
+ * same briefing.
  */
 export async function emailOfficeCopy(opts: {
   companyId: string;
@@ -511,7 +512,7 @@ export async function emailOfficeCopy(opts: {
         .in("role", OFFICE_COPY_ROLES),
       supabase.from("companies").select("name").eq("id", opts.companyId).maybeSingle(),
     ]);
-    const skip = new Set([opts.senderProfileId, ...opts.alreadyEmailedProfileIds]);
+    const skip = new Set(opts.alreadyEmailedProfileIds);
     const targets = ((office ?? []) as Array<{ id: string; full_name: string | null; email: string | null; role: string }>)
       .filter((p) => !skip.has(p.id) && isSendableAddress(p.email));
     if (targets.length === 0) return tally;

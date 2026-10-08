@@ -519,7 +519,7 @@ export default function NoticePanel({
             Also email the office team a copy
             <span className="block text-xs text-white/50">
               Admins, the Registered Manager, the RI, Managers and Supervisors get it for information,
-              with the words in the email. They are not chased or counted.
+              with the words in the email, and so do you. They are not chased or counted.
             </span>
           </span>
         </label>
