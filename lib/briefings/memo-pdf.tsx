@@ -9,6 +9,7 @@ import "server-only";
  */
 
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import type { NoticeBlock, NoticeInline } from "@/lib/briefings/notice-text";
 
 Font.registerHyphenationCallback((word) => [word]);
 
@@ -36,6 +37,12 @@ const styles = StyleSheet.create({
   // fontSize set here too: a line height is worked out from the size on the SAME style, not the
   // inherited one, so without it 1.4 came out as 1.4 x 18pt.
   line: { fontSize: 10, lineHeight: 1.4 },
+  heading1: { fontSize: 13, fontWeight: 700, marginTop: 4, marginBottom: 6 },
+  heading2: { fontSize: 11.5, fontWeight: 700, marginTop: 4, marginBottom: 5 },
+  heading3: { fontSize: 10.5, fontWeight: 700, marginTop: 2, marginBottom: 4 },
+  listRow: { flexDirection: "row", marginBottom: 4, paddingLeft: 6 },
+  listMarker: { width: 18, fontSize: 10, lineHeight: 1.4 },
+  listText: { flex: 1, fontSize: 10, lineHeight: 1.4 },
   footer: { position: "absolute", bottom: 26, left: 56, right: 56, flexDirection: "row", justifyContent: "space-between" },
   footerText: { fontSize: 8, color: MUTED },
 });
@@ -49,11 +56,23 @@ export type MemoPdfInput = {
   from: string;
   date: string;
   subject: string;
-  paragraphs: string[];
+  blocks: NoticeBlock[];
   attachments: string[];
   /** A preview before sending: the footer says so, nothing else changes. */
   preview?: boolean;
 };
+
+function Spans({ spans }: { spans: NoticeInline[] }) {
+  return (
+    <>
+      {spans.map((s, i) => (
+        <Text key={i} style={s.bold ? { fontWeight: 700 } : undefined}>
+          {s.text}
+        </Text>
+      ))}
+    </>
+  );
+}
 
 export async function renderMemoPdf(m: MemoPdfInput): Promise<Buffer> {
   return renderToBuffer(
@@ -87,15 +106,38 @@ export async function renderMemoPdf(m: MemoPdfInput): Promise<Buffer> {
         ))}
         <View style={styles.rule} />
 
-        {/* A line break they typed stays a line break: one Text per line, because a "\n" inside a
-            Text with a line height doubles the gap in react-pdf. */}
-        {m.paragraphs.map((p, i) => (
-          <View key={i} style={styles.para}>
-            {p.split("\n").map((line, j) => (
-              <Text key={j} style={styles.line}>{line}</Text>
-            ))}
-          </View>
-        ))}
+        {m.blocks.map((b, i) => {
+          if (b.kind === "heading") {
+            const style = b.level === 1 ? styles.heading1 : b.level === 2 ? styles.heading2 : styles.heading3;
+            return (
+              <Text key={i} style={style}>
+                <Spans spans={b.spans} />
+              </Text>
+            );
+          }
+          if (b.kind === "bullet" || b.kind === "numbered") {
+            // The last point of a list leaves a paragraph's gap before whatever follows it.
+            const lastOfList = m.blocks[i + 1]?.kind !== b.kind;
+            return (
+              <View key={i} style={lastOfList ? [styles.listRow, { marginBottom: 9 }] : styles.listRow} wrap={false}>
+                <Text style={styles.listMarker}>{b.kind === "bullet" ? "\u2022" : b.marker}</Text>
+                <Text style={styles.listText}>
+                  <Spans spans={b.spans} />
+                </Text>
+              </View>
+            );
+          }
+          // One Text per typed line: a "\n" inside a Text with a line height doubles the gap.
+          return (
+            <View key={i} style={styles.para}>
+              {b.lines.map((line, j) => (
+                <Text key={j} style={styles.line}>
+                  <Spans spans={line} />
+                </Text>
+              ))}
+            </View>
+          );
+        })}
 
         {m.attachments.length > 0 ? (
           <View style={{ marginTop: 8 }} wrap={false}>

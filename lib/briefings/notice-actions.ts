@@ -28,7 +28,8 @@ import { getPolicyConfig } from "@/lib/assignments/data";
 import { resolveBriefingAudience } from "@/lib/assignments/audience";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import { DRAWN_KEY, TYPED_KEY, signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
-import { notifyBriefingSent } from "@/lib/notifications/briefings";
+import { emailOfficeCopy, notifyBriefingSent } from "@/lib/notifications/briefings";
+import { noticeEmailBodyHtml, parseNoticeText } from "@/lib/briefings/notice-text";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import {
@@ -94,6 +95,8 @@ export async function sendNotice(input: {
   branchId: string | null;
   personIds: string[];
   files: Array<{ path: string; name: string }>;
+  /** Also email the office team a copy, for information (not tracked). */
+  copyOffice?: boolean;
 }): Promise<{ ok: string } | { error: string }> {
   const s = await sender();
   if ("error" in s) return { error: s.error as string };
@@ -187,6 +190,29 @@ export async function sendNotice(input: {
     assignments: ((rows ?? []) as Array<{ id: string; person_id: string }>).map((r) => ({ id: r.id, personId: r.person_id })),
   });
 
+  // The office team's copy. Anyone who got it as a person is not copied as well.
+  let officeCopy = { emailed: 0, muted: 0, failed: 0 };
+  if (input?.copyOffice === true) {
+    const ids = audience.personIds;
+    const { data: linked } = await createServiceClient()
+      .from("people")
+      .select("profile_id")
+      .in("id", ids)
+      .not("profile_id", "is", null);
+    officeCopy = await emailOfficeCopy({
+      companyId,
+      noticeId,
+      senderProfileId: user.id,
+      senderName: profile.full_name || "Your manager",
+      noticeKind: kind,
+      title,
+      bodyHtml: noticeEmailBodyHtml(parseNoticeText(body)),
+      fileCount: files.length,
+      sentTo: created,
+      alreadyEmailedProfileIds: ((linked ?? []) as Array<{ profile_id: string }>).map((r) => r.profile_id),
+    });
+  }
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -207,6 +233,8 @@ export async function sendNotice(input: {
       emailed: emailOutcome.emailed,
       no_email: emailOutcome.noEmail,
       email_failed: emailOutcome.failed,
+      office_copy: input?.copyOffice === true,
+      office_copied: officeCopy.emailed,
     },
   });
 
@@ -223,6 +251,16 @@ export async function sendNotice(input: {
   }
   const failedForReal = emailOutcome.failed - emailOutcome.muted;
   if (failedForReal > 0) parts.push(`${failedForReal} could not be emailed.`);
+  if (input?.copyOffice === true) {
+    if (officeCopy.emailed > 0) {
+      parts.push(`Office team copied: ${officeCopy.emailed} ${officeCopy.emailed === 1 ? "person" : "people"}.`);
+    } else if (officeCopy.muted > 0) {
+      parts.push("The office team copy was not sent because emails are switched off for this test company.");
+    } else if (officeCopy.failed === 0) {
+      parts.push("Nobody else in the office team has an email address to copy.");
+    }
+    if (officeCopy.failed > 0) parts.push(`${officeCopy.failed} office team ${officeCopy.failed === 1 ? "copy" : "copies"} could not be sent.`);
+  }
   return { ok: parts.join(" ") };
 }
 

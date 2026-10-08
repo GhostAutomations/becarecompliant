@@ -5,6 +5,7 @@
  */
 
 import ActionForm from "@/components/action-form";
+import NoticeText from "@/components/briefings/notice-text";
 import { withdrawNotice } from "@/lib/briefings/notice-actions";
 import type { AssignmentRow } from "@/lib/assignments/types";
 import {
@@ -98,7 +99,9 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                     <details className="mt-1">
                       <summary className="cursor-pointer text-xs text-white/60">What was sent</summary>
                       {r.body ? (
-                        <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-white/80">{r.body}</p>
+                        <div className="mt-2 max-w-prose">
+                          <NoticeText body={r.body} compact />
+                        </div>
                       ) : null}
                       {r.fileNames.length > 0 ? (
                         <ul className="mt-2 space-y-1">

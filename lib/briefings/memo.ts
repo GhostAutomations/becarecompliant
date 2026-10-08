@@ -13,7 +13,7 @@ import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/li
 import { addressLines, letterDate } from "@/lib/absence/invitation-letter";
 import { ROLE_LABELS } from "@/lib/nav";
 import { renderMemoPdf } from "@/lib/briefings/memo-pdf";
-import { noticeParagraphs } from "@/lib/briefings/notice-rules";
+import { parseNoticeText } from "@/lib/briefings/notice-text";
 
 export type NoticeForCaller = {
   id: string;
@@ -100,7 +100,7 @@ export async function renderNoticeMemo(
     to: recipient ?? "The team",
     date: letterDate(notice.created_at.slice(0, 10)),
     subject: notice.title,
-    paragraphs: noticeParagraphs(notice.body),
+    blocks: parseNoticeText(notice.body),
     attachments: files.map((f) => String(f.name ?? "File")),
   });
 }
@@ -121,7 +121,7 @@ export async function renderMemoPreview(opts: {
     to: "The team",
     date: letterDate(opts.todayIso),
     subject: opts.title,
-    paragraphs: noticeParagraphs(opts.body),
+    blocks: parseNoticeText(opts.body),
     attachments: opts.fileNames,
     preview: true,
   });

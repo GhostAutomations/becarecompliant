@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AudiencePicker from "@/components/briefings/audience-picker";
+import { htmlToNoticeText, plainToNoticeText } from "@/components/briefings/paste-format";
 import { sendNotice, startNoticeUpload } from "@/lib/briefings/notice-actions";
 import type { BriefingPerson, BriefingScope } from "@/lib/assignments/types";
 import {
@@ -66,6 +67,7 @@ export default function NoticePanel({
   const [files, setFiles] = useState<File[]>([]);
   const [response, setResponse] = useState<NoticeResponse>("confirm");
   const [dueDate, setDueDate] = useState("");
+  const [copyOffice, setCopyOffice] = useState(false);
   const [scope, setScope] = useState<BriefingScope>("company");
   const [branchId, setBranchId] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -96,6 +98,31 @@ export default function NoticePanel({
       setFiles(next);
     }
     if (picker.current) picker.current.value = "";
+  }
+
+  /** Keep bullets, numbers, headings and bold when pasting from Word, Docs or an email. */
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const html = e.clipboardData.getData("text/html");
+    const plain = e.clipboardData.getData("text/plain");
+    let text: string;
+    try {
+      text = html ? htmlToNoticeText(html) : plainToNoticeText(plain);
+    } catch {
+      return; // Let the browser paste it as it normally would.
+    }
+    if (!text) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    const next = (body.slice(0, start) + text + body.slice(end)).slice(0, NOTICE_BODY_MAX[kind]);
+    touch();
+    setBody(next);
+    requestAnimationFrame(() => {
+      const pos = Math.min(next.length, start + text.length);
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
   }
 
   /** Draw the memo exactly as it will be sent, in a new tab. Nothing is saved or sent. */
@@ -198,6 +225,7 @@ export default function NoticePanel({
         branchId: scope === "branch" ? branchId : null,
         personIds: scope === "people" ? picked : [],
         files: started.uploads.map((u, i) => ({ path: u.path, name: files[i].name })),
+        copyOffice,
       });
       setStatus(null);
       if ("error" in result) {
@@ -210,6 +238,7 @@ export default function NoticePanel({
       setFiles([]);
       setPicked([]);
       setDueDate("");
+      setCopyOffice(false);
       router.refresh();
     } catch (err) {
       setStatus(null);
@@ -273,6 +302,7 @@ export default function NoticePanel({
             value={body}
             rows={kind === "memo" ? 10 : 4}
             maxLength={max}
+            onPaste={onPaste}
             onChange={(e) => {
               touch();
               setBody(e.target.value);
@@ -285,6 +315,11 @@ export default function NoticePanel({
                   : "Tell them what the files are and what you need them to do."
             }
           />
+          <p className="form-hint">
+            Paste from Word, Google Docs or an email and bullets, numbered points, headings and bold
+            are kept. You can also type - for a bullet, 1. for a number, # for a heading and
+            **bold**.
+          </p>
           <p className="form-hint">
             {body.length} of {max} characters.
             {kind === "memo"
@@ -395,6 +430,24 @@ export default function NoticePanel({
           idPrefix="notice"
           skipNote={false}
         />
+
+        <label className="flex items-start gap-2 text-sm text-white/85">
+          <input
+            type="checkbox"
+            checked={copyOffice}
+            onChange={(e) => {
+              touch();
+              setCopyOffice(e.target.checked);
+            }}
+          />
+          <span>
+            Also email the office team a copy
+            <span className="block text-xs text-white/50">
+              Admins, the Registered Manager, the RI, Managers and Supervisors get it for information,
+              with the words in the email. They are not chased or counted.
+            </span>
+          </span>
+        </label>
 
         {error ? <p className="form-error">{error}</p> : null}
         {done ? (

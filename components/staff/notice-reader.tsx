@@ -20,10 +20,10 @@ import { focusFirstError } from "@/components/forms/focus-first-error";
 import { IDLE_STATE } from "@/lib/forms";
 import { confirmNotice, openNotice, signNotice } from "@/lib/briefings/notice-actions";
 import { signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
+import NoticeText from "@/components/briefings/notice-text";
 import {
   NOTICE_KIND_LABELS,
   fileSizeLabel,
-  noticeParagraphs,
   type NoticeFile,
   type NoticeKind,
   type NoticeResponse,
@@ -129,7 +129,6 @@ export default function NoticeReader({
     setTimeout(() => signAction(fd), 0);
   }
 
-  const paragraphs = noticeParagraphs(body);
   const signed = signatureGiven(answers, mode).ok;
   const busy = confirming || signing;
 
@@ -171,15 +170,7 @@ export default function NoticeReader({
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pb-6 pt-4">
                 {openError ? <p className="form-error">{openError}</p> : null}
-                {paragraphs.length > 0 ? (
-                  <div className="space-y-3 text-[15px] leading-relaxed text-white/85">
-                    {paragraphs.map((p, i) => (
-                      <p key={i} className="whitespace-pre-line">
-                        {p}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
+                <NoticeText body={body} />
 
                 {files.length > 0 ? (
                   <div className="space-y-2">

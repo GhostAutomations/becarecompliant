@@ -464,3 +464,117 @@ export function managerOutstandingHtml(opts: {
     ctaUrl: `${siteUrl()}/briefings`,
   });
 }
+
+/** Who "the office team" is for a copy of a memo or message (Phil, 2026-10-08). */
+const OFFICE_COPY_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"];
+/** Of those, who can open Briefings, so gets a button to it. */
+const BRIEFINGS_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager"];
+
+/**
+ * "Also email the office team": an FYI copy of a memo, message or attachment to the office
+ * logins (Admins, RI, RM, Managers, Supervisors), who mostly have no People record and so cannot
+ * be given it to read and sign. The words are IN this email, because a copy is not tracked and
+ * not everyone copied can open Briefings. Never the sender, never anyone who already got it as a
+ * person, never twice for the same briefing.
+ */
+export async function emailOfficeCopy(opts: {
+  companyId: string;
+  noticeId: string;
+  senderProfileId: string;
+  senderName: string;
+  noticeKind: NoticeKind;
+  title: string;
+  bodyHtml: string;
+  fileCount: number;
+  sentTo: number;
+  alreadyEmailedProfileIds: string[];
+}): Promise<{ emailed: number; muted: number; failed: number }> {
+  const tally = { emailed: 0, muted: 0, failed: 0 };
+  try {
+    const supabase = createServiceClient();
+    const [{ data: office }, { data: company }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .eq("company_id", opts.companyId)
+        .eq("status", "active")
+        .in("role", OFFICE_COPY_ROLES),
+      supabase.from("companies").select("name").eq("id", opts.companyId).maybeSingle(),
+    ]);
+    const skip = new Set([opts.senderProfileId, ...opts.alreadyEmailedProfileIds]);
+    const targets = ((office ?? []) as Array<{ id: string; full_name: string | null; email: string | null; role: string }>)
+      .filter((p) => !skip.has(p.id) && isSendableAddress(p.email));
+    if (targets.length === 0) return tally;
+
+    const companyName = (company?.name as string | null) ?? "your company";
+    const label = NOTICE_KIND_LABELS[opts.noticeKind].toLowerCase();
+    const subject = `Copy: ${opts.title}`;
+    const claims = await Promise.all(
+      targets.map((p) =>
+        claimNotification({
+          companyId: opts.companyId,
+          recipientProfileId: p.id,
+          channel: "email",
+          kind: "briefing_office_copy",
+          dedupeKey: `briefing_office_copy:${opts.noticeId}:${p.id}`,
+          toAddress: p.email as string,
+          subject,
+          metadata: { notice_id: opts.noticeId },
+        }),
+      ),
+    );
+    const toSend: Array<{ logId: string; to: string; html: string }> = [];
+    claims.forEach((logId, i) => {
+      if (!logId) return;
+      const p = targets[i];
+      const canOpen = BRIEFINGS_ROLES.includes(p.role);
+      const files =
+        opts.fileCount > 0
+          ? `<p style="margin:0 0 12px;">It has ${opts.fileCount === 1 ? "a file" : `${opts.fileCount} files`} with it, in Be Care Compliant.</p>`
+          : "";
+      toSend.push({
+        logId,
+        to: p.email as string,
+        html: noticeEmailHtml({
+          preheader: `${opts.senderName} sent a ${label} to the team.`,
+          heading: `A copy of a ${label} sent to the team`,
+          bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml((p.full_name ?? "").split(" ")[0] || "there")},</p>
+            <p style="margin:0 0 12px;">${escapeHtml(opts.senderName)} sent this ${label} to ${opts.sentTo} ${opts.sentTo === 1 ? "person" : "people"} at ${escapeHtml(companyName)}. This is your copy, for information.</p>
+            <p style="margin:0 0 8px; font-weight:700; color:#ffffff;">${escapeHtml(opts.title)}</p>
+            ${opts.bodyHtml}${files}`,
+          ctaLabel: canOpen ? "Open Briefings" : undefined,
+          ctaUrl: canOpen ? `${siteUrl()}/briefings` : undefined,
+        }),
+      });
+    });
+    if (toSend.length === 0) return tally;
+    const results = await sendEmailBatch(
+      toSend.map((m) => ({ to: m.to, subject, html: m.html })),
+      { companyId: opts.companyId },
+    );
+    const sent: string[] = [];
+    const skipped: string[] = [];
+    const failed: string[] = [];
+    results.forEach((r, i) => {
+      if (r.sent) {
+        tally.emailed += 1;
+        sent.push(toSend[i].logId);
+      } else if (r.skippedReason) {
+        if (r.skippedReason === TEST_COMPANY_NO_MESSAGES) tally.muted += 1;
+        else tally.failed += 1;
+        skipped.push(toSend[i].logId);
+      } else {
+        tally.failed += 1;
+        failed.push(toSend[i].logId);
+      }
+    });
+    await Promise.all([
+      settleNotifications(sent, "sent"),
+      settleNotifications(skipped, "skipped", "Email is not configured or switched off"),
+      settleNotifications(failed, "failed", "Resend rejected the message"),
+    ]);
+  } catch (e) {
+    console.error("[notify] office copy failed:", (e as Error).message);
+  }
+  return tally;
+}
