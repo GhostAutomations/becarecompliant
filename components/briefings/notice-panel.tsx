@@ -71,8 +71,15 @@ export default function NoticePanel({
   const [picked, setPicked] = useState<string[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const busy = status !== null;
+
+  // Any change starts a new briefing: the last one's "Sent" or error no longer applies.
+  function touch() {
+    setDone(null);
+    setError(null);
+  }
 
   const max = NOTICE_BODY_MAX[kind];
   const bodyLabel =
@@ -80,10 +87,11 @@ export default function NoticePanel({
 
   function addFiles(list: FileList | null) {
     const next = [...files, ...Array.from(list ?? [])];
+    touch();
     const problem = noticeFilesProblem(next.map((f) => ({ name: f.name, size: f.size })));
-    if (problem) setError(problem);
+    if (problem) setFileError(problem);
     else {
-      setError(null);
+      setFileError(null);
       setFiles(next);
     }
     if (picker.current) picker.current.value = "";
@@ -92,13 +100,19 @@ export default function NoticePanel({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
-    const problem =
-      noticeProblem({ kind, title, body, fileCount: files.length }) ??
-      noticeFilesProblem(files.map((f) => ({ name: f.name, size: f.size })));
-    if (problem) {
-      setError(problem);
+    const filesProblem = noticeFilesProblem(files.map((f) => ({ name: f.name, size: f.size })));
+    if (filesProblem) {
+      setFileError(filesProblem);
       return;
     }
+    const problem = noticeProblem({ kind, title, body, fileCount: files.length });
+    if (problem) {
+      // "Attach at least one file" belongs beside the files, everything else by the button.
+      if (kind === "attachment" && files.length === 0 && /Attach at least one/.test(problem)) setFileError(problem);
+      else setError(problem);
+      return;
+    }
+    setFileError(null);
     if (scope === "branch" && !branchId) {
       setError("Choose who it is for.");
       return;
@@ -181,7 +195,10 @@ export default function NoticePanel({
                 key={o.value}
                 type="button"
                 aria-pressed={kind === o.value}
-                onClick={() => setKind(o.value)}
+                onClick={() => {
+                  touch();
+                  setKind(o.value);
+                }}
                 className={card(kind === o.value)}
               >
                 <span className="block text-sm font-semibold text-white">{o.label}</span>
@@ -199,7 +216,10 @@ export default function NoticePanel({
             id="notice-title"
             value={title}
             maxLength={200}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              touch();
+              setTitle(e.target.value);
+            }}
             placeholder={kind === "memo" ? "For example, Changes to the on call rota" : "For example, Bank holiday cover"}
           />
         </div>
@@ -213,7 +233,10 @@ export default function NoticePanel({
             value={body}
             rows={kind === "memo" ? 10 : 4}
             maxLength={max}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => {
+              touch();
+              setBody(e.target.value);
+            }}
             placeholder={
               kind === "memo"
                 ? "Write the memo here. Leave a blank line between paragraphs."
@@ -244,7 +267,11 @@ export default function NoticePanel({
                     type="button"
                     className="btn-ghost px-2 py-1 text-xs"
                     disabled={busy}
-                    onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                    onClick={() => {
+                      touch();
+                      setFileError(null);
+                      setFiles(files.filter((_, j) => j !== i));
+                    }}
                   >
                     Remove
                   </button>
@@ -268,6 +295,7 @@ export default function NoticePanel({
               </label>
             </>
           ) : null}
+          {fileError ? <p className="form-error">{fileError}</p> : null}
           <p className="form-hint">
             PDF, Word, Excel or pictures. Up to {NOTICE_MAX_FILES} files, {NOTICE_MAX_MB} MB each.
           </p>
@@ -281,7 +309,10 @@ export default function NoticePanel({
                 key={o.value}
                 type="button"
                 aria-pressed={response === o.value}
-                onClick={() => setResponse(o.value)}
+                onClick={() => {
+                  touch();
+                  setResponse(o.value);
+                }}
                 className={card(response === o.value)}
               >
                 <span className="block text-sm font-semibold text-white">{NOTICE_RESPONSE_LABELS[o.value]}</span>
@@ -295,18 +326,30 @@ export default function NoticePanel({
           <label htmlFor="notice-due" className="form-label">
             Due by (optional)
           </label>
-          <input id="notice-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <input id="notice-due" type="date" value={dueDate} onChange={(e) => {
+              touch();
+              setDueDate(e.target.value);
+            }} />
           <p className="form-hint">With a date, anyone who has not done it by then is reminded.</p>
         </div>
 
         <AudiencePicker
           people={people}
           scope={scope}
-          setScope={setScope}
+          setScope={(v) => {
+            touch();
+            setScope(v);
+          }}
           branchId={branchId}
-          setBranchId={setBranchId}
+          setBranchId={(v) => {
+            touch();
+            setBranchId(v);
+          }}
           picked={picked}
-          setPicked={setPicked}
+          setPicked={(v) => {
+            touch();
+            setPicked(v);
+          }}
           idPrefix="notice"
           skipNote={false}
         />

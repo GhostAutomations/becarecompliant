@@ -218,7 +218,11 @@ export async function sendNotice(input: {
       `${emailOutcome.noEmail} ${emailOutcome.noEmail === 1 ? "has" : "have"} no email address, so they will only see it when they log in.`,
     );
   }
-  if (emailOutcome.failed > 0) parts.push(`${emailOutcome.failed} could not be emailed.`);
+  if (emailOutcome.muted > 0) {
+    parts.push("Emails are switched off for this test company, so nobody was emailed.");
+  }
+  const failedForReal = emailOutcome.failed - emailOutcome.muted;
+  if (failedForReal > 0) parts.push(`${failedForReal} could not be emailed.`);
   return { ok: parts.join(" ") };
 }
 

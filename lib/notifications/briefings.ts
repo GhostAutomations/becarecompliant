@@ -24,6 +24,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isSendableAddress, sendEmailBatch } from "@/lib/email/resend";
+import { TEST_COMPANY_NO_MESSAGES } from "@/lib/email/muted";
 import { escapeHtml, formatDateUk, noticeEmailHtml } from "@/lib/email/templates";
 import { claimNotification, settleNotifications } from "@/lib/notifications/log";
 import { siteUrl } from "@/lib/site";
@@ -43,6 +44,8 @@ export type BriefingSendOutcome = {
   failed: number;
   /** Already emailed about this exact briefing (a re-send of the same rows). */
   alreadySent: number;
+  /** Not sent because messages are switched off for this test company. Also counted in failed. */
+  muted: number;
 };
 
 type PersonRow = {
@@ -126,7 +129,7 @@ export async function notifyBriefingSent(opts: {
   dueDate: string | null;
   assignments: Array<{ id: string; personId: string }>;
 }): Promise<BriefingSendOutcome> {
-  const outcome: BriefingSendOutcome = { emailed: 0, noEmail: 0, failed: 0, alreadySent: 0 };
+  const outcome: BriefingSendOutcome = { emailed: 0, noEmail: 0, failed: 0, alreadySent: 0, muted: 0 };
   if (opts.assignments.length === 0) return outcome;
 
   try {
@@ -235,6 +238,7 @@ export async function notifyBriefingSent(opts: {
         sentIds.push(logId);
       } else if (r.skippedReason) {
         outcome.failed += 1;
+        if (r.skippedReason === TEST_COMPANY_NO_MESSAGES) outcome.muted += 1;
         skippedIds.push(logId);
       } else {
         outcome.failed += 1;
