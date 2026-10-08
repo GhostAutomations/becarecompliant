@@ -48,7 +48,38 @@ export type AbsenceAggregate = {
   latestMeetingStage: number | null;
   /** Counted absences that began after the last recorded meeting (0420). */
   absencesSinceMeeting?: number;
+  /** 0429: the stage of the latest meeting actually held (stage_after when set). */
+  heldMeetingStage?: number | null;
+  /** 0429: the highest stage actually held, for the card's "last meeting" box. */
+  lastHeldStage?: number | null;
+  /** 0429: absences that still count, dated on or before that latest held meeting. */
+  countedAtMeeting?: number | null;
+  /** 0429: absences discounted, dated on or before that meeting. */
+  discountedAtMeeting?: number | null;
+  /** 0429: the warning recorded at that meeting ("None" or blank when none was given). */
+  heldMeetingWarning?: string | null;
 };
+
+/** The person_absence_summary columns every stage decision reads (0429). One list, so the screens
+ *  and the server checks can never read different things. */
+export const SUMMARY_STAGE_COLUMNS =
+  "occasions, total_days, latest_meeting_stage, absences_since_meeting, held_meeting_stage, last_held_stage, counted_at_meeting, discounted_at_meeting, held_meeting_warning";
+
+/** A person_absence_summary row (or none) as the aggregate deriveAbsenceStatus takes. */
+export function aggregateFromSummary(row: Record<string, unknown> | null | undefined): AbsenceAggregate {
+  const n = (v: unknown) => (v == null ? null : Number(v));
+  return {
+    occasions: n(row?.occasions) ?? 0,
+    totalDays: n(row?.total_days) ?? 0,
+    latestMeetingStage: n(row?.latest_meeting_stage),
+    absencesSinceMeeting: n(row?.absences_since_meeting) ?? 0,
+    heldMeetingStage: n(row?.held_meeting_stage),
+    lastHeldStage: n(row?.last_held_stage),
+    countedAtMeeting: n(row?.counted_at_meeting),
+    discountedAtMeeting: n(row?.discounted_at_meeting),
+    heldMeetingWarning: typeof row?.held_meeting_warning === "string" ? (row.held_meeting_warning as string) : null,
+  };
+}
 
 /** What the Absence view shows on a person's card. */
 export type AbsenceStatus = {
@@ -72,6 +103,11 @@ export type AbsenceStatus = {
   meetingDue: boolean;
   /** The meeting is due because of an absence after the last one, not the count (next-stage.ts). */
   dueAfterNewAbsence: boolean;
+  /** The highest stage actually held, for the "last meeting" box (it stays 1 after a Stage 1
+   *  meeting even when discounts put them back to no stage). */
+  lastHeldStage: number | null;
+  /** True when a meeting's absences were discounted below its trigger and they dropped back. */
+  droppedBack: boolean;
 };
 
 /**
@@ -120,7 +156,7 @@ export function deriveAbsenceStatus(
   const occasions = Math.max(0, agg.occasions ?? 0);
   const totalDays = Math.max(0, agg.totalDays ?? 0);
   const score = bradfordScore(occasions, totalDays);
-  const meetingStage = agg.latestMeetingStage ?? null;
+  let meetingStage = agg.latestMeetingStage ?? null;
 
   let derivedLabel: string | null = null;
   let derivedStage: number | null = null;
@@ -148,10 +184,37 @@ export function deriveAbsenceStatus(
     }
   }
 
+  /* A MEETING WHOSE ABSENCES WERE DISCOUNTED DROPS THEM BACK (Phil, 2026-10-08: Asim and Jamie
+     showed Stage 2 due after their Stage 1 meeting's absences were disallowed). When absences up
+     to the latest held meeting were discounted and what still counts is below that meeting's
+     trigger, they are back at the stage those absences reach (none, for fewer than Stage 1's), and
+     from there the count decides: a Stage 3 meeting discounted to no further action leaves them at
+     Stage 2, so the next absence brings Stage 3 again, not Stage 4. Absences that only aged out of
+     the window do not do this (the 7 October rule below stands for them). An open booking above
+     that stage still counts, so the card never jumps while a meeting is booked (0427). */
+  let droppedBack = false;
+  if (isStageThresholds(config.method, config.thresholds) && agg.heldMeetingStage && agg.countedAtMeeting != null) {
+    const stagesAll = config.thresholds as StageThreshold[];
+    const trigger = stagesAll.find((s) => s.stage === agg.heldMeetingStage)?.occasions ?? null;
+    // Only when no warning was given: a meeting that gave a warning leaves them at its stage.
+    const warned = !!agg.heldMeetingWarning && agg.heldMeetingWarning.trim() !== "None" && agg.heldMeetingWarning.trim() !== "";
+    if (!warned && (agg.discountedAtMeeting ?? 0) > 0 && trigger != null && agg.countedAtMeeting < trigger) {
+      const reached = stagesAll
+        .filter((s) => s.occasions != null && (agg.countedAtMeeting ?? 0) >= s.occasions)
+        .reduce((m, s) => Math.max(m, s.stage), 0);
+      // Only the held meeting is replaced; a higher open booking still holds.
+      if ((meetingStage ?? 0) <= agg.heldMeetingStage) {
+        meetingStage = reached || null;
+        droppedBack = true;
+      }
+    }
+  }
+
   /* A NEW ABSENCE AFTER A STAGE MEETING (Phil, 2026-10-07): the next stage is due even when the
-     count alone has not reached it. lib/absence/next-stage.ts. */
+     count alone has not reached it. lib/absence/next-stage.ts. Not after a drop back: there the
+     count decides. */
   let dueAfterNewAbsence = false;
-  if (isStageThresholds(config.method, config.thresholds)) {
+  if (isStageThresholds(config.method, config.thresholds) && !droppedBack) {
     const stagesList = config.thresholds as StageThreshold[];
     const next = stageDueAfterNewAbsence(
       meetingStage,
@@ -180,6 +243,8 @@ export function deriveAbsenceStatus(
     meetingStage,
     meetingDue,
     dueAfterNewAbsence: dueAfterNewAbsence && meetingDue,
+    lastHeldStage: agg.lastHeldStage ?? agg.latestMeetingStage ?? null,
+    droppedBack,
   };
 }
 

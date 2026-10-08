@@ -267,6 +267,7 @@ async function stageAfterFor(
   return stageAfterMeeting({
     stage: ctx.meeting.stage,
     outcome: typeof ctx.answers.meeting_outcome === "string" ? ctx.answers.meeting_outcome : "",
+    warning: typeof ctx.answers.warning_issued === "string" ? ctx.answers.warning_issued : "",
     remaining: extras.absences.filter((a) => !gone.has(a.start_date)).length,
     priorHeld: await priorHeldStage(ctx, excludeMeetingId),
     thresholds: thresholdsOf(config),

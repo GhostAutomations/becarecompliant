@@ -279,6 +279,8 @@ export function absencesBlock(
 export function stageAfterMeeting(o: {
   stage: number | null;
   outcome: string;
+  /** The warning recorded, if any ("None" when none was given). */
+  warning?: string | null;
   /** Absences that still count once this meeting's discounts are applied. */
   remaining: number;
   /** The highest stage held at an earlier meeting in the window (not this one). */
@@ -286,7 +288,11 @@ export function stageAfterMeeting(o: {
   thresholds: Array<{ stage: number; occasions: number }>;
 }): number | null {
   if (!o.stage) return null;
-  if (o.outcome.trim() !== "No further action") return o.stage;
+  // No warning given (Phil, 2026-10-08: "Informal support and monitoring" with no warning drops
+  // back too); a meeting that gave a warning, or dismissed, stays at its stage.
+  const w = (o.warning ?? "").trim();
+  const noWarning = o.outcome.trim() === "No further action" || ((w === "" || w === "None") && o.outcome.trim() !== "Dismissal" && o.outcome.trim() !== "Formal warning issued");
+  if (!noWarning) return o.stage;
   const reached = o.thresholds.filter((t) => t.occasions <= o.remaining).reduce((m, t) => Math.max(m, t.stage), 0);
   if (reached >= o.stage) return o.stage;
   return Math.max(reached, o.priorHeld ?? 0) || null;

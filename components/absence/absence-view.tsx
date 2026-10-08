@@ -444,7 +444,8 @@ export default function AbsenceView({
                   </div>
                   <div className="rounded-lg bg-white/5 p-2">
                     <div className="text-base font-semibold text-white">
-                      {method === "bradford" ? s.bradfordScore : s.meetingStage ?? "—"}
+                      {/* The meeting they actually had (Phil, 2026-10-08), even when discounts put them back. */}
+                      {method === "bradford" ? s.bradfordScore : s.lastHeldStage ?? s.meetingStage ?? "—"}
                     </div>
                     <div className="text-white/50">
                       {method === "bradford" ? "Bradford" : "last meeting"}

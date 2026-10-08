@@ -44,7 +44,7 @@ import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
 import { getAbsenceConfig } from "@/lib/absence/data";
-import { deriveAbsenceStatus } from "@/lib/absence/logic";
+import { SUMMARY_STAGE_COLUMNS, aggregateFromSummary, deriveAbsenceStatus } from "@/lib/absence/logic";
 import { stageActionFor, stageActionSentence, warningAllowed, warningTooHighMessage } from "@/lib/absence/stage-actions";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -326,21 +326,13 @@ export async function recordAbsenceMeeting(
     const [{ data: summary }, config] = await Promise.all([
       supabase
         .from("person_absence_summary")
-        .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
+        .select(SUMMARY_STAGE_COLUMNS)
         .eq("person_id", personId)
         .maybeSingle(),
       getAbsenceConfig(person.company_id as string),
     ]);
     if (config.method === "stages") {
-      const derived = deriveAbsenceStatus(
-        {
-          occasions: (summary?.occasions as number | null) ?? 0,
-          totalDays: Number(summary?.total_days ?? 0),
-          latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
-          absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
-        },
-        config,
-      );
+      const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
       const offered = availableStages(derived.meetingStage, derived.derivedStage);
       const chosen = stageFrom(answers["meeting_type"]);
       if (chosen && !offered.includes(chosen)) {
@@ -386,6 +378,7 @@ export async function recordAbsenceMeeting(
       stageAfter = stageAfterMeeting({
         stage: validStage,
         outcome: String(answers["meeting_outcome"] ?? ""),
+        warning: String(answers["warning_issued"] ?? ""),
         remaining: Math.max(0, ((summary?.occasions as number | null) ?? 0) - toDiscount.length),
         priorHeld: prior.length ? Math.max(...prior) : null,
         thresholds: (config.thresholds as StageThreshold[])
@@ -664,44 +657,34 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
   // booked in (Phil), so that stage can be booked again. A "no further
   // action" outcome resetting the cycle arrives with meeting outcomes
   // (Additions).
-  const { data: stageRows } = await supabase
-    .from("absence_meetings")
-    .select("stage, stage_after")
-    .eq("person_id", personId)
-    .not("stage", "is", null)
-    // held (has evidence), unanswered, or accepted count; declined opens do not
-    .or("evidence_id.not.is.null,response.is.null,response.eq.accepted");
-  // A meeting that left them at an earlier stage counts as that stage (0423, Phil 2026-10-07).
-  const maxStage = ((stageRows ?? []) as Array<{ stage: number | null; stage_after: number | null }>).reduce(
-    (m, r) => Math.max(m, r.stage_after ?? r.stage ?? 0),
-    0,
-  );
+  const [{ data: stageRows }, { data: summary }, config] = await Promise.all([
+    supabase
+      .from("absence_meetings")
+      .select("stage, stage_after, evidence_id")
+      .eq("person_id", personId)
+      .not("stage", "is", null)
+      // held (has evidence), unanswered, or accepted count; declined opens do not
+      .or("evidence_id.not.is.null,response.is.null,response.eq.accepted"),
+    supabase.from("person_absence_summary").select(SUMMARY_STAGE_COLUMNS).eq("person_id", personId).maybeSingle(),
+    getAbsenceConfig(person.company_id as string),
+  ]);
+  const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
+  /* The stage they are on: from the held meetings as the Absence card works it out (a meeting whose
+     absences were discounted with no warning drops them back, 0429; stage_after, 0423), and any
+     meeting already booked and not yet held, which cannot be booked twice. */
+  const rows = (stageRows ?? []) as Array<{ stage: number | null; stage_after: number | null; evidence_id: string | null }>;
+  const openBooked = rows.filter((r) => !r.evidence_id).reduce((m, r) => Math.max(m, r.stage ?? 0), 0);
+  const heldStage =
+    config.method === "stages"
+      ? (derived.meetingStage ?? 0)
+      : rows.filter((r) => r.evidence_id).reduce((m, r) => Math.max(m, r.stage_after ?? r.stage ?? 0), 0);
+  const maxStage = Math.max(openBooked, heldStage);
   if (stage <= maxStage) {
     return {
       error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,
     };
   }
 
-  // Upper cap (Phil, 2026-07-12): only stages the person's absence level
-  // actually calls for can be booked (their derived stage from the company's
-  // thresholds). Mirrors the dropdown, enforced here.
-  const [{ data: summary }, config] = await Promise.all([
-    supabase
-      .from("person_absence_summary")
-      .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
-      .eq("person_id", personId)
-      .maybeSingle(),
-    getAbsenceConfig(person.company_id as string),
-  ]);
-  const derived = deriveAbsenceStatus(
-    {
-      occasions: (summary?.occasions as number | null) ?? 0,
-      totalDays: Number(summary?.total_days ?? 0),
-      latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
-      absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
-    },
-    config,
-  );
   /* The same rule as the drop down (lib/absence/record-meeting.ts availableStages): the stage after
      the last one, up to what their absences call for, and always at least that next stage. */
   const offered = availableStages(maxStage, derived.derivedStage);

@@ -19,7 +19,7 @@ import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor } from "@/lib/absence/stage-actions";
 import { availableStages } from "@/lib/absence/record-meeting";
-import { deriveAbsenceStatus } from "@/lib/absence/logic";
+import { SUMMARY_STAGE_COLUMNS, aggregateFromSummary, deriveAbsenceStatus } from "@/lib/absence/logic";
 import { absenceCountState, countedAbsences, windowStartIso } from "@/lib/absence/discount";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { StageThreshold } from "@/lib/absence/logic";
@@ -177,18 +177,10 @@ export async function draftMeetingQuestions(
   if (promptStage === null && config.method === "stages") {
     const { data: summary } = await supabase
       .from("person_absence_summary")
-      .select("occasions, total_days, latest_meeting_stage, absences_since_meeting")
+      .select(SUMMARY_STAGE_COLUMNS)
       .eq("person_id", personId)
       .maybeSingle();
-    const derived = deriveAbsenceStatus(
-      {
-        occasions: (summary?.occasions as number | null) ?? 0,
-        totalDays: Number(summary?.total_days ?? 0),
-        latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
-        absencesSinceMeeting: (summary?.absences_since_meeting as number | null) ?? 0,
-      },
-      config,
-    );
+    const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
     const offered = availableStages(derived.meetingStage, derived.derivedStage);
     if (offered.length === 1) promptStage = offered[0];
   }

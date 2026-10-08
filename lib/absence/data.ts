@@ -12,6 +12,7 @@ import { type BranchAddressRow, meetingPlaces } from "@/lib/branches/office-addr
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { bySurname } from "@/lib/people/name-sort";
 import {
+  aggregateFromSummary,
   deriveAbsenceStatus,
   resolveAbsenceConfig,
   type AbsenceConfig,
@@ -102,15 +103,7 @@ export async function listAbsenceRegister(
     totalDays: Number(r.total_days),
     firstAbsence: r.first_absence,
     lastAbsence: r.last_absence,
-    status: deriveAbsenceStatus(
-      {
-        occasions: r.occasions,
-        totalDays: Number(r.total_days),
-        latestMeetingStage: r.latest_meeting_stage,
-        absencesSinceMeeting: r.absences_since_meeting ?? 0,
-      },
-      config,
-    ),
+    status: deriveAbsenceStatus(aggregateFromSummary(r as unknown as Record<string, unknown>), config),
     notCounted: r.not_counted ?? 0,
   }));
 
