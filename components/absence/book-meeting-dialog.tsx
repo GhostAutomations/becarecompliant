@@ -267,7 +267,9 @@ function BookMeetingForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
-      <div className="max-h-[97vh] w-full max-w-[min(95vw,2200px)] overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
+      {/* As wide as two A4 sheets side by side and no wider (Phil, 2026-10-08: no navy gaps either
+          side of the pages): each column is one 768px page frame. */}
+      <div className="max-h-[97vh] w-full max-w-[min(95vw,1604px)] overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">Book meeting: {personName}</h2>
