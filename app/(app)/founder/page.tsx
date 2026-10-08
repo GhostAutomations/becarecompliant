@@ -26,6 +26,7 @@ import {
   tierLabel,
 } from "@/lib/founder/format";
 import { hoursWaiting, waitingLabel, waitingTone } from "@/lib/founder/trial-alerts";
+import { openTicketCounts } from "@/lib/tickets/data";
 
 export const metadata: Metadata = { title: "Founder" };
 
@@ -34,6 +35,8 @@ export default async function FounderPage() {
   const supabase = await createClient();
 
   const thisMonth = londonMonthKey(new Date());
+  // Started now, read after the reads below, so it costs no extra wait.
+  const ticketsPromise = openTicketCounts();
 
   const [
     { data: companies },
@@ -82,6 +85,7 @@ export default async function FounderPage() {
       .eq("is_read", false)
       .eq("is_spam", false),
   ]);
+  const tickets = await ticketsPromise;
 
   const waitingTrialRequests = newTrialRequests ?? 0;
   const waitingEmails = unreadEmails ?? 0;
@@ -337,6 +341,21 @@ export default async function FounderPage() {
             {waitingEmails > 0
               ? `${waitingEmails} ${waitingEmails === 1 ? "message is" : "messages are"} waiting on a reply.`
               : "Everything sent to and from the platform, kept for good."}
+          </p>
+        </Link>
+        <Link href="/founder/tickets" className="app-tile sm:col-span-2 lg:col-span-4">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-semibold text-white">Tickets</h2>
+            <div className="flex gap-1">
+              {tickets.red > 0 ? <span className="pill pill-red">{tickets.red} red</span> : null}
+              {tickets.amber > 0 ? <span className="pill pill-amber">{tickets.amber} amber</span> : null}
+              {tickets.green > 0 ? <span className="pill pill-green">{tickets.green} green</span> : null}
+            </div>
+          </div>
+          <p className="text-sm text-white/60">
+            {tickets.total > 0
+              ? `${tickets.total} ${tickets.total === 1 ? "ticket is" : "tickets are"} open or in progress.`
+              : "Problems and feature requests from companies. Nothing open."}
           </p>
         </Link>
         <Link href="/founder/demos" className="app-tile sm:col-span-2 lg:col-span-4">

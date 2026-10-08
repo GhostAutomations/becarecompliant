@@ -52,7 +52,8 @@ export type NavEntry = {
     | "whiteboard"
     | "onCall"
     | "readiness"
-    | "reports";
+    | "reports"
+    | "tickets";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
   /** Optional sidebar section heading shown above this entry (e.g. "Departments"). */
@@ -251,6 +252,15 @@ export const NAV_ENTRIES: NavEntry[] = [
     group: "Departments",
     roles: ["company_admin"],
   },
+  /* TICKETS (Phil, 2026-10-08): under Settings, for every office user from Supervisor up. Not a
+     department a company can untick: it is how they reach us. */
+  {
+    href: "/tickets",
+    label: "Tickets",
+    icon: "tickets",
+    group: "Departments",
+    roles: ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter"],
+  },
   { href: "/founder", label: "Founder", icon: "founder", roles: ["platform_admin"] },
 ];
 
@@ -300,6 +310,7 @@ export function navEntriesForRole(role: string, disabled: ReadonlySet<string> = 
           { href: "/complaints/closed", label: "Closed", icon: "complaints" },
         ],
       },
+      { href: "/tickets", label: "Tickets", icon: "tickets", group: "Departments" },
     ];
   }
   // A Team Member (staff) login has exactly one destination: their own area.

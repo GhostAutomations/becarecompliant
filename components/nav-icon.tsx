@@ -19,6 +19,13 @@ export function NavIcon({
   };
 
   switch (icon) {
+    case "tickets":
+      return (
+        <svg {...common}>
+          <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4Z" />
+          <path d="M14 6v12" strokeDasharray="2 2" />
+        </svg>
+      );
     case "dashboard":
       return (
         <svg {...common}>
