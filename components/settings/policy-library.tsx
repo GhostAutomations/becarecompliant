@@ -13,9 +13,7 @@ import { useState } from "react";
 import { REVIEW_REASONS } from "@/lib/policies/cover";
 import ActionForm from "@/components/action-form";
 import {
-  uploadPolicy,
   archivePolicy,
-  createWrittenPolicy,
   updateWrittenPolicy,
   renamePolicy,
   uploadPolicyVersion,
@@ -110,11 +108,9 @@ export default function PolicyLibrary({
   policies: CompanyPolicy[];
   config: PolicyConfig;
 }) {
-  const [adding, setAdding] = useState(false);
-  // Upload a document, or write/paste the wording. Phil, 2026-07-26: most care
-  // policies live in Word, so pasting has to be a first class way in, not a
-  // workaround.
-  const [how, setHow] = useState<"upload" | "text">("upload");
+  /* No "Add a policy" here any more (Phil, 2026-10-07: removed completely). New policies are
+     written with AI on the Policies page, and an existing one comes in through Improve a policy
+     with AI, which takes an uploaded document or pasted wording. */
   const [versioning, setVersioning] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [signingFor, setSigningFor] = useState<string | null>(null);
@@ -122,141 +118,9 @@ export default function PolicyLibrary({
 
   return (
     <div className="space-y-5">
-      {adding ? (
-        <div className="glass-card space-y-4 p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">Add a policy</h2>
-            <button
-              type="button"
-              className="btn-ghost px-3 py-1.5 text-xs"
-              onClick={() => setAdding(false)}
-            >
-              Close
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {([
-              ["upload", "Upload a document", "A PDF or Word file you already have"],
-              ["text", "Write or paste it", "Paste the wording straight from Word"],
-            ] as const).map(([value, label, hint]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setHow(value)}
-                className={`flex-1 rounded-xl border p-3 text-left transition ${
-                  how === value
-                    ? "border-amber-400/60 bg-amber-400/10"
-                    : "border-white/10 bg-white/5 hover:bg-white/10"
-                }`}
-              >
-                <span className="block text-sm font-semibold text-white">{label}</span>
-                <span className="block text-xs text-white/50">{hint}</span>
-              </button>
-            ))}
-          </div>
-
-          {how === "upload" ? (
-            <ActionForm
-              action={uploadPolicy}
-              label="Add policy"
-              savedLabel="Added"
-              onDone={() => setAdding(false)}
-            >
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="policy-title" className="form-label">Title *</label>
-                  <input id="policy-title" name="title" required maxLength={140} />
-                </div>
-                <div>
-                  <label htmlFor="policy-summary" className="form-label">
-                    What is it about? (optional)
-                  </label>
-                  <textarea id="policy-summary" name="summary" rows={2} maxLength={500} />
-                </div>
-                <div>
-                  <label htmlFor="policy-doc" className="form-label">Document *</label>
-                  {/* Styled by the canonical input[type="file"] rule in globals.css,
-                      not by classes here: one place decides what a file input looks
-                      like across the site. */}
-                  <input id="policy-doc" name="document" type="file" required accept="application/pdf,.pdf" />
-                  <p className="form-hint">
-                    PDF, up to 3MB. Your team reads it on their phone and their signature
-                    is added to a copy of it, so it has to be a PDF. Save a Word file as a
-                    PDF first, or paste the wording in instead.
-                  </p>
-                </div>
-                <div className="border-t border-white/10 pt-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
-                    How this policy is signed
-                  </p>
-                  <SigningFields
-                    idPrefix="upload"
-                    signatureMode={config.signature_mode}
-                    reassign={config.reassign_on_new_version}
-                  />
-                  <p className="form-hint">
-                    Set per policy, and remembered as the starting point for the next one you
-                    add.
-                  </p>
-                </div>
-              </div>
-            </ActionForm>
-          ) : (
-            <ActionForm
-              action={createWrittenPolicy}
-              label="Save policy"
-              savedLabel="Saved"
-              onDone={() => setAdding(false)}
-            >
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="written-title" className="form-label">Title *</label>
-                  <input id="written-title" name="title" required maxLength={140} />
-                </div>
-                <div>
-                  <label htmlFor="written-summary" className="form-label">
-                    What is it about? (optional)
-                  </label>
-                  <textarea id="written-summary" name="summary" rows={2} maxLength={500} />
-                </div>
-                <div>
-                  <label htmlFor="written-body" className="form-label">The policy *</label>
-                  <textarea id="written-body" name="body" rows={16} required />
-                  <p className="form-hint">
-                    Paste it straight from Word. Start a line with # for a heading and with a
-                    dash for a bullet, and put **stars** either side of anything that should be
-                    bold. Numbered clauses are kept as you type them. We turn it into a proper
-                    document, so your team can read it on a phone and you still have a PDF of
-                    the exact wording they signed.
-                  </p>
-                </div>
-                <div className="border-t border-white/10 pt-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
-                    How this policy is signed
-                  </p>
-                  <SigningFields
-                    idPrefix="written"
-                    signatureMode={config.signature_mode}
-                    reassign={config.reassign_on_new_version}
-                  />
-                  <p className="form-hint">
-                    Set per policy, and remembered as the starting point for the next one you
-                    add.
-                  </p>
-                </div>
-              </div>
-            </ActionForm>
-          )}
-        </div>
-      ) : (
-        <button type="button" className="btn-primary px-3 py-2 text-sm" onClick={() => setAdding(true)}>
-          Add a policy
-        </button>
-      )}
-
       {policies.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">
-          No policies yet. Add one, then send it out from Briefings.
+          No policies yet. Write one with AI, then send it out from Briefings.
         </div>
       ) : (
         <div className="glass-card divide-y divide-white/10">

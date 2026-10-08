@@ -23,7 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { giveBackAiCredits, runAi } from "@/lib/ai/anthropic";
 import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
-import { fillPlaceholders, findPlaceholders } from "@/lib/policies/placeholders";
+import { findPlaceholders } from "@/lib/policies/placeholders";
 import { coverFromForm } from "@/lib/policies/cover";
 import { docxToText } from "@/lib/policies/docx";
 import { signPolicyDocument } from "@/lib/assignments/storage";
@@ -34,14 +34,13 @@ import {
   withoutSourcesSection,
   improvePrompt,
   improveSystemPrompt,
-  joinSections,
   nationOf,
   parseImproveReview,
   sourcesSection,
   writePrompt,
   writeSystemPrompt,
-  type ImproveReview,
 } from "./ai-prompt";
+import { composeDraftWording } from "./compose";
 
 /* England and Wales are different law (Phil, 2026-10-06): a policy is only ever written for the
    nation the company's regulator says, so with no regulator there is nothing safe to write. */
@@ -282,24 +281,9 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   if (draft.status !== "draft") return { error: "That draft has already been dealt with." };
   const supabase = await createClient();
 
-  const title = String(fd.get("title") ?? "").trim() || draft.title;
-  /* The "To be completed" fields under the policy (Phil, 2026-10-06), put into the wording. */
-  const fills: Record<string, string> = {};
-  for (let i = 0; fd.has(`fill_prompt_${i}`); i++) {
-    fills[String(fd.get(`fill_prompt_${i}`))] = String(fd.get(`fill_${i}`) ?? "");
-  }
-  let wording: string;
-  if (draft.kind === "write") {
-    wording = fillPlaceholders(String(fd.get("body") ?? "").trim(), fills);
-  } else {
-    const review = draft.review as ImproveReview;
-    const chosen = review.sections.map((s, i) => {
-      const use = String(fd.get(`use_${i}`) ?? "proposed");
-      const text = use === "original" ? s.original : String(fd.get(`text_${i}`) ?? s.proposed);
-      return { heading: s.heading, text: fillPlaceholders(text, fills) };
-    });
-    wording = joinSections(title, chosen);
-  }
+  /* Built by the same function as Preview as PDF (lib/policies/compose), so what was previewed is
+     exactly what is saved. */
+  const { title, wording } = composeDraftWording(draft, fd);
   if (wording.length < 200) return { error: "The policy wording is too short to save." };
   const left = findPlaceholders(wording);
   if (left.length > 0) {

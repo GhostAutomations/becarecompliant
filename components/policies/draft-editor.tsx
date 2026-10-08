@@ -11,7 +11,7 @@
  * The sources are listed under both, and are added to the policy itself on approval.
  */
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import ActionForm from "@/components/action-form";
 import { approvePolicyDraft, discardPolicyDraft } from "@/lib/policies/ai-actions";
 import type { ImproveReview } from "@/lib/policies/ai-prompt";
@@ -36,6 +36,59 @@ function Sources({ sources }: { sources: Source[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Preview as PDF (Phil, 2026-10-07: "during the creation process, there's no preview option").
+ * Posts the approval form as it stands, unsaved edits included, and opens the PDF in a new tab.
+ * It is a plain button, never a submit, so it can never approve anything.
+ *
+ * The tab is opened the moment the button is pressed, while it is still the click, then pointed
+ * at the PDF when it arrives: a tab opened after waiting for the server is blocked as a pop up.
+ */
+function PreviewPdfButton({ draftId }: { draftId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function preview(e: MouseEvent<HTMLButtonElement>) {
+    const form = e.currentTarget.form;
+    if (!form || busy) return;
+    setError(null);
+    setBusy(true);
+    const tab = window.open("", "_blank");
+    if (tab?.document.body) {
+      tab.document.title = "Policy preview";
+      tab.document.body.style.cssText = "font-family: sans-serif; padding: 24px; color: #334155";
+      tab.document.body.textContent = "Drawing your preview…";
+    }
+    try {
+      const res = await fetch(`/api/policies/drafts/${draftId}/preview`, { method: "POST", body: new FormData(form) });
+      const type = res.headers.get("content-type") ?? "";
+      if (!res.ok || !type.includes("application/pdf")) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(j?.error ?? "The preview could not be drawn. Nothing was saved.");
+      }
+      const url = URL.createObjectURL(await res.blob());
+      if (tab && !tab.closed) tab.location.href = url;
+      else if (!window.open(url, "_blank")) setError("Your browser blocked the new tab. Allow pop ups for this site and try again.");
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch (err) {
+      tab?.close();
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 p-3">
+      <button type="button" className="btn-outline" onClick={preview} disabled={busy}>
+        {busy ? "Drawing the preview…" : "Preview as PDF"}
+      </button>
+      <p className="form-hint">Opens in a new tab exactly as it will look, cover page included. Nothing is saved until you approve.</p>
+      {error ? <p className="form-error w-full">{error}</p> : null}
     </div>
   );
 }
@@ -209,6 +262,8 @@ export default function DraftEditor({
               <p className="form-hint">Printed on the cover, in the Audit Checklist and Report.</p>
             </div>
           </div>
+
+          <PreviewPdfButton draftId={draft.id} />
         </div>
       </ActionForm>
 

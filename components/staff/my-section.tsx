@@ -18,12 +18,18 @@ import { useState, type ReactNode } from "react";
 export default function MySection({
   title,
   count,
+  detail,
   children,
   defaultOpen = false,
   variant = "section",
 }: {
   title: string;
-  count: number;
+  /** Shown as "(n)" after the title. */
+  count?: number;
+  /** Shown after the title instead of the count, in plain case: "0 of 3 in place". Added
+   *  2026-10-07 for the Policies register sections (Phil: "next to safeguarding, it should say
+   *  0 of 3 in place"). */
+  detail?: string;
   children: ReactNode;
   /** Start open. Added 2026-08-11 for My training: folded is right for history, but a section
    *  holding something that has actually LAPSED must not hide it behind a tap. Only the
@@ -52,7 +58,12 @@ export default function MySection({
               : "text-sm font-semibold uppercase tracking-wide text-white/60"
           }
         >
-          {title} ({count})
+          {title}
+          {detail ? (
+            <span className="ml-2 font-normal normal-case tracking-normal text-white/45">{detail}</span>
+          ) : count !== undefined ? (
+            ` (${count})`
+          ) : null}
         </h2>
         <span
           aria-hidden

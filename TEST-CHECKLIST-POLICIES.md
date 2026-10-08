@@ -106,3 +106,18 @@ Phil's example: Thistle's Recruitment Process and Procedure. Decisions: logo lar
   - DEFECT found and fixed: the policy heading said "Issued 07 October 2026" (the day it was opened) on a version approved on the 6th. Now the version's own approval date, written "6th October 2026" like the cover. Retest after deploy.
   - Phil, 2026-10-07: removed "Uncontrolled when printed. The current version is held in Be Care Compliant." from the cover footer. Retest after deploy.
   - Retest PASS (deploy dpl_A8MLLLyf): footer shows only "POL-CARE-002 · Moving & Handling and Falls · version 2"; policy heading reads "Issued 6th October 2026" for version 2.
+
+## Tidy up and Preview as PDF (Phil, 2026-10-07; built 2026-10-08, Phase 13)
+
+Phil, after showing Thistle (testing in Bevan): a saved policy's PDF opens fine, but there was no
+preview while creating one; and the Policies page needed folding and tightening. "Add a policy" is
+REMOVED COMPLETELY (Phil's choice; PD3's "can add a policy" no longer applies). Existing policies come
+in through Improve a policy with AI (upload or paste). Run now, not Final Testing.
+
+- PT1 Policies page (Bevan): every register section is folded and reads e.g. "SAFEGUARDING 0 of 3 in place"; opening one shows its ticks and Write with AI links, with no count line inside the card.
+- PT2 Review register is folded; opened, each row is about one line on a laptop (title, review pill, Standard policy and Owner beside it, Reviewed button). Change Standard policy and Save, change Owner and Save: each flashes Saved and sticks after a refresh. "Reviewed, no changes needed" still asks first.
+- PT3 Library is folded; opened, there is no "Add a policy" button anywhere on the page; Open on a saved policy still opens its PDF.
+- PT4 A Write with AI draft: Preview as PDF opens a new tab with the cover page, "Approved on: Not yet approved", the policy header reading "Draft preview, not yet approved" and the footer "DRAFT PREVIEW, NOT APPROVED". An edit typed but not approved shows in the preview. Nothing new appears in the Library or register, and no AI credit is spent.
+- PT5 With a To be completed answer left blank, the preview shows the marked text; Approve still refuses to save.
+- PT6 A draft saved as the next version of an existing policy: the preview shows that policy's own title and reference, the next version number, and its earlier versions in the change history.
+- PT7 On a phone: sections fold and unfold; Review register rows wrap the dropdowns under the title.

@@ -13,6 +13,7 @@ import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import {
   addMonthsClamped,
+  cleanChangeSummary,
   cleanReference,
   coverFromForm,
   coverReview,
@@ -22,6 +23,7 @@ import {
   nameWithRole,
   ordinalDate,
   referencePrefix,
+  reviewReasonFrom,
   type CoverPage,
   type DocumentColours,
   type FrozenCover,
@@ -340,4 +342,92 @@ export async function coverForSavedVersion(
     colours: frozen?.colours ?? branding!.colours,
     review: coverReview({ version: opts.version, versions, nextReview: middayOf(nextIso), laterReview }),
   };
+}
+
+/**
+ * THE COVER FOR A DRAFT NOT YET APPROVED (Preview as PDF; Phil, 2026-10-07: "during the creation
+ * process, there's no preview option"). Built from what the approval form holds right now, with
+ * the same choices the approval would store, so the preview matches the approved copy.
+ *
+ * Nothing is stored and NO REFERENCE NUMBER IS SPENT (next_policy_reference gives numbers out with
+ * no gaps, so asking it for one here would burn one): a new policy prints only a reference you
+ * typed, the next version of a policy keeps that policy's. "Approved on" says it is not approved
+ * yet, so a printed preview can never pass for the real document.
+ */
+export async function previewCoverPage(opts: {
+  companyId: string;
+  companyName: string;
+  title: string;
+  fd: FormData;
+  /** The person previewing, named as approver when nobody is chosen, as the approval would. */
+  actorId: string;
+  /** The policy this becomes the next version of, or null for a new policy. */
+  targetPolicyId: string | null;
+}): Promise<{ cover: CoverPage; version: number }> {
+  const supabase = await createClient();
+  const fd = opts.fd;
+  const target = opts.targetPolicyId;
+  const coverOnForm = fd.get("cover_present") === "1";
+  const c = coverFromForm((k) => fd.get(k));
+  const facts = target ? await loadCoverFacts(supabase, target) : null;
+  const p = facts?.p ?? null;
+
+  let version = 1;
+  if (target) {
+    const { data } = await supabase.from("company_policies").select("version").eq("id", target).maybeSingle<{ version: number | null }>();
+    version = (data?.version ?? 1) + 1;
+  }
+
+  /* The same people the approval names: the approver chosen on the form (nobody chosen means the
+     person approving), and the owner chosen, or the policy's own when it is a new version. */
+  const approverId = coverOnForm ? c.approver_id : (p?.approver_id ?? null);
+  const ownerId = String(fd.get("owner_id") ?? "").trim() || p?.owner_id || null;
+  const ids = [approverId, ownerId, opts.actorId].filter((x): x is string => Boolean(x));
+  /* People in the company, and the person previewing even when they are not (the founder managing
+     the company), who is named as approver when nobody is chosen, as buildCoverPage does. */
+  const { data: people } = await supabase
+    .from("profiles")
+    .select("id, full_name, role")
+    .in("id", ids)
+    .or(`company_id.eq.${opts.companyId},id.eq.${opts.actorId}`);
+  const who = new Map(((people as Person[] | null) ?? []).map((x) => [x.id, x]));
+  const approver = (approverId ? who.get(approverId) : undefined) ?? who.get(opts.actorId);
+  const approvedByName = approver?.full_name ?? null;
+  const approvedByRole = roleLabel(approver?.role);
+
+  const now = new Date();
+  const nextReviewIso = addMonthsClamped(londonIso(now), p?.review_months ?? 12);
+  const branding = await liveBranding(opts.companyId);
+  const versions: VersionFact[] = [
+    ...(facts ? toFacts(facts.versions).filter((v) => v.version < version) : []),
+    {
+      version,
+      at: now,
+      changeSummary: cleanChangeSummary(fd.get("change_summary"), target ? "Updated" : "First issue"),
+      reviewReason: reviewReasonFrom(fd.get("review_reason"), !target),
+      approvedByName,
+      approvedByRole,
+    },
+  ];
+  const cover: CoverPage = {
+    /* A typed reference is used on a new version too (updateWrittenPolicy). With none typed, a new
+       version keeps its own; one with no reference yet is given a number on approval, never here. */
+    reference: cleanReference(fd.get("reference")) ?? (target ? (p?.reference ?? null) : null),
+    title: opts.title,
+    companyName: opts.companyName,
+    version,
+    approvedOn: "Not yet approved",
+    approvedBy: nameWithRole(approvedByName, approvedByRole),
+    owner: ownerId ? (who.get(ownerId)?.full_name ?? null) : null,
+    nextReview: ordinalDate(middayOf(nextReviewIso)),
+    appliesTo: coverOnForm ? c.applies_to : (p?.applies_to ?? "All staff"),
+    readBy: coverOnForm ? c.read_by : (p?.read_by ?? "As set in Briefings"),
+    retention: coverOnForm ? c.retention : (p?.retention ?? "Kept for 8 years after it is replaced"),
+    classification: coverOnForm ? c.classification : (p?.classification ?? "Internal"),
+    history: history(versions, version),
+    logoDataUrl: branding.logoDataUrl,
+    colours: branding.colours,
+    review: coverReview({ version, versions, nextReview: middayOf(nextReviewIso) }),
+  };
+  return { cover, version };
 }

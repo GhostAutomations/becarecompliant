@@ -2201,6 +2201,19 @@ happens to Acme once Thistle is real.
   key, the delete now takes 0.7s. Archive a deleted demo off the Demos list, Show archived, Unarchive (0372,
   DM20 PASS). Dashboard top row adjusts to the screen, one line with slightly smaller figures (DEF-106).
 
+- **Policies tidy up and Preview as PDF (Phil, 7 Oct 2026, after showing Thistle, testing in Bevan; popup: this
+  phase).** A saved policy's PDF opened fine; there was no preview while creating one. Policies page: every register
+  section folded with "0 of 3 in place" beside the heading instead of in the card (the fallback regulator and HR
+  lists the same); Review register folded, rows about one line tall with Standard policy and Owner beside the
+  title; Library folded. "Add a policy" (upload a document, or write or paste) REMOVED COMPLETELY by Phil's choice;
+  existing policies come in through Improve a policy with AI. Preview as PDF on the draft screen: posts the approval
+  form to /api/policies/drafts/[id]/preview; the wording comes from lib/policies/compose.ts, which Approve now uses
+  too, so the two cannot drift; the cover from previewCoverPage (no reference number spent, "Approved on: Not yet
+  approved"); every page marked as a draft preview; nothing stored, no credit spent. No migration. BUILT 8 Oct:
+  tsc clean, 1612 tests pass, diff reviewed (three cover fixes: a new version keeps its policy's title, a typed
+  reference shows, the founder managing a company is named as approver). Tests PT1 to PT7 in
+  TEST-CHECKLIST-POLICIES.md, to run now.
+
 # OPERATION NEW DAWN — Phase 14 onwards
 
 ## Phase 14 — Scheduling, care recording and the staff app  ⬜ NOT STARTED

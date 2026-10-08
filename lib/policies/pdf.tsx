@@ -269,6 +269,8 @@ export async function renderPolicyPdf(opts: {
   savedAt: Date;
   /** The cover page, for every policy written in Be Care Compliant (0404). */
   cover?: CoverPage | null;
+  /** Preview as PDF, before approval (Phil, 2026-10-07): every page says so, never "Issued". */
+  preview?: boolean;
 }): Promise<Buffer> {
   // Written the same way as the cover ("6th October 2026"), so one document reads one way.
   const when = ordinalDate(opts.savedAt);
@@ -281,7 +283,7 @@ export async function renderPolicyPdf(opts: {
           <Text style={styles.title}>{opts.title}</Text>
           <Text style={styles.meta}>
             {opts.cover?.reference ? `${opts.cover.reference} · ` : ""}
-            {opts.companyName} · Version {opts.version} · Issued {when}
+            {opts.companyName} · Version {opts.version} · {opts.preview ? "Draft preview, not yet approved" : `Issued ${when}`}
           </Text>
         </View>
 
@@ -317,6 +319,7 @@ export async function renderPolicyPdf(opts: {
           <Text style={styles.footerText}>
             {opts.cover?.reference ? `${opts.cover.reference} · ` : ""}
             {opts.title} · version {opts.version}
+            {opts.preview ? " · DRAFT PREVIEW, NOT APPROVED" : ""}
           </Text>
           <Text
             style={styles.footerText}

@@ -6,6 +6,7 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/action-form";
 import PolicyLibrary from "@/components/settings/policy-library";
+import MySection from "@/components/staff/my-section";
 import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
 import { listOpenDrafts, topicsForCompany } from "@/lib/policies/data";
 import { checklistFor, policyReviewRag } from "@/lib/policies/review";
@@ -159,45 +160,48 @@ export default async function PoliciesPage() {
             {policyRegister.filter((l) => haveTopic.has(l.topic_key)).length} of {policyRegister.length} policies on your register
             are in place.
           </p>
-          {registerSections.map(({ section, lines }) => (
-            <section key={section} className="space-y-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section}</h2>
-              <div className="glass-card p-5">
-                <p className="mb-3 text-sm text-white/70">
-                  {lines.filter((l) => haveTopic.has(l.topic_key)).length} of {lines.length} in place.
-                </p>
-                <TopicChecklist
-                  topics={lines.map((l) => ({ key: l.topic_key, title: l.title }))}
-                  have={haveTopic}
-                  writer={writer}
-                  tag={(key) => (/reg 12\(1\)/i.test(lines.find((l) => l.topic_key === key)?.legal_basis ?? "") ? "reg 12" : null)}
-                />
-              </div>
-            </section>
-          ))}
+          {/* Each section folded, its count beside the heading instead of inside the card (Phil,
+              2026-10-07: "next to safeguarding, it should say 0 of 3 in place"). */}
+          <div className="space-y-3">
+            {registerSections.map(({ section, lines }) => (
+              <MySection
+                key={section}
+                title={section}
+                detail={`${lines.filter((l) => haveTopic.has(l.topic_key)).length} of ${lines.length} in place`}
+              >
+                <div className="glass-card p-5">
+                  <TopicChecklist
+                    topics={lines.map((l) => ({ key: l.topic_key, title: l.title }))}
+                    have={haveTopic}
+                    writer={writer}
+                    tag={(key) => (/reg 12\(1\)/i.test(lines.find((l) => l.topic_key === key)?.legal_basis ?? "") ? "reg 12" : null)}
+                  />
+                </div>
+              </MySection>
+            ))}
+          </div>
           {writer ? (
             <p className="form-hint">
-              Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+              Already have one of these? Set &quot;Standard policy&quot; on it in the Review register and it counts.
             </p>
           ) : null}
         </>
       ) : (
         <>
-      <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-            Policies your regulator expects
-            {regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}
-          </h2>
+      <MySection
+          title={`Policies your regulator expects${regulators.length === 1 ? (regulators[0] === "ciw" ? " (Care Inspectorate Wales)" : " (CQC)") : ""}`}
+          detail={topics.length === 0 ? undefined : `${expected.length - missing.length} of ${expected.length} in place`}
+        >
           {topics.length === 0 ? (
             <div className="glass-card p-5 text-sm text-white/60">The policy library is being set up. This list appears once it is loaded.</div>
           ) : (
             <div className="glass-card p-5">
-              <p className="mb-3 text-sm text-white/70">
-                {expected.length - missing.length} of {expected.length} in place.
-                {regulators.includes("ciw")
-                  ? " Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017 names ten of them; the others are expected under their own regulations."
-                  : ""}
-              </p>
+              {regulators.includes("ciw") ? (
+                <p className="mb-3 text-sm text-white/70">
+                  Regulation 12 of the Regulated Services (Service Providers and Responsible Individuals) (Wales)
+                  Regulations 2017 names ten of them; the others are expected under their own regulations.
+                </p>
+              ) : null}
               <TopicChecklist
                 topics={expected}
                 have={haveTopic}
@@ -206,31 +210,29 @@ export default async function PoliciesPage() {
               />
               {writer ? (
                 <p className="form-hint mt-3">
-                  Already have one of these? Set &quot;Which standard policy is this?&quot; on it below and it counts.
+                  Already have one of these? Set &quot;Standard policy&quot; on it in the Review register and it counts.
                 </p>
               ) : null}
             </div>
           )}
-        </section>
+        </MySection>
   
         {hrTopics.length > 0 ? (
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">HR policies</h2>
+          <MySection title="HR policies" detail={`${hrTopics.length - hrMissing.length} of ${hrTopics.length} in place`}>
             <div className="glass-card p-5">
               <p className="mb-3 text-sm text-white/70">
-                {hrTopics.length - hrMissing.length} of {hrTopics.length} in place. Employment law is the same in
-                England and Wales, so these are written from Acas and GOV.UK guidance, including the Employment
-                Rights Act 2025 changes.
+                Employment law is the same in England and Wales, so these are written from Acas and GOV.UK
+                guidance, including the Employment Rights Act 2025 changes.
               </p>
               <TopicChecklist topics={hrTopics} have={haveTopic} writer={writer} tag={() => null} />
             </div>
-          </section>
+          </MySection>
         ) : null}
         </>
       )}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Review register</h2>
+      {/* Folded (Phil, 2026-10-07). */}
+      <MySection title="Review register" count={register.length}>
         {register.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">No policies yet.</div>
         ) : (
@@ -238,32 +240,43 @@ export default async function PoliciesPage() {
             {register.map((r) => {
               const rag = policyReviewRag(r.review_due_on, today);
               return (
-                <div key={r.id} className="space-y-2 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                /* One line on a wide screen, the dropdowns beside the title rather than under it, labels
+                   to their left (Phil, 2026-10-07: "lots of wasted space ... the height needs reducing,
+                   not narrower"). On a phone the controls wrap under the title. */
+                <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+                  <div className="flex min-w-0 flex-1 basis-64 flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-white">{r.title}</p>
                     <span className={RAG_PILL[rag]}>
                       {r.review_due_on ? `${rag === "red" ? "Review overdue" : "Review due"} ${ukDate(r.review_due_on)}` : "No review date set"}
                     </span>
                   </div>
                   {writer ? (
-                    <div className="flex flex-wrap items-end gap-3">
-                      <ActionForm action={setPolicyTopic} hidden={{ policy_id: r.id }} label="Save" inline buttonClassName="btn-ghost text-xs">
-                        <label className="form-label" htmlFor={`topic-${r.id}`}>Which standard policy is this?</label>
-                        <select id={`topic-${r.id}`} name="topic_key" defaultValue={r.topic_key ?? ""}>
-                          <option value="">Not one of the standard policies</option>
-                          {topics.map((t) => (
-                            <option key={t.key} value={t.key}>{t.title}</option>
-                          ))}
-                        </select>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ActionForm action={setPolicyTopic} hidden={{ policy_id: r.id }} label="Save" inline inlineTight buttonClassName="btn-ghost text-xs">
+                        <div className="flex items-center gap-2">
+                          <label className="whitespace-nowrap text-xs text-white/50" htmlFor={`topic-${r.id}`}>Standard policy</label>
+                          <div className="w-52">
+                            <select id={`topic-${r.id}`} name="topic_key" defaultValue={r.topic_key ?? ""}>
+                              <option value="">Not one of the standard policies</option>
+                              {topics.map((t) => (
+                                <option key={t.key} value={t.key}>{t.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </ActionForm>
-                      <ActionForm action={setPolicyOwner} hidden={{ policy_id: r.id }} label="Save" inline buttonClassName="btn-ghost text-xs">
-                        <label className="form-label" htmlFor={`owner-${r.id}`}>Owner</label>
-                        <select id={`owner-${r.id}`} name="owner_id" defaultValue={r.owner_id ?? ""}>
-                          <option value="">No owner</option>
-                          {owners.map((o) => (
-                            <option key={o.id} value={o.id}>{o.full_name || "Unnamed"}</option>
-                          ))}
-                        </select>
+                      <ActionForm action={setPolicyOwner} hidden={{ policy_id: r.id }} label="Save" inline inlineTight buttonClassName="btn-ghost text-xs">
+                        <div className="flex items-center gap-2">
+                          <label className="whitespace-nowrap text-xs text-white/50" htmlFor={`owner-${r.id}`}>Owner</label>
+                          <div className="w-44">
+                            <select id={`owner-${r.id}`} name="owner_id" defaultValue={r.owner_id ?? ""}>
+                              <option value="">No owner</option>
+                              {owners.map((o) => (
+                                <option key={o.id} value={o.id}>{o.full_name || "Unnamed"}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </ActionForm>
                       <ActionForm
                         action={markPolicyReviewed}
@@ -284,10 +297,10 @@ export default async function PoliciesPage() {
             })}
           </div>
         )}
-      </section>
+      </MySection>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Library</h2>
+      {/* Folded (Phil, 2026-10-07). */}
+      <MySection title="Library" count={active.length}>
         {writer && config ? (
           <PolicyLibrary policies={active} config={config} />
         ) : active.length === 0 ? (
@@ -305,7 +318,7 @@ export default async function PoliciesPage() {
             ))}
           </div>
         )}
-      </section>
+      </MySection>
 
       {writer && archived.length > 0 ? (
         <section className="space-y-2">
