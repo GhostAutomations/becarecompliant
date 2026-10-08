@@ -267,7 +267,7 @@ function BookMeetingForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
-      <div className="max-h-[97vh] w-full max-w-7xl overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
+      <div className="max-h-[97vh] w-full max-w-[min(95vw,2200px)] overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">Book meeting: {personName}</h2>
@@ -370,7 +370,7 @@ function BookMeetingForm({
               <>
                 <textarea
                   id="bm-letter"
-                  className="h-[620px] max-h-[62vh] min-h-72"
+                  className="h-[68vh] min-h-72"
                   value={body}
                   disabled={busy || (!edited && !body)}
                   onChange={(e) => {
@@ -386,7 +386,7 @@ function BookMeetingForm({
                 </p>
               </>
             ) : (
-              <div className="flex h-[620px] max-h-[62vh] min-h-72 items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
+              <div className="flex h-[68vh] min-h-72 items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
                 Choose who is holding the meeting, the date and the location, and the words appear here.
               </div>
             )}
@@ -406,11 +406,11 @@ function BookMeetingForm({
             {pdfUrl && ready ? (
               /* Drawn page by page with pdf.js, the same reader the outcome letter uses: a PDF in a
                  frame is blocked by the site's no framing rule, and an iPhone shows only page one. */
-              <div className="h-[620px] max-h-[62vh] min-h-72 w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+              <div className="h-[68vh] min-h-72 w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
                 <PolicyReader key={pdfUrl} url={pdfUrl} data={pdfBytes ?? undefined} onRendered={() => {}} onFailed={() => {}} />
               </div>
             ) : (
-              <div className="flex h-[620px] max-h-[62vh] min-h-72 w-full items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
+              <div className="flex h-[68vh] min-h-72 w-full items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
                 {!ready
                   ? "The letter appears here once the meeting is filled in."
                   : pdfError ?? "Preparing the letter…"}
