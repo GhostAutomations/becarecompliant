@@ -17,7 +17,7 @@ import { ukDate } from "@/lib/dates";
 import type { ActionState } from "@/lib/forms";
 import { canDiscountAbsences, discountReasonProblem } from "@/lib/absence/discount";
 
-const NOT_ALLOWED = "Only a Manager or above can discount absences.";
+const NOT_ALLOWED = "Your role cannot discount absences.";
 
 function refresh(personId: string | null) {
   revalidatePath("/people/absence");

@@ -12,13 +12,16 @@
  * before anyone presses a button.
  */
 
-/** Managers and above (Phil, 2026-09-24). The founder in manage as mode acts as one. */
+/** Managers and above (Phil, 2026-09-24). The founder in manage as mode acts as one. Since
+ *  2026-10-08 Supervisors hold absence meetings (Phil, for Thistle), and discounting is part of
+ *  the meeting, so they discount too, for their own branch (can_discount_absence, 0431). */
 export const DISCOUNT_ROLES = [
   "company_admin",
   "registered_individual",
   "registered_manager",
   "manager",
   "platform_admin",
+  "supervisor",
 ] as const;
 
 export function canDiscountAbsences(role: string | null | undefined): boolean {

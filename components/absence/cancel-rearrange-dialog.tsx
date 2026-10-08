@@ -15,6 +15,7 @@
 
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import { ROLE_LABELS } from "@/lib/nav";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import {
@@ -218,10 +219,10 @@ function CancelRearrangeForm({
               required
               disabled={busy}
             >
-              <option value="" disabled>Choose a Manager or Admin</option>
+              <option value="" disabled>Choose who is holding it</option>
               {conductors.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {(c.full_name || c.email) + (c.role === "company_admin" ? " (Admin)" : " (Manager)")}
+                  {(c.full_name || c.email) + (ROLE_LABELS[c.role] ? ` (${ROLE_LABELS[c.role]})` : "")}
                 </option>
               ))}
             </select>

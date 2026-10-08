@@ -9,11 +9,11 @@ import {
   windowStartIso,
 } from "./discount.ts";
 
-test("only Managers and above can discount", () => {
-  for (const r of ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"]) {
+test("Managers and above, and Supervisors (2026-10-08), can discount", () => {
+  for (const r of ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin", "supervisor"]) {
     assert.equal(canDiscountAbsences(r), true, r);
   }
-  for (const r of ["supervisor", "team_member", "staff", "on_call", "recruiter", "", null, undefined]) {
+  for (const r of ["team_member", "staff", "senior", "on_call", "recruiter", "", null, undefined]) {
     assert.equal(canDiscountAbsences(r as string), false, String(r));
   }
 });

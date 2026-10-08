@@ -23,8 +23,8 @@ import {
 } from "@/lib/branches/office-address";
 import { profilesById } from "@/lib/auth/company-profiles";
 
-/** Who may hold a formal absence meeting. Mirrors listMeetingConductors in lib/absence/data.ts. */
-const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager"];
+import { mayHoldMeeting } from "@/lib/absence/conductor-roles";
+import { disabledModules } from "@/lib/auth/module-access";
 import { writeAudit } from "@/lib/audit";
 import { renderCalendarInvite, sendCalendarInvite } from "@/lib/notifications/invites";
 import type { LetterPreview, LetterPreviewState } from "@/lib/absence/letter-preview";
@@ -264,7 +264,7 @@ export async function recordAbsenceMeeting(
   const discountReason = String(formData.get("discount_reason") ?? "").trim();
   let toDiscount: Array<{ id: string; start_date: string }> = [];
   if (discountIds.length > 0) {
-    if (!canDiscountAbsences(profile.role)) return { error: "Only a Manager or above can discount absences." };
+    if (!canDiscountAbsences(profile.role)) return { error: "Your role cannot discount absences." };
     const problem = discountReasonProblem(discountReason);
     if (problem) return { error: `Discounted absences: ${problem}` };
     const { data: evs } = await supabase
@@ -753,8 +753,8 @@ async function resolveConductor(
     cid: companyId,
     pid: conductedBy,
   });
-  if (!conductor || !CONDUCTOR_ROLES.includes(conductor.role) || conductorActive !== true) {
-    return { error: "The meeting must be held by a Manager or Admin in your company." };
+  if (!conductor || !mayHoldMeeting(conductor.role, await disabledModules(companyId)) || conductorActive !== true) {
+    return { error: "The meeting must be held by someone in your company whose role can use Absence." };
   }
   return {
     id: conductor.id as string,

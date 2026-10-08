@@ -311,13 +311,16 @@ export default function AbsenceView({
     );
     // Who hears an appeal (Phil, 2026-10-07): a drop down of the same people, leaving out whoever is
     // holding this meeting when anyone else can. The days to appeal default to seven.
-    const appealNames = conductors
+    // Managers and above only: Supervisors hold meetings since 2026-10-08, but an appeal goes to
+    // someone more senior than a Supervisor.
+    const appealPool = conductors.filter((c) => c.role !== "supervisor");
+    const appealNames = appealPool
       .map((c) => c.full_name)
       .filter((n) => n !== earliest?.conductor_name);
     const withAppeal = fieldToNameSelect(
       managerSchema,
       "appeal_heard_by",
-      appealNames.length > 0 ? appealNames : conductors.map((c) => c.full_name),
+      appealNames.length > 0 ? appealNames : appealPool.map((c) => c.full_name),
     );
     if (withAppeal.sections.some((sec) => sec.fields.some((f) => f.key === "appeal_days"))) {
       presets.appeal_days = DEFAULT_APPEAL_DAYS;

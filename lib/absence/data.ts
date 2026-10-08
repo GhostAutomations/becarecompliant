@@ -7,6 +7,8 @@ import "server-only";
  * Supervisor their caseload, a Team Member their own record.
  */
 
+import { MEETING_CONDUCTOR_ROLES, mayHoldMeeting } from "@/lib/absence/conductor-roles";
+import { disabledModules } from "@/lib/auth/module-access";
 import { createClient } from "@/lib/supabase/server";
 import { type BranchAddressRow, meetingPlaces } from "@/lib/branches/office-address";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
@@ -142,7 +144,7 @@ export async function listMeetingOffices(companyId: string): Promise<MeetingOffi
 
 /**
  * Active Managers, Registered roles and Company Admins: the people who can hold a formal absence
- * meeting (Phil, 2026-07-12).
+ * meeting (Phil, 2026-07-12). Supervisors too since 2026-10-08, while Absence is ticked for them.
  *
  * Through the definer path. Read directly, this gave a Manager one option, herself, and a
  * Supervisor or On Call user an EMPTY required dropdown, so the Stage meeting they were being
@@ -150,11 +152,11 @@ export async function listMeetingOffices(companyId: string): Promise<MeetingOffi
  * manage company wide and were being left out of a list they belong in.
  */
 export async function listMeetingConductors(companyId: string): Promise<ConductorLite[]> {
-  const staff = await listStaff({
-    companyId,
-    roles: ["company_admin", "registered_individual", "registered_manager", "manager"],
-  });
-  return staff.map((p) => ({ id: p.id, full_name: p.name, email: p.email, role: p.role })) as ConductorLite[];
+  const [staff, disabled] = await Promise.all([
+    listStaff({ companyId, roles: [...MEETING_CONDUCTOR_ROLES] }),
+    disabledModules(companyId),
+  ]);
+  return staff.filter((p) => mayHoldMeeting(p.role, disabled)).map((p) => ({ id: p.id, full_name: p.name, email: p.email, role: p.role })) as ConductorLite[];
 }
 
 /** Active people (RLS-scoped) for the "record an absence" person picker. */
