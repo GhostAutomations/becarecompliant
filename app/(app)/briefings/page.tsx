@@ -168,8 +168,8 @@ export default async function BriefingsPage() {
         {outstanding.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">Nothing outstanding.</div>
         ) : (
-          // One briefing per row, full width, so its names have room for four columns.
-          <div className="grid gap-3">
+          // Two briefing tiles across on a wide screen, one on a phone (Phil, 2026-10-08).
+          <div className="grid gap-3 lg:grid-cols-2">
             {outstanding.map((g) => {
               const anyOverdue = g.people.some((p) => p.overdue);
               const due =
@@ -208,7 +208,7 @@ export default async function BriefingsPage() {
                   </div>
                   {/* Plain names in columns, four across (two on a phone), not pills (Phil,
                       2026-10-08). Red is overdue; "opened" means they have looked but not done it. */}
-                  <ul className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
                     {g.people.map((p) => (
                       <li
                         key={p.id}
