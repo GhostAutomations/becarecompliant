@@ -9,7 +9,7 @@ import "server-only";
  */
 
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import type { InvitationLetter } from "@/lib/absence/invitation-letter";
+import { bodyBlocks, type InvitationLetter } from "@/lib/absence/invitation-letter";
 
 // Never break a word in half (see lib/evidence/pdf.tsx).
 Font.registerHyphenationCallback((word) => [word]);
@@ -82,34 +82,33 @@ export async function renderInvitationLetterPdf(opts: {
         <Text style={styles.para}>{l.salutation}</Text>
         <Text style={styles.re}>{l.reLine}</Text>
 
-        {l.opening.map((p, i) => (
-          <Text key={`o${i}`} style={styles.para}>{p}</Text>
-        ))}
-
-        <View style={styles.detailsBox}>
-          {l.details.map((d) => (
-            <View key={d.label} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{d.label}</Text>
-              <Text style={styles.detailValue}>{d.value}</Text>
+        {/* The letter between the RE line and Yours sincerely, drawn from its text (the Book meeting
+            box), so what was read and edited there is exactly what prints (Phil, 2026-10-08). */}
+        {bodyBlocks(l.body).map((b, i) =>
+          b.kind === "text" ? (
+            <Text key={i} style={styles.para}>{b.text}</Text>
+          ) : b.kind === "details" ? (
+            <View key={i} style={styles.detailsBox}>
+              {b.rows.map((d, j) => (
+                <View key={j} style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{d.label}</Text>
+                  <Text style={styles.detailValue}>{d.value}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-
-        <Text style={styles.para}>{l.absenceIntro}</Text>
-        {l.absenceLines.length > 0 ? (
-          <View style={{ marginBottom: 8 }}>
-            {l.absenceLines.map((line, i) => (
-              <View key={i} style={styles.bulletRow} wrap={false}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.bulletText}>{line}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {l.closing.map((p, i) => (
-          <Text key={`c${i}`} style={styles.para}>{p}</Text>
-        ))}
+          ) : b.kind === "bullets" ? (
+            <View key={i} style={{ marginBottom: 8 }}>
+              {b.lines.map((line, j) => (
+                <View key={j} style={styles.bulletRow} wrap={false}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.bulletText}>{line}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View key={i} style={{ height: 10 }} />
+          ),
+        )}
 
         <View style={styles.signOff} wrap={false}>
           <Text>{l.signOff.closing}</Text>

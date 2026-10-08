@@ -354,7 +354,7 @@ function BookMeetingForm({
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div className="flex flex-col">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <label htmlFor="bm-letter" className="form-label mb-0">The words</label>
+              <label htmlFor="bm-letter" className="form-label mb-0">The letter</label>
               {edited ? (
                 <button
                   type="button"
@@ -362,7 +362,7 @@ function BookMeetingForm({
                   disabled={busy}
                   onClick={() => setEdited(false)}
                 >
-                  Back to the standard wording
+                  Back to the standard letter
                 </button>
               ) : null}
             </div>
@@ -379,15 +379,16 @@ function BookMeetingForm({
                   }}
                 />
                 <p className={hint}>
-                  The company&apos;s wording from Settings, Letters, for this letter only. Leave a blank line
-                  between paragraphs. The meeting details and the absences go in after the first paragraph,
-                  from the boxes above.
-                  {edited ? " Once you change the words, check them again if you change the details." : null}
+                  The whole letter between the RE line and Yours sincerely, exactly as the PDF prints it, for
+                  this letter only. Leave a blank line between paragraphs and press Enter again for more space.
+                  Lines starting with • print as a list, and lines like &quot;Date: ...&quot; together print as the
+                  meeting details.
+                  {edited ? " Once you change the letter, check it again if you change the details above." : null}
                 </p>
               </>
             ) : (
               <div className="flex h-[68vh] min-h-72 items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
-                Choose who is holding the meeting, the date and the location, and the words appear here.
+                Choose who is holding the meeting, the date and the location, and the letter appears here.
               </div>
             )}
           </div>

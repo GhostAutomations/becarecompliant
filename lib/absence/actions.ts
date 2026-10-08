@@ -808,29 +808,25 @@ export async function previewBookingLetterPdf(
   const plan = await planBooking(formData);
   if ("error" in plan) return { error: plan.error };
   try {
-    const { invitation, logoDataUrl, standardWording } = await buildMeetingLetters({
+    const { invitation, logoDataUrl, standardBody } = await buildMeetingLetters({
       ...letterArgsFrom(plan),
       meetingId: "preview",
       responseToken: "preview",
       rearranged: false,
-      wordingOverride: wordingFromForm(formData),
+      bodyOverride: bodyFromForm(formData),
     });
     const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
-    return { pdf: pdf.toString("base64"), to: plan.employee.email, standard: standardWording.join("\n\n") };
+    return { pdf: pdf.toString("base64"), to: plan.employee.email, standard: standardBody };
   } catch (e) {
     return { error: `The letter could not be drawn: ${(e as Error).message}` };
   }
 }
 
-/** The letter's words as edited in Book meeting: paragraphs split on blank lines, capped. Nothing
- *  (so the company's own wording) when the box was left as it was or emptied. */
-function wordingFromForm(formData: FormData): string[] | undefined {
-  const raw = String(formData.get("letter_body") ?? "").replace(/\r\n/g, "\n").slice(0, 12_000);
-  const paragraphs = raw
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  return paragraphs.length ? paragraphs : undefined;
+/** The whole letter as edited in Book meeting, or nothing (so the standard letter) when the box
+ *  was left as it was. Tidied and capped in buildInvitationLetter. */
+function bodyFromForm(formData: FormData): string | undefined {
+  const raw = String(formData.get("letter_body") ?? "");
+  return raw.trim() ? raw : undefined;
 }
 
 function letterArgsFrom(plan: {
@@ -913,7 +909,7 @@ export async function bookAbsenceMeeting(
       meetingId: meeting.id as string,
       responseToken: meeting.response_token as string,
       rearranged: false,
-      wordingOverride: wordingFromForm(formData),
+      bodyOverride: bodyFromForm(formData),
     },
     { id: user.id, name: profile.full_name || profile.email },
     { printEmployee },

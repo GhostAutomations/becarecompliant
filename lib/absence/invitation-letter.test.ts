@@ -110,3 +110,61 @@ test("appeal days default to seven", () => {
   assert.equal(appealDays("abc"), "7");
   assert.equal(appealDays(undefined), "7");
 });
+
+/* The Book meeting box holds the whole letter, and the PDF is drawn from it (Phil, 2026-10-08). */
+import { bodyBlocks, cleanLetterBody } from "./invitation-letter.ts";
+
+const BASE = {
+  companyName: "Bevan Care Ltd",
+  letterheadAddress: "Unit 1, Test Park",
+  letterheadPhone: "01792 111111",
+  letterDateIso: "2026-10-08",
+  recipientName: "Jo Bloggs",
+  recipientAddress: "1 Street, Town",
+  stage: 1,
+  stageLabel: "Stage 1 disciplinary hearing",
+  meetingTitle: "Disciplinary Hearing",
+  meetingDateIso: "2026-10-16",
+  meetingTime: "10:00",
+  durationMinutes: 60,
+  location: "Unit 1, Test Park",
+  teams: false,
+  conductorName: "Bev Admin",
+  conductorRole: "Admin",
+  wordingParagraphs: ["This is your formal invitation.", "You have the right to be accompanied."],
+  rearrangedNote: null,
+  absences: [
+    { start_date: "2026-07-14", end_date: "2026-07-14", days: 1, reason: "Cold" },
+    { start_date: "2026-08-19", end_date: "2026-08-19", days: 1, reason: "Headache" },
+  ],
+  windowWords: "6 months",
+};
+
+test("the standard letter text draws the same letter: paragraphs, details table, absences list", () => {
+  const l = buildInvitationLetter(BASE);
+  assert.equal(l.body, l.standardBody);
+  const blocks = bodyBlocks(l.body);
+  assert.deepEqual(blocks.map((b) => b.kind), ["text", "details", "text", "bullets", "text"]);
+  const details = blocks[1];
+  assert.ok(details.kind === "details" && details.rows[0].label === "Date" && details.rows[4].label === "Held by");
+  const bullets = blocks[3];
+  assert.ok(bullets.kind === "bullets" && bullets.lines.length === 2);
+  assert.ok(l.plainText.includes(l.body));
+});
+
+test("an edited letter prints exactly what was typed, extra blank lines as space", () => {
+  const typed = "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n• one\n• two";
+  const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
+  assert.equal(l.body, typed);
+  const blocks = bodyBlocks(l.body);
+  assert.deepEqual(blocks.map((b) => b.kind), ["text", "space", "text", "bullets"]);
+  const second = blocks[2];
+  assert.ok(second.kind === "text" && second.text === "After extra space.\nSame paragraph, new line.");
+});
+
+test("an edited letter loses its own Dear line and sign off, and an empty one falls back", () => {
+  assert.equal(cleanLetterBody("Dear Jo,\n\nHello.\n\nYours sincerely\nBev", "Jo Bloggs"), "Hello.");
+  assert.equal(cleanLetterBody("   \n  ", "Jo Bloggs"), "");
+  const l = buildInvitationLetter({ ...BASE, bodyOverride: "  " });
+  assert.equal(l.body, l.standardBody);
+});

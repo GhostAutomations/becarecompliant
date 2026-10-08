@@ -42,10 +42,9 @@ export type MeetingLetterArgs = {
   letterDateIso?: string;
   /** Count the absences as of this day, for a copy made afterwards. Today when not given. */
   absencesAsOfIso?: string;
-  /** The letter's words as edited for this one booking (Phil, 2026-10-08), paragraphs in order.
-   *  The first goes before the meeting details, the rest after the absences. When not given, the
-   *  company's wording from Settings, Letters is used. */
-  wordingOverride?: string[];
+  /** The whole letter between the RE line and Yours sincerely as edited for this one booking (Phil,
+   *  2026-10-08: "match in full"). When not given, the standard letter is used. */
+  bodyOverride?: string;
 };
 
 export type MeetingLetter = {
@@ -63,8 +62,8 @@ export type MeetingLetterSet = {
   /** The employee's letter, the PDF attached to both emails and kept in Evidence history. */
   invitation: InvitationLetter;
   logoDataUrl: string | null;
-  /** The company's own wording for this letter, merged, before any edit: what Reset goes back to. */
-  standardWording: string[];
+  /** The standard letter between the RE line and Yours sincerely: what the box goes back to. */
+  standardBody: string;
 };
 
 /** The formal letter pair for a booked or rearranged meeting.
@@ -146,10 +145,11 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     teams: args.locationKind === "teams",
     conductorName: args.conductor.name,
     conductorRole: extras.conductorRole,
-    wordingParagraphs: args.wordingOverride?.length ? args.wordingOverride : paragraphsOf(employeeLetter.body),
+    wordingParagraphs: paragraphsOf(employeeLetter.body),
     rearrangedNote: args.rearranged ? paragraphsOf(rearrangedLetter.body).join(" ") || null : null,
     absences: extras.absences,
     windowWords: extras.windowWords,
+    bodyOverride: args.bodyOverride ?? null,
   });
 
   const teamsNote =
@@ -207,7 +207,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
         ${teamsNote}`,
     },
   ];
-  return { letters, invitation, logoDataUrl: extras.logoDataUrl, standardWording: paragraphsOf(employeeLetter.body) };
+  return { letters, invitation, logoDataUrl: extras.logoDataUrl, standardBody: invitation.standardBody };
 }
 
 /** The attached letter as simple HTML, for the approval preview only. */

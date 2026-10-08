@@ -51,6 +51,9 @@ export type InvitationLetterInput = {
   absences: InvitationAbsence[];
   /** "6 months": the rolling window in words. */
   windowWords: string;
+  /** The whole letter between the RE line and Yours sincerely, as edited in Book meeting (Phil,
+   *  2026-10-08: "match in full"). When given, the letter prints exactly this. */
+  bodyOverride?: string | null;
 };
 
 export type InvitationLetter = {
@@ -68,6 +71,11 @@ export type InvitationLetter = {
   absenceLines: string[];
   /** The rest of the wording. */
   closing: string[];
+  /** The letter between the RE line and Yours sincerely as text: what the PDF prints, and what the
+   *  Book meeting box shows. The edited text when there is one, else standardBody. */
+  body: string;
+  /** The same, built from the company's wording and the meeting: what "standard wording" means. */
+  standardBody: string;
   signOff: { closing: string; name: string; role: string | null };
   /** The whole letter as plain text, for the record. */
   plainText: string;
@@ -164,16 +172,16 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
   const date = letterDate(i.letterDateIso);
   const salutation = `Dear ${firstName}`;
 
+  const standardBody = invitationBodyText({ opening, details, absenceIntro, absenceLines, closing: rest });
+  const body = cleanLetterBody(i.bodyOverride, i.recipientName) || standardBody;
+
   const plainText = [
     [i.companyName, ...letterheadLines, ...phoneLines].join("\n"),
     date,
     recipientLines.join("\n"),
     salutation,
     reLine,
-    ...opening,
-    details.map((d) => `${d.label}: ${d.value}`).join("\n"),
-    [absenceIntro, ...absenceLines.map((l) => `  ${l}`)].join("\n"),
-    ...rest,
+    body,
     [signOff.closing, signOff.name, signOff.role ?? ""].filter(Boolean).join("\n"),
   ].join("\n\n");
 
@@ -190,9 +198,127 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
     absenceIntro,
     absenceLines,
     closing: rest,
+    body,
+    standardBody,
     signOff,
     plainText,
   };
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * THE LETTER AS ONE BOX OF TEXT (Phil, 2026-10-08): the Book meeting box holds the whole letter
+ * between the RE line and Yours sincerely, and the PDF is drawn from that text, so the two always
+ * match. A blank line starts a new paragraph and each extra blank line adds space. Lines starting
+ * with a bullet print as a list, and a paragraph made only of "Label: value" lines (Date, Time,
+ * Where...) prints as the meeting details table.
+ * ------------------------------------------------------------------------------------------- */
+
+export const BULLET = "\u2022";
+
+/** The standard letter between the RE line and Yours sincerely, as text. */
+export function invitationBodyText(p: {
+  opening: string[];
+  details: Array<{ label: string; value: string }>;
+  absenceIntro: string;
+  absenceLines: string[];
+  closing: string[];
+}): string {
+  return [
+    ...p.opening,
+    p.details.map((d) => `${d.label}: ${d.value}`).join("\n"),
+    [p.absenceIntro, ...p.absenceLines.map((l) => `${BULLET} ${l}`)].join("\n"),
+    ...p.closing,
+  ]
+    .filter((x) => x.trim())
+    .join("\n\n");
+}
+
+/** An edited letter, tidied: no Dear line or sign off of its own (the letter prints both), capped.
+ *  Empty when nothing usable was typed, so the standard letter is used. */
+export function cleanLetterBody(raw: string | null | undefined, recipientName: string): string {
+  if (!raw) return "";
+  const lines = String(raw).replace(/\r\n?/g, "\n").slice(0, 12_000).split("\n");
+  const name = recipientName.trim().toLowerCase();
+  const first = name.split(/\s+/)[0] ?? "";
+  while (lines.length && !lines[0].trim()) lines.shift();
+  if (lines.length) {
+    const greet = lines[0].trim().toLowerCase();
+    const who = greet.replace(/^dear\s+/, "").replace(/[,.:]$/, "").trim();
+    if (greet.startsWith("dear ") && (who === name || who === first)) lines.shift();
+  }
+  const end = lines.findIndex((l) => SIGN_OFF.test(l.trim()));
+  const kept = end >= 0 ? lines.slice(0, end) : lines;
+  while (kept.length && !kept[0].trim()) kept.shift();
+  while (kept.length && !kept[kept.length - 1].trim()) kept.pop();
+  return kept.map((l) => l.replace(/\s+$/, "")).join("\n");
+}
+
+export type BodyBlock =
+  | { kind: "text"; text: string }
+  | { kind: "details"; rows: Array<{ label: string; value: string }> }
+  | { kind: "bullets"; lines: string[] }
+  | { kind: "space" };
+
+const BULLET_LINE = /^\s*[\u2022*]\s+(.*)$/;
+const DETAIL_LINE = /^([A-Za-z][A-Za-z ]{0,13}):\s+(\S.*)$/;
+
+/** The letter text as blocks for the PDF, in order. */
+export function bodyBlocks(text: string): BodyBlock[] {
+  const blocks: BodyBlock[] = [];
+  let para: string[] = [];
+  let broke = false;
+  const flush = () => {
+    if (!para.length) return;
+    const details = para.length >= 2 && para.every((l) => DETAIL_LINE.test(l.trim()));
+    if (details) {
+      blocks.push({
+        kind: "details",
+        rows: para.map((l) => {
+          const m = l.trim().match(DETAIL_LINE)!;
+          return { label: m[1], value: m[2] };
+        }),
+      });
+    } else {
+      let run: string[] = [];
+      let bullets: string[] = [];
+      const endRun = () => {
+        if (run.length) blocks.push({ kind: "text", text: run.join("\n") });
+        run = [];
+      };
+      const endBullets = () => {
+        if (bullets.length) blocks.push({ kind: "bullets", lines: bullets });
+        bullets = [];
+      };
+      for (const line of para) {
+        const m = line.match(BULLET_LINE);
+        if (m) {
+          endRun();
+          bullets.push(m[1]);
+        } else {
+          endBullets();
+          run.push(line);
+        }
+      }
+      endRun();
+      endBullets();
+    }
+    para = [];
+  };
+  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+    if (!line.trim()) {
+      if (para.length) {
+        flush();
+        broke = true;
+      } else if (broke) {
+        blocks.push({ kind: "space" });
+      }
+    } else {
+      para.push(line.replace(/\s+$/, ""));
+    }
+  }
+  flush();
+  while (blocks.length && blocks[blocks.length - 1].kind === "space") blocks.pop();
+  return blocks;
 }
 
 /* ---------------------------------------------------------------------------------------------
