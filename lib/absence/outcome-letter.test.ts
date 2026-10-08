@@ -184,3 +184,8 @@ test("the stage line only mentions discounts when some were made", () => {
   const some = stageFacts({ stage: 2, thresholds, windowWords: "6 months", stageAfter: 1, discountedAtMeeting: 1 });
   assert.ok(some.some((x) => x.includes("discounted at this meeting")));
 });
+
+test("cleanOutcomeBody takes out a paragraph that is only an opening", () => {
+  const out = cleanOutcomeBody("Your absence on 3rd August 2026 (cold):\n\nYour absence on 10th September 2026 (cold): you explained it.\n\nThe outcome was no further action.");
+  assert.equal(out, "Your absence on 10th September 2026 (cold): you explained it.\n\nThe outcome was no further action.");
+});

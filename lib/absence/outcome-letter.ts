@@ -27,6 +27,9 @@ export const OUTCOME_SYSTEM = [
   "what the employee explained about it and anything they confirmed, such as a problem now being",
   "resolved, using their answers to the questions asked. Anything discussed that is not about one",
   "absence, such as a pattern in the dates, goes in its own short paragraph after them.",
+  "Every paragraph must say something after its opening: when the record has nothing about an",
+  "absence, write one sentence saying it was discussed at the meeting, and for one discounted at",
+  "this meeting say it was discounted. Never leave a line that ends with a colon.",
   "Write ONLY about the absences the record lists as covered by this meeting. If the questions,",
   "answers or notes mention other absences (an earlier stage dealt with those), leave them out",
   "entirely, even if the employee was asked about them.",
@@ -142,6 +145,12 @@ export function cleanOutcomeBody(raw: string): string {
     .replace(/[—–]/g, ", ")
     .replace(/\r\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n");
+  /* A paragraph that is only an opening ("Your absence on 3rd August 2026 (cold):" and nothing
+     after it) says nothing to the employee (the absence recheck, 2026-10-08): it is taken out. */
+  t = t
+    .split(/\n{2,}/)
+    .filter((p) => !/:\s*$/.test(p.trim()) || p.trim().split("\n").length > 1)
+    .join("\n\n");
   return t.trim().slice(0, OUTCOME_BODY_LIMIT);
 }
 
