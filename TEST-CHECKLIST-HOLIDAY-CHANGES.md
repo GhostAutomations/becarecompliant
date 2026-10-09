@@ -41,3 +41,18 @@ Test on Bevan (writes), never on Thistle. Carer login for the portal tests: the 
 18. A Branch Manager cannot decide or change a holiday in a branch they do not manage.
 
 ## Results
+- 9 Oct, database (commit 504e5983, migration 0438 applied by Phil): probed as the test carer and the
+  Bevan Admin inside transactions rolled back afterwards. PASS 16: a carer is refused on someone
+  else's holiday, on their own once started, without a reason, on the office functions, and approving
+  their own. PASS the whole cycle: change of an approved holiday goes to pending with the agreed dates
+  kept; decline needs a reason and puts the agreed dates and approver back; ask to cancel, take it
+  back, ask again, approve: cancelled with the carer's reason; an ordinary approve writes no history;
+  notices only for the office's decisions; Got it clears one; a carer sees no other person's history.
+- PASS 1 (live, Chrome, Bevan Admin): Edit dates refused to save with no reason ("Please fill in this
+  field"); with a reason the dates moved and the history row holds the reason (Rhodri Evans, test).
+- PASS 3 (live): Cancel with a reason cancelled it and recorded the reason.
+- NOT RUN, by Phil's decision on 9 Oct ("let Thistle run with it"): 2, 4 to 15, the portal screens and
+  the office's decisions on a carer's change. Thistle uses it live and flags any problem. The rules
+  underneath them are proven by the database probes above; the screens themselves are not.
+- Not testable on Bevan today: 18 (no active Branch Manager login); the rule is the same function as
+  approving, which was probed in August.
