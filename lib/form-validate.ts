@@ -30,6 +30,7 @@ import {
 } from "./form-schema";
 import { implausibleYearMessage } from "./date-plausible";
 import { completesCheck, standDownKeys } from "./forms/stand-down";
+import { type LookupChoice, lookupError, scopeChoices } from "./forms/lookup";
 
 export type FieldError = { key: string; message: string };
 export type ValidationResult = { ok: boolean; errors: FieldError[] };
@@ -286,7 +287,37 @@ function validateField(field: FormField, value: AnswerValue | undefined, answers
  * Validate answers against a schema. Authoritative: the server calls this before
  * writing evidence. Only visible, non-presentational fields are checked.
  */
-export function validateAnswers(schema: FormSchema, answers: Answers): ValidationResult {
+export type ValidateOptions = {
+  /**
+   * The records each record_lookup field may pick from, keyed by source ("service_user",
+   * "person"). When given, a lookup answer must be the name of one of them (Phil, 2026-10-09:
+   * the load test saved fourteen Spot Checks with the service user "a"). The browser passes
+   * the list it offered; the server passes the list the caller is allowed to see, so a name
+   * typed past the warning, or posted by hand, is refused rather than stored for ever.
+   * Left out, the old shape check applies (a non empty name).
+   */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
+};
+
+/** A record_lookup answer that matches no record the person could have picked, or null. */
+function lookupAnswerError(
+  field: FormField,
+  value: AnswerValue | undefined,
+  answers: Answers,
+  choicesBySource: Partial<Record<string, LookupChoice[]>>,
+): string | null {
+  const all = choicesBySource[field.lookup ?? "service_user"] ?? [];
+  const scope = field.scopeField ? String(answers[field.scopeField] ?? "") : undefined;
+  const offered = scopeChoices(all, scope);
+  const names = Array.isArray(value) ? value : value == null || value === "" ? [] : [value];
+  for (const name of names) {
+    const problem = lookupError(offered, name, false);
+    if (problem) return problem;
+  }
+  return null;
+}
+
+export function validateAnswers(schema: FormSchema, answers: Answers, opts: ValidateOptions = {}): ValidationResult {
   const errors: FieldError[] = [];
   const down = standDown(schema, answers);
   const all = flattenFields(schema);
@@ -294,7 +325,10 @@ export function validateAnswers(schema: FormSchema, answers: Answers): Validatio
     if (isPresentational(field.type)) continue;
     if (down.has(field.key)) continue;
     if (!isFieldVisible(field, answers, all)) continue;
-    const message = validateField(field, answers[field.key], answers);
+    let message = validateField(field, answers[field.key], answers);
+    if (!message && field.type === "record_lookup" && opts.lookupChoices) {
+      message = lookupAnswerError(field, answers[field.key], answers, opts.lookupChoices);
+    }
     if (message) errors.push({ key: field.key, message });
   }
   return { ok: errors.length === 0, errors };

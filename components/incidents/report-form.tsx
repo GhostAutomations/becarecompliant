@@ -66,7 +66,7 @@ export default function IncidentReportForm({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const result = validateAnswers(schema, answers);
+    const result = validateAnswers(schema, answers, { lookupChoices });
     if (!result.ok) {
       setErrors(result.errors);
       setMissing(describeValidationErrors(schema, result.errors));

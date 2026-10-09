@@ -43,3 +43,15 @@ Anything Not tested goes into the Final Testing phase.
 31. Choosing a different place after copying: "Copy everything so far" fills the new place in full.
 32. The cron (/api/cron/cloud-copies) refuses calls without the CRON_SECRET.
 33. Bevan (test company) has its emails muted, so check the reconnect email on Thistle or in Resend logs.
+
+## Results, 9 Oct 2026 (Bevan, copying to Phil's Thistle OneDrive)
+- PASS 1, 3, 7, 8, 9, 11: tile, connect, OneDrive folders, tokens sealed, person folder on add, form PDF copied (checked by eye).
+- PASS 23, 24, 25: Copy everything so far, 623 copies, 0 failed; pressed twice, nothing new queued.
+- PASS load test: 137 forms completed through the real Complete page (12 form types) and 100 uploads
+  (60 training certificates, 16 care plans, 24 paper copies) plus 30 attachment files. Every one copied,
+  0 failed, slowest copy 3 seconds after saving.
+- PASS open test, drive connected: 100 documents opened through BCC (70 evidence PDFs rendered on
+  demand, 15 uploaded files, 15 certificates), 100 of 100 OK, all served from BCC's own storage,
+  median 1.1 s for a PDF, 0.6 to 0.8 s for a file. Nothing is read from OneDrive.
+- Not tested yet: 2, 4, 5, 6 (SharePoint site), 10, 12 to 22, 26 to 33.
+- Found and fixed: a record lookup ("start typing a name") accepted a name matching nobody.

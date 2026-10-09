@@ -30,6 +30,8 @@ import {
   isFormSchema,
 } from "@/lib/form-schema";
 import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-validate";
+import type { LookupChoice } from "@/lib/forms/lookup";
+import { choicesForSchema } from "@/lib/forms/lookup-data";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { computeScores } from "@/lib/forms/compute-scores";
 import { deleteEvidenceObjects, evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
@@ -54,6 +56,13 @@ export type SubmitEvidenceInput = {
   recordId?: string | null;
   /** Optional stable id for idempotent retries. */
   evidenceId?: string;
+  /**
+   * The records the form's record_lookup fields offered, when they came from somewhere other
+   * than the caller's own view (the Incident Report reads them with the service role, because
+   * a carer can see neither service users nor colleagues). Left out, the list is read here
+   * through the caller's session, exactly as the Complete page built it.
+   */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
 };
 
 export type SubmitEvidenceResult =
@@ -111,8 +120,13 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
      be. Forms with no computed fields are handed straight back untouched. */
   const answers = computeScores(schema, input.answers);
 
-  // 2. Authoritative validation.
-  const result = validateAnswers(schema, answers);
+  // 2. Authoritative validation. A record_lookup answer must be the name of a record this
+  //    person could have picked (Phil, 2026-10-09), not whatever was typed.
+  const hasLookup = schema.sections.some((sec) => sec.fields.some((f) => f.type === "record_lookup"));
+  const lookupChoices = hasLookup
+    ? input.lookupChoices ?? (await choicesForSchema(companyId, schema, { senior: profile?.role === "senior" }))
+    : undefined;
+  const result = validateAnswers(schema, answers, { lookupChoices: lookupChoices ?? (hasLookup ? {} : undefined) });
   if (!result.ok) {
     // NAMES the offending answers rather than saying "the highlighted fields". Every
     // caller of this function turns the failure into a single line of copy, and a page

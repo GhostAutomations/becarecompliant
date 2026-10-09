@@ -26,6 +26,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence } from "@/lib/evidence/submit";
+import { incidentReportChoices } from "@/lib/incidents/report-choices";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { runAi } from "@/lib/ai/anthropic";
 import { stripJsonFence, toAiQuestions, type ActionState } from "@/lib/forms";
@@ -173,6 +174,7 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
     branchId,
     answers,
     recordType: "incident",
+    lookupChoices: await incidentReportChoices(companyId),
     recordId: incident.id as string,
   });
   /* A CASE WITH NO ACCOUNT ON IT IS WORSE THAN NO CASE. If the Evidence will not store, the
@@ -245,6 +247,7 @@ export async function submitIncidentEvidence(_prev: ActionState, formData: FormD
     branchId: (incident.branch_id as string | null) ?? null,
     answers,
     recordType: "incident",
+    lookupChoices: await incidentReportChoices(companyId),
     recordId: incidentId,
   });
   if (!result.ok) return { error: result.error };

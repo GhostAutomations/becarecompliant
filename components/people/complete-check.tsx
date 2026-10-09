@@ -71,7 +71,7 @@ export default function CompleteCheck({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const result = validateAnswers(schema, answers);
+    const result = validateAnswers(schema, answers, { lookupChoices });
     if (!result.ok) {
       setErrors(result.errors);
       /* Say what is missing and TAKE THEM TO IT. The per-field message alone sits
