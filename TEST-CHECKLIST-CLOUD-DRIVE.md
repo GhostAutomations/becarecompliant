@@ -103,3 +103,23 @@ set is made when the record's folder is made, and files already copied flat are 
 43. Files already copied flat (Rhodri Evans in Bevan) are moved into their folders, names unchanged.
 44. A file deleted in the drive, or a name already taken in the folder, is left alone, not an error.
 45. Complaints, incidents, policies and briefings are unchanged.
+
+Run by Claude on 9 Oct 2026 after the deploy of 6056b319 was READY (no migration), on Bevan's
+drive (OneDrive), the only company connected.
+- 40 PASS. Rhodri Evans (Llanelli) now holds Holiday, Absence, Training, Documents, DBS, Right to
+  Work, Probation and one folder per check he has (Supervision, Annual Appraisal, Spot Check,
+  Medication Competency, Manual Handling, Audit, Mentoring, Lead the Leader, One to One, Health
+  Check). ZZ TEST Service User Two (Swansea) holds Care Plan, Documents, Setup Visit, Care Plan
+  Review, Audit and Platform Audit.
+- 43 PASS. The 8 tracked files moved in: Holiday 3 (the holiday requests), Training 2 (the two
+  certificates), Documents 2 on Rhodri and 1 on the service user. Names unchanged.
+- 45 PASS. The incident report's move was skipped: "Not a record's file: left where it is."
+- Found: older loose files in both folders (for example "RE Spot Check 2026-10-09 (4).pdf",
+  "2026-10-09 Audit 4EF78B75 (v1).pdf") are copies from before Bevan's drive location was changed
+  during testing. Changing the location forgets old copies by design, so BCC no longer knows those
+  files and cannot move them. Test leftovers only; Thistle starts clean.
+- 41 PASS for new copies: Rhodri's Spot Check, Supervision and Annual Appraisal forms were queued
+  again and landed in "Spot Check" (e.g. "RE Spot Check 2026-09-10.pdf") and their own folders.
+  Holiday, Training and Documents passed through the moves above.
+- 42 and 44 not run live (no such file in Bevan); the rules are unit tested and the move skips are
+  in the code.
