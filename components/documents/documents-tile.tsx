@@ -191,7 +191,13 @@ function DocumentRow({ d, canRemove }: { d: RecordDocument; canRemove: boolean }
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const removed = !!d.removedAt;
+  /* Shown the moment the removal is saved: the page takes a few seconds to redraw, and until then
+     the row must not still offer Download and Remove for a document that has gone. */
+  const [gone, setGone] = useState<{ at: string; reason: string } | null>(null);
+  const removedAt = d.removedAt ?? gone?.at ?? null;
+  const removedBy = d.removedByName ?? (gone ? "you" : null);
+  const removedReason = d.removedReason ?? gone?.reason ?? null;
+  const removed = !!removedAt;
 
   async function open() {
     setError(null);
@@ -207,6 +213,7 @@ function DocumentRow({ d, canRemove }: { d: RecordDocument; canRemove: boolean }
         setError(res.error);
         return;
       }
+      setGone({ at: new Date().toISOString(), reason: reason.trim() });
       setRemoving(false);
       setReason("");
       toast("Document removed.");
@@ -244,8 +251,8 @@ function DocumentRow({ d, canRemove }: { d: RecordDocument; canRemove: boolean }
 
       {removed ? (
         <p className="mt-1 text-sm italic text-white/45">
-          Removed by {d.removedByName ?? "an Admin"}
-          {d.removedAt ? ` on ${updateStamp(d.removedAt)}` : ""}. Reason: {d.removedReason}
+          Removed by {removedBy ?? "an Admin"}
+          {removedAt ? ` on ${updateStamp(removedAt)}` : ""}. Reason: {removedReason}
         </p>
       ) : d.note ? (
         <p className="mt-1 whitespace-pre-wrap break-words text-sm text-white/75">{d.note}</p>

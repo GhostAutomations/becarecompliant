@@ -55,3 +55,49 @@ Test on Bevan (writes), never on Thistle.
     file is gone from the bucket.
 
 ## Results
+
+Run by Claude on 9 Oct 2026, after the deploy of 18b1e8e6 was READY and migration 0439 was
+confirmed applied (3 tables, 4 functions, the private bucket at 20 MB, the select policy, the trash
+trigger). Live in Bevan as Bev Admin (Company Admin), in Chrome.
+
+- 1 PASS. Rhodri Evans: Complaints, Updates, Documents in one row, all 152px high, above Carer
+  login, Holiday, Absence. Empty state wording as written.
+- 2 PASS. ZZ TEST Service User Two: Setup Visit, Audit, Updates, Documents in one row (180px);
+  the third check moved to the next row; Documents sits over Manage record.
+- 3 PASS. ZZ TEST Paper SU (cancelled): Updates over History, Documents over Manage record.
+- 4 Not run live (no leaver opened); the tile is outside the leaver branch, as Updates.
+- 5 PASS. Upload popup: names filled in from the file names ("ZZ TEST DBS certificate", "ZZ TEST
+  email from council"), file name and size under each, Take off, "Upload 2 documents".
+- 6 PASS for a .zip (refused, naming what is allowed) and an empty Name ("Give each document a
+  short name.", nothing else lost). Over 20 MB and more than 10 files: unit tests only (the popup
+  uses the same rules).
+- 7 and 8 PASS. Two at once with a note: the count went to 2, the newest two showed with today's
+  date. Stored sizes and fingerprints match the original files exactly (sha256 checked).
+- 9 PASS for a saved email (.eml, stored as message/rfc822). A phone photo not run live.
+- 10 PASS. Clicking a document in the tile made a 5 minute link that returned the PDF (200,
+  613 bytes, application/pdf, saved under its own name); audit "Opened the document".
+- 11 PASS. View all: each document with Added date and time, by, file, size and note; Download
+  and Remove; Upload in the footer.
+- 12 and 13 PASS. Remove asked for a reason (Remove it stays off until one is typed); "Document
+  removed."; then "Removed by Bev Admin on 09/10/2026 12:05. Reason: ...", no Download, count 1.
+  The file was deleted from the bucket at once and nothing was left queued. Audit lines: added,
+  opened, removed.
+- 14 to 18 PASS AT THE DATABASE (rolled back probes as the real Bevan users): a Supervisor reads
+  and adds on a Service User in their branch, and gets nothing on a Person outside it; a
+  Supervisor's Remove is refused ("Only a Company Admin can remove a document."); the carer login
+  (ZZ TEST Audit Starter) sees no documents and cannot add; a direct insert is refused. Also: an
+  upload never started, a file outside its upload, reusing someone else's upload, a blank name and
+  a blank reason are all refused; saving the same upload twice keeps one copy. The screens for
+  these roles were not opened (Claude is signed in as Bev Admin only); Phil, 9 Oct 2026: the
+  database proof is enough.
+- 19 PASS. Copied to OneDrive in "Rhodri Evans (Llanelli)" as "RE ZZ TEST DBS certificate
+  2026-10-09.pdf" and "RE ZZ TEST email from council 2026-10-09.eml", and on the Service User as
+  "ZTSU ZZ TEST DBS certificate 2026-10-09.pdf". The removed one stays in OneDrive, as the
+  popup says.
+- 20 PASS. Subject access export for Rhodri: documents.csv lists both (the removed one with who,
+  when and why) and files/documents holds only the file still there.
+- 21 PASS AT THE DATABASE: retention erased a leaver's documents 8 years on, the trigger queued
+  the file, other records untouched. The nightly run itself was not run.
+
+Fixed after the test: Remove now shows the removed line the moment it saves, instead of the row
+still offering Download and Remove for the few seconds the page takes to redraw.
