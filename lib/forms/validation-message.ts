@@ -28,6 +28,12 @@ export type ValidationFieldError = { key: string; message: string };
  *
  * Capped at `limit` named fields so the message stays readable; the rest are counted.
  */
+/** "Choose one of the options" -> "choose one of the options". Only the first word: a message of
+ *  two sentences keeps the capital on the second, and "DBS number ..." keeps its capitals. */
+function lowerFirst(s: string): string {
+  return /^[A-Z](?:[a-z]|\s)/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+}
+
 export function describeValidationErrors(
   schema: FormSchema,
   errors: ValidationFieldError[],
@@ -42,7 +48,7 @@ export function describeValidationErrors(
   }
   const named = errors
     .slice(0, limit)
-    .map((e) => `${labels.get(e.key) ?? e.key} (${e.message.replace(/\.$/, "").toLowerCase()})`)
+    .map((e) => `${labels.get(e.key) ?? e.key} (${lowerFirst(e.message.replace(/\.$/, ""))})`)
     .join(", ");
   const rest = errors.length - Math.min(errors.length, limit);
   const more = rest > 0 ? ` And ${rest} more.` : "";

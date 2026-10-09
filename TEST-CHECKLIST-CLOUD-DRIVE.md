@@ -60,3 +60,32 @@ Anything Not tested goes into the Final Testing phase.
 - PASS 30: Disconnect removed the tokens and the queue; a Spot Check completed while disconnected queued nothing.
 - PASS lookup fix, live: typing a name that matches nobody is refused on screen and nothing is saved;
   picking a real name saves as normal.
+
+## Added by the review fixes (commit 6412779f)
+34. Two records with the same name in one branch get separate folders: "John Smith (Cardiff)" and "John Smith 2 (Cardiff)".
+35. A folder name already taken by another record's folder is never shared: a new folder is made instead.
+36. Support mode (manage as company) cannot connect, choose or change a company's drive.
+37. "Change where the folder lives" clears the place; choosing again reuses an existing Be Care Compliant folder.
+38. Financial Transaction on the staff portal saves with the service user's name typed (no list is offered there).
+39. A policy with a reference is copied as "<reference> <title> v<version>.pdf".
+
+## Results, 9 Oct 2026 after the review fixes (Bevan)
+- PASS Spot Check, live: a made up service user name is refused on screen; picking a real one saves.
+  Copied as "RE Spot Check 2026-10-09 (4).pdf" into Rhodri Evans (Llanelli) 4 seconds after saving
+  ("(4)": his fourth Spot Check that day).
+- PASS paper upload on a service user: "BF BEV02006 Audit 2026-10-09.pdf" and
+  "BF BEV02006 Audit icon-192 2026-10-09.png" in Berwyn Foulkes (Llanelli), both within 4 seconds.
+- PASS training certificate: "RE Diversity and Equality certificate 2026-10-09.png" in Rhodri's folder.
+- PASS 37: the location cleared (audit "cloud.location_cleared"); choosing My OneDrive again reused the
+  same Be Care Compliant folder and Rhodri's folder (no "1" copies). A second certificate on the same
+  course replaced the file rather than adding another.
+- PASS progress endpoint answers with 0 waiting, 0 failed.
+- PASS Incident Report, live: a made up service user name is refused; picking a real one files the
+  report (test incident "Fall", Llanelli). Copied as "2026-10-09 Incident Report D71AD774 (v1).pdf"
+  into Incidents 2 seconds later.
+- 34: the "Name 2 (Branch)" naming passes its unit tests; 34, 35 and 39 are otherwise checked in code
+  review only, not seen live yet.
+- Not tested by me: 38 (needs a carer login on the staff portal), 36.
+- Note: Bevan's older files keep their old names. The disconnect test emptied the queue, so pressing
+  "Copy everything so far" in Bevan now would add a second copy of every older file under the new
+  names. Don't press it in Bevan; Thistle starts clean.

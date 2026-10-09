@@ -65,3 +65,17 @@ test("an unknown key falls back to the key rather than printing nothing", () => 
 test("no errors keeps the old generic sentence", () => {
   assert.equal(describeValidationErrors(schema, []), "Please correct the highlighted fields.");
 });
+
+// Live check 9 Oct 2026: the lookup message has two sentences, and lowercasing all of it printed
+// "...as you type it. if they are not there...". Only the first letter is lowered now.
+test("a two sentence message keeps the capital on its second sentence", () => {
+  const msg = describeValidationErrors(schema, [
+    { key: "wellbeing", message: "Pick a name from the list as you type it. If they are not there, add the record first." },
+  ]);
+  assert.match(msg, /\(pick a name from the list as you type it\. If they are not there, add the record first\)/);
+});
+
+test("a message that starts with an acronym keeps it", () => {
+  const msg = describeValidationErrors(schema, [{ key: "wellbeing", message: "DBS number is required." }]);
+  assert.match(msg, /\(DBS number is required\)/);
+});
