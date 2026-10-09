@@ -21,6 +21,7 @@ import DocumentsTile from "@/components/documents/documents-tile";
 import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
 import { getRecordDocuments } from "@/lib/documents/data";
+import { getCertificateCourses } from "@/lib/documents/courses";
 import EditPersonForm from "@/components/people/edit-person-form";
 import { getRegulator } from "@/lib/complaints/data";
 import { scwStatus, scwRenewalState } from "@/lib/people/scw";
@@ -155,11 +156,12 @@ export default async function PersonPage({
    * carer outside their branches, and every Manage control on that record is a write the
    * database will refuse. lib/auth/manage-scope.ts is a transcription of the policy.
    */
+  const myBranchIds = await callerBranchIds(profile.id);
   const canManage =
     MANAGE_ROLES.includes(profile.role) &&
     canManageRecord({
       role: profile.role,
-      branchIds: await callerBranchIds(profile.id),
+      branchIds: myBranchIds,
       recordBranchId: person.branch_id,
     });
   /* DELETING A RECORD IS AN ADMIN'S, and only theirs (Phil, asked and answered 2026-09-22).
@@ -254,7 +256,7 @@ export default async function PersonPage({
 
   // The history timeline uses the record_audit_trail RPC (guarded by
   // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
-  const [auditTrail, exportsEnabled, jobTitles, updates, documents] = await Promise.all([
+  const [auditTrail, exportsEnabled, jobTitles, updates, documents, certificateCourses] = await Promise.all([
     canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     // The same list Add a person offers, so a job title is chosen the same way whether it
@@ -265,6 +267,18 @@ export default async function PersonPage({
     getRecordUpdates({ kind: "person", id }, { supportMode }),
     /* Documents (0439): the same audience as Updates, decided by the database. */
     getRecordDocuments({ kind: "person", id }, { supportMode }),
+    /* The courses its Upload can save a certificate onto (Phil, 2026-10-09), for whoever may
+       record this person's training. */
+    getCertificateCourses({
+      personId: id,
+      companyId,
+      jobTitle: person.job_title ?? null,
+      recordBranchId: person.branch_id ?? null,
+      role: profile.role,
+      branchIds: myBranchIds,
+      supportMode,
+      isLeaver: person.employment_status === "leaver",
+    }),
   ]);
 
   /* COMPLAINTS ABOUT THIS PERSON. The role list is the Complaints section's own, not this
@@ -897,6 +911,7 @@ export default async function PersonPage({
               recordId={person.id}
               data={documents}
               canRemove={profile.role === "company_admin" && !supportMode}
+              courses={certificateCourses}
             />
           ) : null}
         </section>

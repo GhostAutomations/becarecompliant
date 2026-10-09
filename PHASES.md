@@ -4074,6 +4074,12 @@ export gains Documents; deleting a company empties the new bucket.
 
 Fixed on the way: the subject access README's list of sections now names Holiday changes (0438).
 
+Follow on, same day (popups): Upload asks "What is this for?", an ad hoc document or **a
+certificate for one of the person's training courses**. A course takes one file and the **date
+completed**, and is saved by the Training register's own save, so the training dates and expiry
+update. **Training courses only** (DBS and Right to Work keep their forms). On a cancelled Service
+User, Updates and Documents **start from the left**.
+
 Tests: TEST-CHECKLIST-RECORD-DOCUMENTS.md.
 
 ### 2026-10-09 — Holiday changes from the portal and the office (migration 0438, Phase 13)

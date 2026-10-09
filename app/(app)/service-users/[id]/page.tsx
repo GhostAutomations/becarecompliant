@@ -429,12 +429,13 @@ export default async function ServiceUserPage({
         </>
       )}
 
-      {/* A cancelled service user has no Checks row, but their Updates are still read and
-          written: the tile keeps its place over History, with Documents beside it. */}
+      {/* A cancelled service user has no Checks row, but their Updates and Documents are still
+          read and written. They start from the left, so there is no empty column beside them
+          (Phil, 2026-10-09: "why is there a space next to updates?"). */}
       {isCancelled && (updatesTile || documentsTile) ? (
         <section className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-          {updatesTile ? <div className="lg:col-start-2">{updatesTile}</div> : null}
-          {documentsTile ? <div className="lg:col-start-3">{documentsTile}</div> : null}
+          {updatesTile}
+          {documentsTile}
         </section>
       ) : null}
 

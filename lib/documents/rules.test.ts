@@ -14,6 +14,8 @@ import {
   docSizeLabel,
   docTitleFromFileName,
   docTitleProblem,
+  bookingAfterCertificate,
+  certFilesProblem,
 } from "./rules.ts";
 
 test("a saved email, a photo, a PDF and Word are all accepted", () => {
@@ -71,4 +73,21 @@ test("counts and sizes read as a person would say them", () => {
   assert.equal(docSizeLabel(200), "1 KB");
   assert.equal(docSizeLabel(320 * 1024), "320 KB");
   assert.equal(docSizeLabel(4.2 * 1024 * 1024), "4.2 MB");
+});
+
+test("a course certificate is one file of a certificate's kind, under 4 MB", () => {
+  assert.equal(certFilesProblem([{ name: "Fire safety.pdf", size: 1000 }]), null);
+  assert.equal(certFilesProblem([{ name: "cert.HEIC", size: 1000 }]), null);
+  assert.match(certFilesProblem([]) ?? "", /Choose the certificate/);
+  assert.match(certFilesProblem([{ name: "a.pdf", size: 1 }, { name: "b.pdf", size: 1 }]) ?? "", /one certificate/);
+  assert.match(certFilesProblem([{ name: "email.eml", size: 10 }]) ?? "", /cannot be a certificate/);
+  assert.match(certFilesProblem([{ name: "big.pdf", size: 4_000_000 }]) ?? "", /under 4 MB/);
+  assert.equal(certFilesProblem([{ name: "ok.pdf", size: 3_999_999 }]), null);
+});
+
+test("saving a certificate keeps only a booking that is still to come", () => {
+  assert.equal(bookingAfterCertificate(null, "2026-10-01"), null);
+  assert.equal(bookingAfterCertificate("2026-10-01", "2026-10-01"), null);
+  assert.equal(bookingAfterCertificate("2026-09-20", "2026-10-01"), null);
+  assert.equal(bookingAfterCertificate("2027-09-20", "2026-10-01"), "2027-09-20");
 });

@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CentreDialog } from "@/components/panel-dialog";
 import { openDocument, removeDocument, saveDocuments, startDocumentUpload } from "@/lib/documents/actions";
 import {
+  CERT_ACCEPT,
   DOC_ACCEPT,
   DOC_MAX_FILES,
   DOC_MAX_MB,
@@ -33,9 +34,13 @@ import {
   docSizeLabel,
   docTitleFromFileName,
   docTitleProblem,
+  bookingAfterCertificate,
+  certFilesProblem,
 } from "@/lib/documents/rules";
+import { deriveRenewalDate } from "@/lib/training/renewal";
+import { saveTraining } from "@/lib/training/actions";
 import { updateStamp } from "@/lib/updates/rules";
-import type { DocumentKind, RecordDocument, RecordDocuments } from "@/lib/documents/types";
+import type { CertificateCourse, DocumentKind, RecordDocument, RecordDocuments } from "@/lib/documents/types";
 
 function toast(message: string) {
   window.dispatchEvent(new CustomEvent("bcc:toast", { detail: { message } }));
@@ -69,12 +74,15 @@ export default function DocumentsTile({
   recordId,
   data,
   canRemove,
+  courses = [],
 }: {
   kind: DocumentKind;
   recordId: string;
   data: RecordDocuments;
   /** Company Admins only; the database refuses anybody else. */
   canRemove: boolean;
+  /** People only: training courses a certificate can be uploaded for (lib/documents/courses.ts). */
+  courses?: CertificateCourse[];
 }) {
   const [listOpen, setListOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -180,7 +188,7 @@ export default function DocumentsTile({
         )}
       </CentreDialog>
 
-      {data.canUpload ? <UploadDialog kind={kind} recordId={recordId} open={uploadOpen} onClose={closeUpload} /> : null}
+      {data.canUpload ? <UploadDialog kind={kind} recordId={recordId} courses={kind === "person" ? courses : []} open={uploadOpen} onClose={closeUpload} /> : null}
     </div>
   );
 }
@@ -306,14 +314,32 @@ function DocumentRow({ d, canRemove }: { d: RecordDocument; canRemove: boolean }
 
 type Picked = { key: string; file: File; title: string };
 
+function londonTodayIso(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+}
+
+function ukDate(iso: string | null): string {
+  return iso ? iso.split("-").reverse().join("/") : "";
+}
+
+/** Where the course stands now, so the person can see what the certificate will change. */
+function courseNow(c: CertificateCourse): string {
+  if (!c.completedOn && !c.expiryOn) return c.bookedFor ? `Not recorded yet. Booked for ${ukDate(c.bookedFor)}.` : "Not recorded yet.";
+  const done = c.completedOn ? `Completed ${ukDate(c.completedOn)}` : "Completed";
+  return c.expiryOn ? `${done}, renews ${ukDate(c.expiryOn)}.` : `${done}.`;
+}
+
 function UploadDialog({
   kind,
   recordId,
+  courses,
   open,
   onClose,
 }: {
   kind: DocumentKind;
   recordId: string;
+  /** People only, for those who may record this person's training; empty otherwise. */
+  courses: CertificateCourse[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -322,6 +348,11 @@ function UploadDialog({
   const seq = useRef(0);
   const [picked, setPicked] = useState<Picked[]>([]);
   const [note, setNote] = useState("");
+  /* "" is an ad hoc document; otherwise the training course the certificate is for (Phil,
+     2026-10-09). A certificate goes onto the course by the Training register's own save, with
+     the date completed, so training compliance moves with it. */
+  const [courseId, setCourseId] = useState("");
+  const [completedOn, setCompletedOn] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* Files already sent by an attempt whose save then failed. Trying again saves those rather than
@@ -330,14 +361,38 @@ function UploadDialog({
      chosen files change. */
   const [sent, setSent] = useState<{ batchId: string; paths: string[] } | null>(null);
   const busy = status !== null;
+  const course = courses.find((c) => c.id === courseId) ?? null;
+  const today = londonTodayIso();
+  const renews = course && completedOn ? deriveRenewalDate(completedOn, course.renewalMonths) : null;
 
   // Not while an upload is under way: closing would hide it without stopping it.
   const close = useCallback(() => {
     if (!busy) onClose();
   }, [busy, onClose]);
 
+  function choosePurpose(next: string) {
+    // The two kinds of upload take different files, so a change starts the choice again.
+    setCourseId(next);
+    setPicked([]);
+    setSent(null);
+    setError(null);
+    if (picker.current) picker.current.value = "";
+  }
+
   function addFiles(list: FileList | null) {
     const incoming = Array.from(list ?? []);
+    if (course) {
+      const one = incoming.slice(0, 1);
+      const p = certFilesProblem(one.map((f) => ({ name: f.name, size: f.size })));
+      if (p) setError(p);
+      else {
+        setError(null);
+        seq.current += 1;
+        setPicked([{ key: `doc-${seq.current}`, file: one[0], title: course.name }]);
+      }
+      if (picker.current) picker.current.value = "";
+      return;
+    }
     const problems: string[] = [];
     const next = [...picked];
     for (const f of incoming) {
@@ -374,13 +429,58 @@ function UploadDialog({
   function reset() {
     setPicked([]);
     setNote("");
+    setCourseId("");
+    setCompletedOn("");
     setSent(null);
     setError(null);
+  }
+
+  /** A certificate onto a training course, through the Training register's own save. */
+  async function saveCertificate(c: CertificateCourse) {
+    const problem =
+      certFilesProblem(picked.map((p) => ({ name: p.file.name, size: p.file.size }))) ??
+      (!completedOn ? "Enter the date the training was completed." : completedOn > today ? "The date completed cannot be in the future." : null);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setError(null);
+    setStatus("Saving the certificate…");
+    try {
+      const f = picked[0].file;
+      const fd = new FormData();
+      fd.set("person_id", recordId);
+      fd.set("course_id", c.id);
+      fd.set("intent", "save");
+      fd.set("completed_on", completedOn);
+      // Blank: the renewal date is worked out from the course, exactly as the register does it.
+      fd.set("expiry_on", "");
+      fd.set("booked_for", bookingAfterCertificate(c.bookedFor, completedOn) ?? "");
+      fd.set("certificate", f.type ? f : new File([f], f.name, { type: docMimeType(f.name) }));
+      const res = await saveTraining({}, fd);
+      if (res.error) {
+        setStatus(null);
+        setError(res.error);
+        return;
+      }
+      reset();
+      setStatus(null);
+      onClose();
+      toast(`Certificate saved to ${c.name}.`);
+      router.refresh();
+    } catch (err) {
+      setStatus(null);
+      setError(`The certificate did not save: ${(err as Error).message}. Try again.`);
+    }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (course) {
+      await saveCertificate(course);
+      return;
+    }
     const files = picked.map((p) => ({ name: p.file.name, size: p.file.size }));
     const problem =
       docFilesProblem(files) ??
@@ -451,7 +551,7 @@ function UploadDialog({
     <CentreDialog
       open={open}
       onClose={close}
-      label="Upload documents"
+      label={course ? `Upload a certificate: ${course.name}` : "Upload documents"}
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3">
           {status ? <span className="mr-auto text-xs text-white/55">{status}</span> : null}
@@ -467,29 +567,59 @@ function UploadDialog({
             Cancel
           </button>
           <button type="submit" form="record-document-upload" className="btn-primary text-xs" disabled={busy || picked.length === 0}>
-            {picked.length > 1 ? `Upload ${picked.length} documents` : "Upload"}
+            {course ? "Save certificate" : picked.length > 1 ? `Upload ${picked.length} documents` : "Upload"}
           </button>
         </div>
       }
     >
       <form id="record-document-upload" onSubmit={submit} className="space-y-4 px-5 py-4">
+        {courses.length > 0 ? (
+          <div>
+            <label htmlFor="record-document-purpose" className="form-label">
+              What is this for?
+            </label>
+            <select
+              id="record-document-purpose"
+              value={courseId}
+              onChange={(e) => choosePurpose(e.target.value)}
+              disabled={busy}
+            >
+              <option value="">An ad hoc document</option>
+              <optgroup label="A certificate for a training course">
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            {course ? (
+              <p className="form-hint mt-1">
+                {courseNow(course)} The certificate is saved on the course in Training
+                {course.hasCertificate ? ", in place of the one already there" : ""}.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div>
           <input
             ref={picker}
             id="record-document-files"
             type="file"
-            multiple
-            accept={DOC_ACCEPT}
+            multiple={!course}
+            accept={course ? CERT_ACCEPT : DOC_ACCEPT}
             className="sr-only"
             onChange={(e) => addFiles(e.target.files)}
             disabled={busy}
           />
           <label htmlFor="record-document-files" className="btn-outline inline-flex cursor-pointer px-3 py-1.5 text-xs">
-            {picked.length > 0 ? "Choose more files" : "Choose files"}
+            {course ? (picked.length > 0 ? "Choose a different file" : "Choose the certificate") : picked.length > 0 ? "Choose more files" : "Choose files"}
           </label>
           <p className="form-hint mt-2">
-            A photo, a PDF, a Word or Excel file, or a saved email. Up to {DOC_MAX_FILES} files at a time, {DOC_MAX_MB} MB
-            each.
+            {course
+              ? "One file: a PDF, a Word file or a photo, under 4 MB."
+              : `A photo, a PDF, a Word or Excel file, or a saved email. Up to ${DOC_MAX_FILES} files at a time, ${DOC_MAX_MB} MB each.`}
           </p>
         </div>
 
@@ -497,51 +627,93 @@ function UploadDialog({
           <ul className="space-y-3">
             {picked.map((p) => (
               <li key={p.key} className="rounded-xl border border-white/10 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <label htmlFor={`${p.key}-title`} className="form-label">
-                    Name
-                  </label>
-                  <button
-                    type="button"
-                    aria-label={`Take off ${p.file.name}`}
-                    className="text-[12px] text-white/50 hover:text-white"
-                    disabled={busy}
-                    onClick={() => takeOff(p.key)}
-                  >
-                    Take off
-                  </button>
-                </div>
-                <input
-                  id={`${p.key}-title`}
-                  type="text"
-                  value={p.title}
-                  onChange={(e) => rename(p.key, e.target.value)}
-                  maxLength={DOC_TITLE_MAX}
-                  disabled={busy}
-                />
-                <p className="form-hint mt-1 break-words">
-                  {p.file.name} · {docSizeLabel(p.file.size)}
-                </p>
+                {course ? (
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="form-hint break-words">
+                      {p.file.name} · {docSizeLabel(p.file.size)}
+                    </p>
+                    <button
+                      type="button"
+                      aria-label={`Take off ${p.file.name}`}
+                      className="text-[12px] text-white/50 hover:text-white"
+                      disabled={busy}
+                      onClick={() => takeOff(p.key)}
+                    >
+                      Take off
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2">
+                      <label htmlFor={`${p.key}-title`} className="form-label">
+                        Name
+                      </label>
+                      <button
+                        type="button"
+                        aria-label={`Take off ${p.file.name}`}
+                        className="text-[12px] text-white/50 hover:text-white"
+                        disabled={busy}
+                        onClick={() => takeOff(p.key)}
+                      >
+                        Take off
+                      </button>
+                    </div>
+                    <input
+                      id={`${p.key}-title`}
+                      type="text"
+                      value={p.title}
+                      onChange={(e) => rename(p.key, e.target.value)}
+                      maxLength={DOC_TITLE_MAX}
+                      disabled={busy}
+                    />
+                    <p className="form-hint mt-1 break-words">
+                      {p.file.name} · {docSizeLabel(p.file.size)}
+                    </p>
+                  </>
+                )}
               </li>
             ))}
           </ul>
         ) : null}
 
-        <div>
-          <label htmlFor="record-document-note" className="form-label">
-            Note (optional)
-          </label>
-          <textarea
-            id="record-document-note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            maxLength={DOC_NOTE_MAX}
-            disabled={busy}
-            placeholder="For example: emailed by the council on 3 October."
-          />
-          <p className="form-hint">Saved with every file in this upload.</p>
-        </div>
+        {course ? (
+          <div>
+            <label htmlFor="record-document-completed" className="form-label">
+              Date completed
+            </label>
+            <input
+              id="record-document-completed"
+              type="date"
+              value={completedOn}
+              max={today}
+              onChange={(e) => setCompletedOn(e.target.value)}
+              disabled={busy}
+            />
+            <p className="form-hint">
+              {course.renewalMonths == null
+                ? "A one off course: it does not renew."
+                : renews
+                  ? `Renews on ${ukDate(renews)}, worked out from the course.`
+                  : `Renews ${course.renewalMonths} ${course.renewalMonths === 1 ? "month" : "months"} after the date completed.`}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <label htmlFor="record-document-note" className="form-label">
+              Note (optional)
+            </label>
+            <textarea
+              id="record-document-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={DOC_NOTE_MAX}
+              disabled={busy}
+              placeholder="For example: emailed by the council on 3 October."
+            />
+            <p className="form-hint">Saved with every file in this upload.</p>
+          </div>
+        )}
 
         {error ? <p className="form-error">{error}</p> : null}
       </form>

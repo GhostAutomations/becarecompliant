@@ -104,3 +104,40 @@ export function docSizeLabel(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/* ---------------------------------------------------------------------------------------------
+ * A CERTIFICATE FOR A TRAINING COURSE, chosen from the same Upload (Phil, 2026-10-09: "they can
+ * choose ad hoc. Or they can choose one of the training courses to upload a certificate for
+ * that"). It is saved by the Training register's own save, onto the course, with the date
+ * completed, so the rules here are that save's: one file, a certificate's kinds of file, and under
+ * 4 MB because it travels in the save itself (the server action limit in next.config).
+ * ------------------------------------------------------------------------------------------- */
+
+export const CERT_EXTENSIONS = ["pdf", "doc", "docx", "jpg", "jpeg", "png", "heic", "heif"] as const;
+export const CERT_ACCEPT = CERT_EXTENSIONS.map((e) => `.${e}`).join(",");
+/** Decimal, so the file and the rest of the save stay inside the 4mb server action limit. */
+export const CERT_MAX_BYTES = 4_000_000;
+
+/** Why these files will not do as one course's certificate, or null when they will. */
+export function certFilesProblem(files: Array<{ name: string; size: number }>): string | null {
+  if (files.length === 0) return "Choose the certificate to upload.";
+  if (files.length > 1) return "A course takes one certificate. Choose a single file.";
+  const f = files[0];
+  const name = String(f.name ?? "").trim() || "That file";
+  if (!(CERT_EXTENSIONS as readonly string[]).includes(docExtension(name))) {
+    return `${name} cannot be a certificate. Upload a PDF, a Word file or a photo (JPG, PNG, HEIC).`;
+  }
+  if (!(f.size > 0)) return `${name} is empty.`;
+  if (f.size >= CERT_MAX_BYTES) return `${name} is too big for a certificate. It must be under 4 MB.`;
+  return null;
+}
+
+/**
+ * The booking left on the course once the certificate is saved. A booking on or before the date
+ * completed is the course that has just been done, so it goes; a later one is a refresher already
+ * booked, so it stays.
+ */
+export function bookingAfterCertificate(bookedFor: string | null | undefined, completedIso: string): string | null {
+  if (!bookedFor) return null;
+  return bookedFor > completedIso ? bookedFor : null;
+}

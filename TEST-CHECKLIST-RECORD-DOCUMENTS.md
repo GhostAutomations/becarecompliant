@@ -54,6 +54,22 @@ Test on Bevan (writes), never on Thistle.
 21. Nightly run: an upload started and never saved is removed after a day; a removed document's
     file is gone from the bucket.
 
+## Certificate for a training course (added 9 Oct 2026, Phil's follow on)
+Decided by popup: the Upload asks "What is this for?", an ad hoc document or one of the person's
+training courses; a course takes the date completed and updates the training dates; training
+courses only (DBS and Right to Work keep their own forms). On a cancelled Service User the tiles
+now start from the left.
+22. On a Person, as an Admin or Manager, Upload shows "What is this for?" with "An ad hoc
+    document" and the person's training courses (only those for their job title). On a Service
+    User, and for a leaver, there is no such choice.
+23. Picking a course: the popup says where the course stands now, takes one file (PDF, Word or
+    photo, under 4 MB), asks the date completed (not in the future) and shows the renewal date.
+24. Save certificate: "Certificate saved to <course>."; in Training the course shows the new dates
+    and View current certificate opens the file. The Documents count does not change.
+25. A booking on or before the date completed is cleared; a later booking stays.
+26. The certificate is copied to the cloud drive as a training certificate.
+27. Cancelled Service User: Updates and Documents start in the first column, with no gap.
+
 ## Results
 
 Run by Claude on 9 Oct 2026, after the deploy of 18b1e8e6 was READY and migration 0439 was

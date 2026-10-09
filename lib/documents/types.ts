@@ -26,3 +26,15 @@ export type RecordDocuments = {
   /** Set when the list could not be read, so the tile says so instead of showing none. */
   loadError: string | null;
 };
+
+/** A training course the Upload can save a certificate onto (People only, for those who may
+ *  record this person's training). */
+export type CertificateCourse = {
+  id: string;
+  name: string;
+  renewalMonths: number | null;
+  completedOn: string | null;
+  expiryOn: string | null;
+  bookedFor: string | null;
+  hasCertificate: boolean;
+};
