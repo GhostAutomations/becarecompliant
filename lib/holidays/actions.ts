@@ -502,6 +502,9 @@ export async function amendHoliday(
     return { error: "The back at work date must be after the last day of the holiday." };
   }
   const reason = reasonFrom(formData, "amend_reason");
+  /* "Save and approve" on a pending request (Phil, 2026-10-09): the dates are saved, then the
+     request is approved through decideHoliday, exactly as pressing Approve would. */
+  const thenApprove = formData.get("then_approve") === "1";
 
   const supabase = await createClient();
   const { data: request } = await supabase
@@ -516,8 +519,18 @@ export async function amendHoliday(
   /* "current_return_to_work" is what the screen showed (the form's answer when nothing was agreed
      since), used only to recognise a save that changed nothing. */
   const shownBack = isoOrNull(formData.get("current_return_to_work")) ?? request.return_to_work_date ?? null;
+  const approveAfter = async (): Promise<ActionState> => {
+    if (request.status !== "pending" || request.change_kind === "cancel") {
+      return { error: "Only a request still waiting can be approved here." };
+    }
+    const fd = new FormData();
+    fd.set("request_id", requestId);
+    fd.set("decision", "approved");
+    const res = await decideHoliday({}, fd);
+    return res.error ? { error: `The dates were saved, but approving failed: ${res.error}` } : { ok: "Dates saved and approved." };
+  };
   if (wasStart === startDate && wasEnd === endDate && (returnToWork ?? null) === shownBack) {
-    return { ok: "No change." };
+    return thenApprove ? approveAfter() : { ok: "No change." };
   }
   if (!reason) return { error: "Give a reason for the change. The person will see it." };
 
@@ -530,7 +543,8 @@ export async function amendHoliday(
   });
   if (error) return { error: error.message };
 
-  const emailed = await notifyHolidayChanged({
+  // Approving straight after sends the approval email, with the new dates, instead.
+  const emailed = thenApprove ? false : await notifyHolidayChanged({
     companyId: request.company_id,
     branchId: request.branch_id,
     requestId,
@@ -552,9 +566,14 @@ export async function amendHoliday(
     entityType: "holiday_request",
     entityId: requestId,
     summary: `Changed a holiday from ${ukDate(wasStart)} to ${ukDate(wasEnd)}, now ${ukDate(startDate)} to ${ukDate(endDate)}`,
-    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, return_to_work: returnToWork, reason, emailed },
+    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, return_to_work: returnToWork, reason, emailed, then_approve: thenApprove },
   });
 
+  if (thenApprove) {
+    const res = await approveAfter();
+    revalidateHoliday();
+    return res;
+  }
   revalidateHoliday();
   return { ok: "Dates updated." };
 }

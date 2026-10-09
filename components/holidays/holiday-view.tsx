@@ -127,6 +127,11 @@ function RequestActions({
           hidden={{ request_id: request.id }}
           label="Save dates"
           savedLabel="Saved"
+          /* Closes once saved, so the new dates show (Charlotte, 9 Oct: the box stayed open and
+             looked as if nothing had happened). */
+          onDone={() => setMode("none")}
+          /* A pending request can be approved on its new dates in the same press (Phil, 9 Oct). */
+          secondary={pending && request.change_kind !== "cancel" ? { label: "Save and approve", name: "then_approve", value: "1" } : undefined}
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
         >
           <HolidayDateFields

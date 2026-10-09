@@ -39,6 +39,7 @@ export default function ActionForm({
   onDoneDelayMs = 1200,
   disabled = false,
   showOk = false,
+  secondary,
 }: {
   action: ServerAction;
   hidden?: Record<string, string>;
@@ -80,6 +81,9 @@ export default function ActionForm({
    * untouched.
    */
   disabled?: boolean;
+  /** A second submit button for the same form, sent with name=value so the action can tell
+   *  which was pressed (Edit dates: "Save and approve", 2026-10-09). Opt in. */
+  secondary?: { label: string; name: string; value: string; className?: string };
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
@@ -200,6 +204,17 @@ export default function ActionForm({
         >
           {btnLabel}
         </button>
+        {secondary ? (
+          <button
+            type="submit"
+            name={secondary.name}
+            value={secondary.value}
+            disabled={pending || disabled}
+            className={secondary.className ?? "btn-outline px-3 py-1.5 text-xs"}
+          >
+            {secondary.label}
+          </button>
+        ) : null}
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
         {showOk && state.ok && !pending && !state.error ? (
           <span role="status" className="text-xs text-emerald-300">{state.ok}</span>

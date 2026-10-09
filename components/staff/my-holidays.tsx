@@ -71,6 +71,7 @@ function MyRequestActions({ request, today }: { request: HolidayRequestRow; toda
         <ActionForm
           action={requestHolidayChange}
           hidden={{ request_id: request.id }}
+          onDone={() => setMode("none")}
           label={undecided ? "Save dates" : "Send change for approval"}
           savedLabel={undecided ? "Saved" : "Sent"}
           buttonClassName="btn-primary px-3 py-1.5 text-xs"

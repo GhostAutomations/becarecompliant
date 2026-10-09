@@ -91,3 +91,21 @@ answer on the original form, so it never moved with the dates.
 18. A carer's Change dates in the portal has the same box. Declined or taken back: the agreed Back
     at work date comes back with the agreed dates.
 19. Holidays booked before today still show the date from their form.
+
+Run by Claude on 9 Oct 2026 after the deploy of 6f52b615 (migration 0440 confirmed applied).
+- Database probes (rolled back, as the Bevan carer login and Bev Admin): a Back at work date on
+  the last day is refused; a carer's change stores its Back at work and remembers the agreed one;
+  declined, the dates and the form's Back at work come back; an office edit with no date gives
+  the day after the end, with a date keeps it; a change taken back restores the agreed date.
+- 16 and 17 PASS live: Edit dates on Rhodri's ZZ TEST holiday showed Back at work 23 Oct; moving
+  To to 23 Oct moved it to 24 Oct by itself; saved, the popup shows "Back at work 24 Oct 2026".
+- 18 portal screen not run live (no carer login used); covered by the probes.
+- 19 PASS: holidays booked before today still show their form's date (Taiye's at Thistle: 22 Nov).
+
+## Edit dates on a pending request (9 Oct 2026, Charlotte at Thistle)
+Her edit saved (Taiye's request moved to 18 to 19 Nov at 12:55) but the box stayed open, so it
+looked as if nothing happened, and the request stayed pending. Fixed and decided by popup:
+20. After Save dates the box closes and the new dates show (office Edit dates and the carer's
+    Change dates).
+21. A pending request's edit box has Save dates (stays pending) and Save and approve (books it
+    on the new dates, the approval email goes with the new dates, no separate "changed" email).
