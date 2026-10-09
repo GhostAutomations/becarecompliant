@@ -129,6 +129,8 @@ export async function forgetCloudRecord(companyId: string, folderKey: string): P
   try {
     const db = createServiceClient();
     await db.from("cloud_folders").delete().eq("company_id", companyId).eq("folder_key", folderKey);
+    // Its category folders too (Holiday, Documents ...), remembered as "<key>/<category>".
+    await db.from("cloud_folders").delete().eq("company_id", companyId).like("folder_key", `${folderKey}/%`);
     await db.from("cloud_sync_queue").delete().eq("company_id", companyId).eq("source_id", folderKey);
   } catch (e) {
     console.error("[cloud] forgetCloudRecord failed:", (e as Error).message);

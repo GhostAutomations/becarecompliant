@@ -61,3 +61,27 @@ test("a long title gives way so the date and the (2) survive", () => {
   const b = datedFileName("2026-10-09", long, { version: 3, n: 2 });
   assert.ok(b.startsWith("2026-10-09 A very long") && b.endsWith(" (v3) (2).pdf"), b);
 });
+
+test("category folders sit inside the record's folder", async () => {
+  const { categoryKey, splitCategoryKey, parentKey, isFolderKey, isRecordKey, categoryForFormKey } = await import("./names.ts");
+  const rec = "person:3210c931-cc10-40e7-ac63-0802cbbc5e63" as const;
+  const k = categoryKey(rec, "holiday");
+  assert.equal(k, `${rec}/holiday`);
+  assert.deepEqual(splitCategoryKey(k), { record: rec, slug: "holiday" });
+  assert.equal(parentKey(k), rec);
+  assert.equal(parentKey(rec), "section:people");
+  assert.ok(isFolderKey(k));
+  assert.ok(isFolderKey(`${rec}/check-3210c931-cc10-40e7-ac63-0802cbbc5e63`));
+  assert.ok(!isFolderKey(`${rec}/anything`));
+  assert.ok(isRecordKey(rec) && !isRecordKey(k));
+  assert.equal(splitCategoryKey(rec), null);
+  assert.equal(categoryForFormKey("holiday_requests", "person"), "holiday");
+  assert.equal(categoryForFormKey("absence_back_office", "person"), "absence");
+  assert.equal(categoryForFormKey("return_to_work", "person"), "absence");
+  assert.equal(categoryForFormKey("right_to_work", "person"), "rtw");
+  assert.equal(categoryForFormKey("dbs_renewal", "person"), "dbs");
+  assert.equal(categoryForFormKey("probation_review", "person"), "probation");
+  assert.equal(categoryForFormKey("financial_transaction", "person"), null);
+  assert.equal(categoryForFormKey("care_plan_review", "service_user"), "care-plan");
+  assert.equal(categoryForFormKey("holiday_requests", "service_user"), null);
+});

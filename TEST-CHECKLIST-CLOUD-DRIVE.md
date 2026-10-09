@@ -89,3 +89,17 @@ Anything Not tested goes into the Final Testing phase.
 - Note: Bevan's older files keep their old names. The disconnect test emptied the queue, so pressing
   "Copy everything so far" in Bevan now would add a second copy of every older file under the new
   names. Don't press it in Bevan; Thistle starts clean.
+
+## Category folders inside each record's folder (9 Oct 2026)
+Phil: everything for a person landed loose in one folder. Decided by popup: one folder per check
+(named like the check), plus Holiday, Absence, Training, Documents, DBS, Right to Work, Probation
+and, on a service user, Care Plan; anything left over in a folder named after its form. The whole
+set is made when the record's folder is made, and files already copied flat are moved in.
+40. A new person or service user gets their folder with the full set of category folders inside.
+41. A completed check's form lands in that check's folder (a Spot Check in "Spot Check"); a
+    holiday request in Holiday; absence forms and letters in Absence; a training certificate in
+    Training; an ad hoc document in Documents; a care plan in Care Plan.
+42. A form no check uses and no category names (Financial Transaction) gets a folder of its own.
+43. Files already copied flat (Rhodri Evans in Bevan) are moved into their folders, names unchanged.
+44. A file deleted in the drive, or a name already taken in the folder, is left alone, not an error.
+45. Complaints, incidents, policies and briefings are unchanged.

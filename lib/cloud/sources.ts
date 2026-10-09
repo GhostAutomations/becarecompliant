@@ -12,7 +12,8 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { renderEvidenceBytes } from "@/lib/evidence/on-demand";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
-import { datedFileName, fileExtensionOf, initialsOf, recordFileName, safeDriveName, type FolderKey } from "@/lib/cloud/names";
+import { datedFileName, fileExtensionOf, initialsOf, isRecordKey, recordFileName, safeDriveName, type FolderKey } from "@/lib/cloud/names";
+import { categoryTargetFor, recordCategorySet } from "@/lib/cloud/categories";
 
 export type CloudSourceKind =
   | "evidence"
@@ -86,6 +87,8 @@ export type ResolvedCopy = {
   contentType: string;
   /** Only make the folder (a new person or service user), nothing to upload. */
   folderOnly?: boolean;
+  /** With folderOnly: the category folders to make inside it as well. */
+  alsoFolders?: FolderKey[];
 };
 
 /**
@@ -580,6 +583,18 @@ export async function resolveCloudCopy(
   kind: string,
   sourceId: string,
 ): Promise<ResolvedCopy | null> {
+  const copy = await resolveFlat(companyId, kind, sourceId);
+  /* INTO ITS CATEGORY FOLDER (Phil, 2026-10-09): a person's or service user's file goes in the
+     folder for its check (Spot Check, Supervision ...) or its kind (Holiday, Training, Documents
+     ...) inside their folder, never loose in it. */
+  if (copy && !copy.folderOnly && isRecordKey(copy.folderKey)) {
+    const target = await categoryTargetFor(companyId, kind, sourceId);
+    if (target) copy.folderKey = target;
+  }
+  return copy;
+}
+
+async function resolveFlat(companyId: string, kind: string, sourceId: string): Promise<ResolvedCopy | null> {
   switch (kind as CloudSourceKind) {
     case "evidence":
       return evidenceCopy(companyId, sourceId);
@@ -605,8 +620,15 @@ export async function resolveCloudCopy(
       // "person:<id>" or "service_user:<id>": a new record gets its folder straight away (Phil,
       // 2026-10-08: "when a new client or service user is added, they would get a file created").
       const facts = await recordFolderFacts(companyId, sourceId as FolderKey);
-      if (!facts) return null;
-      return { folderKey: sourceId as FolderKey, fileName: "", bytes: new Uint8Array(), contentType: "", folderOnly: true };
+      if (!facts || !isRecordKey(sourceId)) return null;
+      return {
+        folderKey: sourceId as FolderKey,
+        fileName: "",
+        bytes: new Uint8Array(),
+        contentType: "",
+        folderOnly: true,
+        alsoFolders: await recordCategorySet(companyId, sourceId),
+      };
     }
     default:
       throw new Error(`Unknown kind of document: ${kind}`);

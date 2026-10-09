@@ -4053,6 +4053,19 @@ Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft)
 
 Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.
 
+### 2026-10-09 — Category folders in the cloud drive (Phase 13)
+
+Phil, before Thistle's SharePoint goes live: everything for a person sat loose in one folder.
+Decided by popup: inside each person's and service user's folder, **one folder per check** (named
+like the check) plus **Holiday, Absence, Training, Documents, DBS, Right to Work, Probation** and,
+on a service user, **Care Plan**; anything left over in a folder named after its form. **The whole
+set is made with the record's folder**, and **files already copied flat are moved in**.
+Built: lib/cloud/categories.ts (which folder each file belongs in, the set for a record, folder
+names), category keys in lib/cloud/names.ts (tested), the copier files into them and moves old
+copies (a "refile" job per copied file). No migration.
+
+Tests: TEST-CHECKLIST-CLOUD-DRIVE.md items 40 to 45.
+
 ### 2026-10-09 — Documents on a record (migration 0439, Phase 13)
 
 Phil: somewhere on a person's record for an ad hoc document, "a copy of an email or a random copy

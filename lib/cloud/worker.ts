@@ -30,8 +30,9 @@ import {
   recordCloudError,
   type CloudConnection,
 } from "@/lib/cloud/connection";
-import { CloudAuthError, CloudNotFoundError, CloudRetryError, uploadMsFile } from "@/lib/cloud/microsoft";
+import { CloudAuthError, CloudNotFoundError, CloudRetryError, moveMsItem, uploadMsFile } from "@/lib/cloud/microsoft";
 import { resolveCloudCopy } from "@/lib/cloud/sources";
+import { categoryTargetFor } from "@/lib/cloud/categories";
 import { ensureFolder, forgetFolderChain } from "@/lib/cloud/folders";
 
 const MAX_ATTEMPTS = 6;
@@ -182,6 +183,20 @@ export async function processCloudQueue(opts: {
         tokens.set(job.company_id, key);
       }
       const token = key.token;
+
+      /* REFILE (2026-10-09): a file copied before category folders existed is moved into its
+         category folder. source_id is the id of the queue row that copied it. */
+      if (job.source_kind === "refile") {
+        const note = await refileOne(c, token, job.source_id);
+        await db
+          .from("cloud_sync_queue")
+          .update({ status: "done", done_at: new Date().toISOString(), last_error: note, attempts: job.attempts + 1 })
+          .eq("id", job.id)
+          .eq("status", "working");
+        result.copied += 1;
+        continue;
+      }
+
       const copy = await resolveCloudCopy(job.company_id, job.source_kind, job.source_id);
       if (!copy) {
         await db
@@ -194,6 +209,8 @@ export async function processCloudQueue(opts: {
       }
       let folderId = await ensureFolder(c, token, copy.folderKey);
       if (copy.folderOnly) {
+        // The record's category folders, all made with its folder (Phil, 2026-10-09).
+        for (const k of copy.alsoFolders ?? []) await ensureFolder(c, token, k);
         await db
           .from("cloud_sync_queue")
           .update({ status: "done", done_at: new Date().toISOString(), drive_item_id: folderId, last_error: null, attempts: job.attempts + 1 })
@@ -282,4 +299,31 @@ export async function processCloudQueue(opts: {
     }
   }
   return result;
+}
+
+/**
+ * Move one already copied file into its category folder. Returns a note for the job, or null.
+ * A file deleted in the drive meanwhile, or one already in the right place, is simply left.
+ */
+async function refileOne(c: CloudConnection & { drive_id: string; root_folder_id: string }, token: string, queueRowId: string): Promise<string | null> {
+  const db = createServiceClient();
+  const { data: row } = await db
+    .from("cloud_sync_queue")
+    .select("company_id, source_kind, source_id, drive_item_id, status")
+    .eq("id", queueRowId)
+    .eq("company_id", c.company_id)
+    .maybeSingle<{ company_id: string; source_kind: string; source_id: string; drive_item_id: string | null; status: string }>();
+  if (!row || row.status !== "done" || !row.drive_item_id) return "Nothing to move.";
+  const target = await categoryTargetFor(c.company_id, row.source_kind, row.source_id);
+  if (!target) return "Not a record's file: left where it is.";
+  const folderId = await ensureFolder(c, token, target);
+  try {
+    await moveMsItem(token, c.drive_id, row.drive_item_id, folderId);
+    return null;
+  } catch (e) {
+    if (e instanceof CloudNotFoundError) return "The file is no longer in the drive.";
+    const err = e as { status?: number; code?: string };
+    if (err.status === 409 || err.code === "nameAlreadyExists") return "A file of that name is already in the folder: left where it is.";
+    throw e;
+  }
 }

@@ -225,6 +225,14 @@ export async function renameMsItem(token: string, driveId: string, itemId: strin
   });
 }
 
+/** Move an item into another folder, keeping its name (category folders, 2026-10-09). */
+export async function moveMsItem(token: string, driveId: string, itemId: string, parentId: string): Promise<void> {
+  await graph(token, `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ parentReference: { id: parentId } }),
+  });
+}
+
 const SIMPLE_LIMIT = 4 * 1024 * 1024;
 const CHUNK = 320 * 1024 * 16; // 5 MiB, a multiple of 320 KiB as Microsoft requires
 

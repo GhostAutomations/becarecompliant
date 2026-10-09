@@ -7,11 +7,13 @@
  * folder sorts by date.
  */
 
-export type FolderKey =
-  | "root"
-  | `section:${SectionKey}`
-  | `person:${string}`
-  | `service_user:${string}`;
+export type RecordKey = `person:${string}` | `service_user:${string}`;
+
+/**
+ * "person:<id>/holiday": a category folder inside a record's folder (Phil, 2026-10-09: "a holiday
+ * folder, a spot check folder, a supervision folder ... a document folder").
+ */
+export type FolderKey = "root" | `section:${SectionKey}` | RecordKey | `${RecordKey}/${string}`;
 
 export type SectionKey = "people" | "service_users" | "complaints" | "incidents" | "policies" | "briefings";
 
@@ -126,9 +128,73 @@ export function recordFileName(opts: {
   return withExtension(safeDriveName(`${before} ${title}${after}${clash}`), opts.ext ?? "pdf");
 }
 
+/* ---------------------------------------------------------------------------------------------
+ * CATEGORY FOLDERS inside each record's folder (Phil, 2026-10-09, by popup): one per check, named
+ * like the check, plus these fixed ones; anything left over goes in a folder named after its form.
+ * Every one is made when the record's folder is made.
+ * ------------------------------------------------------------------------------------------- */
+
+export const CATEGORY_NAMES: Record<string, string> = {
+  holiday: "Holiday",
+  absence: "Absence",
+  training: "Training",
+  documents: "Documents",
+  dbs: "DBS",
+  rtw: "Right to Work",
+  probation: "Probation",
+  "care-plan": "Care Plan",
+};
+
+/** The fixed folders every person and every service user gets. */
+export const PERSON_FIXED_CATEGORIES = ["holiday", "absence", "training", "documents", "dbs", "rtw", "probation"];
+export const SERVICE_USER_FIXED_CATEGORIES = ["care-plan", "documents"];
+
+const UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const RECORD_RE = new RegExp(`^(person|service_user):${UUID_RE}$`, "i");
+const CATEGORY_RE = new RegExp(
+  `^((?:person|service_user):${UUID_RE})/(holiday|absence|training|documents|dbs|rtw|probation|care-plan|check-${UUID_RE}|form-${UUID_RE})$`,
+  "i",
+);
+
+export function isRecordKey(v: string): v is RecordKey {
+  return RECORD_RE.test(v);
+}
+
+export function categoryKey(record: RecordKey, slug: string): FolderKey {
+  return `${record}/${slug}`;
+}
+
+/** The record and category of a category key, or null for any other key. */
+export function splitCategoryKey(key: string): { record: RecordKey; slug: string } | null {
+  const m = CATEGORY_RE.exec(key);
+  return m ? { record: m[1] as RecordKey, slug: m[2].toLowerCase() } : null;
+}
+
+/**
+ * Which category a form's file belongs in when no check uses that form, read from the form's key:
+ * holiday forms in Holiday, absence and Return to Work forms in Absence, and so on. Null means
+ * "a folder of its own, named after the form".
+ */
+export function categoryForFormKey(formKey: string | null | undefined, recordType: string): string | null {
+  const k = String(formKey ?? "").toLowerCase();
+  if (!k) return null;
+  if (recordType === "person") {
+    if (k.includes("holiday")) return "holiday";
+    if (k.includes("right_to_work")) return "rtw";
+    if (k.includes("absence") || k.includes("return_to_work")) return "absence";
+    if (k.includes("dbs")) return "dbs";
+    if (k.includes("probation")) return "probation";
+    if (k.includes("training")) return "training";
+  }
+  if (recordType === "service_user" && k.includes("care_plan")) return "care-plan";
+  return null;
+}
+
 /** The folder a key belongs inside. */
 export function parentKey(key: FolderKey): FolderKey | null {
   if (key === "root") return null;
+  const cat = splitCategoryKey(key);
+  if (cat) return cat.record;
   if (key.startsWith("section:")) return "root";
   if (key.startsWith("person:")) return "section:people";
   if (key.startsWith("service_user:")) return "section:service_users";
@@ -140,6 +206,7 @@ export function isFolderKey(v: string): v is FolderKey {
     v === "root" ||
     (v.startsWith("section:") && (SECTION_KEYS as string[]).includes(v.slice(8))) ||
     /^person:[0-9a-f-]{36}$/i.test(v) ||
-    /^service_user:[0-9a-f-]{36}$/i.test(v)
+    /^service_user:[0-9a-f-]{36}$/i.test(v) ||
+    splitCategoryKey(v) !== null
   );
 }

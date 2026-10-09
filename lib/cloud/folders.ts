@@ -8,8 +8,18 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createMsFolderRenaming, ensureMsFolder, getMsItem, renameMsItem, CloudNotFoundError } from "@/lib/cloud/microsoft";
-import { parentKey, recordFolderName, ROOT_FOLDER_NAME, SECTION_NAMES, type FolderKey, type SectionKey } from "@/lib/cloud/names";
+import {
+  isRecordKey,
+  parentKey,
+  recordFolderName,
+  ROOT_FOLDER_NAME,
+  SECTION_NAMES,
+  splitCategoryKey,
+  type FolderKey,
+  type SectionKey,
+} from "@/lib/cloud/names";
 import { recordFolderFacts } from "@/lib/cloud/sources";
+import { categoryFolderName } from "@/lib/cloud/categories";
 import type { CloudConnection } from "@/lib/cloud/connection";
 
 type Ready = CloudConnection & { drive_id: string; root_folder_id: string };
@@ -17,6 +27,9 @@ type Ready = CloudConnection & { drive_id: string; root_folder_id: string };
 async function desiredName(c: Ready, key: FolderKey): Promise<string | null> {
   if (key === "root") return ROOT_FOLDER_NAME;
   if (key.startsWith("section:")) return SECTION_NAMES[key.slice(8) as SectionKey] ?? null;
+  // A category inside a record's folder (Holiday, Spot Check, Documents ...).
+  const cat = splitCategoryKey(key);
+  if (cat) return categoryFolderName(c.company_id, cat.slug);
   const facts = await recordFolderFacts(c.company_id, key);
   return facts ? recordFolderName(facts.fullName, facts.branchName, facts.n) : null;
 }
@@ -96,7 +109,7 @@ export async function ensureFolder(c: Ready, token: string, key: FolderKey, veri
      already there with this name, which is right for a folder we made and lost track of, and
      wrong if that folder is another record's (a same named record whose number has just changed).
      Then a folder of its own is made, with whatever free name Microsoft gives it. */
-  if (key.startsWith("person:") || key.startsWith("service_user:")) {
+  if (isRecordKey(key)) {
     const { data: owner } = await db
       .from("cloud_folders")
       .select("folder_key")
@@ -120,6 +133,15 @@ export async function ensureFolder(c: Ready, token: string, key: FolderKey, veri
     },
     { onConflict: "connection_id,folder_key" },
   );
+  /* A record's folder made for the first time gets its whole set of category folders (Phil,
+     2026-10-09, by popup: all of them when the record folder is made). Queued, so the copy that
+     needed the folder is not held up; the every minute run makes them. */
+  if (isRecordKey(key)) {
+    await db.from("cloud_sync_queue").upsert(
+      { company_id: c.company_id, source_kind: "record_folder", source_id: key, dedupe_key: `record_folder_set:${key}` },
+      { onConflict: "company_id,dedupe_key", ignoreDuplicates: true },
+    );
+  }
   return made.id;
 }
 

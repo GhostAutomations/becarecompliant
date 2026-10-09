@@ -185,7 +185,8 @@ export default async function CloudSettingsPage({
             <p className="text-sm text-white/60">
               New documents are copied as they happen. Press this once to copy everything you already have: every
               completed form, uploaded file, certificate, letter, policy version and memo, and a folder for every
-              current person and service user. It runs in the background; the bar above shows how far it has got and the time left.
+              current person and service user, with a folder inside it for each check and for Holiday, Absence,
+              Training and Documents. It runs in the background; the bar above shows how far it has got and the time left.
               Pressing it again never makes duplicates.
             </p>
             <ActionForm
