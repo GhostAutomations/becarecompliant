@@ -2,18 +2,28 @@ import "server-only";
 
 /**
  * Be Care Compliant — making sure a folder exists in the company's drive (0437), and that a
- * record's folder still carries the right "Name (Branch)". Remembered in cloud_folders so a
- * folder is made once; if somebody deletes it in SharePoint it is made again on the next copy.
+ * record's folder still has the right name and sits in the right branch. Remembered in
+ * cloud_folders so a folder is made once; if somebody deletes it in SharePoint it is made again
+ * on the next copy.
+ *
+ * Layout (Phil, 2026-10-09, by popup): Be Care Compliant > People > [Branch] > [Person] >
+ * [category], and the same under Service Users. A transfer moves the record's whole folder into
+ * the new branch's folder (0441); folders made before branches existed are moved in the same way
+ * the next time they are used.
  */
 
 import { createServiceClient } from "@/lib/supabase/admin";
-import { createMsFolderRenaming, ensureMsFolder, getMsItem, renameMsItem, CloudNotFoundError } from "@/lib/cloud/microsoft";
+import { createMsFolderRenaming, ensureMsFolder, getMsItem, moveMsItem, renameMsItem, CloudNotFoundError } from "@/lib/cloud/microsoft";
 import {
+  branchFolderName,
+  branchKey,
+  isBranchKey,
   isRecordKey,
   parentKey,
   recordFolderName,
   ROOT_FOLDER_NAME,
   SECTION_NAMES,
+  sectionKeyOf,
   splitCategoryKey,
   type FolderKey,
   type SectionKey,
@@ -24,14 +34,51 @@ import type { CloudConnection } from "@/lib/cloud/connection";
 
 type Ready = CloudConnection & { drive_id: string; root_folder_id: string };
 
-async function desiredName(c: Ready, key: FolderKey): Promise<string | null> {
-  if (key === "root") return ROOT_FOLDER_NAME;
-  if (key.startsWith("section:")) return SECTION_NAMES[key.slice(8) as SectionKey] ?? null;
+/** What a folder should be called and which folder it belongs in, or null if its thing is gone. */
+async function plan(c: Ready, key: FolderKey): Promise<{ name: string; parent: FolderKey } | null> {
+  if (key.startsWith("section:")) {
+    const name = SECTION_NAMES[key.slice(8) as SectionKey];
+    return name ? { name, parent: "root" } : null;
+  }
   // A category inside a record's folder (Holiday, Spot Check, Documents ...).
   const cat = splitCategoryKey(key);
-  if (cat) return categoryFolderName(c.company_id, cat.slug);
-  const facts = await recordFolderFacts(c.company_id, key);
-  return facts ? recordFolderName(facts.fullName, facts.branchName, facts.n) : null;
+  if (cat) {
+    const name = await categoryFolderName(c.company_id, cat.slug);
+    return name ? { name, parent: cat.record } : null;
+  }
+  if (isBranchKey(key)) {
+    const db = createServiceClient();
+    const branchId = key.slice(key.lastIndexOf(":") + 1);
+    const { data } = await db
+      .from("branches")
+      .select("name")
+      .eq("id", branchId)
+      .eq("company_id", c.company_id)
+      .maybeSingle<{ name: string }>();
+    return data ? { name: branchFolderName(data.name), parent: sectionKeyOf(key) } : null;
+  }
+  if (isRecordKey(key)) {
+    const facts = await recordFolderFacts(c.company_id, key);
+    if (!facts) return null;
+    // In its branch's folder; a record with no branch (none should have one) stays in the section.
+    return {
+      name: recordFolderName(facts.fullName, facts.n),
+      parent: facts.branchId ? branchKey(key, facts.branchId) : sectionKeyOf(key),
+    };
+  }
+  return null;
+}
+
+/** The folder a key sits in, asking the database for a record's branch. */
+async function parentOf(c: Ready, key: FolderKey): Promise<FolderKey | null> {
+  if (key === "root") return null;
+  if (isRecordKey(key)) return (await plan(c, key))?.parent ?? sectionKeyOf(key);
+  return parentKey(key);
+}
+
+function nameTaken(e: unknown): boolean {
+  const err = e as { status?: number; code?: string };
+  return err.status === 409 || err.code === "nameAlreadyExists";
 }
 
 /**
@@ -63,33 +110,64 @@ async function ensureRoot(c: Ready, token: string, verify: boolean): Promise<str
 export async function ensureFolder(c: Ready, token: string, key: FolderKey, verify = false): Promise<string> {
   if (key === "root") return ensureRoot(c, token, verify);
   const db = createServiceClient();
-  const name = await desiredName(c, key);
-  if (!name) throw new Error("That record no longer exists, so it has no folder.");
+  const want = await plan(c, key);
+  if (!want) throw new Error("That record no longer exists, so it has no folder.");
+  const { name, parent } = want;
 
   const { data: known } = await db
     .from("cloud_folders")
-    .select("id, drive_item_id, name")
+    .select("id, drive_item_id, name, parent_key")
     .eq("connection_id", c.id)
     .eq("folder_key", key)
-    .maybeSingle<{ id: string; drive_item_id: string; name: string }>();
+    .maybeSingle<{ id: string; drive_item_id: string; name: string; parent_key: string | null }>();
 
   if (known) {
     try {
       if (verify) await getMsItem(token, c.drive_id, known.drive_item_id);
-      // A new name or a move to another branch: the folder follows (Phil, 2026-10-08).
-      if (known.name !== name) {
+
+      /* A file going into a category folder first puts its RECORD's folder right: renamed, and in
+         its branch. Without this a record whose category folders were all made already would
+         never be looked at again, so a new name or a transfer would never reach the drive.
+         Database reads only, unless something has actually changed. */
+      if (splitCategoryKey(key)) await ensureFolder(c, token, parent, verify);
+
+      if (isRecordKey(key)) {
+        // The branch folder it belongs in (made if need be, and renamed if the branch was).
+        const parentId = await ensureFolder(c, token, parent, verify);
+        /* IN THE WRONG FOLDER: transferred to another branch, or made before branch folders
+           existed (parent_key empty). The whole folder moves, everything inside it going with it
+           (Phil, 2026-10-09, by popup), taking its new name in the same step. */
+        if (known.parent_key !== parent) {
+          try {
+            await moveMsItem(token, c.drive_id, known.drive_item_id, parentId, known.name !== name ? name : undefined);
+            await db
+              .from("cloud_folders")
+              .update({ parent_key: parent, name, updated_at: new Date().toISOString() })
+              .eq("id", known.id);
+          } catch (me) {
+            if (me instanceof CloudNotFoundError) throw me;
+            if (!nameTaken(me)) throw me;
+            // A folder of that name is already in the branch (made by hand, or another record's).
+            // Keep copying into this folder where it is, and try the move again next time.
+            console.warn("[cloud] could not move a record folder into its branch yet, that name is taken:", name);
+          }
+          return known.drive_item_id;
+        }
+      }
+
+      // A new name: the folder follows (Phil, 2026-10-08). Records and branches.
+      if (known.name !== name && (isRecordKey(key) || isBranchKey(key))) {
         let renamed = true;
         try {
           await renameMsItem(token, c.drive_id, known.drive_item_id, name);
         } catch (re) {
           if (re instanceof CloudNotFoundError) throw re;
-          const err = re as { status?: number; code?: string };
           // A folder of that name is already there (another record's, or one made by hand). Keep
           // copying into the folder it has always used, and try the rename again next time; the
           // remembered name stays the folder's REAL name, so nothing else can take it over.
-          if (err.status !== 409 && err.code !== "nameAlreadyExists") throw re;
+          if (!nameTaken(re)) throw re;
           renamed = false;
-          console.warn("[cloud] could not rename a record folder yet, that name is taken:", name);
+          console.warn("[cloud] could not rename a folder yet, that name is taken:", name);
         }
         if (renamed) await db.from("cloud_folders").update({ name, updated_at: new Date().toISOString() }).eq("id", known.id);
       }
@@ -101,7 +179,6 @@ export async function ensureFolder(c: Ready, token: string, key: FolderKey, veri
     }
   }
 
-  const parent = parentKey(key) ?? "root";
   const parentId = await ensureFolder(c, token, parent, verify);
   let made = await ensureMsFolder(token, c.drive_id, parentId, name);
   let madeName = name;
@@ -129,6 +206,7 @@ export async function ensureFolder(c: Ready, token: string, key: FolderKey, veri
       folder_key: key,
       drive_item_id: made.id,
       name: madeName,
+      parent_key: parent,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "connection_id,folder_key" },
@@ -152,7 +230,7 @@ export async function forgetFolderChain(c: Ready, key: FolderKey): Promise<void>
   let k: FolderKey | null = key;
   while (k && k !== "root") {
     keys.push(k);
-    k = parentKey(k);
+    k = await parentOf(c, k);
   }
   if (keys.length) await db.from("cloud_folders").delete().eq("connection_id", c.id).in("folder_key", keys);
 }

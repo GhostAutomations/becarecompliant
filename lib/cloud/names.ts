@@ -2,18 +2,24 @@
  * Be Care Compliant — folder and file names in the company's cloud drive (0437). Pure and
  * importless so node --test can load it.
  *
- * Phil, 2026-10-08: a person's or service user's folder is "Name (Branch)", renamed when either
- * changes; leavers and discharged service users keep their folder. Files are dated first so a
+ * Phil, 2026-10-08: a person's or service user's folder is named after them, renamed when the
+ * name changes; leavers and discharged service users keep their folder. Files are dated so a
  * folder sorts by date.
+ *
+ * Phil, 2026-10-09 (by popup): records sit in a folder for their branch, People > Llanelli >
+ * Jane Smith, so the folder name no longer carries the branch; a transfer moves the folder.
  */
 
 export type RecordKey = `person:${string}` | `service_user:${string}`;
+
+/** "branch:people:<branchId>": a branch's folder inside People or Service Users (0441). */
+export type BranchKey = `branch:${"people" | "service_users"}:${string}`;
 
 /**
  * "person:<id>/holiday": a category folder inside a record's folder (Phil, 2026-10-09: "a holiday
  * folder, a spot check folder, a supervision folder ... a document folder").
  */
-export type FolderKey = "root" | `section:${SectionKey}` | RecordKey | `${RecordKey}/${string}`;
+export type FolderKey = "root" | `section:${SectionKey}` | BranchKey | RecordKey | `${RecordKey}/${string}`;
 
 export type SectionKey = "people" | "service_users" | "complaints" | "incidents" | "policies" | "briefings";
 
@@ -47,16 +53,19 @@ export function safeDriveName(raw: string, fallback = "Untitled"): string {
 }
 
 /**
- * "Jane Smith (Cardiff)", or just "Jane Smith" with no branch. Two records with the same name in
- * the same branch must never share a folder (their files would land on top of each other), so
- * the second is "Jane Smith 2 (Cardiff)", the third "Jane Smith 3 (Cardiff)": `n` is the record's
- * place among the same named ones, oldest first.
+ * "Jane Smith". The folder sits inside its branch's folder, so the branch is not in the name
+ * (Phil, 2026-10-09). Two records with the same name in the same branch must never share a folder
+ * (their files would land on top of each other), so the second is "Jane Smith 2", the third
+ * "Jane Smith 3": `n` is the record's place among the same named ones in that branch, oldest first.
  */
-export function recordFolderName(fullName: string, branchName: string | null | undefined, n = 1): string {
+export function recordFolderName(fullName: string, n = 1): string {
   const name = safeDriveName(fullName, "Unnamed").slice(0, 90).trim();
-  const numbered = n > 1 ? `${name} ${n}` : name;
-  const branch = branchName ? safeDriveName(branchName, "").slice(0, 60).trim() : "";
-  return safeDriveName(branch ? `${numbered} (${branch})` : numbered, "Unnamed");
+  return safeDriveName(n > 1 ? `${name} ${n}` : name, "Unnamed");
+}
+
+/** A branch's folder name: the branch's own name. */
+export function branchFolderName(branchName: string | null | undefined): string {
+  return safeDriveName(String(branchName ?? ""), "Branch").slice(0, 100).trim() || "Branch";
 }
 
 /** Keep the extension of the original file, or add one. */
@@ -160,6 +169,22 @@ export function isRecordKey(v: string): v is RecordKey {
   return RECORD_RE.test(v);
 }
 
+const BRANCH_RE = new RegExp(`^branch:(people|service_users):${UUID_RE}$`, "i");
+
+export function isBranchKey(v: string): v is BranchKey {
+  return BRANCH_RE.test(v);
+}
+
+/** The branch folder a record belongs in: People's or Service Users' folder for that branch. */
+export function branchKey(record: RecordKey, branchId: string): BranchKey {
+  return `branch:${record.startsWith("person:") ? "people" : "service_users"}:${branchId}`;
+}
+
+/** The section a record or branch folder lives under. */
+export function sectionKeyOf(key: RecordKey | BranchKey): FolderKey {
+  return key.startsWith("person:") || key.startsWith("branch:people:") ? "section:people" : "section:service_users";
+}
+
 export function categoryKey(record: RecordKey, slug: string): FolderKey {
   return `${record}/${slug}`;
 }
@@ -190,12 +215,17 @@ export function categoryForFormKey(formKey: string | null | undefined, recordTyp
   return null;
 }
 
-/** The folder a key belongs inside. */
+/**
+ * The folder a key belongs inside. A record's folder belongs in its BRANCH's folder, which this
+ * cannot know (it needs the record's branch from the database), so for a record this gives the
+ * record's section; ensureFolder asks the database for the branch.
+ */
 export function parentKey(key: FolderKey): FolderKey | null {
   if (key === "root") return null;
   const cat = splitCategoryKey(key);
   if (cat) return cat.record;
   if (key.startsWith("section:")) return "root";
+  if (isBranchKey(key)) return sectionKeyOf(key);
   if (key.startsWith("person:")) return "section:people";
   if (key.startsWith("service_user:")) return "section:service_users";
   return "root";
@@ -207,6 +237,7 @@ export function isFolderKey(v: string): v is FolderKey {
     (v.startsWith("section:") && (SECTION_KEYS as string[]).includes(v.slice(8))) ||
     /^person:[0-9a-f-]{36}$/i.test(v) ||
     /^service_user:[0-9a-f-]{36}$/i.test(v) ||
+    isBranchKey(v) ||
     splitCategoryKey(v) !== null
   );
 }

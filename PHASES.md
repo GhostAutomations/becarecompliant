@@ -4053,6 +4053,22 @@ Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft)
 
 Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.
 
+### 2026-10-09 — Branch folders in the cloud drive (migration 0441, Phase 13)
+
+Phil, after the comprehensive filing test: People and Service Users should open onto the company's
+branches, with each person or service user inside their branch. Decided by popup: **People >
+[Branch] > [Person]** and the same for Service Users, built **now, before the appraisal fix**;
+record folders **drop the "(Branch)"** from their name; a **transfer moves the whole folder** into
+the new branch; **existing folders are moved in**.
+Built: branch keys in lib/cloud/names.ts (tested); lib/cloud/folders.ts puts a record's folder in
+its branch's folder, moves it (renaming in the same step) when its branch has changed or it was
+made before branches, and checks the record's folder every time a file goes into one of its
+category folders, so a new name or a transfer always reaches the drive. 0441 adds
+cloud_folders.parent_key and a trigger that queues the folder move the moment a record changes
+branch or name. Settings text updated.
+
+Tests: TEST-CHECKLIST-CLOUD-DRIVE.md items 51 to 55.
+
 ### 2026-10-09 — Category folders in the cloud drive (Phase 13)
 
 Phil, before Thistle's SharePoint goes live: everything for a person sat loose in one folder.

@@ -636,14 +636,14 @@ async function resolveFlat(companyId: string, kind: string, sourceId: string): P
 }
 
 /**
- * The name a record's folder should have right now: "Name (Branch)", and the record's place among
- * records with the same name in the same branch (oldest first), so two John Smiths in Cardiff
- * get "John Smith (Cardiff)" and "John Smith 2 (Cardiff)" and never share a folder.
+ * What a record's folder should be right now: the record's name, its branch (the folder it sits
+ * in, 0441), and its place among records with the same name in the same branch (oldest first), so
+ * two John Smiths in Cardiff get "John Smith" and "John Smith 2" and never share a folder.
  */
 export async function recordFolderFacts(
   companyId: string,
   key: FolderKey,
-): Promise<{ fullName: string; branchName: string | null; n: number } | null> {
+): Promise<{ fullName: string; branchId: string | null; branchName: string | null; n: number } | null> {
   const db = createServiceClient();
   if (key.startsWith("person:") || key.startsWith("service_user:")) {
     const isPerson = key.startsWith("person:");
@@ -671,7 +671,7 @@ export async function recordFolderFacts(
       .filter((r) => folderKeyName(r.full_name) === mine)
       .sort((x, y) => (x.created_at === y.created_at ? x.id.localeCompare(y.id) : x.created_at.localeCompare(y.created_at)));
     const n = Math.max(1, ranked.findIndex((r) => r.id === id) + 1);
-    return { fullName: data.full_name, branchName: b?.name ?? null, n };
+    return { fullName: data.full_name, branchId: data.branch_id, branchName: b?.name ?? null, n };
   }
   return null;
 }

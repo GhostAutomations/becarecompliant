@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 /**
  * Settings > Cloud drive (0437, Phil 2026-10-08): a copy of every PDF and certificate in the
  * company's own Microsoft 365, OneDrive or a SharePoint site, in a "Be Care Compliant" folder with
- * a folder per person and service user. Admins only.
+ * a folder per branch and, inside it, per person and service user. Admins only.
  */
 
 const ERRORS: Record<string, string> = {
@@ -136,7 +136,8 @@ export default async function CloudSettingsPage({
           <h2 className="text-base font-semibold text-white">Where should the folder live?</h2>
           <p className="text-sm text-white/60">
             Connected as {c?.account_name || c?.account_email}. A folder called Be Care Compliant is made there, with
-            People, Service Users, Complaints, Incidents, Policies and Briefings inside.
+            People, Service Users, Complaints, Incidents, Policies and Briefings inside. People and Service Users
+            have a folder for each branch, with each person or service user inside their branch.
           </p>
           <LocationChooser />
           <p className="text-xs text-white/50">
@@ -185,8 +186,8 @@ export default async function CloudSettingsPage({
             <p className="text-sm text-white/60">
               New documents are copied as they happen. Press this once to copy everything you already have: every
               completed form, uploaded file, certificate, letter, policy version and memo, and a folder for every
-              current person and service user, with a folder inside it for each check and for Holiday, Absence,
-              Training and Documents. It runs in the background; the bar above shows how far it has got and the time left.
+              current person and service user, inside their branch, with a folder inside it for each check and for
+              Holiday, Absence, Training and Documents. It runs in the background; the bar above shows how far it has got and the time left.
               Pressing it again never makes duplicates.
             </p>
             <ActionForm

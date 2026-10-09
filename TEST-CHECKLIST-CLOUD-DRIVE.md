@@ -123,3 +123,55 @@ drive (OneDrive), the only company connected.
   Holiday, Training and Documents passed through the moves above.
 - 42 and 44 not run live (no such file in Bevan); the rules are unit tested and the move skips are
   in the code.
+
+## Comprehensive filing test (Phil, 9 Oct 2026)
+
+Two people (Rhodri Evans, existing; ZZ TEST Filing Person, created through Add person) and two
+service users (ZZ TEST Service User Two, existing; ZZ TEST Filing SU, created through Add service
+user), two of every kind of file, on Bevan's OneDrive. Run by Claude through the real screens as
+Bev Admin, except where marked. Every file was then read back from the drive, inside Be Care
+Compliant only.
+
+46. A new person and a new service user get their folder and the full category set when created.
+47. Two of every check form on all four records land in that check's folder.
+48. Holidays, training certificates, ad hoc documents, care plans, DBS, Right to Work, Probation,
+    absences, Return to Work, absence meeting letters and outcome letters land in their folders.
+49. A form no check uses gets a folder named after the form.
+50. Nothing fails in the queue.
+
+Results:
+- 46 PASS. Both new records got their folder and every category folder at creation. The new
+  service user's care plan, uploaded on the Add screen, landed in Care Plan.
+- 47 PASS. 56 check forms (Supervision, Annual Appraisal, Spot Check, Medication Competency,
+  Manual Handling, Audit, Mentoring, Lead the Leader, One to One, Health Check on both people;
+  Setup Visit, Care Plan Review, Audit, Platform Audit on both service users), each submitted
+  twice through the Complete page. Each folder on the new records holds exactly 2 files, the
+  second named "(2)".
+- 48 PASS. On the screens: 4 holidays (Holiday page), 4 certificates (Documents tile, course path,
+  into Training), 8 ad hoc documents including two uploaded together, care plan replaced on both
+  service users, DBS x4 and Right to Work x4 with uploaded evidence (form PDF and the uploaded file
+  both in DBS / Right to Work), Probation x2 on the new person, 4 absences and 4 Return to Work
+  interviews (Absence page). All in their folders. The new person's Absence folder holds 8: 2
+  absence forms, 2 Return to Work, 2 meeting invitations, 2 outcome letters.
+  Not through the screens: the 8 absence letters were made in the database from existing Bevan
+  letters (neither test person had reached a meeting stage), then queued as the app queues them.
+- 49 PASS (data made in the database). Financial Transaction evidence on all four records made a
+  "Financial Transaction" folder in each, 2 files each.
+- 50 PASS. 158 queue jobs from the test, all done, none failed.
+- By design: a care plan replaced twice on the same day keeps one copy ("the latest plan is the
+  plan"), so Care Plan holds 1 file, not 2.
+- By design: Rhodri has passed probation, so he has no Probation form to complete.
+- Found: Right to Work and Probation keep their draft after saving, so the next one opens filled
+  in with the last answers (and "Signature captured" over an empty box). DBS and check forms
+  clear correctly. Reported to Phil.
+
+## Branch folders (0441, Phil, 9 Oct 2026)
+
+People > [Branch] > [Person], Service Users > [Branch] > [Service user]; record folders are named
+without the branch; a transfer moves the folder; existing folders are moved in.
+51. After deploy, every existing record folder in Bevan moves into its branch folder, renamed
+    without "(Branch)", with everything inside it.
+52. A new person or service user gets their folder inside their branch's folder.
+53. Transferring a record to another branch moves its folder, contents and all, within a minute.
+54. Renaming a record renames its folder; renaming a branch renames the branch folder.
+55. Complaints, Incidents, Policies and Briefings are unchanged.

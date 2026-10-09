@@ -225,11 +225,15 @@ export async function renameMsItem(token: string, driveId: string, itemId: strin
   });
 }
 
-/** Move an item into another folder, keeping its name (category folders, 2026-10-09). */
-export async function moveMsItem(token: string, driveId: string, itemId: string, parentId: string): Promise<void> {
+/**
+ * Move an item into another folder (category folders, 2026-10-09), keeping its name, or giving it
+ * a new one in the same step (a record folder moving branch, 0441), so it never has to pass
+ * through a name that is already taken on either side.
+ */
+export async function moveMsItem(token: string, driveId: string, itemId: string, parentId: string, newName?: string): Promise<void> {
   await graph(token, `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`, {
     method: "PATCH",
-    body: JSON.stringify({ parentReference: { id: parentId } }),
+    body: JSON.stringify(newName ? { parentReference: { id: parentId }, name: newName } : { parentReference: { id: parentId } }),
   });
 }
 

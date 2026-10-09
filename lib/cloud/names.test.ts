@@ -9,10 +9,10 @@ test("drive names lose the characters OneDrive refuses", () => {
   assert.equal(safeDriveName("x".repeat(300)).length, 120);
 });
 
-test("record folders are Name (Branch)", () => {
-  assert.equal(recordFolderName("Jane Smith", "Cardiff"), "Jane Smith (Cardiff)");
-  assert.equal(recordFolderName("Jane Smith", null), "Jane Smith");
-  assert.equal(recordFolderName("", "Cardiff"), "Unnamed (Cardiff)");
+test("record folders are the name alone (the branch is the folder above)", () => {
+  assert.equal(recordFolderName("Jane Smith"), "Jane Smith");
+  assert.equal(recordFolderName("Jane: Smith?"), "Jane Smith");
+  assert.equal(recordFolderName(""), "Unnamed");
 });
 
 test("files are dated first and keep their version and extension", () => {
@@ -47,9 +47,9 @@ test("record files are initials, SSID, what it is, date, and (2) on a clash", ()
 });
 
 test("two records with the same name in a branch get their own folders", () => {
-  assert.equal(recordFolderName("John Smith", "Cardiff", 1), "John Smith (Cardiff)");
-  assert.equal(recordFolderName("John Smith", "Cardiff", 2), "John Smith 2 (Cardiff)");
-  assert.equal(recordFolderName("John Smith", null, 3), "John Smith 3");
+  assert.equal(recordFolderName("John Smith", 1), "John Smith");
+  assert.equal(recordFolderName("John Smith", 2), "John Smith 2");
+  assert.equal(recordFolderName("John Smith", 3), "John Smith 3");
 });
 
 test("a long title gives way so the date and the (2) survive", () => {
@@ -84,4 +84,23 @@ test("category folders sit inside the record's folder", async () => {
   assert.equal(categoryForFormKey("financial_transaction", "person"), null);
   assert.equal(categoryForFormKey("care_plan_review", "service_user"), "care-plan");
   assert.equal(categoryForFormKey("holiday_requests", "service_user"), null);
+});
+
+test("branch folders (0441): People > Branch > Person", async () => {
+  const { branchKey, isBranchKey, isFolderKey, parentKey, sectionKeyOf, branchFolderName } = await import("./names.ts");
+  const b = "0f8fad5b-d9cb-469f-a165-70867728950e";
+  const p = "person:3210c931-cc10-40e7-ac63-0802cbbc5e63" as const;
+  const s = "service_user:3210c931-cc10-40e7-ac63-0802cbbc5e63" as const;
+  assert.equal(branchKey(p, b), `branch:people:${b}`);
+  assert.equal(branchKey(s, b), `branch:service_users:${b}`);
+  assert.ok(isBranchKey(`branch:people:${b}`));
+  assert.ok(!isBranchKey(`branch:boards:${b}`));
+  assert.ok(!isBranchKey("branch:people:abc"));
+  assert.ok(isFolderKey(`branch:service_users:${b}`));
+  assert.equal(parentKey(`branch:people:${b}`), "section:people");
+  assert.equal(parentKey(`branch:service_users:${b}`), "section:service_users");
+  assert.equal(sectionKeyOf(s), "section:service_users");
+  assert.equal(branchFolderName("Llanelli"), "Llanelli");
+  assert.equal(branchFolderName("North/South"), "North South");
+  assert.equal(branchFolderName(""), "Branch");
 });
