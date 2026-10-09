@@ -112,3 +112,16 @@ looked as if nothing happened, and the request stayed pending. Fixed and decided
 22. The Pending requests and Booked rows stay one line: Edit dates, Decline and Cancel open the
     holiday's popup (dates at the top, the form under them) instead of unfolding inside the row
     (Phil, 9 Oct: "it cannot be that big"). Approve stays one click in the row.
+
+Run by Claude on 9 Oct 2026 after the deploy of 780bfdbb, in Bevan as Bev Admin, on Rhodri's
+ZZ TEST holiday (put back to pending for the test).
+- Pending row (before this deploy): Edit dates saved 21 to 24 Oct and the row's line updated
+  within 3 seconds, but the open form filled the row: this is what Charlotte saw.
+- 22 PASS. The Pending row stays 60px; Edit dates opened the popup with the dates at the top and
+  Save dates, Save and approve and Cancel under them.
+- 21 PASS. Save and approve on 22 to 24 Oct: the popup showed Approved, 22 Oct to 24 Oct 2026,
+  Back at work 25 Oct; Pending requests (0), Booked (1). Audit: amended (then_approve, no
+  "changed" email) then "Holiday request approved".
+- 20 PASS. The form closed itself after the save, leaving Edit dates and Cancel.
+- Cancel from the Booked row opened the popup straight onto the reason; cancelled with a reason,
+  the popup showed Cancelled and the reason. The test holiday is now cancelled.
