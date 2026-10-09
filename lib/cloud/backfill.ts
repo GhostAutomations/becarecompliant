@@ -13,7 +13,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { CloudSourceKind } from "@/lib/cloud/sources";
 
-type Job = { company_id: string; source_kind: CloudSourceKind; source_id: string; dedupe_key: string };
+type Job = { company_id: string; source_kind: CloudSourceKind; source_id: string; dedupe_key: string; created_at: string };
 
 async function all<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = [];
@@ -30,8 +30,11 @@ async function all<T>(build: (from: number, to: number) => PromiseLike<{ data: T
 export async function queueEverything(companyId: string): Promise<number> {
   const db = createServiceClient();
   const jobs: Job[] = [];
+  // One time for the whole lot, although it is written in chunks of 500, so the progress bar sees
+  // a single run (Phil 2026-10-09: it jumped from 621 to 122 when the first chunk finished).
+  const createdAt = new Date().toISOString();
   const add = (kind: CloudSourceKind, id: string) =>
-    jobs.push({ company_id: companyId, source_kind: kind, source_id: id, dedupe_key: `${kind}:${id}` });
+    jobs.push({ company_id: companyId, source_kind: kind, source_id: id, dedupe_key: `${kind}:${id}`, created_at: createdAt });
 
   // Folders for everyone current (leavers and discharged keep any folder they already have).
   const people = await all<{ id: string }>((a, b) =>

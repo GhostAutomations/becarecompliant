@@ -45,7 +45,23 @@ export async function cloudProgress(companyId: string): Promise<CloudProgress> {
   const w = waiting.count ?? 0;
   let runTotal = 0;
   let runDone = 0;
-  const start = (oldest.data as { created_at: string } | null)?.created_at;
+  let start = (oldest.data as { created_at: string } | null)?.created_at;
+  // The run began earlier if copies queued before the oldest one waiting were still being worked
+  // on after it was queued (two batches back to back are one run, not two).
+  for (let i = 0; start && i < 3; i++) {
+    const { data: earlier } = await db
+      .from("cloud_sync_queue")
+      .select("created_at")
+      .eq("company_id", companyId)
+      .lt("created_at", start)
+      .gte("done_at", start)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const e = (earlier as { created_at: string } | null)?.created_at;
+    if (!e) break;
+    start = e;
+  }
   if (w > 0 && start) {
     const [total, done] = await Promise.all([q().gte("created_at", start), q().gte("created_at", start).in("status", ["done", "failed"])]);
     runTotal = total.count ?? w;
