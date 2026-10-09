@@ -5,6 +5,8 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import LocationChooser from "@/components/cloud/location-chooser";
+import CopyProgress from "@/components/cloud/copy-progress";
+import { cloudProgress } from "@/lib/cloud/progress";
 import { getCloudConnection } from "@/lib/cloud/connection";
 import { microsoftConfigured } from "@/lib/cloud/microsoft";
 import { cloudKeyConfigured } from "@/lib/cloud/crypto";
@@ -53,11 +55,8 @@ export default async function CloudSettingsPage({
   const c = await getCloudConnection(profile.company_id);
 
   const db = createServiceClient();
-  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const [waiting, failed, done, failures] = await Promise.all([
-    db.from("cloud_sync_queue").select("id", { count: "exact", head: true }).eq("company_id", profile.company_id).in("status", ["pending", "working"]),
-    db.from("cloud_sync_queue").select("id", { count: "exact", head: true }).eq("company_id", profile.company_id).eq("status", "failed"),
-    db.from("cloud_sync_queue").select("id", { count: "exact", head: true }).eq("company_id", profile.company_id).eq("status", "done").gte("done_at", since),
+  const [progress, failures] = await Promise.all([
+    cloudProgress(profile.company_id),
     db
       .from("cloud_sync_queue")
       .select("id, source_kind, last_error, created_at")
@@ -120,7 +119,7 @@ export default async function CloudSettingsPage({
           <p className="text-sm text-white/70">
             Microsoft stopped accepting the connection made by {c?.account_name || c?.account_email || "your Admin"}. This
             usually means their password changed, they left, or their access was removed. Nothing is lost:{" "}
-            {waiting.count ?? 0} {waiting.count === 1 ? "copy is" : "copies are"} waiting and will go across once you connect again.
+            {progress.waiting} {progress.waiting === 1 ? "copy is" : "copies are"} waiting and will go across once you connect again.
           </p>
           {c?.last_error ? <p className="text-xs text-white/45">Microsoft said: {c.last_error}</p> : null}
           {configured ? (
@@ -165,12 +164,7 @@ export default async function CloudSettingsPage({
                 </a>
               ) : null}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="pill pill-neutral">Last copy: {when(c.last_copied_at)}</span>
-              <span className="pill pill-neutral">{done.count ?? 0} copied in the last 30 days</span>
-              <span className={(waiting.count ?? 0) > 0 ? "pill pill-amber" : "pill pill-neutral"}>{waiting.count ?? 0} waiting</span>
-              <span className={(failed.count ?? 0) > 0 ? "pill pill-red" : "pill pill-green"}>{failed.count ?? 0} failed</span>
-            </div>
+            <CopyProgress initial={progress} />
             {(failures.data ?? []).length > 0 ? (
               <ul className="space-y-1 text-xs text-red-200/80">
                 {(failures.data as Array<{ id: string; last_error: string | null }>).map((f) => (
@@ -179,7 +173,7 @@ export default async function CloudSettingsPage({
               </ul>
             ) : null}
             <div className="flex flex-wrap gap-2">
-              {(failed.count ?? 0) > 0 || (waiting.count ?? 0) > 0 ? (
+              {progress.failed > 0 || progress.waiting > 0 ? (
                 <ActionForm action={retryCloudFailures} label="Try again now" savedLabel="Done" buttonClassName="btn-outline btn-xs" className="" />
               ) : null}
             </div>
@@ -190,7 +184,7 @@ export default async function CloudSettingsPage({
             <p className="text-sm text-white/60">
               New documents are copied as they happen. Press this once to copy everything you already have: every
               completed form, uploaded file, certificate, letter, policy version and memo, and a folder for every
-              current person and service user. It runs in the background; the waiting count above goes down as it works.
+              current person and service user. It runs in the background; the bar above shows how far it has got and the time left.
               Pressing it again never makes duplicates.
             </p>
             <ActionForm
