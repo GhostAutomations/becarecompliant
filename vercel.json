@@ -37,7 +37,7 @@
     },
     {
       "path": "/api/cron/cloud-copies",
-      "schedule": "*/5 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

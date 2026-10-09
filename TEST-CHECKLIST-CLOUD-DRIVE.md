@@ -31,7 +31,7 @@ Anything Not tested goes into the Final Testing phase.
 
 ## Copy everything so far
 23. The button is there once a location is chosen; pressing it says how many are queued.
-24. The waiting count goes down over the next few runs (about 60 every 5 minutes) and the files arrive.
+24. The waiting count goes down over the next few runs (about 60 a minute) and the files arrive.
 25. Pressing it a second time queues nothing new and makes no duplicate files.
 
 ## Problems and recovery

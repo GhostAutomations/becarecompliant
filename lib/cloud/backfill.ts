@@ -4,7 +4,7 @@ import "server-only";
  * Be Care Compliant — "Copy everything so far" (0437, Phil 2026-10-08: from now on, plus a copy
  * all button). Puts every document the company already holds into the copy queue, plus a folder
  * for every current person and service user. The worker then works through it in the background
- * (the cron takes about fifty a run), and Settings shows how many are still waiting.
+ * (the cron runs every minute and copies about sixty a run), and Settings shows how many are still waiting.
  *
  * Safe to press twice: every job has the same unique key as the live copy of the same document,
  * so nothing is queued twice, and an upload replaces a file of the same name.

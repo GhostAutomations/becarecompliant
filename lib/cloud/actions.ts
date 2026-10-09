@@ -11,6 +11,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
@@ -188,6 +189,8 @@ export async function copyEverythingSoFar(_prev?: ActionState, _fd?: FormData): 
       entityId: c.id,
       summary: `Asked for everything so far to be copied to the cloud drive (${n} documents and folders)`,
     });
+    // Start straight away rather than waiting for the next cron run (every minute).
+    after(() => processCloudQueue({ companyId, limit: 200, budgetMs: 25_000 }).catch(() => undefined));
     revalidatePath("/settings/cloud");
     return { ok: `Started. ${n} documents and folders are being copied in the background. This page shows how many are still waiting.` };
   } catch (e) {

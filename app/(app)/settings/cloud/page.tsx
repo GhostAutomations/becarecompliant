@@ -81,7 +81,7 @@ export default async function CloudSettingsPage({
       </div>
 
       {sp.error ? <div className="glass-card border border-red-400/30 p-4 text-sm text-red-200">{ERRORS[sp.error] ?? ERRORS.failed}</div> : null}
-      {sp.connected ? (
+      {sp.connected && status === "choose" ? (
         <div className="glass-card border border-emerald-400/30 p-4 text-sm text-emerald-200">
           Microsoft 365 is connected. Now choose where the Be Care Compliant folder should live.
         </div>

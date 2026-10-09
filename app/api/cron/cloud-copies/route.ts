@@ -21,6 +21,6 @@ export async function GET(request: NextRequest) {
   } else if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const result = await processCloudQueue({ limit: 60, budgetMs: 50_000 });
+  const result = await processCloudQueue({ limit: 200, budgetMs: 50_000 });
   return NextResponse.json({ ok: true, ...result });
 }

@@ -4,7 +4,7 @@ import "server-only";
  * Be Care Compliant — the cloud drive copier (0437). Works through cloud_sync_queue: claims a
  * job, works out the document (lib/cloud/sources.ts), makes sure its folder exists
  * (lib/cloud/folders.ts), uploads it, and closes the job. Run right after something is queued
- * (lib/cloud/queue.ts) and every five minutes by the cron, so a failure is always picked up.
+ * (lib/cloud/queue.ts) and every minute by the cron, so a failure is always picked up.
  *
  * Safe to run twice at once: a job is claimed by moving it pending -> working in one update, and
  * uploads replace a file of the same name, so even a double upload leaves one file.
