@@ -3,7 +3,7 @@
 /**
  * Live cloud drive progress (Phil 2026-10-09): the counts update on their own, and while copies are
  * waiting a bar shows how far through the run it is with the time left. Checks every 4 seconds while
- * copying, every 20 seconds otherwise, and refreshes the page once a run finishes so the failure
+ * copying, every 20 seconds otherwise (not at all while the tab is hidden), and refreshes the page once a run finishes so the failure
  * list is current.
  */
 
@@ -41,6 +41,11 @@ export default function CopyProgress({ initial }: { initial: CloudProgress }) {
     let stop = false;
     let timer: number | undefined;
     const tick = async () => {
+      // Not looked at (another tab, a locked phone): no need to ask the server.
+      if (document.hidden) {
+        if (!stop) timer = window.setTimeout(tick, 20000);
+        return;
+      }
       try {
         const res = await fetch("/api/cloud/progress", { cache: "no-store" });
         if (res.ok) {

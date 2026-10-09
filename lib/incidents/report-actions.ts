@@ -247,7 +247,6 @@ export async function submitIncidentEvidence(_prev: ActionState, formData: FormD
     branchId: (incident.branch_id as string | null) ?? null,
     answers,
     recordType: "incident",
-    lookupChoices: await incidentReportChoices(companyId),
     recordId: incidentId,
   });
   if (!result.ok) return { error: result.error };

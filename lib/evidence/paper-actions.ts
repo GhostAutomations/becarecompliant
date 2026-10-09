@@ -25,7 +25,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { queueCloudCopy } from "@/lib/cloud/queue";
+import { queueCloudCopies } from "@/lib/cloud/queue";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { advancePersonCheck } from "@/lib/people/advance-check";
@@ -206,14 +206,13 @@ export async function finishPaperUpload(input: {
   if (rpcErr) return { ok: false, error: rpcErr.message };
 
   // Copies in the company's cloud drive (0437): the record of it, and the paper scans themselves.
-  await queueCloudCopy({ companyId: instance.company_id as string, kind: "evidence", sourceId: evidenceId });
-  for (const f of files) {
-    await queueCloudCopy({
-      companyId: instance.company_id as string,
-      kind: "evidence_file",
+  await queueCloudCopies(instance.company_id as string, [
+    { kind: "evidence", sourceId: evidenceId },
+    ...files.map((f) => ({
+      kind: "evidence_file" as const,
       sourceId: `${evidenceId}|${String((f as { storage_path?: string }).storage_path ?? "")}`,
-    });
-  }
+    })),
+  ]);
 
   const population = instance.person_id ? "people" : "service_users";
   const recordId = (instance.person_id ?? instance.service_user_id) as string;

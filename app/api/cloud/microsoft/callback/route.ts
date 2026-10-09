@@ -6,6 +6,8 @@ import { openToken, sealToken } from "@/lib/cloud/crypto";
 import { exchangeMicrosoftCode, microsoftMe } from "@/lib/cloud/microsoft";
 import { writeAudit } from "@/lib/audit";
 import { siteUrl } from "@/lib/site";
+import { forgetCloudStatus } from "@/lib/cloud/queue";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
 
 /**
  * Microsoft sends the Admin back here after they sign in (0437). Checked three ways before
@@ -21,6 +23,8 @@ const COOKIE = "bcc_ms_oauth";
 export async function GET(req: NextRequest) {
   const back = (q: string) => NextResponse.redirect(`${siteUrl()}/settings/cloud?${q}`);
   const { user, profile } = await requireCompanyAdmin();
+  // Support mode does not connect a company's drive (review, 9 Oct 2026): that is for their Admin.
+  if (profile.role === "platform_admin" && (await readActingCompanyId())) return back("error=support");
   const jar = await cookies();
   const raw = jar.get(COOKIE)?.value;
   jar.delete({ name: COOKIE, path: "/api/cloud/microsoft" });
@@ -47,8 +51,36 @@ export async function GET(req: NextRequest) {
 
   try {
     const tokens = await exchangeMicrosoftCode(code, saved.verifier);
+    // Without a refresh token the connection would stop working within the hour.
+    if (!tokens.refreshToken || !tokens.accessToken) return back("error=failed");
     const me = await microsoftMe(tokens.accessToken);
     const db = createServiceClient();
+
+    /* A DIFFERENT ACCOUNT starts from the beginning (review, 9 Oct 2026). Its keys may not reach
+       the place the last account chose (another organisation's SharePoint, somebody else's
+       OneDrive), and the folders remembered are in that place, so the location and the folders
+       are forgotten and the Admin chooses again. The same account reconnecting keeps them. */
+    const { data: before } = await db
+      .from("cloud_connections")
+      .select("id, account_email, drive_id")
+      .eq("company_id", saved.companyId)
+      .maybeSingle<{ id: string; account_email: string | null; drive_id: string | null }>();
+    const sameAccount =
+      !!before?.account_email && !!me.email && before.account_email.trim().toLowerCase() === me.email.trim().toLowerCase();
+    if (before && before.drive_id && !sameAccount) {
+      await db
+        .from("cloud_connections")
+        .update({ location_kind: null, site_id: null, site_name: null, drive_id: null, root_folder_id: null, root_folder_url: null })
+        .eq("id", before.id);
+      await db.from("cloud_folders").delete().eq("connection_id", before.id);
+      await db.from("cloud_sync_queue").delete().eq("company_id", saved.companyId).eq("status", "done");
+      await db
+        .from("cloud_sync_queue")
+        .update({ status: "pending", claimed_at: null })
+        .eq("company_id", saved.companyId)
+        .eq("status", "working");
+    }
+
     const { error } = await db.from("cloud_connections").upsert(
       {
         company_id: saved.companyId,
@@ -68,6 +100,13 @@ export async function GET(req: NextRequest) {
       { onConflict: "company_id" },
     );
     if (error) throw new Error(error.message);
+    // Copies that waited while it was broken go now.
+    await db
+      .from("cloud_sync_queue")
+      .update({ next_attempt_at: new Date().toISOString() })
+      .eq("company_id", saved.companyId)
+      .eq("status", "pending");
+    forgetCloudStatus(saved.companyId);
     await writeAudit({
       companyId: saved.companyId,
       actorId: user.id,

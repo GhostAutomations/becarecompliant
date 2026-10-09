@@ -34,6 +34,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addYearsIso } from "@/lib/dates";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { forgetCloudEvidenceNames } from "@/lib/cloud/queue";
 import { deleteEvidenceObjects, evidenceRenderPath, outcomeLetterPath } from "./storage";
 
 export const DEFAULT_RETENTION_MIN_YEARS = 8;
@@ -114,6 +115,8 @@ export async function anonymiseEvidence(input: {
   // 3. Purge the storage objects (service role).
   await deleteEvidenceObjects(paths);
   await clearOutcomeLetterText([input.evidenceId]);
+  // The names its cloud drive copies were given (initials, SSID) are cleared from our own tables.
+  if (ev?.company_id) await forgetCloudEvidenceNames(ev.company_id, input.evidenceId);
 
   await writeAudit({
     companyId: ev?.company_id ?? null,
@@ -274,6 +277,8 @@ export async function runRetentionExpiry(options?: { limit?: number }): Promise<
   const allPaths = [...byEvidence.values()].flatMap((v) => v.paths);
   await deleteEvidenceObjects(allPaths);
   await clearOutcomeLetterText([...byEvidence.keys()]);
+  // Their cloud drive copy records (names with initials, SSID, upload file names) go too.
+  for (const [evidenceId, entry] of byEvidence) await forgetCloudEvidenceNames(entry.companyId, evidenceId);
 
   const companies = new Set<string>();
   for (const [evidenceId, entry] of byEvidence) {

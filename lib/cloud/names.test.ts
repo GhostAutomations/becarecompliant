@@ -45,3 +45,19 @@ test("record files are initials, SSID, what it is, date, and (2) on a clash", ()
   assert.equal(recordFileName({ initials: "GA", ssid: "S/1", title: "Care plan", dateIso: "2026-10-09", ext: "DOCX" }), "GA S 1 Care plan 2026-10-09.docx");
   assert.equal(recordFileName({ initials: "JS", title: "First Aid certificate", dateIso: null, n: 1 }), "JS First Aid certificate.pdf");
 });
+
+test("two records with the same name in a branch get their own folders", () => {
+  assert.equal(recordFolderName("John Smith", "Cardiff", 1), "John Smith (Cardiff)");
+  assert.equal(recordFolderName("John Smith", "Cardiff", 2), "John Smith 2 (Cardiff)");
+  assert.equal(recordFolderName("John Smith", null, 3), "John Smith 3");
+});
+
+test("a long title gives way so the date and the (2) survive", () => {
+  const long = "A very long form name ".repeat(10) + "attachment from the phone camera";
+  const a = recordFileName({ initials: "JS", ssid: "123456", title: long, dateIso: "2026-10-09", n: 2 });
+  assert.ok(a.endsWith(" 2026-10-09 (2).pdf"), a);
+  assert.ok(a.startsWith("JS 123456 A very long"), a);
+  assert.ok(a.length <= 124, String(a.length));
+  const b = datedFileName("2026-10-09", long, { version: 3, n: 2 });
+  assert.ok(b.startsWith("2026-10-09 A very long") && b.endsWith(" (v3) (2).pdf"), b);
+});

@@ -21,12 +21,32 @@ import { ROOT_FOLDER_NAME, SECTION_KEYS, type FolderKey } from "@/lib/cloud/name
 import { ensureFolder } from "@/lib/cloud/folders";
 import { processCloudQueue } from "@/lib/cloud/worker";
 import { queueEverything } from "@/lib/cloud/backfill";
+import { forgetCloudStatus } from "@/lib/cloud/queue";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
+import { SUPPORT_MODE_CLOUD_REFUSAL } from "@/lib/founder/support-mode";
 import type { ActionState } from "@/lib/forms";
 
 async function admin() {
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) throw new Error("No company context.");
-  return { user, profile, companyId: profile.company_id };
+  const supportMode = profile.role === "platform_admin" && Boolean(await readActingCompanyId());
+  return { user, profile, companyId: profile.company_id, supportMode };
+}
+
+/** Everything waiting goes now: used when the connection becomes usable again. */
+async function wakeWaiting(companyId: string): Promise<void> {
+  const db = createServiceClient();
+  await db
+    .from("cloud_sync_queue")
+    .update({ next_attempt_at: new Date().toISOString() })
+    .eq("company_id", companyId)
+    .eq("status", "pending");
+  forgetCloudStatus(companyId);
+  try {
+    after(() => processCloudQueue({ companyId, limit: 15, budgetMs: 12_000 }).then(() => undefined));
+  } catch {
+    // The cron picks it up within a minute.
+  }
 }
 
 export async function findCloudSites(search: string): Promise<{ ok: true; sites: MsSite[] } | { ok: false; error: string }> {
@@ -43,7 +63,8 @@ export async function findCloudSites(search: string): Promise<{ ok: true; sites:
 
 export async function chooseCloudLocation(_prev: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    const { user, profile, companyId } = await admin();
+    const { user, profile, companyId, supportMode } = await admin();
+    if (supportMode) return { error: SUPPORT_MODE_CLOUD_REFUSAL };
     const c = await getCloudConnection(companyId);
     if (!c || c.status !== "connected") return { error: "Connect Microsoft 365 first." };
     const kind = String(formData.get("location_kind") ?? "");
@@ -95,6 +116,7 @@ export async function chooseCloudLocation(_prev: ActionState, formData: FormData
       entityId: c.id,
       summary: `Cloud drive copies go to ${kind === "onedrive" ? "OneDrive" : siteName || "a SharePoint site"}`,
     });
+    await wakeWaiting(companyId);
     revalidatePath("/settings/cloud");
     return { ok: "Done. The Be Care Compliant folder is ready." };
   } catch (e) {
@@ -130,7 +152,7 @@ export async function retryCloudFailures(_prev?: ActionState, _fd?: FormData): P
       entityId: null,
       summary: `Retried ${n} cloud drive ${n === 1 ? "copy" : "copies"}`,
     });
-    const r = await processCloudQueue({ companyId, limit: 20, budgetMs: 25_000 });
+    const r = await processCloudQueue({ companyId, limit: 15, budgetMs: 12_000 });
     revalidatePath("/settings/cloud");
     return { ok: `Trying again. ${r.copied} copied so far.` };
   } catch (e) {
@@ -155,6 +177,7 @@ export async function disconnectCloud(_prev?: ActionState, _fd?: FormData): Prom
     if (error) return { error: error.message };
     // Nothing more will be copied, so nothing should sit waiting.
     await db.from("cloud_sync_queue").delete().eq("company_id", companyId);
+    forgetCloudStatus(companyId);
     await writeAudit({
       companyId,
       actorId: user.id,
@@ -190,10 +213,61 @@ export async function copyEverythingSoFar(_prev?: ActionState, _fd?: FormData): 
       summary: `Asked for everything so far to be copied to the cloud drive (${n} documents and folders)`,
     });
     // Start straight away rather than waiting for the next cron run (every minute).
-    after(() => processCloudQueue({ companyId, limit: 200, budgetMs: 25_000 }).catch(() => undefined));
+    after(() => processCloudQueue({ companyId, limit: 15, budgetMs: 12_000 }).catch(() => undefined));
     revalidatePath("/settings/cloud");
     return { ok: `Started. ${n} documents and folders are being copied in the background. This page shows how many are still waiting.` };
   } catch (e) {
     return { error: (e as Error).message || "That could not be started." };
+  }
+}
+
+/**
+ * "Change where the folder lives" (review, 9 Oct 2026). Without it a location, once chosen, could
+ * never be changed. Forgets the place and the folders made there and shows the chooser again;
+ * nothing is deleted from the drive. Copies already made stay where they are, and "Copy everything
+ * so far" fills the new place.
+ */
+export async function changeCloudLocation(_prev?: ActionState, _fd?: FormData): Promise<ActionState> {
+  try {
+    const { user, profile, companyId, supportMode } = await admin();
+    if (supportMode) return { error: SUPPORT_MODE_CLOUD_REFUSAL };
+    const c = await getCloudConnection(companyId);
+    if (!c) return { error: "Nothing is connected." };
+    const db = createServiceClient();
+    const { error } = await db
+      .from("cloud_connections")
+      .update({
+        location_kind: null,
+        site_id: null,
+        site_name: null,
+        drive_id: null,
+        root_folder_id: null,
+        root_folder_url: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", c.id);
+    if (error) return { error: error.message };
+    await db.from("cloud_folders").delete().eq("connection_id", c.id);
+    await db.from("cloud_sync_queue").delete().eq("company_id", companyId).eq("status", "done");
+    // Anything being copied right now goes back in the queue, for the new place.
+    await db
+      .from("cloud_sync_queue")
+      .update({ status: "pending", claimed_at: null })
+      .eq("company_id", companyId)
+      .eq("status", "working");
+    await writeAudit({
+      companyId,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "cloud.location_cleared",
+      entityType: "cloud_connection",
+      entityId: c.id,
+      summary: `Chose to change where cloud drive copies go (was ${c.site_name || "not set"})`,
+    });
+    revalidatePath("/settings/cloud");
+    return { ok: "Choose where the folder should live." };
+  } catch (e) {
+    return { error: (e as Error).message || "That could not be changed." };
   }
 }

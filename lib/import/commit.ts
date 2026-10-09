@@ -17,7 +17,7 @@ import { scwRenewalFromIssue } from "@/lib/people/scw";
  * cycle) are left as-is, not flagged, since that is normal for this company.
  */
 
-import { queueCloudCopy } from "@/lib/cloud/queue";
+import { queueCloudCopies } from "@/lib/cloud/queue";
 import { createClient } from "@/lib/supabase/server";
 import { parseCivilDate, daysBetween } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -167,6 +167,7 @@ export async function commitPeople(
   const inviteFailed: Array<{ name: string; error: string }> = [];
   const dateFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
+  const cloudFolders: string[] = [];
 
   for (const row of rows) {
     const label = row.name || `Row ${row.row}`;
@@ -207,7 +208,7 @@ export async function commitPeople(
       flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
-    await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `person:${person.id}` });
+    cloudFolders.push(`person:${person.id}`);
 
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
@@ -245,6 +246,8 @@ export async function commitPeople(
       else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });
     }
   }
+  // Their folders in the company's cloud drive (0437), queued in one go after the import.
+  await queueCloudCopies(companyId, cloudFolders.map((sourceId) => ({ kind: "record_folder" as const, sourceId })));
   return { created, ...flags, invited, notInvited, policiesGiven, inviteFailed, dateFailed };
 }
 
@@ -260,6 +263,7 @@ export async function commitServiceUsers(
   let created = 0;
   const dateFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
+  const cloudFolders: string[] = [];
 
   for (const row of rows) {
     const label = row.name || `Row ${row.row}`;
@@ -292,7 +296,7 @@ export async function commitServiceUsers(
       flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
-    await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `service_user:${su.id}` });
+    cloudFolders.push(`service_user:${su.id}`);
 
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
@@ -308,5 +312,6 @@ export async function commitServiceUsers(
     for (const e of seedErrors) dateFailed.push({ name: label, error: e });
     created += 1;
   }
+  await queueCloudCopies(companyId, cloudFolders.map((sourceId) => ({ kind: "record_folder" as const, sourceId })));
   return { created, ...flags, dateFailed };
 }

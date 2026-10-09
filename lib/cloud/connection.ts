@@ -54,27 +54,60 @@ export function isReady(c: CloudConnection | null): c is CloudConnection & { dri
 }
 
 export async function getAccessToken(c: CloudConnection): Promise<string> {
-  const db = createServiceClient();
+  return (await getAccessTokenInfo(c)).token;
+}
+
+/** As getAccessToken, and whether Microsoft had to be asked for a fresh key just now. */
+export async function getAccessTokenInfo(c: CloudConnection): Promise<{ token: string; refreshed: boolean }> {
   const expires = c.access_token_expires_at ? Date.parse(c.access_token_expires_at) : 0;
   if (c.access_token_enc && expires - Date.now() > 120_000) {
     try {
-      return openToken(c.access_token_enc);
+      return { token: openToken(c.access_token_enc), refreshed: false };
     } catch {
       // Fall through and refresh.
     }
   }
+  return { token: await refreshAccessToken(c), refreshed: true };
+}
+
+/**
+ * Forget the stored short lived key, so the next copy asks Microsoft for a fresh one. Used when
+ * Microsoft turns a key down that should still have been good (access changed since it was
+ * issued); if the fresh one is turned down too, the connection is marked to reconnect.
+ */
+export async function clearAccessToken(c: CloudConnection): Promise<void> {
+  const db = createServiceClient();
+  await db
+    .from("cloud_connections")
+    .update({ access_token_enc: null, access_token_expires_at: null, updated_at: new Date().toISOString() })
+    .eq("id", c.id);
+  c.access_token_enc = null;
+  c.access_token_expires_at = null;
+}
+
+async function refreshAccessToken(c: CloudConnection): Promise<string> {
+  const db = createServiceClient();
   if (!c.refresh_token_enc) throw new CloudAuthError("There is no stored connection. Connect again.");
   try {
-    const t = await refreshMicrosoftToken(openToken(c.refresh_token_enc));
+    const before = c.refresh_token_enc;
+    const t = await refreshMicrosoftToken(openToken(before));
+    const sealedAccess = sealToken(t.accessToken);
+    const sealedRefresh = sealToken(t.refreshToken);
+    // Only replace the stored keys if nobody else refreshed them in the meantime (two copy runs
+    // at once): both answers are good, and this way a newer one is never overwritten by ours.
     await db
       .from("cloud_connections")
       .update({
-        access_token_enc: sealToken(t.accessToken),
+        access_token_enc: sealedAccess,
         access_token_expires_at: t.expiresAt.toISOString(),
-        refresh_token_enc: sealToken(t.refreshToken),
+        refresh_token_enc: sealedRefresh,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", c.id);
+      .eq("id", c.id)
+      .eq("refresh_token_enc", before);
+    c.access_token_enc = sealedAccess;
+    c.access_token_expires_at = t.expiresAt.toISOString();
+    c.refresh_token_enc = sealedRefresh;
     return t.accessToken;
   } catch (e) {
     if (e instanceof CloudAuthError) await markNeedsReconnect(c, e.message);

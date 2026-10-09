@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
-import { queueCloudCopy } from "@/lib/cloud/queue";
+import { forgetCloudRecord, queueCloudCopy } from "@/lib/cloud/queue";
 import { inviteStaffForPerson, followPersonEmailChange } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -484,6 +484,8 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
 
   const { error: delErr } = await supabase.from("people").delete().eq("id", personId);
   if (delErr) return { error: `The record could not be deleted: ${delErr.message}` };
+  // Forget its cloud drive folder in our own tables, so the name does not linger (0437).
+  await forgetCloudRecord(companyId, `person:${personId}`);
 
   /*
    * THEIR LOGIN GOES WITH THEM. A Team Member account belongs to the record, not to the company:
@@ -1797,6 +1799,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     files,
     recordType: "person",
     recordId: instance.person_id as string,
+    // The Spot Check and Mentoring "start typing a name" answers are held to the list the page offered.
+    lookupChoices: "caller",
   });
   if (!result.ok) {
     return { error: result.error };

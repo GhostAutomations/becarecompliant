@@ -200,6 +200,20 @@ export async function ensureMsFolder(
   }
 }
 
+/** Make a folder; if the name is taken, Microsoft gives it the next free one ("Name 1"). */
+export async function createMsFolderRenaming(
+  token: string,
+  driveId: string,
+  parentId: string,
+  name: string,
+): Promise<DriveItem> {
+  const parent = parentId === "root" ? "root" : `items/${encodeURIComponent(parentId)}`;
+  return graph<DriveItem>(token, `/drives/${encodeURIComponent(driveId)}/${parent}/children`, {
+    method: "POST",
+    body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "rename" }),
+  });
+}
+
 export async function getMsItem(token: string, driveId: string, itemId: string): Promise<DriveItem> {
   return graph<DriveItem>(token, `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}?$select=id,name,webUrl,folder`);
 }

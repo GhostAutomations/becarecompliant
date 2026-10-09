@@ -944,6 +944,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     files,
     recordType: "service_user",
     recordId: instance.service_user_id as string,
+    // The Spot Check and Mentoring "start typing a name" answers are held to the list the page offered.
+    lookupChoices: "caller",
   });
   if (!result.ok) return { error: result.error };
 

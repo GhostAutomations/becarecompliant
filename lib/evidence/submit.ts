@@ -23,7 +23,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { queueCloudCopy } from "@/lib/cloud/queue";
+import { queueCloudCopies } from "@/lib/cloud/queue";
 import {
   type Answers,
   type FormSchema,
@@ -57,12 +57,18 @@ export type SubmitEvidenceInput = {
   /** Optional stable id for idempotent retries. */
   evidenceId?: string;
   /**
-   * The records the form's record_lookup fields offered, when they came from somewhere other
-   * than the caller's own view (the Incident Report reads them with the service role, because
-   * a carer can see neither service users nor colleagues). Left out, the list is read here
-   * through the caller's session, exactly as the Complete page built it.
+   * The records the form's record_lookup fields OFFERED, so an answer can be held to them
+   * (Phil, 2026-10-09: a name that matches nobody must not be stored).
+   *   "caller"  the list is read here through the caller's own session, exactly as the Complete
+   *             pages build it (lib/forms/lookup-data.ts choicesForSchema)
+   *   a list    the page offered this list (the Incident Report reads it with the service role,
+   *             because a carer can see neither service users nor colleagues)
+   *   left out  the page offered no list, so there is nothing to hold the answer to and it is
+   *             checked only for shape, as before. Holding a carer to a list they were never shown
+   *             would refuse every save (the Financial Transaction form on the portal, found in
+   *             the review of 9 Oct 2026).
    */
-  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
+  lookupChoices?: Partial<Record<string, LookupChoice[]>> | "caller";
 };
 
 export type SubmitEvidenceResult =
@@ -123,10 +129,13 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   // 2. Authoritative validation. A record_lookup answer must be the name of a record this
   //    person could have picked (Phil, 2026-10-09), not whatever was typed.
   const hasLookup = schema.sections.some((sec) => sec.fields.some((f) => f.type === "record_lookup"));
-  const lookupChoices = hasLookup
-    ? input.lookupChoices ?? (await choicesForSchema(companyId, schema, { senior: profile?.role === "senior" }))
-    : undefined;
-  const result = validateAnswers(schema, answers, { lookupChoices: lookupChoices ?? (hasLookup ? {} : undefined) });
+  let lookupChoices: Partial<Record<string, LookupChoice[]>> | undefined;
+  if (hasLookup && input.lookupChoices === "caller") {
+    lookupChoices = (await choicesForSchema(companyId, schema, { senior: profile?.role === "senior" })) ?? {};
+  } else if (hasLookup && input.lookupChoices && input.lookupChoices !== "caller") {
+    lookupChoices = input.lookupChoices;
+  }
+  const result = validateAnswers(schema, answers, { lookupChoices });
   if (!result.ok) {
     // NAMES the offending answers rather than saying "the highlighted fields". Every
     // caller of this function turns the failure into a single line of copy, and a page
@@ -216,12 +225,12 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
 
   // A copy in the company's own cloud drive, when they have connected one (0437). Never throws,
   // never slows the save: the copy runs after the response.
-  await queueCloudCopy({ companyId, kind: "evidence", sourceId: evidenceId });
-  for (const f of fileRecords) {
-    if (f.kind === "upload") {
-      await queueCloudCopy({ companyId, kind: "evidence_file", sourceId: `${evidenceId}|${String(f.storage_path)}` });
-    }
-  }
+  await queueCloudCopies(companyId, [
+    { kind: "evidence", sourceId: evidenceId },
+    ...fileRecords
+      .filter((f) => f.kind === "upload")
+      .map((f) => ({ kind: "evidence_file" as const, sourceId: `${evidenceId}|${String(f.storage_path)}` })),
+  ]);
 
   return { ok: true, evidenceId };
 }

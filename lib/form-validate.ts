@@ -307,8 +307,10 @@ function lookupAnswerError(
   choicesBySource: Partial<Record<string, LookupChoice[]>>,
 ): string | null {
   const all = choicesBySource[field.lookup ?? "service_user"] ?? [];
-  const scope = field.scopeField ? String(answers[field.scopeField] ?? "") : undefined;
-  const offered = scopeChoices(all, scope);
+  // A field narrowed to a branch chosen on the form is only narrowed here when the list says which
+  // branch each record is in (the Incident Report's does); otherwise the whole list stands.
+  const scoped = field.scopeField && all.some((c) => c.branchId);
+  const offered = scoped ? scopeChoices(all, String(answers[field.scopeField as string] ?? "")) : all;
   const names = Array.isArray(value) ? value : value == null || value === "" ? [] : [value];
   for (const name of names) {
     const problem = lookupError(offered, name, false);

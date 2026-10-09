@@ -12,7 +12,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { renderEvidenceBytes } from "@/lib/evidence/on-demand";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
-import { datedFileName, fileExtensionOf, initialsOf, recordFileName, type FolderKey } from "@/lib/cloud/names";
+import { datedFileName, fileExtensionOf, initialsOf, recordFileName, safeDriveName, type FolderKey } from "@/lib/cloud/names";
 
 export type CloudSourceKind =
   | "evidence"
@@ -114,23 +114,29 @@ function dayWindow(day: string): { from: string; to: string } {
 
 async function evidenceOrdinal(
   companyId: string,
-  ev: { id: string; record_type: string; record_id: string; form_id: string | null; submitted_at: string },
+  ev: { id: string; record_type: string; record_id: string; submitted_at: string; forms: { name: string } | null },
 ): Promise<number> {
   const day = londonDay(ev.submitted_at);
   if (!day) return 1;
   const w = dayWindow(day);
   const db = createServiceClient();
-  let q = db
+  const { data } = await db
     .from("evidence")
-    .select("id, submitted_at")
+    .select("id, submitted_at, forms(name)")
     .eq("company_id", companyId)
     .eq("record_type", ev.record_type)
     .eq("record_id", ev.record_id)
     .gte("submitted_at", w.from)
     .lt("submitted_at", w.to);
-  q = ev.form_id ? q.eq("form_id", ev.form_id) : q.is("form_id", null);
-  const { data } = await q;
-  const rows = ((data ?? []) as Array<{ id: string; submitted_at: string }>).map((r) => ({ id: r.id, at: r.submitted_at }));
+  // Counted by the form's NAME, because the file is named by it: two different forms that share a
+  // name (a library copy and the company's own) must still not land on the same file.
+  const name = (ev.forms?.name ?? "Form").trim().toLowerCase();
+  const rows = ((data ?? []) as Array<{ id: string; submitted_at: string; forms: { name: string } | { name: string }[] | null }>)
+    .filter((r) => {
+      const f = Array.isArray(r.forms) ? r.forms[0] : r.forms;
+      return (f?.name ?? "Form").trim().toLowerCase() === name;
+    })
+    .map((r) => ({ id: r.id, at: r.submitted_at }));
   return ordinalOn(rows, day, ev.id);
 }
 
@@ -218,7 +224,19 @@ async function evidenceFileCopy(companyId: string, sourceId: string): Promise<Re
       ext: ext || "pdf",
     });
   } else {
-    fileName = datedFileName(londonDay(ev.submitted_at), `${ev.forms?.name ?? "Form"} ${stem}`, { ext: ext || "pdf" });
+    // A complaint or incident: the case's evidence reference and the file's place keep two photos
+    // called "image.jpg" from landing on one another.
+    const { data: siblings } = await db
+      .from("evidence_files")
+      .select("id, file_name, created_at")
+      .eq("evidence_id", evidenceId)
+      .eq("kind", "upload");
+    const same = ((siblings ?? []) as Array<{ id: string; file_name: string; created_at: string }>)
+      .filter((f) => f.file_name === file.file_name)
+      .sort((a, b) => (a.created_at === b.created_at ? a.id.localeCompare(b.id) : a.created_at.localeCompare(b.created_at)));
+    const k = Math.max(1, same.findIndex((f) => f.id === file.id) + 1);
+    const ref = evidenceId.slice(0, 8).toUpperCase();
+    fileName = datedFileName(londonDay(ev.submitted_at), `${ev.forms?.name ?? "Form"} ${ref} ${stem}${k > 1 ? ` ${k}` : ""}`, { ext: ext || "pdf" });
   }
   return {
     folderKey,
@@ -359,7 +377,12 @@ async function policyVersionCopy(companyId: string, sourceId: string): Promise<R
   if (!policyId || !Number.isInteger(version)) return null;
   const db = createServiceClient();
   const [{ data: policy }, { data: ver }] = await Promise.all([
-    db.from("company_policies").select("title, source").eq("id", policyId).eq("company_id", companyId).maybeSingle<{ title: string; source: string | null }>(),
+    db
+      .from("company_policies")
+      .select("title, source, reference")
+      .eq("id", policyId)
+      .eq("company_id", companyId)
+      .maybeSingle<{ title: string; source: string | null; reference: string | null }>(),
     db
       .from("company_policy_versions")
       .select("storage_path, file_name, body")
@@ -381,9 +404,22 @@ async function policyVersionCopy(companyId: string, sourceId: string): Promise<R
     ext = fileExtensionOf(ver.file_name ?? ver.storage_path ?? "") || "pdf";
   }
   if (!bytes) return null;
+  /* Named by the policy's reference when it has one ("POL-HR-001 Lone Working v2.pdf"), which
+     never changes. Without one, two policies sharing a title each carry a short id of their own,
+     so neither can ever land on the other's copies, whichever is renamed later. */
+  const ref = String(policy.reference ?? "").trim();
+  let stem = ref ? `${ref} ${policy.title}` : policy.title;
+  if (!ref) {
+    const { count } = await db
+      .from("company_policies")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .ilike("title", likeExact(policy.title));
+    if ((count ?? 0) > 1) stem = `${policy.title} ${policyId.slice(0, 6)}`;
+  }
   return {
     folderKey: "section:policies",
-    fileName: datedFileName("", `${policy.title} v${version}`, { ext }),
+    fileName: datedFileName("", `${stem} v${version}`, { ext }),
     bytes,
     contentType: MIME[ext] ?? "application/octet-stream",
   };
@@ -401,9 +437,11 @@ async function noticeCopy(companyId: string, noticeId: string): Promise<Resolved
   if (!data || data.kind !== "memo") return null;
   const { renderNoticeMemo } = await import("@/lib/briefings/memo");
   const pdf = await renderNoticeMemo(data as Parameters<typeof renderNoticeMemo>[0], "");
+  const day = londonDay(data.created_at as string);
+  const n = await noticeOrdinal(companyId, noticeId, data.title as string, day);
   return {
     folderKey: "section:briefings",
-    fileName: datedFileName(londonDay(data.created_at as string), `${data.title as string} (memo)`),
+    fileName: datedFileName(day, `${data.title as string} (memo)`, { n }),
     bytes: new Uint8Array(pdf),
     contentType: "application/pdf",
   };
@@ -427,12 +465,40 @@ async function noticeFileCopy(companyId: string, sourceId: string): Promise<Reso
   if (!bytes) return null;
   const name = String(f.name ?? "File");
   const ext = fileExtensionOf(name) || "pdf";
+  // Two files of the same name in one briefing get "2", "3"; a second briefing with the same
+  // title that day gets " (2)".
+  const k = files.slice(0, index).filter((x) => String(x.name ?? "File") === name).length;
+  const day = londonDay(data.created_at);
+  const nth = await noticeOrdinal(companyId, noticeId, data.title, day);
   return {
     folderKey: "section:briefings",
-    fileName: datedFileName(londonDay(data.created_at), `${data.title} ${name.replace(/\.[a-z0-9]{1,8}$/i, "")}`, { ext }),
+    fileName: datedFileName(day, `${data.title} ${name.replace(/\.[a-z0-9]{1,8}$/i, "")}${k > 1 ? ` ${k}` : ""}`, { ext, n: nth }),
     bytes,
     contentType: f.type || MIME[ext] || "application/octet-stream",
   };
+}
+
+/** Which briefing of the same title this is on its day (1 for the first), for its file names. */
+async function noticeOrdinal(companyId: string, noticeId: string, title: string, day: string): Promise<number> {
+  if (!day) return 1;
+  const w = dayWindow(day);
+  const db = createServiceClient();
+  const { data } = await db
+    .from("briefing_notices")
+    .select("id, title, created_at")
+    .eq("company_id", companyId)
+    .gte("created_at", w.from)
+    .lt("created_at", w.to);
+  const t = String(title ?? "").trim().toLowerCase();
+  const rows = ((data ?? []) as Array<{ id: string; title: string; created_at: string }>)
+    .filter((r) => String(r.title ?? "").trim().toLowerCase() === t)
+    .map((r) => ({ id: r.id, at: r.created_at }));
+  return ordinalOn(rows, day, noticeId);
+}
+
+/** A case insensitive "equals" for ilike: the wildcards in a name are matched as themselves. */
+function likeExact(value: string): string {
+  return String(value ?? "").replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
 export async function resolveCloudCopy(
@@ -471,24 +537,43 @@ export async function resolveCloudCopy(
   }
 }
 
-/** The name a record's folder should have right now: "Name (Branch)". */
+/**
+ * The name a record's folder should have right now: "Name (Branch)", and the record's place among
+ * records with the same name in the same branch (oldest first), so two John Smiths in Cardiff
+ * get "John Smith (Cardiff)" and "John Smith 2 (Cardiff)" and never share a folder.
+ */
 export async function recordFolderFacts(
   companyId: string,
   key: FolderKey,
-): Promise<{ fullName: string; branchName: string | null } | null> {
+): Promise<{ fullName: string; branchName: string | null; n: number } | null> {
   const db = createServiceClient();
   if (key.startsWith("person:") || key.startsWith("service_user:")) {
     const isPerson = key.startsWith("person:");
+    const table = isPerson ? "people" : "service_users";
     const id = key.slice(key.indexOf(":") + 1);
     const { data } = await db
-      .from(isPerson ? "people" : "service_users")
-      .select("full_name, branches:branch_id(name)")
+      .from(table)
+      .select("full_name, branch_id, branches:branch_id(name)")
       .eq("id", id)
       .eq("company_id", companyId)
-      .maybeSingle<{ full_name: string; branches: { name: string } | { name: string }[] | null }>();
+      .maybeSingle<{ full_name: string; branch_id: string | null; branches: { name: string } | { name: string }[] | null }>();
     if (!data) return null;
     const b = Array.isArray(data.branches) ? (data.branches[0] ?? null) : data.branches;
-    return { fullName: data.full_name, branchName: b?.name ?? null };
+    // Same folder name, not just the same typed name: "Jane  Smith" and '"Jane" Smith' become the
+    // same folder, so they are numbered together. Narrowed to names containing the first word as
+    // the drive will see it (every name that cleans to the same folder name contains it), then
+    // compared exactly as the drive will see them.
+    const folderKeyName = (n: string) => safeDriveName(n, "Unnamed").toLowerCase();
+    const mine = folderKeyName(data.full_name);
+    const first = mine.split(" ")[0] ?? "";
+    let q = db.from(table).select("id, full_name, created_at").eq("company_id", companyId).ilike("full_name", `%${likeExact(first)}%`);
+    q = data.branch_id ? q.eq("branch_id", data.branch_id) : q.is("branch_id", null);
+    const { data: candidates } = await q;
+    const ranked = ((candidates ?? []) as Array<{ id: string; full_name: string; created_at: string }>)
+      .filter((r) => folderKeyName(r.full_name) === mine)
+      .sort((x, y) => (x.created_at === y.created_at ? x.id.localeCompare(y.id) : x.created_at.localeCompare(y.created_at)));
+    const n = Math.max(1, ranked.findIndex((r) => r.id === id) + 1);
+    return { fullName: data.full_name, branchName: b?.name ?? null, n };
   }
   return null;
 }

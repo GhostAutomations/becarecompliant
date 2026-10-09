@@ -44,11 +44,17 @@ export function safeDriveName(raw: string, fallback = "Untitled"): string {
   return s || fallback;
 }
 
-/** "Jane Smith (Cardiff)", or just "Jane Smith" with no branch. */
-export function recordFolderName(fullName: string, branchName: string | null | undefined): string {
-  const name = safeDriveName(fullName, "Unnamed");
-  const branch = branchName ? safeDriveName(branchName, "") : "";
-  return branch ? `${name} (${branch})` : name;
+/**
+ * "Jane Smith (Cardiff)", or just "Jane Smith" with no branch. Two records with the same name in
+ * the same branch must never share a folder (their files would land on top of each other), so
+ * the second is "Jane Smith 2 (Cardiff)", the third "Jane Smith 3 (Cardiff)": `n` is the record's
+ * place among the same named ones, oldest first.
+ */
+export function recordFolderName(fullName: string, branchName: string | null | undefined, n = 1): string {
+  const name = safeDriveName(fullName, "Unnamed").slice(0, 90).trim();
+  const numbered = n > 1 ? `${name} ${n}` : name;
+  const branch = branchName ? safeDriveName(branchName, "").slice(0, 60).trim() : "";
+  return safeDriveName(branch ? `${numbered} (${branch})` : numbered, "Unnamed");
 }
 
 /** Keep the extension of the original file, or add one. */
@@ -62,12 +68,24 @@ export function fileExtensionOf(name: string): string {
   return m ? m[1].toLowerCase() : "";
 }
 
+/** The longest a file name may be before its extension. Room is left for the folders above it. */
+const NAME_MAX = 120;
+
+/** Shorten the title so the fixed parts (the date, a version, a "(2)") always survive. */
+function fitTitle(title: string, fixedLength: number): string {
+  const room = Math.max(10, NAME_MAX - fixedLength);
+  const t = safeDriveName(title);
+  return t.length > room ? t.slice(0, room).trim() : t;
+}
+
 /** "2026-10-08 Supervision 1 (v3).pdf" */
-export function datedFileName(dateIso: string, title: string, opts: { version?: number | null; ext?: string } = {}): string {
+export function datedFileName(dateIso: string, title: string, opts: { version?: number | null; ext?: string; n?: number } = {}): string {
   const day = /^\d{4}-\d{2}-\d{2}/.test(dateIso) ? dateIso.slice(0, 10) : "";
   const v = opts.version ? ` (v${opts.version})` : "";
-  const base = safeDriveName(`${day ? `${day} ` : ""}${title}${v}`);
-  return withExtension(base, opts.ext ?? "pdf");
+  const clash = opts.n && opts.n > 1 ? ` (${opts.n})` : "";
+  const prefix = day ? `${day} ` : "";
+  const t = fitTitle(title, prefix.length + v.length + clash.length);
+  return withExtension(safeDriveName(`${prefix}${t}${v}${clash}`), opts.ext ?? "pdf");
 }
 
 /**
@@ -99,10 +117,13 @@ export function recordFileName(opts: {
   ext?: string;
 }): string {
   const day = opts.dateIso && /^\d{4}-\d{2}-\d{2}/.test(opts.dateIso) ? opts.dateIso.slice(0, 10) : "";
-  const ssid = String(opts.ssid ?? "").trim();
-  const parts = [opts.initials, ssid, opts.title, day].filter((x) => String(x ?? "").trim() !== "");
+  const ssid = safeDriveName(String(opts.ssid ?? ""), "").slice(0, 20).trim();
   const clash = opts.n && opts.n > 1 ? ` (${opts.n})` : "";
-  return withExtension(safeDriveName(`${parts.join(" ")}${clash}`), opts.ext ?? "pdf");
+  const before = [opts.initials, ssid].filter((x) => String(x ?? "").trim() !== "").join(" ");
+  const after = day ? ` ${day}` : "";
+  // The title gives way first, so the initials, SSID, date and "(2)" are never cut off.
+  const title = fitTitle(opts.title, before.length + 1 + after.length + clash.length);
+  return withExtension(safeDriveName(`${before} ${title}${after}${clash}`), opts.ext ?? "pdf");
 }
 
 /** The folder a key belongs inside. */

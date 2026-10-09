@@ -10,7 +10,7 @@ import { cloudProgress } from "@/lib/cloud/progress";
 import { getCloudConnection } from "@/lib/cloud/connection";
 import { microsoftConfigured } from "@/lib/cloud/microsoft";
 import { cloudKeyConfigured } from "@/lib/cloud/crypto";
-import { copyEverythingSoFar, disconnectCloud, retryCloudFailures } from "@/lib/cloud/actions";
+import { changeCloudLocation, copyEverythingSoFar, disconnectCloud, retryCloudFailures } from "@/lib/cloud/actions";
 
 export const metadata: Metadata = { title: "Cloud drive" };
 export const dynamic = "force-dynamic";
@@ -29,6 +29,7 @@ const ERRORS: Record<string, string> = {
   expired: "That sign in took too long or came back to a different login. Please press Connect again.",
   failed: "Microsoft did not finish connecting. Please try again.",
   company: "Choose a company first.",
+  support: "Support mode does not connect a company's cloud drive or choose where it copies to. Ask an Admin at the company, or exit support mode.",
 };
 
 function when(iso: string | null): string {
@@ -203,6 +204,14 @@ export default async function CloudSettingsPage({
               Disconnecting stops new copies and removes Be Care Compliant&apos;s access. Files already copied stay in your drive.
             </p>
             <div className="flex flex-wrap gap-2">
+              <ActionForm
+                action={changeCloudLocation}
+                label="Change where the folder lives"
+                savedLabel="Choose below"
+                buttonClassName="btn-outline btn-xs"
+                className=""
+                confirm="Choose a different place for the Be Care Compliant folder? Files already copied stay where they are."
+              />
               <a href="/api/cloud/microsoft/start" className="btn-outline btn-xs">
                 Connect a different account
               </a>
