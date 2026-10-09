@@ -117,3 +117,17 @@ trigger). Live in Bevan as Bev Admin (Company Admin), in Chrome.
 
 Fixed after the test: Remove now shows the removed line the moment it saves, instead of the row
 still offering Download and Remove for the few seconds the page takes to redraw.
+
+Follow on, run by Claude on 9 Oct 2026 after the deploy of b4c6655d was READY (no migration).
+Live in Bevan as Bev Admin.
+- 22 PASS. Rhodri Evans (Senior Care Assistant): "What is this for?" lists An ad hoc document and
+  29 courses; the four Supervisor only courses are left out. ZZ TEST Service User Two: no choice.
+  A leaver not opened (the code returns no courses for one).
+- 23 PASS. Medication Online: "Not recorded yet. The certificate is saved on the course in
+  Training."; one file, a saved email refused ("cannot be a certificate"); date completed
+  5 Oct 2026 showed "Renews on 05/10/2027, worked out from the course."
+- 24 PASS. Saved: Medication Online now completed 05/10/2026, renews 05/10/2027, with the
+  certificate; audit "Recorded Medication Online training"; the Documents count stayed at 1.
+- 25 Not run live (no booking on the course); unit tested.
+- 26 PASS. Copied to OneDrive as "RE Medication Online certificate 2026-10-05.pdf".
+- 27 PASS. ZZ TEST Paper SU: Updates in the first column, Documents in the second.
