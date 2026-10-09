@@ -30,6 +30,14 @@ export type HolidayRequestRow = {
   cancel_reason: string | null;
   /** The Evidence this request was filed from (holiday form completion). */
   request_evidence_id: string | null;
+  /** A change the carer asked for, waiting for the office (0438): "amend" is a Change of
+   *  holiday on new dates, "cancel" a Cancellation request. Only ever set while pending. */
+  change_kind?: "amend" | "cancel" | null;
+  change_reason?: string | null;
+  change_requested_at?: string | null;
+  /** The dates that had been agreed, which come back if the office declines the change. */
+  previous_start_date?: string | null;
+  previous_end_date?: string | null;
   /** First date back at work, read from the linked Evidence answers (display only). */
   return_to_work_date: string | null;
   created_at: string;

@@ -7,7 +7,7 @@ import { rtwPortalPath } from "@/lib/absence/rtw-questions";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { getMyRecord, getMyHolidays, getMySubmissions, getMyTraining } from "@/lib/staff/data";
+import { getMyRecord, getMyHolidays, getMyHolidayNotices, getMySubmissions, getMyTraining } from "@/lib/staff/data";
 import {
   listAssignmentsForPerson,
   getPublishedSchemas,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/assignments/data";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
+import HolidayNotices from "@/components/staff/holiday-notices";
 import { disabledModules } from "@/lib/auth/module-access";
 import { canUsePortalForm } from "@/lib/auth/portal-forms";
 import AssignedToMe from "@/components/staff/assigned-to-me";
@@ -114,6 +115,8 @@ export default async function MyAreaPage() {
     moneyForm && isFormSchema(moneyForm.schema) ? (moneyForm.schema as FormSchema) : null;
 
   const holidays = record ? await getMyHolidays(record.id) : [];
+  // What the office has done to their holidays and they have not seen yet (0438).
+  const holidayNotices = await getMyHolidayNotices(holidays.map((h) => h.id));
   // Return to Work questions waiting for their answers (0331). Their own, through
   // my_open_rtw_questions, which only ever returns the signed in person's.
   const { data: openRtw } = await (await createClient()).rpc("my_open_rtw_questions");
@@ -188,6 +191,10 @@ export default async function MyAreaPage() {
           </div>
         </section>
       ) : null}
+
+      {/* THE OFFICE CHANGED THEIR HOLIDAY (Phil, 2026-10-09): straight after anything their
+          manager is waiting on, and here until they press Got it. */}
+      <HolidayNotices notices={holidayNotices} />
 
       {!record ? (
         <div className="glass-card p-5">

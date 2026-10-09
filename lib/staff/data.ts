@@ -20,6 +20,7 @@ import { courseAppliesToTitle } from "@/lib/training/probation-group";
 
 import { createClient } from "@/lib/supabase/server";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
+import type { HolidayNotice } from "@/lib/holidays/changes";
 
 export type MyRecord = {
   id: string;
@@ -64,6 +65,25 @@ export async function getMyHolidays(personId: string): Promise<HolidayRequestRow
     .order("start_date", { ascending: false })
     .limit(50);
   return (data as HolidayRequestRow[] | null) ?? [];
+}
+
+/**
+ * What the office has done to these holidays that the carer has not yet seen (0438): shown at the
+ * top of My area until they press Got it. Through their own RLS, which lets them see the history of
+ * a holiday only if they can see the holiday.
+ */
+export async function getMyHolidayNotices(requestIds: string[]): Promise<HolidayNotice[]> {
+  if (requestIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("holiday_request_events")
+    .select("id, request_id, kind, actor_name, old_start_date, old_end_date, new_start_date, new_end_date, reason, created_at")
+    .in("request_id", requestIds)
+    .eq("notify_person", true)
+    .is("seen_at", null)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return (data as HolidayNotice[] | null) ?? [];
 }
 
 export type MySubmission = {

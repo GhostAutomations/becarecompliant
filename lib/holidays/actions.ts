@@ -3,11 +3,15 @@
 /**
  * Be Care Compliant — Holiday server actions.
  *
- *   requestHoliday : anyone submits their own request (Holiday Form -> Evidence)
- *                    and a pending holiday_requests row is created.
- *   decideHoliday  : a Manager/Admin approves or declines (Holiday Response ->
- *                    Evidence), then decide_holiday_request stamps the outcome.
- * No balance/entitlement tracking (approve/deny only); the email flow is Phase 6.
+ *   requestHoliday        : anyone submits their own request (Holiday Form -> Evidence)
+ *                           and a pending holiday_requests row is created.
+ *   decideHoliday         : a Manager/Admin approves or declines; decide_holiday_request
+ *                           stamps the outcome (a decision, never a form).
+ *   amendHoliday, cancelHoliday : the office changes or cancels, with a reason (0438).
+ *   requestHolidayChange, requestHolidayCancel, withdrawHolidayChange : a carer changes or
+ *                           cancels their own holiday before it starts (0438).
+ *   dismissHolidayNotice  : a carer presses Got it on a portal notice (0438).
+ * No balance/entitlement tracking (approve/deny only).
  */
 
 import { revalidatePath } from "next/cache";
@@ -24,6 +28,8 @@ import {
   notifyHolidayRequested,
   notifyHolidayDecided,
   notifyHolidayChanged,
+  notifyHolidayChangeRequested,
+  notifyHolidayChangeDecided,
 } from "@/lib/notifications/holiday";
 
 function isoOrNull(v: unknown): string | null {
@@ -265,14 +271,61 @@ export async function bookHolidayForPerson(
   return { ok: canApproveOwn ? "Holiday booked." : "Holiday booked, pending approval." };
 }
 
+/** The newest history row this person wrote on this holiday: what an email is about. */
+async function latestEventId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  actorId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("holiday_request_events")
+    .select("id")
+    .eq("request_id", requestId)
+    .eq("actor_id", actorId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.id as string | null) ?? null;
+}
+
+/** The text of a required reason box, or null when it was left empty. */
+function reasonFrom(formData: FormData, key: string): string | null {
+  const v = String(formData.get(key) ?? "").trim();
+  return v ? v.slice(0, 2000) : null;
+}
+
+function revalidateHoliday(): void {
+  revalidatePath("/people/holiday");
+  revalidatePath("/my");
+}
+
+type ChangeRow = {
+  company_id: string;
+  branch_id: string | null;
+  requester_name: string | null;
+  start_date: string;
+  end_date: string;
+  status: string;
+  change_kind: string | null;
+  change_reason: string | null;
+  previous_start_date: string | null;
+  previous_end_date: string | null;
+};
+
+const CHANGE_COLUMNS =
+  "company_id, branch_id, requester_name, start_date, end_date, status, change_kind, change_reason, previous_start_date, previous_end_date";
+
 /**
  * Approve or decline a holiday request (Branch Manager and above).
  *
  * This is a DECISION, not a form. The old Holiday Response form (inherited from
- * the Monday board) made a Manager complete a form to click yes or no; it was
- * deleted from every company and from the founder library in migration 0129.
- * The outcome, who decided it, when, and any reason for declining all live on
- * the holiday_requests row, and the requester is emailed either way.
+ * Monday.com) made a Manager complete a form to click yes or no; it was deleted
+ * from every company and from the founder library in migration 0129. The
+ * outcome, who decided it, when, and any reason for declining all live on the
+ * holiday_requests row, and the person is emailed either way.
+ *
+ * A change or cancellation the carer asked for (0438) is decided with the same two
+ * buttons: approved, it is applied; declined, the holiday goes back to what was agreed.
  */
 export async function decideHoliday(
   _prev: ActionState,
@@ -288,7 +341,7 @@ export async function decideHoliday(
     decision === "approved" ? "approved" : decision === "declined" ? "declined" : null;
   if (!status) return { error: "Choose whether to approve or decline the request." };
 
-  const note = String(formData.get("decline_reason") ?? "").trim() || null;
+  const note = reasonFrom(formData, "decline_reason");
   if (status === "declined" && !note) {
     return { error: "Give a reason for declining, so the person knows why." };
   }
@@ -296,9 +349,9 @@ export async function decideHoliday(
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("holiday_requests")
-    .select("company_id, branch_id, person_id, requested_by, start_date, end_date")
+    .select(CHANGE_COLUMNS)
     .eq("id", requestId)
-    .maybeSingle();
+    .maybeSingle<ChangeRow>();
   if (!request) return { error: "That request could not be found." };
 
   const { error: decErr } = await supabase.rpc("decide_holiday_request", {
@@ -311,81 +364,67 @@ export async function decideHoliday(
     return { error: `The decision could not be recorded: ${decErr.message}` };
   }
 
-  // A request that arrived through a public form has no account behind it, so
-  // there is no profile to email. Fall back to the address the person gave on
-  // the form, so they still hear the outcome.
-  let fallbackEmail: string | null = null;
-  let fallbackName: string | null = null;
-  if (!request.requested_by) {
-    const { data: submission } = await supabase
-      .from("public_form_submissions")
-      .select("submitted_email, submitted_name")
-      .eq("holiday_request_id", requestId)
-      .maybeSingle();
-    fallbackEmail = (submission?.submitted_email as string | null) ?? null;
-    fallbackName = (submission?.submitted_name as string | null) ?? null;
+  const changeKind = request.change_kind;
+  let emailed: Record<string, string>;
+  if (changeKind === "amend" || changeKind === "cancel") {
+    const kind =
+      changeKind === "amend"
+        ? status === "approved" ? "change_approved" : "change_declined"
+        : status === "approved" ? "cancel_approved" : "cancel_declined";
+    // A declined change puts the agreed dates back; anything else leaves the dates as they are.
+    const keptStart =
+      kind === "change_declined" ? (request.previous_start_date ?? request.start_date) : request.start_date;
+    const keptEnd =
+      kind === "change_declined" ? (request.previous_end_date ?? request.end_date) : request.end_date;
+    const eventId = (await latestEventId(supabase, requestId, user.id)) ?? `${requestId}:${kind}:${Date.now()}`;
+    emailed = await notifyHolidayChangeDecided({
+      companyId: request.company_id,
+      branchId: request.branch_id,
+      requestId,
+      eventId,
+      actorId: user.id,
+      kind,
+      startDate: keptStart,
+      endDate: keptEnd,
+      otherStart: kind === "change_declined" ? request.start_date : request.previous_start_date,
+      otherEnd: kind === "change_declined" ? request.end_date : request.previous_end_date,
+      note,
+    });
+  } else {
+    emailed = await notifyHolidayDecided({
+      companyId: request.company_id,
+      branchId: request.branch_id,
+      requestId,
+      status,
+      startDate: request.start_date,
+      endDate: request.end_date,
+      note,
+    });
   }
 
-  // Phase 6: tell the requester the outcome. Best-effort, idempotent, silently
-  // skipped when Resend is not configured.
-  const requesterEmail = await notifyHolidayDecided({
-    companyId: request.company_id as string,
-    branchId: (request.branch_id as string | null) ?? null,
-    requestId,
-    requestedBy: (request.requested_by as string | null) ?? null,
-    fallbackEmail,
-    fallbackName,
-    status,
-    startDate: request.start_date as string,
-    endDate: request.end_date as string,
-    note,
-  });
-
+  const what = changeKind === "amend" ? "Change of holiday" : changeKind === "cancel" ? "Cancellation request" : "Holiday request";
   await writeAudit({
-    companyId: request.company_id as string,
+    companyId: request.company_id,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "holiday.decided",
+    action: changeKind ? "holiday.change_decided" : "holiday.decided",
     entityType: "holiday_request",
     entityId: requestId,
-    summary: `Holiday request ${status}`,
-    metadata: { status, note, requester_email: requesterEmail },
+    summary: `${what} ${status}`,
+    metadata: { status, note, change_kind: changeKind, requester_email: emailed },
   });
 
-  revalidatePath("/people/holiday");
+  revalidateHoliday();
+  if (changeKind === "amend") return { ok: status === "approved" ? "Change approved." : "Change declined. The agreed dates stand." };
+  if (changeKind === "cancel") return { ok: status === "approved" ? "Holiday cancelled." : "Cancellation declined. The holiday stays booked." };
   return { ok: status === "approved" ? "Holiday approved." : "Holiday declined." };
 }
 
 /**
- * Look up who to tell about a change to a request. A request that came through a
- * public form has no account behind it, so fall back to the address the person
- * gave on the form.
- */
-async function requestRecipient(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  requestId: string,
-  requestedBy: string | null,
-): Promise<{ fallbackEmail: string | null; fallbackName: string | null }> {
-  if (requestedBy) return { fallbackEmail: null, fallbackName: null };
-  const { data } = await supabase
-    .from("public_form_submissions")
-    .select("submitted_email, submitted_name")
-    .eq("holiday_request_id", requestId)
-    .maybeSingle();
-  return {
-    fallbackEmail: (data?.submitted_email as string | null) ?? null,
-    fallbackName: (data?.submitted_name as string | null) ?? null,
-  };
-}
-
-/**
- * Cancel a holiday, or withdraw your own pending request.
- *
- * A Branch Manager and above can cancel any holiday in their branch, pending or
- * approved. The person who submitted it in the app can withdraw their own while
- * it is still pending; once it is approved the rota depends on it, so a Manager
- * handles it. The database enforces both rules (cancel_holiday_request).
+ * The office cancels a holiday, pending or approved, with a reason the person sees
+ * (Branch Manager and above; cancel_holiday_request enforces it). A carer cancels
+ * their own through requestHolidayCancel, which holds the carer's rules.
  */
 export async function cancelHoliday(
   _prev: ActionState,
@@ -395,14 +434,15 @@ export async function cancelHoliday(
   if (!profile.company_id) return { error: "No company context." };
   const requestId = String(formData.get("request_id") ?? "");
   if (!requestId) return { error: "Missing holiday." };
-  const reason = String(formData.get("cancel_reason") ?? "").trim() || null;
+  const reason = reasonFrom(formData, "cancel_reason");
+  if (!reason) return { error: "Give a reason for cancelling. The person will see it." };
 
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("holiday_requests")
-    .select("company_id, branch_id, requested_by, requester_name, start_date, end_date, status")
+    .select(CHANGE_COLUMNS)
     .eq("id", requestId)
-    .maybeSingle();
+    .maybeSingle<ChangeRow>();
   if (!request) return { error: "That holiday could not be found." };
   const wasApproved = request.status === "approved";
 
@@ -412,48 +452,37 @@ export async function cancelHoliday(
   });
   if (error) return { error: error.message };
 
-  // Only chase the person when there was something to undo. Withdrawing your own
-  // pending request needs no email to yourself.
-  const selfWithdrawal = request.requested_by === user.id;
-  if (!selfWithdrawal) {
-    const { fallbackEmail, fallbackName } = await requestRecipient(
-      supabase,
-      requestId,
-      (request.requested_by as string | null) ?? null,
-    );
-    await notifyHolidayChanged({
-      companyId: request.company_id as string,
-      branchId: (request.branch_id as string | null) ?? null,
-      requestId,
-      requestedBy: (request.requested_by as string | null) ?? null,
-      kind: "cancelled",
-      startDate: request.start_date as string,
-      endDate: request.end_date as string,
-      note: reason ? `Reason given: ${reason}` : null,
-      fallbackEmail,
-      fallbackName,
-    });
-  }
+  // A change in flight goes with it, and the holiday keeps the dates that had been agreed.
+  const agreedStart = request.previous_start_date ?? request.start_date;
+  const agreedEnd = request.previous_end_date ?? request.end_date;
+  const emailed = await notifyHolidayChanged({
+    companyId: request.company_id,
+    branchId: request.branch_id,
+    requestId,
+    actorId: user.id,
+    kind: "cancelled",
+    startDate: agreedStart,
+    endDate: agreedEnd,
+    reason,
+  });
 
   await writeAudit({
-    companyId: request.company_id as string,
+    companyId: request.company_id,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: selfWithdrawal ? "holiday.withdrawn" : "holiday.cancelled",
+    action: "holiday.cancelled",
     entityType: "holiday_request",
     entityId: requestId,
-    summary: selfWithdrawal
-      ? "Withdrew their own holiday request"
-      : `Cancelled ${wasApproved ? "an approved" : "a pending"} holiday for ${request.requester_name ?? "a team member"}`,
-    metadata: { reason, was_approved: wasApproved },
+    summary: `Cancelled ${wasApproved ? "an approved" : "a pending"} holiday for ${request.requester_name ?? "a team member"}`,
+    metadata: { reason, was_approved: wasApproved, change_kind: request.change_kind, emailed },
   });
 
-  revalidatePath("/people/holiday");
-  return { ok: selfWithdrawal ? "Request withdrawn." : "Holiday cancelled." };
+  revalidateHoliday();
+  return { ok: "Holiday cancelled." };
 }
 
-/** Correct the dates on a pending or approved holiday (Branch Manager and above). */
+/** The office corrects the dates on a pending or approved holiday, with a reason (Branch Manager and above). */
 export async function amendHoliday(
   _prev: ActionState,
   formData: FormData,
@@ -466,50 +495,46 @@ export async function amendHoliday(
   const endDate = isoOrNull(formData.get("end_date"));
   if (!startDate || !endDate) return { error: "Enter both dates." };
   if (endDate < startDate) return { error: "The end date cannot be before the start date." };
+  const reason = reasonFrom(formData, "amend_reason");
 
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("holiday_requests")
-    .select("company_id, branch_id, requested_by, start_date, end_date")
+    .select(CHANGE_COLUMNS)
     .eq("id", requestId)
-    .maybeSingle();
+    .maybeSingle<ChangeRow>();
   if (!request) return { error: "That holiday could not be found." };
 
-  const wasStart = request.start_date as string;
-  const wasEnd = request.end_date as string;
+  const wasStart = request.start_date;
+  const wasEnd = request.end_date;
   if (wasStart === startDate && wasEnd === endDate) {
     return { ok: "No change." };
   }
+  if (!reason) return { error: "Give a reason for the change. The person will see it." };
 
   const { error } = await supabase.rpc("amend_holiday_request", {
     p_id: requestId,
     p_start_date: startDate,
     p_end_date: endDate,
+    p_reason: reason,
   });
   if (error) return { error: error.message };
 
-  const { fallbackEmail, fallbackName } = await requestRecipient(
-    supabase,
+  const emailed = await notifyHolidayChanged({
+    companyId: request.company_id,
+    branchId: request.branch_id,
     requestId,
-    (request.requested_by as string | null) ?? null,
-  );
-  await notifyHolidayChanged({
-    companyId: request.company_id as string,
-    branchId: (request.branch_id as string | null) ?? null,
-    requestId,
-    requestedBy: (request.requested_by as string | null) ?? null,
+    actorId: user.id,
     kind: "amended",
     startDate,
     endDate,
-    // Rendered as a paragraph straight after dates the email has already formatted, so raw ISO
-    // here put two date formats in one sentence of one email.
-    note: `It was previously booked from ${ukDate(wasStart)} to ${ukDate(wasEnd)}.`,
-    fallbackEmail,
-    fallbackName,
+    previousStart: wasStart,
+    previousEnd: wasEnd,
+    reason,
   });
 
   await writeAudit({
-    companyId: request.company_id as string,
+    companyId: request.company_id,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
@@ -517,9 +542,210 @@ export async function amendHoliday(
     entityType: "holiday_request",
     entityId: requestId,
     summary: `Changed a holiday from ${ukDate(wasStart)} to ${ukDate(wasEnd)}, now ${ukDate(startDate)} to ${ukDate(endDate)}`,
-    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate },
+    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, reason, emailed },
   });
 
-  revalidatePath("/people/holiday");
+  revalidateHoliday();
   return { ok: "Dates updated." };
+}
+
+/**
+ * A carer changes the dates of their own holiday, before it starts (0438). Not decided yet: the
+ * request simply asks for the new dates. Approved: it goes back to pending as a Change of holiday.
+ * Either way the approvers are told, with the reason.
+ */
+export async function requestHolidayChange(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const requestId = String(formData.get("request_id") ?? "");
+  if (!requestId) return { error: "Missing holiday." };
+  const startDate = isoOrNull(formData.get("start_date"));
+  const endDate = isoOrNull(formData.get("end_date"));
+  if (!startDate || !endDate) return { error: "Enter both dates." };
+  if (endDate < startDate) return { error: "The end date cannot be before the start date." };
+  const reason = reasonFrom(formData, "change_reason");
+  if (!reason) return { error: "Give a reason for the change." };
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("holiday_requests")
+    .select(CHANGE_COLUMNS)
+    .eq("id", requestId)
+    .maybeSingle<ChangeRow>();
+  if (!request) return { error: "That holiday could not be found." };
+
+  const { data: kind, error } = await supabase.rpc("request_holiday_change", {
+    p_id: requestId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_reason: reason,
+  });
+  if (error) return { error: error.message };
+
+  // What the approvers are told the holiday WAS: the dates agreed if a change was already waiting.
+  const wasStart = request.change_kind === "amend" ? (request.previous_start_date ?? request.start_date) : request.start_date;
+  const wasEnd = request.change_kind === "amend" ? (request.previous_end_date ?? request.end_date) : request.end_date;
+  const eventId = (await latestEventId(supabase, requestId, user.id)) ?? `${requestId}:${String(kind)}:${Date.now()}`;
+  const emailed = await notifyHolidayChangeRequested({
+    companyId: request.company_id,
+    branchId: request.branch_id,
+    requestId,
+    eventId,
+    requesterName: request.requester_name || profile.full_name || profile.email,
+    kind: kind === "change_requested" ? "change" : "request_amended",
+    oldStart: wasStart,
+    oldEnd: wasEnd,
+    newStart: startDate,
+    newEnd: endDate,
+    reason,
+  });
+
+  await writeAudit({
+    companyId: request.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: kind === "change_requested" ? "holiday.change_requested" : "holiday.request_amended",
+    entityType: "holiday_request",
+    entityId: requestId,
+    summary: `Asked to move a holiday from ${ukDate(wasStart)} to ${ukDate(wasEnd)}, to ${ukDate(startDate)} to ${ukDate(endDate)}`,
+    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, reason, approver_emails: emailed },
+  });
+
+  revalidateHoliday();
+  return {
+    ok:
+      kind === "change_requested"
+        ? "Change sent for approval."
+        : "Dates changed. Your manager has been told.",
+  };
+}
+
+/**
+ * A carer cancels their own holiday, before it starts (0438). Not decided yet: withdrawn straight
+ * away. Approved, or a change waiting: a Cancellation request for the office to decide.
+ */
+export async function requestHolidayCancel(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const requestId = String(formData.get("request_id") ?? "");
+  if (!requestId) return { error: "Missing holiday." };
+  const reason = reasonFrom(formData, "cancel_reason");
+  if (!reason) return { error: "Give a reason for cancelling." };
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("holiday_requests")
+    .select(CHANGE_COLUMNS)
+    .eq("id", requestId)
+    .maybeSingle<ChangeRow>();
+  if (!request) return { error: "That holiday could not be found." };
+
+  const { data: kind, error } = await supabase.rpc("request_holiday_cancel", {
+    p_id: requestId,
+    p_reason: reason,
+  });
+  if (error) return { error: error.message };
+
+  const agreedStart = request.previous_start_date ?? request.start_date;
+  const agreedEnd = request.previous_end_date ?? request.end_date;
+  let emailed: Record<string, string> = {};
+  if (kind === "cancel_requested") {
+    const eventId = (await latestEventId(supabase, requestId, user.id)) ?? `${requestId}:cancel:${Date.now()}`;
+    emailed = await notifyHolidayChangeRequested({
+      companyId: request.company_id,
+      branchId: request.branch_id,
+      requestId,
+      eventId,
+      requesterName: request.requester_name || profile.full_name || profile.email,
+      kind: "cancel",
+      oldStart: agreedStart,
+      oldEnd: agreedEnd,
+      reason,
+    });
+  }
+
+  await writeAudit({
+    companyId: request.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: kind === "cancel_requested" ? "holiday.cancel_requested" : "holiday.withdrawn",
+    entityType: "holiday_request",
+    entityId: requestId,
+    summary:
+      kind === "cancel_requested"
+        ? `Asked to cancel a holiday from ${ukDate(agreedStart)} to ${ukDate(agreedEnd)}`
+        : "Withdrew their own holiday request",
+    metadata: { reason, approver_emails: emailed },
+  });
+
+  revalidateHoliday();
+  return { ok: kind === "cancel_requested" ? "Cancellation sent for approval." : "Request withdrawn." };
+}
+
+/** A carer takes back their change or cancellation request: the agreed holiday stands again (0438). */
+export async function withdrawHolidayChange(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const requestId = String(formData.get("request_id") ?? "");
+  if (!requestId) return { error: "Missing holiday." };
+  const reason = reasonFrom(formData, "withdraw_reason");
+  if (!reason) return { error: "Give a reason." };
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("holiday_requests")
+    .select(CHANGE_COLUMNS)
+    .eq("id", requestId)
+    .maybeSingle<ChangeRow>();
+  if (!request) return { error: "That holiday could not be found." };
+
+  const { error } = await supabase.rpc("withdraw_holiday_change", {
+    p_id: requestId,
+    p_reason: reason,
+  });
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: request.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "holiday.change_withdrawn",
+    entityType: "holiday_request",
+    entityId: requestId,
+    summary:
+      request.change_kind === "cancel"
+        ? "Took back their request to cancel a holiday"
+        : "Took back their change of holiday",
+    metadata: { reason, change_kind: request.change_kind },
+  });
+
+  revalidateHoliday();
+  return { ok: "Done. Your holiday stays as it was agreed." };
+}
+
+/** Got it, on a portal notice about the office changing their holiday (0438). */
+export async function dismissHolidayNotice(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireCompany();
+  const eventId = String(formData.get("event_id") ?? "");
+  if (!eventId) return { error: "Missing notice." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_holiday_notice_seen", { p_event_id: eventId });
+  if (error) return { error: error.message };
+  revalidatePath("/my");
+  return { ok: "Got it." };
 }

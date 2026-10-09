@@ -1,0 +1,43 @@
+# Test checklist: holiday changes (migration 0438, 9 Oct 2026)
+
+Thistle's request, passed on by Phil: carers change or cancel their own holiday from the portal; the
+office's changes carry a reason and reach the portal. Decisions by popup, 9 Oct 2026:
+- A carer changes an APPROVED holiday: back to pending on the new dates, "Change of holiday".
+  Declined: the dates first agreed come back.
+- A carer asks to cancel an APPROVED holiday: pending, "Cancellation request". Declined: stays booked.
+- Carers change or cancel only BEFORE the holiday starts. From its first day, only the office.
+- A reason is required for every change and every cancel, by anyone.
+- The office's changes show at the top of the carer's portal until Got it, as well as the email.
+
+Test on Bevan (writes), never on Thistle. Carer login for the portal tests: the Bevan test carer
+(ZZ TEST Audit Starter, Swansea). Bevan's emails are muted, so check emails in notification_log.
+
+## Office (Holiday page)
+1. Edit dates on a holiday asks for a reason; it will not save without one.
+2. Saved with a reason: the dates change, and the carer's portal shows "Your holiday dates have
+   changed" with both sets of dates, the reason, who and when, until Got it.
+3. Cancel asks for a reason; the carer's portal shows "Your holiday has been cancelled".
+4. A carer's Change of holiday shows in Pending requests with the label, the agreed dates and the reason.
+5. Approve it: approved on the new dates; the carer sees "Your change of holiday is approved".
+6. Decline it (reason required): back to approved on the agreed dates; the carer sees "declined".
+7. A Cancellation request: Approve cancels it; Decline keeps it booked; the carer is told either way.
+
+## Portal (carer)
+8. An approved holiday that has not started shows Change dates and Ask to cancel.
+9. Change dates: earliest date is tomorrow, a reason is required, and the panel says it goes back
+   for approval. After sending: "Change waiting for approval" and "Agreed before" with the old dates.
+10. Take back my change (reason): back to Approved on the agreed dates.
+11. Ask to cancel (reason): "Cancellation waiting for approval". Keep my holiday puts it back.
+12. A request not yet decided: Change dates keeps it waiting and tells the manager; Withdraw
+    (reason) cancels it.
+13. On or after the first day of the holiday: no buttons, "This holiday has started" instead.
+14. A notice's Got it removes it and it does not come back.
+15. The "View your holidays" button in a carer's email opens My area, not the office Holiday page.
+
+## Rules the database holds (probed with each role)
+16. A carer cannot change or cancel someone else's holiday, or their own once it has started,
+    or without a reason.
+17. Nobody without holiday rights can edit or cancel through the office functions.
+18. A Branch Manager cannot decide or change a holiday in a branch they do not manage.
+
+## Results

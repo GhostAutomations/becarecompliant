@@ -25,6 +25,7 @@ import { getEvidencePackData, renderEvidencePackPdf, evidencePackCsv } from "@/l
 import { renderReportPdf, type ReportBlock } from "@/lib/export/pdf";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import { fmtDate, fmtDateTime, generatedAt } from "@/lib/export/format";
+import { eventKindLabel } from "@/lib/holidays/changes";
 import { readmeText, safeFileName, uniquePath, type SarKind } from "./layout";
 import { WORKING_STATUS_LABELS, PROBATION_STATUS_LABELS, RTW_LIMIT_LABELS } from "@/lib/people/types";
 import { SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
@@ -207,6 +208,34 @@ export async function buildSubjectAccessExport(input: {
         fmtDateTime(h.created_at as string), fmtDateTime(h.decided_at as string), t(h.decision_note), fmtDateTime(h.cancelled_at as string), t(h.cancel_reason),
       ]),
       empty: "No holiday requests.",
+    });
+
+    // ---- Holiday changes (0438): every change and cancellation to those holidays, who made it and
+    // the reason they gave. Reasons are the person's own words or about them, so they belong here.
+    const { data: holIds } = await db.from("holiday_requests").select("id").eq("person_id", recordId);
+    const holidayIds = ((holIds ?? []) as Array<{ id: string }>).map((h) => h.id);
+    const { data: holEvents } = holidayIds.length
+      ? await db
+          .from("holiday_request_events")
+          .select("kind, actor_name, old_start_date, old_end_date, new_start_date, new_end_date, reason, created_at")
+          .in("request_id", holidayIds)
+          .order("created_at", { ascending: true })
+      : { data: [] as Array<Record<string, unknown>> };
+    const span = (a: unknown, b: unknown) =>
+      a && b ? (a === b ? fmtDate(a as string) : `${fmtDate(a as string)} to ${fmtDate(b as string)}`) : "";
+    sections.push({
+      title: "Holiday changes",
+      file: "holiday-changes.csv",
+      headers: ["When", "What", "By", "Dates before", "Dates after", "Reason"],
+      rows: ((holEvents ?? []) as Array<Record<string, unknown>>).map((e) => [
+        fmtDateTime(e.created_at as string),
+        eventKindLabel(String(e.kind)),
+        t(e.actor_name),
+        span(e.old_start_date, e.old_end_date),
+        span(e.new_start_date, e.new_end_date),
+        t(e.reason),
+      ]),
+      empty: "No holiday changes.",
     });
 
     // ---- Absence and meetings

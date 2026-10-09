@@ -4053,6 +4053,39 @@ Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft)
 
 Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.
 
+### 2026-10-09 — Holiday changes from the portal and the office (migration 0438, Phase 13)
+
+Thistle asked, Phil passed it on: staff change or cancel their holiday from their portal, whether
+pending or approved, and the office (Managers, Admins, RIs) cancel and edit with a reason that
+reaches the portal. Phil: "make sure nothing else changes outside of holiday or portal".
+
+Already there before this: a carer could change or withdraw a PENDING request; the office could
+edit dates and cancel, and cancelling asked for a reason.
+
+Decided by popup, 2026-10-09:
+- A carer changes an approved holiday: it goes back to pending on the new dates, shown to the
+  office as a **Change of holiday**. Declined: the dates first agreed come back, approved.
+- A carer asks to cancel an approved holiday: pending, a **Cancellation request**. Approved:
+  cancelled. Declined: back to approved.
+- Carers change or cancel only **before the holiday starts**; from its first day, only the office.
+- **A reason is required for every change and every cancel**, by anyone.
+- The office's changes (edit, cancel, and decisions on a change or cancellation) show **at the top
+  of the carer's portal until Got it**, as well as the email.
+
+Built: migration 0438 (change columns on holiday_requests, holiday_request_events history with
+RLS by holiday visibility, carer functions request_holiday_change / request_holiday_cancel /
+withdraw_holiday_change, decide extended, amend and cancel office only with a required reason,
+mark_holiday_notice_seen); lib/holidays/changes.ts (rules and wording, 16 tests);
+components/staff/holiday-notices.tsx; My holidays and the Holiday page updated; the subject access
+export gains Holiday changes.
+
+Fixed on the way (both inside holidays): a carer changing their own pending request was emailed
+about it themselves while the approvers were not told; and the "View your holidays" button in a
+carer's email opened the office Holiday page they cannot use (now My area). Holiday emails now go
+to the person whose holiday it is, not whoever filled the booking in.
+
+Tests: TEST-CHECKLIST-HOLIDAY-CHANGES.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

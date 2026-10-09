@@ -13,6 +13,10 @@
  *  - Plans change, so a Manager can cancel a pending or approved holiday and can
  *    correct its dates, and the person who submitted it in the app can withdraw
  *    their own while it is still pending (migration 0130 enforces all of that).
+ *  - 0438 (Phil, 2026-10-09): every edit and cancel carries a reason the person sees,
+ *    and a carer's own change or cancellation of an approved holiday arrives here in
+ *    Pending requests as a "Change of holiday" or a "Cancellation request", decided
+ *    with the same Approve and Decline.
  *  - Clashes WARN, they never block: the Manager knows their rota and their cover.
  *  - Most requests now arrive through the public form link, so a submitter may
  *    have no account at all.
@@ -31,7 +35,9 @@ import {
   bookHolidayForPerson,
   cancelHoliday,
   amendHoliday,
+  requestHolidayCancel,
 } from "@/lib/holidays/actions";
+import { officeChangeLabel } from "@/lib/holidays/changes";
 import { useBranchWord } from "@/components/branches/branch-word";
 
 const HOLIDAY_HIDE_FOR_PERSON = [
@@ -143,6 +149,17 @@ function RequestActions({
               />
             </div>
           </div>
+          <label htmlFor={`amend-reason-${request.id}`} className="form-label">
+            Reason for the change (the person will see this)
+          </label>
+          <textarea
+            id={`amend-reason-${request.id}`}
+            name="amend_reason"
+            rows={2}
+            required
+            maxLength={2000}
+            placeholder="For example: spoke to them and agreed the new dates"
+          />
         </ActionForm>
         <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
           Cancel
@@ -155,21 +172,21 @@ function RequestActions({
     return (
       <div className="w-full max-w-sm space-y-2">
         <ActionForm
-          action={cancelHoliday}
+          action={canManage ? cancelHoliday : requestHolidayCancel}
           hidden={{ request_id: request.id }}
           label={canManage ? "Cancel this holiday" : "Withdraw my request"}
           savedLabel={canManage ? "Cancelled" : "Withdrawn"}
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
         >
           <label htmlFor={`cancel-${request.id}`} className="form-label">
-            Reason {canManage ? "(the person will see this)" : "(optional)"}
+            Reason {canManage ? "(the person will see this)" : ""}
           </label>
           <textarea
             id={`cancel-${request.id}`}
             name="cancel_reason"
             rows={2}
             maxLength={2000}
-            required={canManage}
+            required
           />
         </ActionForm>
         <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
@@ -436,15 +453,31 @@ export default function HolidayView({
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 p-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">
-                    {r.requester_name ?? "Someone"}
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-white">
+                    <span className="truncate">{r.requester_name ?? "Someone"}</span>
+                    {officeChangeLabel(r) ? (
+                      <span className="pill pill-amber">{officeChangeLabel(r)}</span>
+                    ) : null}
                   </p>
                   <p className="text-xs text-white/60">
+                    {r.change_kind === "cancel" ? "Asks to cancel " : ""}
                     {fmt(r.start_date)} to {fmt(r.end_date)}
-                    {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
-                    {r.note ? ` · ${r.note}` : ""}
+                    {r.return_to_work_date && !r.change_kind ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
+                    {r.note && !r.change_kind ? ` · ${r.note}` : ""}
                   </p>
-                  {clashLine(r)}
+                  {r.change_kind === "amend" && r.previous_start_date && r.previous_end_date ? (
+                    <p className="text-xs text-white/50">
+                      Agreed before: {fmt(r.previous_start_date)} to {fmt(r.previous_end_date)}.
+                      Declining puts those dates back.
+                    </p>
+                  ) : null}
+                  {r.change_kind === "cancel" ? (
+                    <p className="text-xs text-white/50">Declining keeps the holiday booked.</p>
+                  ) : null}
+                  {r.change_kind && r.change_reason ? (
+                    <p className="text-xs text-white/60">Reason: {r.change_reason}</p>
+                  ) : null}
+                  {r.change_kind === "cancel" ? null : clashLine(r)}
                 </div>
                 {canDecide(r) || r.requested_by === currentUserId ? (
                   <RequestActions
