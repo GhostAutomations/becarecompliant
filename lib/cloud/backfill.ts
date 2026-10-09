@@ -91,6 +91,12 @@ export async function queueEverything(companyId: string): Promise<number> {
     }
   }
 
+  // Documents added to a person's or service user's record (0439), unless a Company Admin removed them.
+  const documents = await all<{ id: string }>((a, b) =>
+    db.from("record_documents").select("id").eq("company_id", companyId).is("removed_at", null).range(a, b),
+  );
+  documents.forEach((d) => add("record_document", d.id));
+
   const notices = await all<{ id: string; kind: string; files: unknown }>((a, b) =>
     db.from("briefing_notices").select("id, kind, files").eq("company_id", companyId).range(a, b),
   );

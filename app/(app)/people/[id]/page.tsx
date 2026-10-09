@@ -17,8 +17,10 @@ import ActionForm from "@/components/action-form";
 import CycleBox from "@/components/records/cycle-box";
 import RecordHistory from "@/components/reports/record-history";
 import UpdatesTile from "@/components/updates/updates-tile";
+import DocumentsTile from "@/components/documents/documents-tile";
 import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
+import { getRecordDocuments } from "@/lib/documents/data";
 import EditPersonForm from "@/components/people/edit-person-form";
 import { getRegulator } from "@/lib/complaints/data";
 import { scwStatus, scwRenewalState } from "@/lib/people/scw";
@@ -252,7 +254,7 @@ export default async function PersonPage({
 
   // The history timeline uses the record_audit_trail RPC (guarded by
   // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
-  const [auditTrail, exportsEnabled, jobTitles, updates] = await Promise.all([
+  const [auditTrail, exportsEnabled, jobTitles, updates, documents] = await Promise.all([
     canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     // The same list Add a person offers, so a job title is chosen the same way whether it
@@ -261,6 +263,8 @@ export default async function PersonPage({
     /* Updates (0324): the database decides who reads them. Nobody below Supervisor, and a
        Manager or Supervisor never on their own record. */
     getRecordUpdates({ kind: "person", id }, { supportMode }),
+    /* Documents (0439): the same audience as Updates, decided by the database. */
+    getRecordDocuments({ kind: "person", id }, { supportMode }),
   ]);
 
   /* COMPLAINTS ABOUT THIS PERSON. The role list is the Complaints section's own, not this
@@ -872,7 +876,7 @@ export default async function PersonPage({
           a leaver's record still gets written on (a reference request, a returned uniform), and
           the Complaints tile stays where it was, active records only. A Supervisor, who cannot
           see Complaints, gets the Updates tile on its own in the first column. */}
-      {(canSeeComplaints && !isLeaver) || updates.canRead ? (
+      {(canSeeComplaints && !isLeaver) || updates.canRead || documents.canRead ? (
         <section className="grid gap-3 lg:grid-cols-3">
           {canSeeComplaints && !isLeaver ? complaintsTile : null}
           {updates.canRead ? (
@@ -881,6 +885,17 @@ export default async function PersonPage({
               recordId={person.id}
               data={updates}
               currentUserId={user.id}
+              canRemove={profile.role === "company_admin" && !supportMode}
+            />
+          ) : null}
+          {/* DOCUMENTS (0439, Phil 2026-10-09): "a tile ... next to updates and above absence",
+              for a copy of an email or a certificate that belongs on the record. Leavers too,
+              like Updates: a reference or a returned form still arrives after they go. */}
+          {documents.canRead ? (
+            <DocumentsTile
+              kind="person"
+              recordId={person.id}
+              data={documents}
               canRemove={profile.role === "company_admin" && !supportMode}
             />
           ) : null}

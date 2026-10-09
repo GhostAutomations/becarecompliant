@@ -24,9 +24,9 @@ test("the ZIP is named for the person and the day", () => {
 
 test("each kind carries the sections Phil chose, and not the ones he left out", () => {
   const p = sarSections("person");
-  for (const s of ["Record", "Checks", "Updates", "Training", "Holiday", "Absence", "Leaving", "Evidence"]) assert.ok(p.includes(s), s);
+  for (const s of ["Record", "Checks", "Updates", "Documents", "Training", "Holiday", "Absence", "Leaving", "Evidence"]) assert.ok(p.includes(s), s);
   const su = sarSections("service_user");
-  for (const s of ["Record", "Checks", "Updates", "Care schedule", "Outcomes", "Evidence"]) assert.ok(su.includes(s), s);
+  for (const s of ["Record", "Checks", "Updates", "Documents", "Care schedule", "Outcomes", "Evidence"]) assert.ok(su.includes(s), s);
   for (const s of [...p, ...su]) assert.ok(!/Complaint|Incident|Invoice|Access/.test(s), s);
 });
 

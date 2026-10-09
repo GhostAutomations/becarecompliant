@@ -42,7 +42,7 @@ import {
  * bucket added later MUST be added here, or a purge will leave its files behind — which is
  * why the purge counts what remains rather than trusting this list.
  */
-export const COMPANY_BUCKETS = ["evidence", "absence-policies", "record-updates", "subject-access"] as const;
+export const COMPANY_BUCKETS = ["evidence", "absence-policies", "record-updates", "record-documents", "subject-access"] as const;
 
 export type Actor = { id: string; email: string | null };
 

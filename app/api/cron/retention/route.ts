@@ -4,6 +4,7 @@ import { runCompanyPurge } from "@/lib/companies/delete-apply";
 import { backfillMissingBodies } from "@/lib/founder/inbox-store";
 import { removeAbandonedPaperUploads } from "@/lib/evidence/paper-cleanup";
 import { expireRecordUpdates, removeRecordUpdateLeftovers } from "@/lib/updates/cleanup";
+import { expireRecordDocuments, removeRecordDocumentLeftovers } from "@/lib/documents/cleanup";
 import { removeOldSubjectAccessExports } from "@/lib/sar/cleanup";
 import { applyDueLeavings } from "@/lib/people/leaving-apply";
 
@@ -66,6 +67,16 @@ export async function GET(request: NextRequest) {
     console.error("[cron/retention] update expiry:", updateExpiry.error);
   }
   const updateFiles = await removeRecordUpdateLeftovers();
+  /* DOCUMENTS ON A RECORD (0439): the same retention rule as Updates, then their leftover files
+     (uploads never saved, removed documents, documents of deleted records). */
+  const documentExpiry = await expireRecordDocuments();
+  if (documentExpiry.error) {
+    console.error("[cron/retention] document expiry:", documentExpiry.error);
+  }
+  const documentFiles = await removeRecordDocumentLeftovers();
+  if (documentFiles.errors.length) {
+    console.error("[cron/retention] document files:", documentFiles.errors.join(" | "));
+  }
   /* SUBJECT ACCESS EXPORTS A DAY OLD (0326): a whole copy of somebody's data, made to be
      downloaded once. The file goes; the row saying one was made stays. */
   const sarExports = await removeOldSubjectAccessExports();
@@ -92,24 +103,24 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, sarExports, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
   }
   // Same rule for the purge half: a company that was due to be erased and was not is a failed
   // run, and a failed run must not answer 200. A purge that half-completed reports its error
   // here rather than only in the tombstone nobody is watching.
   if (companies.errors.length) {
     console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, sarExports, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
   }
   // Same rule for the Updates half: special category notes that were due to go and did not is a
-  // failed run, not a quiet one.
-  if (updateExpiry.error) {
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, sarExports, leavers }, { status: 500 });
+  // failed run, not a quiet one. Documents (0439) follow the same clock, so the same rule.
+  if (updateExpiry.error || documentExpiry.error) {
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
   }
   /* A body we could not collect is reported, never silent — but it does not fail the run,
      because retention and the purge did their work and a 500 here would hide that. */
   if (emailBodies.errors.length) {
     console.error("[cron/retention] email bodies:", emailBodies.errors.join(" | "));
   }
-  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, sarExports, leavers });
+  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers });
 }

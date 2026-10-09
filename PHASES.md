@@ -4053,6 +4053,29 @@ Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft)
 
 Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.
 
+### 2026-10-09 — Documents on a record (migration 0439, Phase 13)
+
+Phil: somewhere on a person's record for an ad hoc document, "a copy of an email or a random copy
+of a certificate", in a tile next to Updates and above Absence, with an Upload button in its top
+right corner and the number of documents.
+
+Decided by popup, 2026-10-09:
+- Who sees and uploads: **the same people as Updates** (the database's Updates audience).
+- Removing: **a Company Admin only, with a reason**. The file is deleted; a line saying who removed
+  it, when and why stays on the record.
+- **People and Service Users** both.
+
+Built: migration 0439 (record_documents with RLS by the Updates audience; add_record_documents and
+remove_record_document functions; the private record-documents bucket; queues for abandoned uploads
+and files to delete; retention by the Updates rule, eight years after end of care, never on a hold);
+lib/documents (rules with 9 tests, reader, actions, nightly cleanup); the Documents tile on the
+People and Service User records; cloud drive copies into the record's folder; the subject access
+export gains Documents; deleting a company empties the new bucket.
+
+Fixed on the way: the subject access README's list of sections now names Holiday changes (0438).
+
+Tests: TEST-CHECKLIST-RECORD-DOCUMENTS.md.
+
 ### 2026-10-09 — Holiday changes from the portal and the office (migration 0438, Phase 13)
 
 Thistle asked, Phil passed it on: staff change or cancel their holiday from their portal, whether

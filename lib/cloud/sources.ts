@@ -24,7 +24,8 @@ export type CloudSourceKind =
   | "record_folder"
   | "policy_version"
   | "notice"
-  | "notice_file";
+  | "notice_file"
+  | "record_document";
 
 const MIME: Record<string, string> = {
   pdf: "application/pdf",
@@ -51,6 +52,18 @@ async function download(companyId: string, path: string | null | undefined): Pro
   if (!path || !path.startsWith(`${companyId}/`)) return null;
   const db = createServiceClient();
   const { data, error } = await db.storage.from(EVIDENCE_BUCKET).download(path);
+  if (error || !data) {
+    if (error && /not found|does not exist/i.test(error.message)) return null;
+    throw new Error(`The stored file could not be read${error ? `: ${error.message}` : ""}.`);
+  }
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+/** A document's file from the private record-documents bucket (0439), only under this company. */
+async function downloadDocument(companyId: string, path: string | null | undefined): Promise<Uint8Array | null> {
+  if (!path || !path.startsWith(`${companyId}/`)) return null;
+  const db = createServiceClient();
+  const { data, error } = await db.storage.from("record-documents").download(path);
   if (error || !data) {
     if (error && /not found|does not exist/i.test(error.message)) return null;
     throw new Error(`The stored file could not be read${error ? `: ${error.message}` : ""}.`);
@@ -496,6 +509,67 @@ async function noticeOrdinal(companyId: string, noticeId: string, title: string,
   return ordinalOn(rows, day, noticeId);
 }
 
+/**
+ * A document added to a record (0439), into the record's folder: "JS Letter from GP 2026-10-09.pdf",
+ * with " (2)" for a second document of the same name the same day. Nothing once a Company Admin has
+ * removed it.
+ */
+async function recordDocumentCopy(companyId: string, documentId: string): Promise<ResolvedCopy | null> {
+  const db = createServiceClient();
+  const { data } = await db
+    .from("record_documents")
+    .select("id, person_id, service_user_id, title, file_name, mime_type, storage_path, created_at, removed_at")
+    .eq("id", documentId)
+    .eq("company_id", companyId)
+    .maybeSingle<{
+      id: string;
+      person_id: string | null;
+      service_user_id: string | null;
+      title: string;
+      file_name: string;
+      mime_type: string;
+      storage_path: string;
+      created_at: string;
+      removed_at: string | null;
+    }>();
+  if (!data || data.removed_at) return null;
+  const folderKey: FolderKey | null = data.person_id
+    ? `person:${data.person_id}`
+    : data.service_user_id
+      ? `service_user:${data.service_user_id}`
+      : null;
+  if (!folderKey) return null;
+  const bytes = await downloadDocument(companyId, data.storage_path);
+  if (!bytes) return null;
+  const ext = fileExtensionOf(data.file_name) || "pdf";
+  const day = londonDay(data.created_at);
+
+  // Same name, same day, same record: oldest first, so each keeps its own file.
+  const w = dayWindow(day);
+  const { data: same } = await db
+    .from("record_documents")
+    .select("id, title, created_at")
+    .eq("company_id", companyId)
+    .eq(data.person_id ? "person_id" : "service_user_id", (data.person_id ?? data.service_user_id) as string)
+    .gte("created_at", w.from)
+    .lt("created_at", w.to);
+  const title = data.title.trim().toLowerCase();
+  const rows = ((same ?? []) as Array<{ id: string; title: string; created_at: string }>)
+    .filter((r) => r.title.trim().toLowerCase() === title)
+    .map((r) => ({ id: r.id, at: r.created_at }));
+  const n = ordinalOn(rows, day, data.id);
+
+  const who = await recordParts(companyId, folderKey);
+  return {
+    folderKey,
+    fileName: who
+      ? recordFileName({ ...who, title: data.title, dateIso: day, n, ext })
+      : datedFileName(day, data.title, { ext, n }),
+    bytes,
+    contentType: data.mime_type || MIME[ext] || "application/octet-stream",
+  };
+}
+
 /** A case insensitive "equals" for ilike: the wildcards in a name are matched as themselves. */
 function likeExact(value: string): string {
   return String(value ?? "").replace(/[\\%_]/g, (m) => `\\${m}`);
@@ -525,6 +599,8 @@ export async function resolveCloudCopy(
       return noticeCopy(companyId, sourceId);
     case "notice_file":
       return noticeFileCopy(companyId, sourceId);
+    case "record_document":
+      return recordDocumentCopy(companyId, sourceId);
     case "record_folder": {
       // "person:<id>" or "service_user:<id>": a new record gets its folder straight away (Phil,
       // 2026-10-08: "when a new client or service user is added, they would get a file created").

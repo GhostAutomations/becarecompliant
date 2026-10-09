@@ -176,6 +176,30 @@ export async function buildSubjectAccessExport(input: {
     empty: "No updates on this record.",
   });
 
+  // ---- Documents added to the record (0439), with the files of those still there
+  const { data: docs } = await db
+    .from("record_documents")
+    .select("title, note, file_name, storage_path, uploaded_by_name, created_at, removed_at, removed_by_name, removed_reason")
+    .eq(recordCol, recordId)
+    .order("created_at", { ascending: true });
+  const docRows: CsvCell[][] = [];
+  for (const d of (docs ?? []) as Array<Record<string, unknown>>) {
+    docRows.push([
+      fmtDateTime(d.created_at as string), t(d.title), t(d.file_name), t(d.uploaded_by_name), t(d.note),
+      d.removed_at ? `Removed ${fmtDateTime(d.removed_at as string)} by ${t(d.removed_by_name)}: ${t(d.removed_reason)}` : "",
+    ]);
+    if (!d.removed_at) {
+      attachments.push({ bucket: "record-documents", path: String(d.storage_path), folder: "files/documents", name: String(d.file_name) });
+    }
+  }
+  sections.push({
+    title: "Documents",
+    file: "documents.csv",
+    headers: ["Added", "Name", "File", "Added by", "Note", "Removed"],
+    rows: docRows,
+    empty: "No documents on this record.",
+  });
+
   if (kind === "person") {
     // ---- Training
     const { data: training } = await db

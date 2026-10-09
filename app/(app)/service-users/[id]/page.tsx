@@ -15,8 +15,10 @@ import EvidenceHistory from "@/components/people/evidence-history";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import UpdatesTile from "@/components/updates/updates-tile";
+import DocumentsTile from "@/components/documents/documents-tile";
 import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
+import { getRecordDocuments } from "@/lib/documents/data";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
@@ -133,7 +135,7 @@ export default async function ServiceUserPage({
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
-  const [auditTrail, exportsEnabled, outcomesEnabled, carePlanEntries, updates] = await Promise.all([
+  const [auditTrail, exportsEnabled, outcomesEnabled, carePlanEntries, updates, documents] = await Promise.all([
     canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     featureEnabled(companyId, "outcomes_satisfaction"),
@@ -141,6 +143,9 @@ export default async function ServiceUserPage({
     /* Updates (0324). Special category data: the page view is already audited above, and every
        post, edit, removal and file opened is audited in lib/updates/actions.ts. */
     getRecordUpdates({ kind: "service_user", id }, { supportMode }),
+    /* Documents (0439): the same audience as Updates. Every upload, download and removal is
+       audited in lib/documents/actions.ts. */
+    getRecordDocuments({ kind: "service_user", id }, { supportMode }),
   ]);
 
   const updatesTile = updates.canRead ? (
@@ -149,6 +154,15 @@ export default async function ServiceUserPage({
       recordId={serviceUser.id}
       data={updates}
       currentUserId={user.id}
+      canRemove={profile.role === "company_admin" && !supportMode}
+    />
+  ) : null;
+
+  const documentsTile = documents.canRead ? (
+    <DocumentsTile
+      kind="service_user"
+      recordId={serviceUser.id}
+      data={documents}
       canRemove={profile.role === "company_admin" && !supportMode}
     />
   ) : null;
@@ -406,16 +420,21 @@ export default async function ServiceUserPage({
                 );
               })}
               {updatesTile ? <div className="h-full sm:col-span-2 lg:col-start-3 lg:row-start-1">{updatesTile}</div> : null}
+              {/* Documents beside Updates (0439, Phil 2026-10-09: "a tile ... next to updates"),
+                  in columns five and six, so it sits over Manage record. A third or fourth
+                  check moves to the next row rather than squeezing in. */}
+              {documentsTile ? <div className="h-full sm:col-span-2 lg:col-start-5 lg:row-start-1">{documentsTile}</div> : null}
             </div>
           </section>
         </>
       )}
 
       {/* A cancelled service user has no Checks row, but their Updates are still read and
-          written: the tile keeps its place over History. */}
-      {isCancelled && updatesTile ? (
+          written: the tile keeps its place over History, with Documents beside it. */}
+      {isCancelled && (updatesTile || documentsTile) ? (
         <section className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-          <div className="lg:col-start-2">{updatesTile}</div>
+          {updatesTile ? <div className="lg:col-start-2">{updatesTile}</div> : null}
+          {documentsTile ? <div className="lg:col-start-3">{documentsTile}</div> : null}
         </section>
       ) : null}
 
