@@ -22,8 +22,9 @@
  *    have no account at all.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import ActionForm from "@/components/action-form";
+import { CentreDialog } from "@/components/panel-dialog";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
@@ -279,6 +280,10 @@ export default function HolidayView({
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-based
   const [showHistory, setShowHistory] = useState(false);
+  /* A name on the calendar opens that holiday (Phil, 2026-10-09: a manager clicked a booked
+     holiday on the calendar and nothing happened). */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const closeOpen = useCallback(() => setOpenId(null), []);
 
   const visiblePeople = branch ? people.filter((p) => p.branch_id === branch) : people;
   const today = todayIso();
@@ -581,14 +586,17 @@ export default function HolidayView({
                   aria-label={hols.length > 5 ? `${hols.length} people off on the ${day}` : undefined}
                 >
                   {hols.map((h) => (
-                    <div
+                    <button
+                      type="button"
                       key={h.id}
-                      className={`flex min-w-0 items-baseline justify-between gap-1 rounded px-1 py-0.5 text-[10px] leading-[15px] ${
+                      onClick={() => setOpenId(h.id)}
+                      aria-haspopup="dialog"
+                      className={`flex min-w-0 cursor-pointer items-baseline justify-between gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-[15px] hover:brightness-125 ${
                         h.status === "approved"
                           ? "bg-emerald-400/20 text-emerald-200"
                           : "bg-amber-400/20 text-amber-200"
                       }`}
-                      title={`${h.requester_name ?? ""}${branchName(h.branch_id) ? `, ${branchName(h.branch_id)}` : ""}${h.status === "pending" ? " (awaiting approval)" : ""}`}
+                      title={`${h.requester_name ?? ""}${branchName(h.branch_id) ? `, ${branchName(h.branch_id)}` : ""}${h.status === "pending" ? " (awaiting approval)" : ""}. Click to open.`}
                     >
                       {/* First name on the left, branch or house on the right, each cut short with an
                           ellipsis rather than spilling into the next column (Phil, 2026-10-06). */}
@@ -601,7 +609,7 @@ export default function HolidayView({
                           {branchName(h.branch_id)}
                         </span>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -612,6 +620,61 @@ export default function HolidayView({
           <p className="mt-3 text-xs text-white/50">No holidays to show yet.</p>
         )}
       </div>
+
+      {/* THE HOLIDAY A CALENDAR NAME OPENS: its dates, status and reason, with the same buttons as
+          the lists above, offered only to whoever may decide it. A holiday already cancelled,
+          declined or over is shown, not offered for change. */}
+      {(() => {
+        const r = openId ? requests.find((x) => x.id === openId) ?? null : null;
+        const live = !!r && (r.status === "pending" || (r.status === "approved" && r.end_date >= today));
+        const statusText = !r
+          ? ""
+          : r.status === "pending"
+            ? officeChangeLabel(r) ?? "Awaiting approval"
+            : r.status === "approved"
+              ? r.end_date < today ? "Taken" : "Approved"
+              : r.status === "declined" ? "Declined" : "Cancelled";
+        return (
+          <CentreDialog open={!!r} onClose={closeOpen} label={r ? `Holiday: ${r.requester_name ?? "Someone"}` : "Holiday"}>
+            {r ? (
+              <div className="space-y-3 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`pill ${r.status === "approved" ? "pill-green" : r.status === "pending" ? "pill-amber" : r.status === "declined" ? "pill-red" : "pill-neutral"}`}
+                  >
+                    {statusText}
+                  </span>
+                  {branchName(r.branch_id) ? <span className="text-xs text-white/50">{branchName(r.branch_id)}</span> : null}
+                </div>
+                <p className="text-sm text-white">
+                  {r.change_kind === "cancel" ? "Asks to cancel " : ""}
+                  {fmt(r.start_date)} to {fmt(r.end_date)}
+                  {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
+                </p>
+                {r.note && !r.change_kind ? <p className="text-xs text-white/60">{r.note}</p> : null}
+                {r.change_kind === "amend" && r.previous_start_date && r.previous_end_date ? (
+                  <p className="text-xs text-white/50">
+                    Agreed before: {fmt(r.previous_start_date)} to {fmt(r.previous_end_date)}. Declining puts those dates back.
+                  </p>
+                ) : null}
+                {r.change_kind && r.change_reason ? <p className="text-xs text-white/60">Reason: {r.change_reason}</p> : null}
+                {r.status === "declined" && r.decision_note ? <p className="text-xs text-white/60">Reason: {r.decision_note}</p> : null}
+                {r.status === "cancelled" && r.cancel_reason ? <p className="text-xs text-white/60">Reason: {r.cancel_reason}</p> : null}
+                {live && r.change_kind !== "cancel" ? clashLine(r) : null}
+                {live && (canDecide(r) || (r.status === "pending" && r.requested_by === currentUserId)) ? (
+                  <div className="border-t border-white/10 pt-3">
+                    <RequestActions
+                      request={r}
+                      canManage={canDecide(r)}
+                      canWithdraw={r.status === "pending" && r.requested_by === currentUserId}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </CentreDialog>
+        );
+      })()}
 
       {/* Declined and cancelled: they leave the calendar, but the decision and the
           reason stay readable. */}

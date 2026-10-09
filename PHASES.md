@@ -4113,6 +4113,9 @@ about it themselves while the approvers were not told; and the "View your holida
 carer's email opened the office Holiday page they cannot use (now My area). Holiday emails now go
 to the person whose holiday it is, not whoever filled the booking in.
 
+Later the same day: a name on the holiday calendar opens that holiday in a popup with its
+buttons (Charlotte at Thistle clicked one and nothing happened; Phil chose the popup).
+
 Tests: TEST-CHECKLIST-HOLIDAY-CHANGES.md.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)

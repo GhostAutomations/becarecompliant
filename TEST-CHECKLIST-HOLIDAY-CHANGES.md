@@ -56,3 +56,14 @@ Test on Bevan (writes), never on Thistle. Carer login for the portal tests: the 
   underneath them are proven by the database probes above; the screens themselves are not.
 - Not testable on Bevan today: 18 (no active Branch Manager login); the rule is the same function as
   approving, which was probed in August.
+
+## Calendar names open the holiday (9 Oct 2026)
+Charlotte at Thistle clicked a booked holiday on the calendar and nothing happened; the buttons
+were only in "Booked, still to come". Phil chose: a name on the calendar opens that holiday.
+12. Clicking a name opens a popup with the status, branch, dates, back at work date, reason and
+    clashes.
+13. For someone who may decide it: an approved holiday still to come shows Edit dates and Cancel
+    (each asks for a reason); a pending one shows Approve, Decline, Edit dates and Cancel.
+14. After Cancel the popup shows Cancelled with the reason and no buttons; after Edit dates it
+    shows the new dates. A holiday already over shows "Taken" with no buttons.
+15. A Supervisor (cannot decide) sees the details only.
