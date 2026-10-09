@@ -17,6 +17,7 @@
 
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
+import HolidayDateFields from "@/components/holidays/holiday-date-fields";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import { briefingRenderSchema } from "@/lib/assignments/render";
 import type { FormSchema } from "@/lib/form-schema";
@@ -81,30 +82,13 @@ function MyRequestActions({ request, today }: { request: HolidayRequestRow; toda
               agreed.
             </p>
           ) : null}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor={`my-start-${request.id}`} className="form-label">From</label>
-              <input
-                id={`my-start-${request.id}`}
-                name="start_date"
-                type="date"
-                required
-                min={earliest}
-                defaultValue={request.start_date}
-              />
-            </div>
-            <div>
-              <label htmlFor={`my-end-${request.id}`} className="form-label">To</label>
-              <input
-                id={`my-end-${request.id}`}
-                name="end_date"
-                type="date"
-                required
-                min={earliest}
-                defaultValue={request.end_date}
-              />
-            </div>
-          </div>
+          <HolidayDateFields
+            idPrefix={`my-${request.id}`}
+            start={request.start_date}
+            end={request.end_date}
+            returnToWork={request.return_to_work_date}
+            min={earliest}
+          />
           <label htmlFor={`my-change-reason-${request.id}`} className="form-label">
             Reason for the change
           </label>

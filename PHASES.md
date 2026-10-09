@@ -4114,7 +4114,9 @@ carer's email opened the office Holiday page they cannot use (now My area). Holi
 to the person whose holiday it is, not whoever filled the booking in.
 
 Later the same day: a name on the holiday calendar opens that holiday in a popup with its
-buttons (Charlotte at Thistle clicked one and nothing happened; Phil chose the popup).
+buttons (Charlotte at Thistle clicked one and nothing happened; Phil chose the popup). Testing it
+found the Back at work date never moved when dates changed (it was only the original form's
+answer): migration 0440 gives it a column, and Edit dates and Change dates now ask for it.
 
 Tests: TEST-CHECKLIST-HOLIDAY-CHANGES.md.
 

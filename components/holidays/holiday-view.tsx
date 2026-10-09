@@ -25,6 +25,7 @@
 import { useCallback, useMemo, useState } from "react";
 import ActionForm from "@/components/action-form";
 import { CentreDialog } from "@/components/panel-dialog";
+import HolidayDateFields from "@/components/holidays/holiday-date-fields";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
@@ -128,28 +129,12 @@ function RequestActions({
           savedLabel="Saved"
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
         >
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor={`start-${request.id}`} className="form-label">From</label>
-              <input
-                id={`start-${request.id}`}
-                name="start_date"
-                type="date"
-                required
-                defaultValue={request.start_date}
-              />
-            </div>
-            <div>
-              <label htmlFor={`end-${request.id}`} className="form-label">To</label>
-              <input
-                id={`end-${request.id}`}
-                name="end_date"
-                type="date"
-                required
-                defaultValue={request.end_date}
-              />
-            </div>
-          </div>
+          <HolidayDateFields
+            idPrefix={`amend-${request.id}`}
+            start={request.start_date}
+            end={request.end_date}
+            returnToWork={request.return_to_work_date}
+          />
           <label htmlFor={`amend-reason-${request.id}`} className="form-label">
             Reason for the change (the person will see this)
           </label>
@@ -467,7 +452,7 @@ export default function HolidayView({
                   <p className="text-xs text-white/60">
                     {r.change_kind === "cancel" ? "Asks to cancel " : ""}
                     {fmt(r.start_date)} to {fmt(r.end_date)}
-                    {r.return_to_work_date && !r.change_kind ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
+                    {r.return_to_work_date && r.change_kind !== "cancel" ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                     {r.note && !r.change_kind ? ` · ${r.note}` : ""}
                   </p>
                   {r.change_kind === "amend" && r.previous_start_date && r.previous_end_date ? (

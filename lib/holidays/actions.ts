@@ -305,6 +305,7 @@ type ChangeRow = {
   requester_name: string | null;
   start_date: string;
   end_date: string;
+  return_to_work_date: string | null;
   status: string;
   change_kind: string | null;
   change_reason: string | null;
@@ -313,7 +314,7 @@ type ChangeRow = {
 };
 
 const CHANGE_COLUMNS =
-  "company_id, branch_id, requester_name, start_date, end_date, status, change_kind, change_reason, previous_start_date, previous_end_date";
+  "company_id, branch_id, requester_name, start_date, end_date, return_to_work_date, status, change_kind, change_reason, previous_start_date, previous_end_date";
 
 /**
  * Approve or decline a holiday request (Branch Manager and above).
@@ -495,6 +496,11 @@ export async function amendHoliday(
   const endDate = isoOrNull(formData.get("end_date"));
   if (!startDate || !endDate) return { error: "Enter both dates." };
   if (endDate < startDate) return { error: "The end date cannot be before the start date." };
+  /* Back at work goes with the dates (0440): the box is filled in as the day after the new end. */
+  const returnToWork = isoOrNull(formData.get("return_to_work"));
+  if (returnToWork && returnToWork <= endDate) {
+    return { error: "The back at work date must be after the last day of the holiday." };
+  }
   const reason = reasonFrom(formData, "amend_reason");
 
   const supabase = await createClient();
@@ -507,7 +513,10 @@ export async function amendHoliday(
 
   const wasStart = request.start_date;
   const wasEnd = request.end_date;
-  if (wasStart === startDate && wasEnd === endDate) {
+  /* "current_return_to_work" is what the screen showed (the form's answer when nothing was agreed
+     since), used only to recognise a save that changed nothing. */
+  const shownBack = isoOrNull(formData.get("current_return_to_work")) ?? request.return_to_work_date ?? null;
+  if (wasStart === startDate && wasEnd === endDate && (returnToWork ?? null) === shownBack) {
     return { ok: "No change." };
   }
   if (!reason) return { error: "Give a reason for the change. The person will see it." };
@@ -517,6 +526,7 @@ export async function amendHoliday(
     p_start_date: startDate,
     p_end_date: endDate,
     p_reason: reason,
+    p_return_to_work: returnToWork,
   });
   if (error) return { error: error.message };
 
@@ -542,7 +552,7 @@ export async function amendHoliday(
     entityType: "holiday_request",
     entityId: requestId,
     summary: `Changed a holiday from ${ukDate(wasStart)} to ${ukDate(wasEnd)}, now ${ukDate(startDate)} to ${ukDate(endDate)}`,
-    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, reason, emailed },
+    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate, return_to_work: returnToWork, reason, emailed },
   });
 
   revalidateHoliday();
@@ -566,6 +576,10 @@ export async function requestHolidayChange(
   const endDate = isoOrNull(formData.get("end_date"));
   if (!startDate || !endDate) return { error: "Enter both dates." };
   if (endDate < startDate) return { error: "The end date cannot be before the start date." };
+  const returnToWork = isoOrNull(formData.get("return_to_work"));
+  if (returnToWork && returnToWork <= endDate) {
+    return { error: "The back at work date must be after the last day of the holiday." };
+  }
   const reason = reasonFrom(formData, "change_reason");
   if (!reason) return { error: "Give a reason for the change." };
 
@@ -577,11 +591,18 @@ export async function requestHolidayChange(
     .maybeSingle<ChangeRow>();
   if (!request) return { error: "That holiday could not be found." };
 
+  const shownBack = isoOrNull(formData.get("current_return_to_work")) ?? request.return_to_work_date ?? null;
+  // A portal holiday booked before 0440 has no agreed Back at work on file: same dates is no change.
+  if (request.start_date === startDate && request.end_date === endDate && (shownBack === null || (returnToWork ?? null) === shownBack)) {
+    return { error: "Those are the dates it already has." };
+  }
+
   const { data: kind, error } = await supabase.rpc("request_holiday_change", {
     p_id: requestId,
     p_start_date: startDate,
     p_end_date: endDate,
     p_reason: reason,
+    p_return_to_work: returnToWork,
   });
   if (error) return { error: error.message };
 

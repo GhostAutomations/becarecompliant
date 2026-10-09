@@ -67,3 +67,27 @@ were only in "Booked, still to come". Phil chose: a name on the calendar opens t
 14. After Cancel the popup shows Cancelled with the reason and no buttons; after Edit dates it
     shows the new dates. A holiday already over shows "Taken" with no buttons.
 15. A Supervisor (cannot decide) sees the details only.
+
+Run by Claude on 9 Oct 2026 after the deploy of 2fc99aba was READY, in Bevan as Bev Admin, on a
+ZZ TEST holiday booked for Rhodri Evans (20 to 22 Oct 2026).
+- 12 PASS. Clicking "Rhodri" on the calendar opened "Holiday: Rhodri Evans": Approved, Llanelli,
+  20 Oct 2026 to 22 Oct 2026, Back at work 23 Oct 2026, with Edit dates and Cancel.
+- 13 PASS for an approved holiday. Edit dates took a reason and saved 20 to 23 Oct; the popup
+  showed the new dates. Pending not run live (none in Bevan).
+- 14 PASS. Cancel with a reason: the popup showed Cancelled and the reason with no buttons, and
+  the name left the calendar.
+- 15 Not run live (signed in as Bev Admin only); the buttons are offered by the same canDecide
+  rule as the lists.
+- Found: editing the dates leaves the "Back at work" date as it was (here 23 Oct, now the last
+  day of the holiday). This was already so before today, for office edits and carers' changes.
+
+## Back at work goes with the dates (migration 0440, 9 Oct 2026)
+Phil chose: ask for it with the new dates. Until now the Back at work date was only ever the
+answer on the original form, so it never moved with the dates.
+16. Edit dates (office) shows From, To and Back at work; Back at work starts as the date the
+    holiday has (if still after the last day) or the day after the new last day, and follows To
+    until typed over. A date on or before the last day is refused.
+17. Saved: the Holiday page and the calendar popup show the new Back at work date.
+18. A carer's Change dates in the portal has the same box. Declined or taken back: the agreed Back
+    at work date comes back with the agreed dates.
+19. Holidays booked before today still show the date from their form.

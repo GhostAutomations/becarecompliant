@@ -14,6 +14,7 @@ import {
   noticeByLine,
   eventKindLabel,
 } from "./changes.ts";
+import { backAtWorkFor, nextDayIso } from "./changes.ts";
 
 const approved = { status: "approved", start_date: "2026-10-20", end_date: "2026-10-24" };
 
@@ -171,4 +172,13 @@ test("every history row has a plain label with no dashes", () => {
     assert.notEqual(label, k, `${k} has no label`);
     assert.doesNotMatch(label, /[\u2013\u2014]| - |_/, `${k}: ${label}`);
   }
+});
+
+test("back at work starts as the day after the holiday, or the date it already has if later", () => {
+  assert.equal(nextDayIso("2026-10-31"), "2026-11-01");
+  assert.equal(nextDayIso("2028-02-28"), "2028-02-29");
+  assert.equal(nextDayIso("2026-12-31"), "2027-01-01");
+  assert.equal(backAtWorkFor("2026-10-23", null), "2026-10-24");
+  assert.equal(backAtWorkFor("2026-10-23", "2026-10-23"), "2026-10-24");
+  assert.equal(backAtWorkFor("2026-10-23", "2026-10-26"), "2026-10-26");
 });

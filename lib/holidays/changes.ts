@@ -215,3 +215,18 @@ export function noticeByLine(actorName: string | null, createdAtIso: string): st
   );
   return actorName ? `By ${actorName} on ${day}.` : `On ${day}.`;
 }
+
+/** The day after a date, in plain calendar arithmetic (no time zones involved). */
+export function nextDayIso(dateIso: string): string {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + 1));
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * The Back at work date a date change starts with (0440): the one the holiday has, while it still
+ * falls after the last day; otherwise the day after the last day.
+ */
+export function backAtWorkFor(endIso: string, currentIso: string | null | undefined): string {
+  return currentIso && currentIso > endIso ? currentIso : nextDayIso(endIso);
+}

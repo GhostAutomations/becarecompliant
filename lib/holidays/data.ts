@@ -79,7 +79,8 @@ async function withReturnDates(
   const ids = rows
     .map((r) => r.request_evidence_id)
     .filter((x): x is string => typeof x === "string" && x.length > 0);
-  if (ids.length === 0) return rows.map((r) => ({ ...r, return_to_work_date: null }));
+  /* The date agreed since (0440, its own column) wins; otherwise the form's answer. */
+  if (ids.length === 0) return rows.map((r) => ({ ...r, return_to_work_date: r.return_to_work_date ?? null }));
   const { data } = await supabase.from("evidence").select("id, answers").in("id", ids);
   const byId = new Map<string, Record<string, unknown>>();
   for (const e of (data ?? []) as Array<{ id: string; answers: Record<string, unknown> }>) {
@@ -87,7 +88,8 @@ async function withReturnDates(
   }
   return rows.map((r) => ({
     ...r,
-    return_to_work_date: r.request_evidence_id ? pickReturnDate(byId.get(r.request_evidence_id)) : null,
+    return_to_work_date:
+      r.return_to_work_date ?? (r.request_evidence_id ? pickReturnDate(byId.get(r.request_evidence_id)) : null),
   }));
 }
 
