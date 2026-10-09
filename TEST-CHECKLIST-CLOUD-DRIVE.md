@@ -55,3 +55,8 @@ Anything Not tested goes into the Final Testing phase.
   median 1.1 s for a PDF, 0.6 to 0.8 s for a file. Nothing is read from OneDrive.
 - Not tested yet: 2, 4, 5, 6 (SharePoint site), 10, 12 to 22, 26 to 33.
 - Found and fixed: a record lookup ("start typing a name") accepted a name matching nobody.
+- PASS open test, drive disconnected (9 Oct, 08:45): the same 100 documents, 100 of 100 OK, all from BCC's
+  own storage, median 1.4 s for a PDF, 0.8 s for a file. No difference from connected beyond normal variation.
+- PASS 30: Disconnect removed the tokens and the queue; a Spot Check completed while disconnected queued nothing.
+- PASS lookup fix, live: typing a name that matches nobody is refused on screen and nothing is saved;
+  picking a real name saves as normal.
