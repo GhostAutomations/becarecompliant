@@ -4067,7 +4067,24 @@ category folders, so a new name or a transfer always reaches the drive. 0441 add
 cloud_folders.parent_key and a trigger that queues the folder move the moment a record changes
 branch or name. Settings text updated.
 
-Tests: TEST-CHECKLIST-CLOUD-DRIVE.md items 51 to 55.
+Tests: TEST-CHECKLIST-CLOUD-DRIVE.md items 51 to 55, all passed live on Bevan.
+Follow up (0442): renaming a branch now queues its folder rename straight away. Also from the
+filing test: a draft save still waiting when a form was submitted could land after the server had
+cleared the draft, so the next form opened with the last one's answers (seen on Right to Work and
+Probation). useFormDraft now has hold(), called by every completion form the moment it submits.
+
+### 2026-10-09 — A same-day appraisal counts as done (Phase 13)
+
+Phil spotted ZZ TEST Filing Person's Annual Appraisal due the same day as Supervision 1. Proved on
+a fresh Bevan person through the record page (probation passed, Supervision 1, 2, 3 and the
+appraisal all on 9 Oct): straight after the appraisal its tile went gold again, "Completed: Not
+yet", with a Complete button. Cause: the supervision side counts a Supervision 3 on the
+appraisal's day as closed by it (`<=`), the appraisal side said a same-day appraisal settled
+nothing (`>`, my own assumption on 17 Sep, not Phil's rule). Phil: once done, the appraisal must
+not be gold or active; the same due date as Supervision 1 is fine because only one is active.
+appraisalDueMet now uses `>=` (lib/people/appraisal-due.ts, tested). The record tile, register,
+summary and reports all read it, so they agree.
+Test after deploy: ZZ TEST Branch Folder Person's appraisal tile shows Done, not gold, no button.
 
 ### 2026-10-09 — Category folders in the cloud drive (Phase 13)
 

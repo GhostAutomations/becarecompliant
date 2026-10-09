@@ -113,6 +113,8 @@ export default function CompleteTracker({
     }
     setWarnings([]);
     setSubmitting(true);
+    // A draft save still waiting must not land after the server has filed and cleared it.
+    drafting.hold();
     const fd = new FormData();
     fd.set("person_id", personId);
     fd.set("form_key", formKey);

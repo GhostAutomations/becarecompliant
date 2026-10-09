@@ -411,6 +411,8 @@ export default function FormEvidenceDialog({
     setErrors([]);
     setMissing(null);
     setSubmitting(true);
+    // A draft save still waiting must not land after the server has filed and cleared it.
+    held.hold();
     const fd = new FormData();
     fd.set("answers", JSON.stringify(payload));
     // The drafted questions and answers as a list as well, so the server can tell which answers

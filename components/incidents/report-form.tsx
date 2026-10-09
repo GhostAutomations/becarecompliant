@@ -76,6 +76,8 @@ export default function IncidentReportForm({
     setErrors([]);
     setMissing(null);
     setSubmitting(true);
+    // A draft save still waiting must not land after the server has filed and cleared it.
+    drafting.hold();
     const fd = new FormData();
     fd.set("answers", JSON.stringify(answers));
     /* A service user restored from a draft has a name and no id yet: match it back to the

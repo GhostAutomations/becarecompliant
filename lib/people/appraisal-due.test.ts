@@ -20,9 +20,13 @@ test("an appraisal from the PREVIOUS cycle settles nothing", () => {
   assert.equal(appraisalDueMet("2026-08-24", "2025-12-18"), false);
 });
 
-test("an appraisal on the anchor day itself settles nothing", () => {
-  // Same day is the supervision, not the appraisal that follows it.
-  assert.equal(appraisalDueMet("2026-04-14", "2026-04-14"), false);
+test("an appraisal on the same day as Supervision 3 settles it (one meeting, Phil 9 Oct 2026)", () => {
+  // The supervision side counts that Supervision 3 as closed by this appraisal, so the appraisal
+  // must not be offered again: it would go gold with a Complete button the moment it was done.
+  assert.equal(appraisalDueMet("2026-04-14", "2026-04-14"), true);
+  assert.equal(appraisalDoneShown("2026-07-03", appraisalDueMet("2026-04-14", "2026-04-14"), "2026-04-14"), "2026-04-14");
+  // A day earlier still belongs to the previous cycle.
+  assert.equal(appraisalDueMet("2026-04-14", "2026-04-13"), false);
 });
 
 test("no anchor, or no appraisal, is never met", () => {

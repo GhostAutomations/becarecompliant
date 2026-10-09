@@ -175,3 +175,21 @@ without the branch; a transfer moves the folder; existing folders are moved in.
 53. Transferring a record to another branch moves its folder, contents and all, within a minute.
 54. Renaming a record renames its folder; renaming a branch renames the branch folder.
 55. Complaints, Incidents, Policies and Briefings are unchanged.
+
+Run by Claude on 9 Oct 2026 after deploy e37decb4 was READY and 0441 applied, on Bevan's OneDrive,
+read back inside Be Care Compliant only.
+- 51 PASS. Rhodri Evans and ZZ TEST Filing Person moved into People > Llanelli; ZZ TEST Service
+  User Two and ZZ TEST Filing SU into Service Users > Swansea. Renamed without "(Branch)", every
+  category folder and file inside them intact (the new person kept all 18).
+- 52 PASS. ZZ TEST Branch Folder Person, added through Add person in Swansea, got People > Swansea >
+  ZZ TEST Branch Folder Person with all 16 category folders.
+- 53 PASS. Transferred ZZ TEST Filing Person from Llanelli to Neath through Manage record: the
+  trigger queued the move and the whole folder (18 folders) was in People > Neath within a minute.
+- 54 PASS. Renamed the person through Manage record: the folder was renamed. Renamed the Neath
+  branch (in the database): the branch folder became "Neath ZZ", then "Neath" again when put back.
+  Found: a branch rename only reached the drive with the next job for a record in it, so 0442 adds
+  a trigger that queues that job the moment a branch is renamed.
+- 55 PASS. Briefings, Complaints, Incidents and Policies unchanged.
+- Note: the other "ZZ TEST ... (Swansea)" folders left loose in People and Service Users are copies
+  from before Bevan's drive location was changed during testing. BCC no longer knows them, so it
+  cannot move them. Test leftovers only; Thistle starts clean.

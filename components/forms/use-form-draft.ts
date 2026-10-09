@@ -39,6 +39,14 @@ export type FormDraftHandle = {
   record: (answers: Answers) => void;
   /** Call when the form is filed or deliberately abandoned. */
   discard: () => void;
+  /**
+   * Call the moment the form is SUBMITTED: drops a save still waiting on its one second delay.
+   * Without this, pressing Complete within a second of the last change let that save land after
+   * the server had thrown the draft away, so the next form opened with the last one's answers
+   * (filing test, 9 Oct 2026: Right to Work and Probation). Typing again records as normal, so a
+   * refused save keeps drafting.
+   */
+  hold: () => void;
 };
 
 export function useFormDraft(opts: {
@@ -122,5 +130,12 @@ export function useFormDraft(opts: {
     setVersion((v) => v + 1);
   }, [key]);
 
-  return { ready, restored, version, record, discard };
+  const hold = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  }, []);
+
+  return { ready, restored, version, record, discard, hold };
 }

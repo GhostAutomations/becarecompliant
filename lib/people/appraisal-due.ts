@@ -17,13 +17,20 @@
  * completed date".
  *
  * An appraisal done BEFORE the anchor belongs to the previous cycle and settles nothing: that
- * deadline is genuinely outstanding and genuinely carries a pill.
+ * deadline is genuinely outstanding and genuinely carries a pill. One done ON the anchor's day
+ * settles it (the same meeting).
  *
  * ISO dates compare correctly as strings, which is why there is no date import here.
  */
 export function appraisalDueMet(anchor: string | null, comp: string | null): boolean {
   if (!anchor || !comp) return false;
-  return comp > anchor;
+  /* SAME DAY COUNTS (Phil, 9 Oct 2026). Supervision 3 and the appraisal are often one meeting, so
+     they share a date. The supervision side already treats a supervision on the appraisal's day as
+     part of the cycle that appraisal closed (supervisionsConsumed, `<=`); this said the opposite,
+     so the appraisal tile went gold again with a Complete button straight after it was done, due
+     the same day as the new Supervision 1. Phil: "the appraisal would no longer be gold and active
+     to be completed ... only one is due to be completed and active for completion." */
+  return comp >= anchor;
 }
 
 /**

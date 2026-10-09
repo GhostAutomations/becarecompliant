@@ -84,6 +84,8 @@ export default function CompleteCheck({
     setErrors([]);
     setMissing(null);
     setSubmitting(true);
+    // A draft save still waiting must not land after the server has filed and cleared it.
+    drafting.hold();
     const fd = new FormData();
     fd.set("instance_id", instanceId);
     fd.set("answers", JSON.stringify(answers));
