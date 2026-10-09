@@ -16,7 +16,7 @@ Anything Not tested goes into the Final Testing phase.
 ## Copies from now on
 9. Add a person: a "Name (Branch)" folder appears under People within a few seconds.
 10. Add a service user: the same under Service users.
-11. Complete a form for a person: its PDF lands in their folder, named "YYYY-MM-DD Form name (ref, vN).pdf".
+11. Complete a form: its PDF lands in their folder named initials, (SSID for a service user), form name, date, e.g. "GA 12345 Spot Check 2026-10-09.pdf"; a second the same day gets " (2)". Same pattern for certificates, letters, care plans and uploads.
 12. A form with an uploaded file: the file lands beside the PDF.
 13. Paper upload of a form: the PDF and its files are copied.
 14. Training certificate upload: copied into the person's folder.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { datedFileName, isFolderKey, parentKey, recordFolderName, safeDriveName } from "./names.ts";
+import { datedFileName, initialsOf, isFolderKey, parentKey, recordFileName, recordFolderName, safeDriveName } from "./names.ts";
 
 test("drive names lose the characters OneDrive refuses", () => {
   assert.equal(safeDriveName('A/B\\C:D*E?F"G<H>I|J'), "A B C D E F G H I J");
@@ -29,4 +29,19 @@ test("folder keys and their parents", () => {
   assert.ok(isFolderKey("section:briefings"));
   assert.ok(!isFolderKey("section:boards"));
   assert.ok(!isFolderKey("person:abc"));
+});
+
+test("initials come from each part of the name", () => {
+  assert.equal(initialsOf("Gwyneth Ashby"), "GA");
+  assert.equal(initialsOf("Mary-Jane O'Brien"), "MJO");
+  assert.equal(initialsOf("  siân  ap   rhys "), "SAR");
+  assert.equal(initialsOf(""), "XX");
+});
+
+test("record files are initials, SSID, what it is, date, and (2) on a clash", () => {
+  assert.equal(recordFileName({ initials: "GA", ssid: "12345", title: "Spot Check", dateIso: "2026-10-09T10:00:00Z" }), "GA 12345 Spot Check 2026-10-09.pdf");
+  assert.equal(recordFileName({ initials: "JS", title: "Spot Check", dateIso: "2026-10-09" }), "JS Spot Check 2026-10-09.pdf");
+  assert.equal(recordFileName({ initials: "JS", ssid: "", title: "Spot Check", dateIso: "2026-10-09", n: 2 }), "JS Spot Check 2026-10-09 (2).pdf");
+  assert.equal(recordFileName({ initials: "GA", ssid: "S/1", title: "Care plan", dateIso: "2026-10-09", ext: "DOCX" }), "GA S 1 Care plan 2026-10-09.docx");
+  assert.equal(recordFileName({ initials: "JS", title: "First Aid certificate", dateIso: null, n: 1 }), "JS First Aid certificate.pdf");
 });

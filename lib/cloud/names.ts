@@ -70,6 +70,41 @@ export function datedFileName(dateIso: string, title: string, opts: { version?: 
   return withExtension(base, opts.ext ?? "pdf");
 }
 
+/**
+ * Initials for a record's files: "Gwyneth Ashby" -> "GA", "Mary-Jane O'Brien" -> "MJO". The first
+ * letter of each part of the name, at most four, so a file says whose it is without the full name.
+ */
+export function initialsOf(fullName: string): string {
+  const parts = String(fullName ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[\s-]+/)
+    .map((w) => w.replace(/[^A-Za-z]/g, ""))
+    .filter(Boolean);
+  return parts.map((w) => w[0].toUpperCase()).join("").slice(0, 4) || "XX";
+}
+
+/**
+ * A file in a person's or service user's folder (Phil, 2026-10-09): initials, the SSID for a
+ * service user, what it is, then the date. "GA 12345 Spot Check 2026-10-09.pdf" for a service
+ * user, "JS Spot Check 2026-10-09.pdf" for a member of staff. A second one of the same thing on
+ * the same day gets " (2)", a third " (3)", and so on, so nothing overwrites another.
+ */
+export function recordFileName(opts: {
+  initials: string;
+  ssid?: string | null;
+  title: string;
+  dateIso?: string | null;
+  n?: number;
+  ext?: string;
+}): string {
+  const day = opts.dateIso && /^\d{4}-\d{2}-\d{2}/.test(opts.dateIso) ? opts.dateIso.slice(0, 10) : "";
+  const ssid = String(opts.ssid ?? "").trim();
+  const parts = [opts.initials, ssid, opts.title, day].filter((x) => String(x ?? "").trim() !== "");
+  const clash = opts.n && opts.n > 1 ? ` (${opts.n})` : "";
+  return withExtension(safeDriveName(`${parts.join(" ")}${clash}`), opts.ext ?? "pdf");
+}
+
 /** The folder a key belongs inside. */
 export function parentKey(key: FolderKey): FolderKey | null {
   if (key === "root") return null;

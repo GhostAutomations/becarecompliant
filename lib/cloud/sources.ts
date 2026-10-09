@@ -12,7 +12,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { renderEvidenceBytes } from "@/lib/evidence/on-demand";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
-import { datedFileName, fileExtensionOf, type FolderKey } from "@/lib/cloud/names";
+import { datedFileName, fileExtensionOf, initialsOf, recordFileName, type FolderKey } from "@/lib/cloud/names";
 
 export type CloudSourceKind =
   | "evidence"
@@ -75,17 +75,77 @@ export type ResolvedCopy = {
   folderOnly?: boolean;
 };
 
+/**
+ * Who a person's or service user's file belongs to, for its name (Phil, 2026-10-09): their
+ * initials, and a service user's SSID. Null for anything that is not a record folder.
+ */
+async function recordParts(companyId: string, key: FolderKey): Promise<{ initials: string; ssid: string | null } | null> {
+  if (!key.startsWith("person:") && !key.startsWith("service_user:")) return null;
+  const isPerson = key.startsWith("person:");
+  const id = key.slice(key.indexOf(":") + 1);
+  const db = createServiceClient();
+  const { data } = await db
+    .from(isPerson ? "people" : "service_users")
+    .select(isPerson ? "full_name" : "full_name, ssid")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle<{ full_name: string; ssid?: string | null }>();
+  if (!data) return null;
+  return { initials: initialsOf(data.full_name), ssid: isPerson ? null : (data.ssid ?? null) };
+}
+
+/**
+ * Which one of the same thing on the same London day this is: 1 for the first, 2 for the second.
+ * Worked out from the rows themselves (oldest first, then id), so the same document always gets
+ * the same name however many times it is copied, and a second one never overwrites the first.
+ */
+function ordinalOn<T extends { id: string; at: string }>(rows: T[], day: string, id: string): number {
+  const same = rows
+    .filter((r) => londonDay(r.at) === day)
+    .sort((a, b) => (a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at)));
+  const i = same.findIndex((r) => r.id === id);
+  return i < 0 ? 1 : i + 1;
+}
+
+function dayWindow(day: string): { from: string; to: string } {
+  const d = new Date(`${day}T00:00:00Z`);
+  return { from: new Date(d.getTime() - 86_400_000).toISOString(), to: new Date(d.getTime() + 2 * 86_400_000).toISOString() };
+}
+
+async function evidenceOrdinal(
+  companyId: string,
+  ev: { id: string; record_type: string; record_id: string; form_id: string | null; submitted_at: string },
+): Promise<number> {
+  const day = londonDay(ev.submitted_at);
+  if (!day) return 1;
+  const w = dayWindow(day);
+  const db = createServiceClient();
+  let q = db
+    .from("evidence")
+    .select("id, submitted_at")
+    .eq("company_id", companyId)
+    .eq("record_type", ev.record_type)
+    .eq("record_id", ev.record_id)
+    .gte("submitted_at", w.from)
+    .lt("submitted_at", w.to);
+  q = ev.form_id ? q.eq("form_id", ev.form_id) : q.is("form_id", null);
+  const { data } = await q;
+  const rows = ((data ?? []) as Array<{ id: string; submitted_at: string }>).map((r) => ({ id: r.id, at: r.submitted_at }));
+  return ordinalOn(rows, day, ev.id);
+}
+
 async function evidenceCopy(companyId: string, evidenceId: string): Promise<ResolvedCopy | null> {
   const db = createServiceClient();
   const { data } = await db
     .from("evidence")
-    .select("id, company_id, record_type, record_id, submitted_at, anonymised_at, forms(name), form_versions(version)")
+    .select("id, company_id, record_type, record_id, form_id, submitted_at, anonymised_at, forms(name), form_versions(version)")
     .eq("id", evidenceId)
     .eq("company_id", companyId)
     .maybeSingle<{
       id: string;
       record_type: string;
       record_id: string;
+      form_id: string | null;
       submitted_at: string;
       anonymised_at: string | null;
       forms: { name: string } | null;
@@ -97,10 +157,14 @@ async function evidenceCopy(companyId: string, evidenceId: string): Promise<Reso
   const rendered = await renderEvidenceBytes(evidenceId, { trusted: true });
   if (!rendered.ok) throw new Error(rendered.error);
   const london = londonDay(data.submitted_at);
+  const who = await recordParts(companyId, folderKey);
+  const fileName = who
+    ? recordFileName({ ...who, title: data.forms?.name ?? "Form", dateIso: london, n: await evidenceOrdinal(companyId, data) })
+    : // Complaints and incidents sit in their section folders: the reference keeps them apart.
+      datedFileName(london, `${data.forms?.name ?? "Form"} ${rendered.ref}`, { version: data.form_versions?.version ?? null });
   return {
     folderKey,
-    // The evidence reference keeps two forms done on the same day apart.
-    fileName: datedFileName(london, `${data.forms?.name ?? "Form"} ${rendered.ref}`, { version: data.form_versions?.version ?? null }),
+    fileName,
     bytes: new Uint8Array(rendered.bytes),
     contentType: "application/pdf",
   };
@@ -115,16 +179,16 @@ async function evidenceFileCopy(companyId: string, sourceId: string): Promise<Re
   const [{ data: ev }, { data: file }] = await Promise.all([
     db
       .from("evidence")
-      .select("record_type, record_id, submitted_at, anonymised_at, forms(name)")
+      .select("id, record_type, record_id, form_id, submitted_at, anonymised_at, forms(name)")
       .eq("id", evidenceId)
       .eq("company_id", companyId)
-      .maybeSingle<{ record_type: string; record_id: string; submitted_at: string; anonymised_at: string | null; forms: { name: string } | null }>(),
+      .maybeSingle<{ id: string; record_type: string; record_id: string; form_id: string | null; submitted_at: string; anonymised_at: string | null; forms: { name: string } | null }>(),
     db
       .from("evidence_files")
-      .select("file_name, kind, mime_type")
+      .select("id, file_name, kind, mime_type")
       .eq("evidence_id", evidenceId)
       .eq("storage_path", path)
-      .maybeSingle<{ file_name: string; kind: string; mime_type: string | null }>(),
+      .maybeSingle<{ id: string; file_name: string; kind: string; mime_type: string | null }>(),
   ]);
   if (!ev || ev.anonymised_at || !file || file.kind === "signature") return null;
   const folderKey = recordKey(ev.record_type, ev.record_id);
@@ -133,9 +197,32 @@ async function evidenceFileCopy(companyId: string, sourceId: string): Promise<Re
   if (!bytes) return null;
   const ext = fileExtensionOf(file.file_name);
   const stem = file.file_name.replace(/\.[a-z0-9]{1,8}$/i, "");
+  const who = await recordParts(companyId, folderKey);
+  let fileName: string;
+  if (who) {
+    // Two files of the same name in one form get "2", "3"; a second form that day gets " (2)".
+    const { data: siblings } = await db
+      .from("evidence_files")
+      .select("id, file_name, created_at")
+      .eq("evidence_id", evidenceId)
+      .eq("kind", "upload");
+    const same = ((siblings ?? []) as Array<{ id: string; file_name: string; created_at: string }>)
+      .filter((f) => f.file_name === file.file_name)
+      .sort((a, b) => (a.created_at === b.created_at ? a.id.localeCompare(b.id) : a.created_at.localeCompare(b.created_at)));
+    const k = Math.max(1, same.findIndex((f) => f.id === file.id) + 1);
+    fileName = recordFileName({
+      ...who,
+      title: `${ev.forms?.name ?? "Form"} ${stem}${k > 1 ? ` ${k}` : ""}`,
+      dateIso: londonDay(ev.submitted_at),
+      n: await evidenceOrdinal(companyId, ev),
+      ext: ext || "pdf",
+    });
+  } else {
+    fileName = datedFileName(londonDay(ev.submitted_at), `${ev.forms?.name ?? "Form"} ${stem}`, { ext: ext || "pdf" });
+  }
   return {
     folderKey,
-    fileName: datedFileName(londonDay(ev.submitted_at), `${ev.forms?.name ?? "Form"} ${stem}`, { ext: ext || "pdf" }),
+    fileName,
     bytes,
     contentType: file.mime_type || MIME[ext] || "application/octet-stream",
   };
@@ -154,9 +241,14 @@ async function trainingCertCopy(companyId: string, trainingId: string): Promise<
   if (!bytes) return null;
   const course = (Array.isArray(data.training_courses) ? data.training_courses[0] : data.training_courses)?.name ?? "Training";
   const ext = fileExtensionOf(data.certificate_path) || "pdf";
+  const folderKey: FolderKey = `person:${data.person_id}`;
+  const who = await recordParts(companyId, folderKey);
   return {
-    folderKey: `person:${data.person_id}`,
-    fileName: datedFileName(data.completed_on ?? "", `${course} certificate`, { ext }),
+    folderKey,
+    // A new certificate for the same course and date replaces the old one, which is what it is.
+    fileName: who
+      ? recordFileName({ ...who, title: `${course} certificate`, dateIso: data.completed_on ?? "", ext })
+      : datedFileName(data.completed_on ?? "", `${course} certificate`, { ext }),
     bytes,
     contentType: MIME[ext] ?? "application/octet-stream",
   };
@@ -174,7 +266,28 @@ async function meetingLetterCopy(companyId: string, letterId: string): Promise<R
   const bytes = await download(companyId, data.pdf_path);
   if (!bytes) return null;
   const what = `${data.stage ? `Stage ${data.stage} ` : ""}absence meeting ${data.kind === "rearranged" ? "rearranged letter" : "invitation"}`;
-  return { folderKey: `person:${data.person_id}`, fileName: datedFileName(londonDay(data.sent_at), what), bytes, contentType: "application/pdf" };
+  const folderKey: FolderKey = `person:${data.person_id}`;
+  const who = await recordParts(companyId, folderKey);
+  const day = londonDay(data.sent_at);
+  let n = 1;
+  if (who && day) {
+    const w = dayWindow(day);
+    const { data: rows } = await db
+      .from("absence_meeting_letters")
+      .select("id, sent_at")
+      .eq("company_id", companyId)
+      .eq("person_id", data.person_id)
+      .not("pdf_path", "is", null)
+      .gte("sent_at", w.from)
+      .lt("sent_at", w.to);
+    n = ordinalOn(((rows ?? []) as Array<{ id: string; sent_at: string }>).map((r) => ({ id: r.id, at: r.sent_at })), day, letterId);
+  }
+  return {
+    folderKey,
+    fileName: who ? recordFileName({ ...who, title: what, dateIso: day, n }) : datedFileName(day, what),
+    bytes,
+    contentType: "application/pdf",
+  };
 }
 
 async function outcomeLetterCopy(companyId: string, letterId: string): Promise<ResolvedCopy | null> {
@@ -188,9 +301,27 @@ async function outcomeLetterCopy(companyId: string, letterId: string): Promise<R
   if (!data?.pdf_path) return null;
   const bytes = await download(companyId, data.pdf_path);
   if (!bytes) return null;
+  const folderKey: FolderKey = `person:${data.person_id}`;
+  const who = await recordParts(companyId, folderKey);
+  const day = londonDay(data.approved_at);
+  let n = 1;
+  if (who && day) {
+    const w = dayWindow(day);
+    const { data: rows } = await db
+      .from("absence_outcome_letters")
+      .select("id, approved_at")
+      .eq("company_id", companyId)
+      .eq("person_id", data.person_id)
+      .not("pdf_path", "is", null)
+      .gte("approved_at", w.from)
+      .lt("approved_at", w.to);
+    n = ordinalOn(((rows ?? []) as Array<{ id: string; approved_at: string }>).map((r) => ({ id: r.id, at: r.approved_at })), day, letterId);
+  }
   return {
-    folderKey: `person:${data.person_id}`,
-    fileName: datedFileName(londonDay(data.approved_at), "Absence meeting outcome letter"),
+    folderKey,
+    fileName: who
+      ? recordFileName({ ...who, title: "Absence meeting outcome letter", dateIso: day, n })
+      : datedFileName(day, "Absence meeting outcome letter"),
     bytes,
     contentType: "application/pdf",
   };
@@ -208,9 +339,14 @@ async function carePlanCopy(companyId: string, serviceUserId: string): Promise<R
   const bytes = await download(companyId, data.care_plan_path);
   if (!bytes) return null;
   const ext = fileExtensionOf(data.care_plan_path) || "pdf";
+  const folderKey: FolderKey = `service_user:${serviceUserId}`;
+  const who = await recordParts(companyId, folderKey);
   return {
-    folderKey: `service_user:${serviceUserId}`,
-    fileName: datedFileName(londonDay(data.care_plan_uploaded_at), "Care plan", { ext }),
+    folderKey,
+    // A care plan replaced on the same day replaces its copy: the latest plan is the plan.
+    fileName: who
+      ? recordFileName({ ...who, title: "Care plan", dateIso: londonDay(data.care_plan_uploaded_at), ext })
+      : datedFileName(londonDay(data.care_plan_uploaded_at), "Care plan", { ext }),
     bytes,
     contentType: MIME[ext] ?? "application/octet-stream",
   };
