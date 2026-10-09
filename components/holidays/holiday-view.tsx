@@ -76,18 +76,28 @@ function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): b
  * withdraw your own. Each destructive or fiddly one opens its own small panel
  * rather than firing on a single click.
  */
+type ActionMode = "none" | "decline" | "dates" | "cancel";
+
 function RequestActions({
   request,
   canManage,
   canWithdraw,
+  initialMode = "none",
+  onChoose,
 }: {
   request: HolidayRequestRow;
   /** Branch Manager and above: decide, amend, cancel. */
   canManage: boolean;
   /** This user submitted it and it is still pending. */
   canWithdraw: boolean;
+  /** Opened straight onto Edit dates, Decline or Cancel (from a list row). */
+  initialMode?: ActionMode;
+  /** In a list row: Decline, Edit dates and Cancel open the holiday's popup instead of
+   *  unfolding a form inside the row (Phil, 2026-10-09: "it cannot be that big"). */
+  onChoose?: (mode: Exclude<ActionMode, "none">) => void;
 }) {
-  const [mode, setMode] = useState<"none" | "decline" | "dates" | "cancel">("none");
+  const [mode, setModeState] = useState<ActionMode>(initialMode);
+  const setMode = (m: ActionMode) => (m !== "none" && onChoose ? onChoose(m) : setModeState(m));
   const pending = request.status === "pending";
 
   if (mode === "decline") {
@@ -273,7 +283,12 @@ export default function HolidayView({
   /* A name on the calendar opens that holiday (Phil, 2026-10-09: a manager clicked a booked
      holiday on the calendar and nothing happened). */
   const [openId, setOpenId] = useState<string | null>(null);
+  const [openMode, setOpenMode] = useState<ActionMode>("none");
   const closeOpen = useCallback(() => setOpenId(null), []);
+  const openHoliday = (id: string, mode: ActionMode = "none") => {
+    setOpenMode(mode);
+    setOpenId(id);
+  };
 
   const visiblePeople = branch ? people.filter((p) => p.branch_id === branch) : people;
   const today = todayIso();
@@ -479,6 +494,7 @@ export default function HolidayView({
                     request={r}
                     canManage={canDecide(r)}
                     canWithdraw={r.requested_by === currentUserId}
+                    onChoose={(m) => openHoliday(r.id, m)}
                   />
                 ) : (
                   <span className="pill pill-amber">Pending</span>
@@ -510,7 +526,7 @@ export default function HolidayView({
                     {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                   </p>
                 </div>
-                <RequestActions request={r} canManage={canDecide(r)} canWithdraw={false} />
+                <RequestActions request={r} canManage={canDecide(r)} canWithdraw={false} onChoose={(m) => openHoliday(r.id, m)} />
               </li>
             ))}
           </ul>
@@ -579,7 +595,7 @@ export default function HolidayView({
                     <button
                       type="button"
                       key={h.id}
-                      onClick={() => setOpenId(h.id)}
+                      onClick={() => openHoliday(h.id)}
                       aria-haspopup="dialog"
                       className={`flex min-w-0 cursor-pointer items-baseline justify-between gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-[15px] hover:brightness-125 ${
                         h.status === "approved"
@@ -654,9 +670,11 @@ export default function HolidayView({
                 {live && (canDecide(r) || (r.status === "pending" && r.requested_by === currentUserId)) ? (
                   <div className="border-t border-white/10 pt-3">
                     <RequestActions
+                      key={`${r.id}:${openMode}`}
                       request={r}
                       canManage={canDecide(r)}
                       canWithdraw={r.status === "pending" && r.requested_by === currentUserId}
+                      initialMode={openMode}
                     />
                   </div>
                 ) : null}

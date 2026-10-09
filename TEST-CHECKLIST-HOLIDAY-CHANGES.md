@@ -109,3 +109,6 @@ looked as if nothing happened, and the request stayed pending. Fixed and decided
     Change dates).
 21. A pending request's edit box has Save dates (stays pending) and Save and approve (books it
     on the new dates, the approval email goes with the new dates, no separate "changed" email).
+22. The Pending requests and Booked rows stay one line: Edit dates, Decline and Cancel open the
+    holiday's popup (dates at the top, the form under them) instead of unfolding inside the row
+    (Phil, 9 Oct: "it cannot be that big"). Approve stays one click in the row.
