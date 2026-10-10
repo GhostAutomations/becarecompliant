@@ -9,8 +9,9 @@ never mix the repos or the databases.
 
 - Supabase: `bgrtcvyjuwopunpnudeu` (becarecompliant, London). NEVER `afwfutlwuhqzdihwsibr`
   (joincarenow) or `bamokbdtlzllbrsdxywp` (carer-academy). A hook in `.claude/hooks/` checks
-  every connector call and blocks any Supabase call aimed at another project, whatever the
-  connection is called: in the desktop app Supabase and Vercel appear under random ids
+  every connector call (Supabase, Vercel, both browsers, documents) and blocks any Supabase
+  call or Supabase address aimed at another project, and any mention of those two ids,
+  whatever the connection is called: in the desktop app Supabase and Vercel appear under random ids
   (`mcp__d6acb2d9-…`, `mcp__f09423ee-…`), in cloud sessions as `mcp__claude_ai_Supabase` and
   `mcp__claude_ai_Vercel`. The allow and ask lists in `.claude/settings.json` name both forms;
   if a connection is reconnected and its id changes, update them.

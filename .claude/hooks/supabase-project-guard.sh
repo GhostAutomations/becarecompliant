@@ -14,7 +14,13 @@
 #   3. the project level Supabase tools this project never uses (create, pause, restore,
 #      branching), recognised by a Supabase name or an input only Supabase uses, so Vercel's own
 #      create_project and pause_project are not caught;
-#   4. any call it cannot read, so a broken payload never slips through.
+#   4. joincarenow's or carer-academy's project id anywhere in any MCP call: a browser address,
+#      a script run in a page, a Vercel environment variable, a document;
+#   5. a Supabase address for any project other than Be Care Compliant in any MCP call: the
+#      dashboard (supabase.com/dashboard/project/<ref>, including the "_" shortcut that opens
+#      whichever project was last used), the management API (api.supabase.com/v1/projects/<ref>)
+#      and a project's own host (<ref>.supabase.co, db.<ref>.supabase.co);
+#   6. any call it cannot read, so a broken payload never slips through.
 # Anything else passes on to the normal permission prompts. Exit code 2 blocks the call and
 # shows the message to Claude. Written for the bash that ships with macOS (3.2): no jq needed.
 # settings.json sets "onFailure": "block", so if this script is missing, crashes or times out,
@@ -87,5 +93,30 @@ fi
 
 check_key project_id
 [[ $is_get_project -eq 1 ]] && check_key id
+
+# check_address REGEX REF_GROUP REST_GROUP: every Supabase address the regex finds must be Be
+# Care Compliant. The regex gets a trailing (.*), captured as REST_GROUP, so each pass hands
+# back the text after the match.
+check_address() {
+  local re="$1(.*)\$" ref_group="$2" rest_group="$3" rest="$args" ref
+  while [[ $rest =~ $re ]]; do
+    ref="${BASH_REMATCH[$ref_group]}"
+    rest="${BASH_REMATCH[$rest_group]}"
+    if [[ $ref != "$BCC_PROJECT" ]]; then
+      block "$tool points at the Supabase project \"$ref\". Claude may only open Be Care Compliant ($BCC_PROJECT), in any tool."
+    fi
+  done
+}
+
+shopt -s nocasematch
+case "$args" in
+  *afwfutlwuhqzdihwsibr* | *bamokbdtlzllbrsdxywp*)
+    block "$tool mentions joincarenow (afwfutlwuhqzdihwsibr) or carer-academy (bamokbdtlzllbrsdxywp). Claude never touches those projects, in any tool."
+    ;;
+esac
+check_address 'supabase\.com/(dashboard/)?project/([^/?#"\\]*)' 2 3
+check_address 'api\.supabase\.com/(v[0-9]+/)?projects/([^/?#"\\]*)' 2 3
+check_address '(^|[^a-z0-9])([a-z0-9]{20})\.supabase\.(co|in)' 2 4
+shopt -u nocasematch
 
 exit 0

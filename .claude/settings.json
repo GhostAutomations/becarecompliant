@@ -53,7 +53,17 @@
       "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Supabase__deploy_edge_function",
       "mcp__d6acb2d9-dee1-40c4-b93b-2b629a3ac530__apply_migration",
-      "mcp__d6acb2d9-dee1-40c4-b93b-2b629a3ac530__deploy_edge_function"
+      "mcp__d6acb2d9-dee1-40c4-b93b-2b629a3ac530__deploy_edge_function",
+      "mcp__claude_ai_Vercel__create_project_env",
+      "mcp__claude_ai_Vercel__edit_project_env",
+      "mcp__claude_ai_Vercel__filter_project_envs",
+      "mcp__claude_ai_Vercel__get_project_env",
+      "mcp__claude_ai_Vercel__get_shared_env_var",
+      "mcp__f09423ee-d266-410f-a49d-902bc3c277a7__create_project_env",
+      "mcp__f09423ee-d266-410f-a49d-902bc3c277a7__edit_project_env",
+      "mcp__f09423ee-d266-410f-a49d-902bc3c277a7__filter_project_envs",
+      "mcp__f09423ee-d266-410f-a49d-902bc3c277a7__get_project_env",
+      "mcp__f09423ee-d266-410f-a49d-902bc3c277a7__get_shared_env_var"
     ],
     "deny": [
       "Bash(git push *--force*)",
