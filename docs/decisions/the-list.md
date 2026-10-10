@@ -189,6 +189,16 @@ numbered bullets. Add new items to the end as they are agreed.
     later: whether this is a field and a chase in BCC (alongside driver documents) or just a
     task for Thistle.
 
+43. **Shell check for the two other products' Supabase ids** (Phil, 2026-10-10, parked from
+    the Supabase guard review). `.claude/settings.json` refuses a shell command that names the
+    joincarenow or carer-academy project id, but only when the id is on the command line
+    itself. The same id inside a heredoc (text fed into a command) or inside a script saved to
+    a file and then run gets through. Fix to talk through: a small hook on shell commands that
+    reads the whole command, heredocs included, and blocks either id, plus a check on scripts
+    written to disk. Low risk today: this Mac has no Supabase command line login, no psql and
+    no keys for those projects, and the connector guard
+    (`.claude/hooks/supabase-project-guard.sh`) already blocks both ids in every connector call.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
