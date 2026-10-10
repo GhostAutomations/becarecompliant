@@ -8,8 +8,12 @@ never mix the repos or the databases.
 ## Projects: never touch anything else
 
 - Supabase: `bgrtcvyjuwopunpnudeu` (becarecompliant, London). NEVER `afwfutlwuhqzdihwsibr`
-  (joincarenow) or `bamokbdtlzllbrsdxywp` (carer-academy). A hook in `.claude/hooks/` blocks any
-  Supabase tool call aimed at another project.
+  (joincarenow) or `bamokbdtlzllbrsdxywp` (carer-academy). A hook in `.claude/hooks/` checks
+  every connector call and blocks any Supabase call aimed at another project, whatever the
+  connection is called: in the desktop app Supabase and Vercel appear under random ids
+  (`mcp__d6acb2d9-…`, `mcp__f09423ee-…`), in cloud sessions as `mcp__claude_ai_Supabase` and
+  `mcp__claude_ai_Vercel`. The allow and ask lists in `.claude/settings.json` name both forms;
+  if a connection is reconnected and its id changes, update them.
 - Vercel: project `prj_eGEI0ICcSHIIKWc4qR29XaBjk6Aa`, team `team_96YpBBhKikgVGZXKMGz725mJ`.
   Deploys automatically on push to `main` (region lhr1).
 - GitHub: `GhostAutomations/becarecompliant` (private).
