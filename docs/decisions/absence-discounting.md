@@ -1,0 +1,26 @@
+# Absence discounting
+
+> Discounting absences, restarting the count, recording unbooked meetings, and Return to Work on the dashboard — Phil's decisions 2026-09-24 from the Thistle monday import. Read before touching absence counting, stages or the Absences dashboard tile.
+
+- [stated] Record meeting must allow a meeting already held when nothing was booked (DEF-072): any stage, date today or earlier, no letters sent.
+- [stated] "we need a way to reset absences or restart triggers if some are discounted" — Operation Thistle, next.
+- [stated] Build all three: discount one absence (reason required, stays on record struck through, stops counting, undoable); restart the count from a date per person (with reason); offer discount tick boxes when recording a meeting.
+- [stated] Restart the count was built (0328) then REJECTED in testing: "i dont think we need this" / "i think it needs to be automatic". Removed in 0329; meeting stages now age out with the rolling window instead. Never reintroduce a manual restart.
+- [stated] Absence card third box: keep the dash when no meeting, label "last meeting" (not "met. stage").
+- [stated] Who can discount / restart: Managers and above (Company Admin, Responsible Individual, Registered Manager, Manager).
+- [stated] Dashboard Absences tile: list outstanding Return to Works by name (dates, due date, opens the RTW form); Supervisors see their branch, Managers and above all. Build after discounting.
+- [stated] Thistle's absence history was imported from monday on 2026-09-24 (Cardiff names only; one leaver left out; one returner is active).
+- [stated] 2026-10-07: a new absence after a stage meeting makes the next stage meeting due (moves the person from Tracking to Action required), even if the count alone has not reached it.
+- [stated] 2026-10-07: Action required and Tracking sections sorted A to Z by first name.
+- [stated] 2026-10-07: recording an absence uses the same searchable name list as the incident form; reason is a multi-select list (Sickness and diarrhoea, Cold or flu, Headache or migraine, Stomach upset, Injury, Back or muscle pain, Stress or mental health, Dental, Medical appointment, Childcare or dependant, Bereavement, Other), each with its own details box, plus an any further information box. Only Sickness and diarrhoea gets follow-ups: still having symptoms? if No, date and time of last episode.
+- [stated] 2026-10-07: discounting happens INSIDE the Record meeting form (ticks + reason, Managers and above), applied only on Save meeting; the old "Did it discount any absences?" box after Save is removed. The outcome letter is told which absences were discounted.
+- [stated] 2026-10-07: Generate outcome button at the bottom of the meeting form, outcome text editable with a PDF preview that updates as they type; Save keeps it as the meeting's draft letter.
+- [stated] 2026-10-07: a Stage N meeting lists only the absences relevant to that stage (Thistle S1 3, S2 4, S3 5, S4 6, so a Thistle Stage 2 discusses only absence 4); the current absence level line names the stage and which absences it covers. Asked for Bevan's stages to match Thistle's for testing.
+- [stated] 2026-10-07: the outcome letter must use the same layout as the invitation letter (Thistle Care's format); the edit box holds the whole letter so it matches the PDF; Enter adds spacing.
+- [stated] 2026-10-07: meeting Outcome section gets "Appeal to be heard by" (choose a person) and days to appeal (companies use 5, 7 or 14; default 7). "Improvement targets set" deleted. When the outcome is a formal warning, Warning or dismissal is mandatory.
+- [stated] 2026-10-07: Manager conducting is a drop down auto filled from the invitation; Book and Record meeting only offer the available stages.
+- [stated] 2026-10-08 (after the four stage test): fix now: the invitation must list only that stage's absences (as the meeting form does); the card must not jump a stage while a meeting is only booked; test company email message, stale refusal message, outcome letter dates as "1st October 2026".
+- [stated] 2026-10-08: dismissal: add "Dismissal" to Outcome of the meeting; when chosen ask last day of employment (required) and notice (Worked notice / Paid in lieu of notice), stated in the outcome letter; after saving, OFFER a one press "Make them a leaver" opening the normal leaver form with the date set (not automatic).
+- [stated] 2026-10-08: Childcare or dependant absences counting towards stages: not decided yet (flagged; Acas says dismissal for taking dependant leave is automatically unfair).
+- [stated] 2026-10-08 (two Thistle staff records): discounted absences must not push people up a stage. If a meeting discounts absences (no warning given / no further action), the person drops back to the stage their remaining absences reach, and their next absence re-triggers that same stage, not the next one (e.g. discounted Stage 3 with NFA leaves them on Stage 2; next absence = Stage 3 again, not 4). The card still shows the last meeting held.
+- [stated] 2026-10-08 Return to Work, all companies: remove adjustment/support questions completely (asked of everyone they invite flexible working requests, e.g. "Change my availability"); Employee comments moves up to sit with the Questions to ask; add a Manager comments box at the bottom.

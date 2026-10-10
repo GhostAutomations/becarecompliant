@@ -1,0 +1,9 @@
+# Care plan review form
+
+> BCC Care Plan Review check completes the founder Individual Plan Review form (not the thin auto-generated one)
+
+The Service Users "Care Plan Review" check (check_definitions key `care_plan_review`, drives Review 1-4 slots + the compliance matrix) must complete the founder-library **Individual Plan Review** form, NOT the thin Claude-generated 2-section "Care Plan Review" form. Fixed 2026-07-21 (migration 0104), agreed via popup: apply to ALL companies + keep the check/section LABEL "Care Plan Review".
+
+HOW THE LINK WORKS: `seed_company_service_user_checks` links each check's form_id to the company form whose `key = form_key` (care_plan_review check -> form key 'care_plan_review'). `seed_company_form_templates` copies each ACTIVE `form_templates` row (name+schema) into a company form keyed by template.key. So the fix was: (A) founder template key `care_plan_review` adopted the `ipr_form` template's name ("Individual Plan Review") + schema (4 sections, ~16.5k); (B) existing companies' care_plan_review form got a NEW published form_versions row (v2) holding the IPR schema, renamed to "Individual Plan Review", SAME form id (a7696d03 for Thistle) so the check link + immutable evidence + Review 1-4 matrix survive. Old v1 archived not deleted. The standalone `ipr_form` template stays archived (it was the schema source). Check definition NAME stays "Care Plan Review".
+
+Verified live 2026-07-21 (manage-as Thistle, SU 4442c6fb): Complete on Review 2 -> heading "Care Plan Review", body = full Individual Plan Review (Service User Details + per-domain "does the plan require updating/amending" questions: Condition Specific, COSHH, COVID-19, Dysphagia, End of life, Environment and Fire, Financial...). Review 1/3/4 still Done. Did NOT submit. Gotcha for future: repointing a check's form_id would orphan historical evidence (evidence matched by form_id) + reset the matrix -- prefer content-swap on the same form id like 0104 did.

@@ -1,0 +1,82 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run typecheck)",
+      "Bash(npm run test *)",
+      "Bash(npm test *)",
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__list_extensions",
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "mcp__claude_ai_Supabase__get_edge_function",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__query_logs",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__generate_typescript_types",
+      "mcp__claude_ai_Supabase__search_docs",
+      "mcp__claude_ai_Vercel__get_deployment",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__list_deployment_events",
+      "mcp__claude_ai_Vercel__get_runtime_errors",
+      "mcp__claude_ai_Vercel__get_runtime_logs"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git commit *--amend*)",
+      "Bash(git commit *--no-verify*)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npm add *)",
+      "Bash(npm uninstall *)",
+      "mcp__*__apply_migration",
+      "mcp__*__deploy_edge_function",
+      "mcp__*__create_edge_function_secret"
+    ],
+    "deny": [
+      "Bash(git push *--force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f*)",
+      "Bash(git push *+*)",
+      "Bash(git push *--mirror*)",
+      "Bash(git push *--delete*)",
+      "Bash(git push -d *)",
+      "Bash(git push * -d *)",
+      "Bash(git reset --hard*)",
+      "Bash(git reset * --hard*)",
+      "Bash(git clean *)",
+      "Bash(git add *--force*)",
+      "Bash(git add -f *)",
+      "Bash(git add * -f*)",
+      "Bash(rm -rf *)",
+      "Bash(*afwfutlwuhqzdihwsibr*)",
+      "Bash(*bamokbdtlzllbrsdxywp*)",
+      "Read(.env*)",
+      "Read(!.env.example)",
+      "Edit(.env*)",
+      "Edit(!.env.example)",
+      "Read(~/Library/Mobile Documents/**)",
+      "Edit(~/Library/Mobile Documents/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/phildavies/Projects/BCC Documents"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*[Ss]upabase.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/supabase-project-guard.sh"]
+          }
+        ]
+      }
+    ]
+  }
+}

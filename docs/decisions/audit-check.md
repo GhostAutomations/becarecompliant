@@ -1,0 +1,19 @@
+# Audit check
+
+> Audit check + form on BOTH People and Service User matrices (Acme only), monthly, migration 0121; VERIFIED LIVE 2026-07-25 (4/4 pass); auditor_name is now a user dropdown preselected to the signed-in user (0125 + fieldToNameSelect)
+
+Built 2026-07-23 (Additions). Phil wanted an "Audit" column on the People matrix AND Service Users, fed by the audit form from his monday board (5094671709; the test company then called Thistle is now named Acme). Copied via the Chrome extension `computer` tool (monday canvas forms don't yield to get_page_text/read_page).
+
+Decisions (popup): monthly recurrence; Name + Region auto-derived from the record (so NOT form fields — evidence carries the person/SU name + branch). Same form both populations.
+
+Migration 0121 (DB-only): two founder forms for Acme (9d7d082b) — key 'audit' population people, key 'audit_su' population service_users (forms.key unique per company), each active/current_version=1 + form_versions v1 published. Two check_definitions (key 'audit', name 'Audit', recurring, frequency='month', interval=1, anchor='completion') for people + service_users, backfilled blank-due check_instances (40 people, 24 SUs). Mirrors create_check_definition_with_form (0039) but direct SQL (no auth context in a migration).
+
+COLUMN NEEDED CODE: custom-columns is parked behind CUSTOM_COLUMNS_ENABLED=false, so a FIXED "Audit" column was added to components/people/register-matrix.tsx and components/service-users/service-user-register.tsx (ExtraCheckCell on statusByKey["audit"]), and 'audit' added to CURATED_CHECK_KEYS both populations (no double-render if the panel is ever enabled). Completion uses the generic loop (complete page -> FormRenderer -> submit_evidence -> complete_check -> +1 month).
+
+VERIFIED LIVE 2026-07-25 (Phil, 4/4 pass): Audit column on the People register AND the Service Users register; completing on a person AND on a service user flips green, stamps the date, sets next due +1 month, stores Evidence. DB cross-checked (both definitions monthly/anchor completion, 40+24 instances).
+
+AUDITOR DROPDOWN (Phil mid-test request 2026-07-25, built same day): Auditor Full Name is a dropdown of the company's ACTIVE users, preselected to the signed-in user, changeable. Implementation: migration 0125 get_company_user_names() SECURITY DEFINER RPC (guards by caller's company via auth.uid(), returns display names, active only, needed because profiles RLS is self-only for non-admins); lib/form-schema.ts fieldToNameSelect() (render-side transform to single_select, preset value always included first; stored form version keeps short_text so server validation is unchanged, same pattern as annotateSupervisionOptions); 'auditor_name' added to record-presets AUTHOR_KEYS; both check-complete pages apply it whenever a schema has an auditor_name field (generic to future forms). Mentoring's supervisor_name was NOT converted (Phil chose audit only). TO RETEST after deploy: dropdown appears, preselected, changeable, submits fine on both populations.
+
+Form = ~23 fields (omitted the monday Name + Region): auditor_name, date_of_audit (first date field => completion stamp), audit_period_start/end (optional, Staff ECM), calls_attended, avg_call_duration_pct (should be 90%), avg_earliness_mins/avg_lateness_mins (<=15, optional), cancelled_calls, calls_attended_pct (0-100), then Yes/No/NA singles food_fluid_documented / bowel_urine_documented / tasks_acknowledged / mood_wellbeing_documented each with an "if no" long_text via visibleWhen in:["no"], other_follow_up, environment_flag, signoff_date, signature, approval_comments. See [launch-form-set](launch-form-set.md), [custom-register-columns](custom-register-columns.md), [phase3-decisions](phase3-decisions.md).
+
+Still Acme-only (not a founder template that seeds new companies).

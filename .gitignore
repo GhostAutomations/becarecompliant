@@ -27,3 +27,7 @@ npm-debug.log*
 *.tsbuildinfo
 _to_delete/
 imports/
+
+# Claude Code: personal settings stay on this Mac
+.claude/settings.local.json
+CLAUDE.local.md

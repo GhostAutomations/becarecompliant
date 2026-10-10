@@ -1,0 +1,22 @@
+# Launch form set
+
+> The exact 19 forms a new BCC company launches with, the seed alignment, and the standing rule that default forms stay at v1 while they are being built
+
+- [stated] 2026-09-26: "as thistle is, that is the default" — Thistle's setup (forms, columns, training courses etc.) is the default every new company gets; Phil asked whether a new real customer can instead have THEIR OWN forms, columns, training courses and anything else specific to them.
+- [stated] 2026-09-26 popup: "Build it now" — the option to create a company with its own set up instead of Thistle's default (step 9 of the Thistle forms plan), started straight after the Return to Work AI icon.
+- [stated] 2026-09-26 design (popup): company creation offers a TICK LIST of Thistle's set up (every form, check, training course, register column, all ticked); untick what the customer doesn't use; the forms that power departments (holiday, absence/RTW, complaints, incidents, DBS, right to work, probation) are always kept with the reason shown. Their own forms: "We build them before go live" — Phil sends their forms, Claude builds each in their company, Phil checks before staff are invited (no AI form generation).
+
+A new company launches with exactly 19 forms (Phil, 2026-07-19), matching Thistle's cleaned set. The founder library (form_templates) has these 19 `active`; all other templates are `archived` (kept, still importable, not seeded).
+
+**STANDING RULE — default forms stay at v1 (Phil, 2026-09-08):** "while we are building the defaults all forms will always be v1." When a rebuild migration's guard refuses because evidence exists, the answer is to DELETE the test evidence and edit v1 in place — never publish a v2. Do not offer v2 as an option while the default library is being built. A test submission must never pin a version for the life of the product. Phil's deletion permission (2026-09-08) covers this: show the row first (id, form, person, date), delete by exact id, and undo whatever the completion changed (check_instances last_completed_on / last_evidence_id / due_date), or the record is left showing a completion with no evidence behind it. Undoing a completion is SQL-only — the product cannot do it, which is itself a logged defect.
+
+**The 19 (form_templates.status='active'):**
+- People checks: supervision, annual_appraisal_acme, spot_check, medication_ca, manual_handling_ca
+- Service User checks: setup, care_plan_review, risk_assessment, mar_audit, consent_review
+- Feature/tracker (wired by key, no check_definition): holiday_requests, holiday_response, absence_back_office, absence_management_meeting, complaints_concerns, complaint_response, dbs_renewal, right_to_work, probation_review
+
+**Seed alignment (0085, corrected by 0247):** seed_company_people_checks links each check to a form BY KEY with a subselect, and a subselect that finds nothing returns NULL rather than failing. It was still asking for `annual_appraisal_thistle` long after the Thistle -> Acme rename (0112) made the key `annual_appraisal_acme`, so EVERY company seeded since got an Annual Appraisal check with form_id NULL: no Complete button on the tile, a silent redirect from the completion page, and the supervision cycle unable to roll over because appraisal completions are read through that same form_id. Found 2026-09-08, fixed in 0247. ALWAYS re-check seed_company_people_checks / seed_company_service_user_checks form_key values against ACTIVE template keys after any rename.
+
+**Renaming a QUESTION has the same trap (0248-era fix, 2026-09-08):** completion dates used to be read with the field name hardcoded (`date_of_appraisal`, `supervision_date`, `review_date`) while SAVING read it from the schema via firstDateFieldKey. Renaming the appraisal's date question to `appraisal_date` made the matrix silently report the submission date and derive Supervision 1 sixty three days early. Both sides now use lib/evidence/completion-date.ts, keyed off the form version each record was submitted under.
+
+**Appraisal template:** rebuilt 2026-09-08 (0246) from Thistle's real paper form on the computed-scoring engine: 21 scored questions in Sections A/B/C, three section totals, an overall and a band, all `score_total`/`score_band` and recomputed server-side on submit. N/A is excluded from the score AND the denominator, and the band is a share of the points actually available. Supervision master template synced separately (label "Completed by", no confidentiality field).

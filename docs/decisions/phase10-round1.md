@@ -1,0 +1,11 @@
+# Phase10 round1
+
+> BCC Phase 10 Additions Round 1 slice, decisions and build state (import templates + Complaints built)
+
+Phase 10 (Additions) Round 1, agreed by popup 2026-07-14 ("Unblocker + flagship"). Order: (3) import templates into existing company, (1) Complaints section, (4) custom check register columns, (8) edit user branch assignment. Items 2,5,6,7,9 stay parked. See [project-state](project-state.md) and PHASES.md (source of truth).
+
+ITEM 3 (import templates) BUILT, NO migration: reuses existing idempotent seed_company_form_templates + seed_company_training_courses (guarded platform_admin OR company_admin). Scope (Claude recommended, Phil delegated): forms + training only (baseline check defs left out); import-all-missing; both founder (/founder/companies/[id] Templates section) and Admin (Settings > Templates). lib/templates/import.ts + founderImportTemplates + importOwnCompanyTemplates. Thistle was missing 21 of 38 active form templates (the 4 Holiday/Absence forms already present).
+
+ITEM 1 (Complaints) BUILT. Migrations 0063 (schema) + 0064 (realtime) APPLIED to ref bgrtcvyjuwopunpnudeu. Decisions: access = Admin(all)+Manager(branch)+Founder, NO Supervisor/Team Member; complainant + optional service_user_id link; lifecycle Open/In Progress/Closed + response-deadline RAG (per-complaint due date, cited defaults acknowledge 3wd / respond 25wd via complaints_config, editable). 'complaints' population + evidence.record_type 'complaint' added; 3 complaint forms repointed service_users->complaints. lib/complaints/*, components/complaints/*, app/(app)/complaints/*, /settings/complaints, Complaints nav entry + dashboard strip/tile. Evidence isolation reuses existing evidence_select/evidence_files_select (is_branch_manager) so TMs excluded; is_branch_member grants Admins to attach Evidence.
+
+Both items NOT yet deployed/typechecked at time of writing (sandbox cannot build; Vercel is the compile gate). To test Complaints forms on Thistle, run the item-3 template import first. Logged to Final Testing: complaint overdue chaser email (Phase 6 infra), complaint History timeline (record_audit_trail RPC has no complaint case), complaint forms in the form-builder list. Items 4 + 8 of the round still to build.

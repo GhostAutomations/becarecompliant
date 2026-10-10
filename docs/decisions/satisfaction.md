@@ -1,0 +1,13 @@
+# Satisfaction
+
+> BCC Service Users > Satisfaction sub-department: PQS User Experience Q2 from plan review feedback answers
+
+Satisfaction = Service Users sub-department (nav child /service-users/satisfaction), maps to Cardiff PQS **User Experience Q2** (% customer satisfaction from SU feedback, last 6 months) — see [cardiff-pqs](cardiff-pqs.md). Built 2026-07-21.
+
+SCORING (agreed via popup): three yes/no questions from the "Feedback, Call Times and Outcomes" section of the Individual Plan Review ([care-plan-review-form](care-plan-review-form.md)), Yes = satisfied: `call_times_suit`, `review_previous_setup` (call times match setup), `individuals_feedback` (gave feedback). Measured over the PQS window (default last 6 months, same as the on-time report). Response-level rate = positive answers / answered, across all reviews in the window. Per-SU row shows their latest in-window review's answers + their positive rate across their in-window reviews.
+
+FILES: lib/service-users/satisfaction.ts (getSatisfaction(companyId, window?, branchId?) reading evidence.answers by field key for the company's care_plan_review form, record_type='service_user'; SATISFACTION_QUESTIONS const); app/(app)/service-users/satisfaction/page.tsx (replaced placeholder: headline % + reviews/positive counts + per-SU table + CSV); app/api/reports/satisfaction/route.ts (CSV). PQS report (lib/export/on-time.ts) gained a "Customer satisfaction" extraMeasure (User Experience Q2, band via bandPct) over the same window, branch-scoped.
+
+GOTCHA: satisfaction only accrues from reviews that ANSWERED >=1 of the 3 questions — a review with 0 answered (legacy thin pre-0104 form) is skipped entirely (not counted in reviewsInWindow, SU dropped from table). So "Reviews in period" = feedback-bearing reviews only.
+
+VERIFIED LIVE + REFINED 2026-07-21 (manage-as Thistle): seeded 2 evidence rows (AAAA all Yes=3/3, Alan Alda Yes/No/No=1/3) -> headline 67% (4/6), Reviews in period 2, per-SU rows correct; branch filter -> Caerphilly recomputed to 100% (AAAA only). Test evidence deleted after. Both Outcomes + Satisfaction registers now have a client-side BRANCH dropdown (components/service-users/outcomes-register-table.tsx + satisfaction-register-table.tsx) that filters rows AND recomputes the headline % per branch (branch options derived from rows; rows carry branch_id). Export CSV buttons REMOVED from both pages (Phil: redundant with PQS report which carries both measures); the /api/reports/outcomes + /api/reports/satisfaction routes still exist (one-line revert to re-add buttons). Exact PQS Q ref (User Experience Q2) confirmed from PQS V10.5.pdf mapping in [cardiff-pqs](cardiff-pqs.md).
