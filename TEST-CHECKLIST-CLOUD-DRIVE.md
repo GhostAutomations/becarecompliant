@@ -193,3 +193,23 @@ read back inside Be Care Compliant only.
 - Note: the other "ZZ TEST ... (Swansea)" folders left loose in People and Service Users are copies
   from before Bevan's drive location was changed during testing. BCC no longer knows them, so it
   cannot move them. Test leftovers only; Thistle starts clean.
+
+## Thistle Care Ltd, SharePoint, first live run (9 Oct 2026)
+
+Phil connected Thistle to the Thistle Care SharePoint site (Shared Documents > Be Care Compliant)
+and pressed Copy everything so far at 22:20. Checked by Claude, read only, inside Be Care
+Compliant only, after the queue emptied.
+- PASS. The SharePoint site choice worked first time (the only part not tested on Bevan).
+- PASS. 452 jobs done, none failed, no errors.
+- PASS. People > Cardiff (16) and Newport (34); Service Users > Cardiff (12) and Newport (59). That
+  is every current record (50 people, 71 service users), each in its own branch, matching the
+  database exactly. Thistle Care Ltd Office has no records, so it has no folder.
+- PASS. Every record folder has its category folders; no file loose at the top of a section, a
+  branch or a record.
+- PASS. 208 files in record folders: 165 staff forms, 33 service user forms, 1 uploaded file, 1
+  certificate, 3 meeting invitations and 5 outcome letters, exactly what the database holds.
+- PASS. Spot checked file by file: Jamie Meredith (Cardiff) 12 files, Phillip Mccarthy (Cardiff) 3
+  files, each in the right folder (absence forms, meeting records and the outcome letter in
+  Absence; Right to Work in Right to Work; Individual Plan Review in Care Plan Review).
+- PASS. Briefings (1 memo) and Incidents (1 report) filled; Policies and Complaints empty because
+  Thistle has none yet.
