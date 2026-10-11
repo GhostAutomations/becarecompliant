@@ -100,8 +100,11 @@ that failed silently. THE LIST 46 to 51 are parked and not built.
    dates match, 706 due dates match (the one is a Demo row seeded by demo_check_history), no
    linked Evidence trips a stand down gate. Replay: 499 Evidence rows, 496 allowed, the 3 refused
    are all on test companies.
-5. Not tested. After 0444 is applied: run the parity check below in the SQL editor (read only).
-   Expect done_match = linked and due_match = linked less 1.
+5. Pass (Claude, 11 Oct 2026, after 0444 was applied live): the parity check below gave linked
+   707, done_match 707, due_match 706, as expected. 0444 applied first time (version
+   20261011220745); security advisor 0 errors; new lints are the 3 helper functions the RLS
+   policies call (can_approve_holiday_for, can_see_branch_planner, can_read_planner_booking) and
+   INFO on the two service role only care plan file tables, all expected.
 
 ```sql
 select count(*) linked,
