@@ -11,6 +11,8 @@ import { INVOICE_SERVICES, serviceFixedPence } from "@/lib/invoicing/types";
 import { CARE_PLAN_DAYS, carersLabel } from "@/lib/service-users/care-plan-consts";
 import { CALL_SLOTS } from "@/lib/service-users/care-package";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { canManageRecord } from "@/lib/auth/manage-scope";
+import { callerBranchIds } from "@/lib/auth/branches";
 
 export const metadata: Metadata = { title: "Care plan" };
 
@@ -45,6 +47,14 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
     getInvoicingConfig(su.company_id),
   ]);
   const servicesWithFixed = INVOICE_SERVICES.filter((s) => serviceFixedPence(config, s.key) > 0).map((s) => s.label);
+  /* Replace is offered only on a record this person may manage (audit F13): a Supervisor booked to
+     visit someone in another branch opens this page and may View the document, and the save would
+     be refused, so the upload is not offered to her. Same rule as the record page's Manage. */
+  const canReplace = canManageRecord({
+    role: profile.role,
+    branchIds: await callerBranchIds(profile.id),
+    recordBranchId: su.branch_id,
+  });
 
   return (
     <div className="page-shell space-y-6">
@@ -86,7 +96,7 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
         </details>
       ))}
 
-      <CarePlanUpload serviceUserId={id} uploadedAt={su.care_plan_uploaded_at ?? null} editable />
+      <CarePlanUpload serviceUserId={id} uploadedAt={su.care_plan_uploaded_at ?? null} editable={canReplace} />
     </div>
   );
 }

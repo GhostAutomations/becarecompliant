@@ -11,7 +11,7 @@ import "server-only";
  *   1. the Person becomes a leaver, dated the day they actually left, which is what starts the
  *      eight year retention clock;
  *   2. their login closes: any waiting invite revoked, the account disabled, every signed in
- *      device dropped at its next page (Phil, 2026-09-23: Mohammad's invite had to be revoked
+ *      device dropped at its next page (Phil, 2026-09-23: a leaver's invite had to be revoked
  *      by hand, and a leaver who can still sign in can still read the portal);
  *   3. the leaving row is stamped applied.
  */
@@ -44,9 +44,9 @@ export async function closePersonLogin(personId: string, companyId: string): Pro
     const { data: profile } = person?.profile_id
       ? await admin
           .from("profiles")
-          .select("id, email, status, role")
+          .select("id, email, status, role, company_id")
           .eq("id", person.profile_id)
-          .maybeSingle<{ id: string; email: string; status: string; role: string }>()
+          .maybeSingle<{ id: string; email: string; status: string; role: string; company_id: string | null }>()
       : { data: null };
 
     // A waiting invite is revoked whether or not the profile link was ever made.
@@ -62,7 +62,11 @@ export async function closePersonLogin(personId: string, companyId: string): Pro
         .eq("status", "pending");
     }
 
-    if (!profile) return { closed: false, reason: "no_login" };
+    // Only a login of this company, and never the Founder's (audit F11b, Phil 11 Oct 2026): a
+    // record pointed at another login must not switch that login off.
+    if (!profile || profile.company_id !== companyId || profile.role === "platform_admin") {
+      return { closed: false, reason: "no_login" };
+    }
     if (profile.role === "company_admin") return { closed: false, reason: "is_admin" };
     if (profile.status === "disabled") return { closed: false, reason: "already_closed" };
 

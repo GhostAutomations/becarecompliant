@@ -85,6 +85,7 @@ export default function AbsenceView({
   conductors,
   offices,
   canManage,
+  canRecordRtw = canManage,
   canDiscount,
   windowStart,
 }: {
@@ -116,6 +117,9 @@ export default function AbsenceView({
   conductors: ConductorLite[];
   offices: MeetingOffice[];
   canManage: boolean;
+  /** Holds Return to Work interviews: the office, never On Call (Phil, 11 Oct 2026,
+   *  lib/absence/rtw-roles.ts canRecordReturnToWork). Hides the whole Return to Work card. */
+  canRecordRtw?: boolean;
   /** Managers and above: discount absences (0328). */
   canDiscount: boolean;
   /** First date inside the rolling window (Europe/London today less the window). */
@@ -668,8 +672,9 @@ export default function AbsenceView({
 
       {/* Return to Work. Raised automatically when an absence ends, because a Return
           to Work happens after EVERY absence at every stage, so it must not depend on
-          anyone remembering. Overdue ones sort to the top and read red. */}
-      {canManage && rtwSchema && visibleRtw.length > 0 ? (
+          anyone remembering. Overdue ones sort to the top and read red. Not offered to On Call,
+          who records absences and meetings but holds no Return to Work interviews. */}
+      {canManage && canRecordRtw && rtwSchema && visibleRtw.length > 0 ? (
         <div className="glass-card p-4">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="text-base font-semibold text-white">Return to Work</h2>

@@ -53,10 +53,11 @@ import {
 } from "@/lib/service-users/types";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { completeRefusedText, mayOfferCheckComplete } from "@/lib/register/complete-offer";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Service User" };
 
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string, size = "") {
@@ -75,11 +76,13 @@ export default async function ServiceUserPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string; recorded?: string; history?: string; from?: string; warn?: string }>;
+  searchParams: Promise<{ completed?: string; recorded?: string; history?: string; from?: string; warn?: string; refused?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, history, from, warn } = await searchParams;
+  const { completed, recorded, history, from, warn, refused } = await searchParams;
+  // Why a Complete page sent them back (lib/register/complete-offer.ts). Only our own words show.
+  const refusedText = completeRefusedText(refused);
   const backHref = from && from.startsWith("/service-users") ? from : "/service-users";
 
   const serviceUser = await getServiceUser(id);
@@ -103,7 +106,16 @@ export default async function ServiceUserPage({
   /* See the note in the People record page: support mode never offers Complete, because the
      save is refused and the work is lost. */
   const supportMode = Boolean(profile.actingAsCompanyId);
-  const canComplete = COMPLETE_ROLES.includes(profile.role) && !supportMode;
+  /* Who is offered Complete, per check (lib/register/complete-offer.ts): a Recruiter only on the
+     check they are booked on the Planner to carry out (Phil, 11 Oct 2026). */
+  const bookedChecks = profile.role === "recruiter" ? await bookedCheckInstanceIds(user.id) : new Set<string>();
+  const canComplete = (instanceId: string | null | undefined) =>
+    !supportMode &&
+    mayOfferCheckComplete({
+      role: profile.role,
+      ownRecord: false,
+      bookedForThisCheck: !!instanceId && bookedChecks.has(instanceId),
+    });
   // The audit History timeline is Admins only (Founder + Company Admin).
   const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";
 
@@ -265,6 +277,13 @@ export default async function ServiceUserPage({
         </div>
       ) : null}
 
+      {/* A Complete page that would not open says why here (step 7 review, 11 Oct 2026). */}
+      {refusedText ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft" role="status">
+          {refusedText}
+        </div>
+      ) : null}
+
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
           {completed} completed. Evidence stored and the next due date scheduled.
@@ -348,7 +367,7 @@ export default async function ServiceUserPage({
                          can then fill the Review number in rather than asking a question the
                          record already knows the answer to. */
                       href={
-                        s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete
+                        s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete(reviewStatusCheck.instance_id)
                           ? `/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`
                           : null
                       }
@@ -412,10 +431,10 @@ export default async function ServiceUserPage({
                       )}
                       <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
                     </dl>
-                    {s && def.form_id && canComplete && !settledOneOff ? (
+                    {s && def.form_id && canComplete(s.instance_id) && !settledOneOff ? (
                       <Link href={`/service-users/${serviceUser.id}/checks/${s.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
                     ) : null}
-                    {s && !def.form_id && canComplete && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
+                    {s && !def.form_id && canComplete(s.instance_id) && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
                   </div>
                 );
               })}

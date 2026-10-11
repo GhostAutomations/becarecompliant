@@ -11,6 +11,8 @@
  * the default for every company because it is part of the form.
  *
  * Pure and importless at runtime, so it is unit tested.
+ *
+ * 0444 mirrors this rule in SQL (public.evidence_retest_due), so change both.
  */
 
 import type { Answers, FormSchema } from "../form-schema.ts";

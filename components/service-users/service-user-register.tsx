@@ -34,6 +34,7 @@ import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/compon
 import type { BranchType } from "@/lib/service-users/data";
 import { useBranchWord } from "@/components/branches/branch-word";
 import { useRememberBranch } from "@/components/register/use-remember-branch";
+import { mayOfferCheckComplete } from "@/lib/register/complete-offer";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -110,6 +111,7 @@ export default function ServiceUserRegister({
   columnText = {},
   reviewIntervalDays,
   canManage,
+  completeOffer,
   isAdmin = false,
   initialView,
   initialBranch,
@@ -126,6 +128,9 @@ export default function ServiceUserRegister({
   columnText?: Record<string, string>;
   reviewIntervalDays: number;
   canManage: boolean;
+  /** Who may open Complete from a cell (lib/register/complete-offer.ts): the viewer's role and
+   *  the checks they are booked on the Planner to carry out (only a Recruiter's). */
+  completeOffer: { role: string; bookedCheckIds: string[] };
   /** Only a Company Admin can change which columns show + their order. */
   isAdmin?: boolean;
   initialView: string;
@@ -165,6 +170,12 @@ export default function ServiceUserRegister({
   // Capped on READ as well as on save: whatever the database says, the register never renders
   // more than the limit an Admin was allowed to choose.
   const shownColumns = checkColumns.filter((c) => c.show).slice(0, MAX_REGISTER_COLUMNS);
+  /* A cell links to Complete only when the Complete page will open for this viewer: for a
+     Recruiter only on a check they are booked on the Planner to carry out. */
+  const booked = useMemo(() => new Set(completeOffer.bookedCheckIds), [completeOffer.bookedCheckIds]);
+  const mayComplete = (instanceId: string | undefined) =>
+    !!instanceId &&
+    mayOfferCheckComplete({ role: completeOffer.role, ownRecord: false, bookedForThisCheck: booked.has(instanceId) });
   const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   function urlFor(v: string, b: string) {
     const params = new URLSearchParams();
@@ -441,7 +452,7 @@ export default function ServiceUserRegister({
                               recordId={su.id}
                               basePath="/service-users"
                               fromQuery={fromQuery}
-                              editable={canManage}
+                              editable={mayComplete(row.statusByKey["audit"]?.instance_id)}
                             />
                           </td>
                         ) : null}
@@ -452,7 +463,7 @@ export default function ServiceUserRegister({
                               recordId={su.id}
                               basePath="/service-users"
                               fromQuery={fromQuery}
-                              editable={canManage}
+                              editable={mayComplete(row.statusByKey[c.key]?.instance_id)}
                               text={cellText(c, row.statusByKey[c.key], columnText)}
                             />
                           </td>

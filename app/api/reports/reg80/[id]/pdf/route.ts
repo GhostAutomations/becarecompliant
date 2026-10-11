@@ -7,11 +7,15 @@ import { pdfResponse, exportError } from "@/lib/export/deliver";
 import { getReg80Review } from "@/lib/reg80/data";
 import { buildReg80Doc } from "@/lib/reg80/pdf-doc";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { canViewRegReport, REG_REPORT_REFUSED } from "@/lib/reg73/roles";
 
-/** Branded PDF of one Regulation 80 quality of care review. RLS authorises the read. */
+/** Branded PDF of one Regulation 80 quality of care review. RLS authorises the read:
+ *  Admins and the Registered roles every branch, a Branch Manager their own branches (audit F16). */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context.", 400);
+  // Refused by role before anything is read; another branch's report is then not found (RLS).
+  if (!canViewRegReport(profile.role)) return exportError(REG_REPORT_REFUSED, 403);
   const { id } = await ctx.params;
 
   const review = await getReg80Review(id);

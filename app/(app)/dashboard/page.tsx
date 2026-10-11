@@ -120,8 +120,10 @@ const INCIDENT_ROLES = [
 
 /**
  * Who sees the Return to Work list (Phil, 2026-09-24: "supervisors and above", then "List the
- * names"). On Call too, because Absence is part of its remit. RLS decides WHICH absences each one
- * gets: a Supervisor or a Manager their own branches, the company wide roles all of them.
+ * names"). RLS decides WHICH absences each one gets: a Supervisor or a Manager their own branches,
+ * the company wide roles all of them. Not On Call (Phil, 11 Oct 2026): On Call keeps absences and
+ * absence meetings but holds no return to work interviews, so a list of interviews to hold is not
+ * theirs.
  */
 const RTW_LIST_ROLES = [
   "company_admin",
@@ -129,7 +131,6 @@ const RTW_LIST_ROLES = [
   "registered_manager",
   "manager",
   "supervisor",
-  "on_call",
   "platform_admin",
 ];
 

@@ -4226,6 +4226,23 @@ branch), the Registered Individual, Registered Manager or Company Admin, never b
 holiday it is; F16, the Reg 73 and Reg 80 reports are seen only by Admins and the Registered roles
 (every branch) and Branch Managers (own branches, view only). Saved in permission-boundaries.md,
 reg73.md and reg80.md; built in step 7.
+Fix plan step 7, role limits (migration 0444_role_limits.sql, code in 70 files): Phil answered 11
+choices by popup (permission-boundaries.md "Own record, check dates and history"). Built: holidays
+approved only by Branch Managers (own branch) and above, never your own (cancelling your own is
+allowed), Supervisor and Recruiter bookings land Pending and approvers are emailed, no forged
+changes (F5, F7); checks complete only with matching Evidence, never on your own record, never
+dated ahead, a Recruiter only as the booked conductor (F8, F10, F3); start date re-dating for
+records the editor may edit, history only by Admins or on a just added person, check settings
+Admin only, branch managers re-date only their branches (F59, F60, F65); briefings and policies
+close only through their own path and only the person signs (F55, F44); anonymise_evidence
+service role only (F9); Reg 73 and 80, readiness history and the readiness pack (F67) and the
+Planner read only by the right roles (F16, F52, F53, F50); the Founder login cannot be invited,
+linked or changed from the app (F11, F11b); care plans open for the page's roles, upload to a new
+path and keep every version (F13). Three People saves now say when they fail. Checked: every
+attack refused and every ordinary flow kept, in rolled back transactions on Bevan and Demo with
+the whole migration; a new company, a demo company and the full demo seed provision cleanly;
+typecheck, 1,809 tests and build pass. Parked: THE LIST 46 to 52. Tests:
+TEST-CHECKLIST-AUDIT-FIXES.md, role limits section.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

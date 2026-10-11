@@ -148,3 +148,5 @@ ad-hoc/override. A booking against a check auto-completes when the check complet
 any path).
 
 See [phase6-built](phase6-built.md), [permission-boundaries](permission-boundaries.md), [look-at-the-artefact](../process/look-at-the-artefact.md).
+
+- [built] 0444 (audit F50, 11 Oct 2026): office roles read the bookings of the branches they belong to, plus their own as conductor or creator; carers, Seniors, Viewers and On Call no longer read the branch's bookings. A Recruiter booked as a check's conductor may complete that check.

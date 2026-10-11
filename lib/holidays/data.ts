@@ -9,6 +9,8 @@ import { implausibleYearMessage } from "@/lib/date-plausible";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/guards";
+import { isOwnHoliday } from "@/lib/holidays/changes";
 
 export type HolidayRequestRow = {
   id: string;
@@ -41,6 +43,9 @@ export type HolidayRequestRow = {
   /** First date back at work, read from the linked Evidence answers (display only). */
   return_to_work_date: string | null;
   created_at: string;
+  /** The signed in user's own holiday (holiday_request_owner), set by listHolidayRequests so the
+   *  Holiday page never offers an approver Approve, Decline or Edit dates on it (0444, audit F7). */
+  own?: boolean;
 };
 
 /** Field keys on the holiday form that hold the first date back at work. */
@@ -98,14 +103,25 @@ export async function listHolidayRequests(
   branchId?: string | null,
 ): Promise<HolidayRequestRow[]> {
   const supabase = await createClient();
+  // requireUser is once per request (React cache), so this costs no extra sign in check.
+  const user = await requireUser();
   let query = supabase
     .from("holiday_requests")
     .select("*")
     .eq("company_id", companyId)
     .order("start_date", { ascending: true });
   if (branchId) query = query.eq("branch_id", branchId);
-  const { data } = await query;
-  return withReturnDates(supabase, (data as HolidayRequestRow[] | null) ?? []);
+  // The viewer's own People records, so their own holidays are marked as such.
+  const [{ data }, { data: mine }] = await Promise.all([
+    query,
+    supabase.from("people").select("id").eq("company_id", companyId).eq("profile_id", user.id),
+  ]);
+  const myPersonIds = ((mine ?? []) as Array<{ id: string }>).map((p) => p.id);
+  const rows = ((data as HolidayRequestRow[] | null) ?? []).map((r) => ({
+    ...r,
+    own: isOwnHoliday(r, user.id, myPersonIds),
+  }));
+  return withReturnDates(supabase, rows);
 }
 
 export async function listPersonHolidays(

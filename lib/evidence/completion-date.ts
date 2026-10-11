@@ -20,6 +20,11 @@
  * Read against the version the Evidence was actually submitted under, not today's form, so
  * a record filled in two versions ago still reports the date it was filled in with.
  *
+ * THE DATABASE HOLDS THE SAME RULE (0444, audit F8): public.evidence_completion_date is this
+ * file in SQL, and complete_check stamps a Check with it, refusing a date in the future.
+ * Change one and change the other; the parity query in TEST-CHECKLIST-AUDIT-FIXES.md compares
+ * them over every completion with Evidence.
+ *
  * Pure and self-contained (no runtime imports) so it can be unit tested.
  */
 

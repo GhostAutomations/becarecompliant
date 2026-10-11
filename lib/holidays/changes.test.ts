@@ -15,6 +15,8 @@ import {
   eventKindLabel,
 } from "./changes.ts";
 import { backAtWorkFor, nextDayIso } from "./changes.ts";
+import { isOwnHoliday, officeHolidayActions } from "./changes.ts";
+import { holidayApprovers, isHolidayApprover } from "../notifications/roles.ts";
 
 const approved = { status: "approved", start_date: "2026-10-20", end_date: "2026-10-24" };
 
@@ -181,4 +183,111 @@ test("back at work starts as the day after the holiday, or the date it already h
   assert.equal(backAtWorkFor("2026-10-23", null), "2026-10-24");
   assert.equal(backAtWorkFor("2026-10-23", "2026-10-23"), "2026-10-24");
   assert.equal(backAtWorkFor("2026-10-23", "2026-10-26"), "2026-10-26");
+});
+
+/* AUDIT F7 (Phil, 11 Oct 2026, 0444): who decides a holiday, and nobody decides their own. */
+
+test("only a Branch Manager, the Registered roles, an Admin and the Founder are holiday approvers", () => {
+  for (const role of ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"]) {
+    assert.equal(isHolidayApprover(role), true, role);
+  }
+  for (const role of ["supervisor", "recruiter", "senior", "staff", "team_member", "on_call", ""]) {
+    assert.equal(isHolidayApprover(role), false, role);
+  }
+});
+
+test("own holiday is the person's login, or whoever asked when there is no person", () => {
+  // Booked by me FOR a carer: the carer's, not mine, so I may still decide their change.
+  assert.equal(isOwnHoliday({ person_id: "carer-person", requested_by: "me" }, "me", ["my-person"]), false);
+  // Booked by anybody for my own People record: mine.
+  assert.equal(isOwnHoliday({ person_id: "my-person", requested_by: "someone" }, "me", ["my-person"]), true);
+  assert.equal(isOwnHoliday({ person_id: "my-person", requested_by: null }, "me", ["my-person"]), true);
+  // No person on it: whoever asked for it.
+  assert.equal(isOwnHoliday({ person_id: null, requested_by: "me" }, "me", []), true);
+  assert.equal(isOwnHoliday({ person_id: null, requested_by: "someone" }, "me", []), false);
+  // A public form nobody has linked: nobody's.
+  assert.equal(isOwnHoliday({ person_id: null, requested_by: null }, "me", []), false);
+});
+
+test("an approver decides, edits and cancels somebody else's holiday", () => {
+  assert.deepEqual(
+    officeHolidayActions({ status: "pending", approverForBranch: true, own: false, bookedByMe: false }),
+    { decide: true, editDates: true, cancel: true, withdraw: false },
+  );
+  // Approved: nothing left to decide, but it can still be moved or cancelled.
+  assert.deepEqual(
+    officeHolidayActions({ status: "approved", approverForBranch: true, own: false, bookedByMe: true }),
+    { decide: false, editDates: true, cancel: true, withdraw: false },
+  );
+});
+
+test("on their own holiday an approver may only cancel it, or withdraw what they booked", () => {
+  assert.deepEqual(
+    officeHolidayActions({ status: "pending", approverForBranch: true, own: true, bookedByMe: true }),
+    { decide: false, editDates: false, cancel: true, withdraw: true },
+  );
+  assert.deepEqual(
+    officeHolidayActions({ status: "approved", approverForBranch: true, own: true, bookedByMe: true }),
+    { decide: false, editDates: false, cancel: true, withdraw: false },
+  );
+});
+
+test("a Supervisor or Recruiter only withdraws a booking they made, while it waits", () => {
+  assert.deepEqual(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: false, bookedByMe: true }),
+    { decide: false, editDates: false, cancel: false, withdraw: true },
+  );
+  assert.deepEqual(
+    officeHolidayActions({ status: "approved", approverForBranch: false, own: false, bookedByMe: true }),
+    { decide: false, editDates: false, cancel: false, withdraw: false },
+  );
+  assert.deepEqual(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: false, bookedByMe: false }),
+    { decide: false, editDates: false, cancel: false, withdraw: false },
+  );
+});
+
+test("a booker withdraws someone else's waiting booking even once its dates have come", () => {
+  // Leave already taken, recorded by a Supervisor: it waits for an approver, and she can take it back.
+  assert.equal(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: false, bookedByMe: true, started: true }).withdraw,
+    true,
+  );
+  // Her own holiday keeps the start date rule, as the database does (request_holiday_cancel).
+  assert.equal(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: true, bookedByMe: true, started: true }).withdraw,
+    false,
+  );
+  assert.equal(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: true, bookedByMe: true, started: false }).withdraw,
+    true,
+  );
+  // A change the carer asked for is theirs to take back, not the booker's to turn into a cancellation.
+  assert.equal(
+    officeHolidayActions({ status: "pending", approverForBranch: false, own: false, bookedByMe: true, changeInFlight: true }).withdraw,
+    false,
+  );
+});
+
+test("a holiday already declined or cancelled offers nothing", () => {
+  for (const status of ["declined", "cancelled"]) {
+    assert.deepEqual(
+      officeHolidayActions({ status, approverForBranch: true, own: false, bookedByMe: true }),
+      { decide: false, editDates: false, cancel: false, withdraw: false },
+      status,
+    );
+  }
+});
+
+test("an approver is never emailed to decide their own holiday", () => {
+  const candidates = [
+    { id: "admin", role: "company_admin" },
+    { id: "ri", role: "registered_individual" },
+    { id: "mgr", role: "manager" },
+  ];
+  const got = holidayApprovers({ branchId: "cardiff", candidates, managerIdsInBranch: ["mgr"], ownerId: "admin" }).map((c) => c.id);
+  assert.deepEqual(got, ["ri", "mgr"]);
+  // A carer's holiday (owner not an approver) still reaches every approver.
+  const all = holidayApprovers({ branchId: "cardiff", candidates, managerIdsInBranch: ["mgr"], ownerId: "carer" }).map((c) => c.id);
+  assert.deepEqual(all, ["admin", "ri", "mgr"]);
 });

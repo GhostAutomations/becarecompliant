@@ -34,6 +34,7 @@ import type { CheckDefinition } from "@/lib/people/types";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { EVIDENCE_BUCKET, evidenceFilePath, sha256Hex } from "./storage";
 import { completionMovesCheck } from "./completion-date";
+import { OWN_RECORD_CHECK_REFUSAL, isOwnRecord } from "./own-record";
 import { START_GUARDED_KEYS, beforeStartProblem } from "@/lib/people/before-start";
 import {
   PAPER_MAX_BYTES,
@@ -80,6 +81,18 @@ async function refusal(instanceId: string): Promise<{ error: string } | { instan
     anchor: (def as { anchor?: string | null }).anchor ?? null,
   });
   if (!offered) return { error: "Only an Admin can upload a check completed on paper." };
+  /* NOT ON THEIR OWN RECORD (Phil, 11 Oct 2026). submit_paper_evidence refuses it too (0444);
+     asked here, before the pages are uploaded, so nobody scans a form for nothing. */
+  if (instance.person_id) {
+    const { data: who } = await (await createClient())
+      .from("people")
+      .select("profile_id")
+      .eq("id", instance.person_id)
+      .maybeSingle();
+    if (isOwnRecord((who?.profile_id as string | null) ?? null, user.id)) {
+      return { error: OWN_RECORD_CHECK_REFUSAL };
+    }
+  }
   return { instance, def, profile, userId: user.id };
 }
 

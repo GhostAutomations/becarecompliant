@@ -9,7 +9,8 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 
 /**
  * Holiday notification emails (Phase 6, the flow owed from Holidays):
- *  - request submitted  -> every approver (branch Managers + Company Admins)
+ *  - request submitted, or booked by a Supervisor or Recruiter and so waiting (0444, Phil
+ *    11 Oct 2026) -> every approver (branch Managers + Company Admins), never the holiday's own person
  *  - request decided    -> the person whose holiday it is
  *  - changed by the office, or a change or cancellation the carer asked for decided -> that person
  *  - a change or cancellation asked for by the carer (0438) -> every approver
@@ -24,13 +25,38 @@ type Db = ReturnType<typeof createServiceClient>;
 type Approver = { id: string; full_name: string | null; email: string | null; role: string };
 
 /**
+ * Whose holiday it is, read exactly as the database's holiday_request_owner reads it: the login
+ * linked to the holiday's person, or whoever asked for it when no person is set. Nobody decides
+ * their own holiday (0444, audit F7), so that login is left off the approvers asked to decide it.
+ */
+async function holidayOwnerId(supabase: Db, requestId: string): Promise<string | null> {
+  const { data: req } = await supabase
+    .from("holiday_requests")
+    .select("person_id, requested_by")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!req) return null;
+  if (req.person_id) {
+    const { data: pe } = await supabase
+      .from("people")
+      .select("profile_id")
+      .eq("id", req.person_id as string)
+      .maybeSingle();
+    return (pe?.profile_id as string | null) ?? null;
+  }
+  return (req.requested_by as string | null) ?? null;
+}
+
+/**
  * Who decides a request in this branch, and whether the company has silenced request emails.
- * One list for the first request and for every change asked for afterwards.
+ * One list for the first request and for every change asked for afterwards. The holiday's own
+ * person is never on it, even when they are an approver.
  */
 async function loadApprovers(
   supabase: Db,
   companyId: string,
   branchId: string | null,
+  requestId: string,
 ): Promise<{ approvers: Approver[]; companyName: string | null; emailsEnabled: boolean }> {
   const [{ data: admins }, { data: company }] = await Promise.all([
     supabase
@@ -72,6 +98,7 @@ async function loadApprovers(
     branchId,
     candidates: candidates.map((a) => ({ ...a, id: a.id as string, role: a.role as string })),
     managerIdsInBranch,
+    ownerId: await holidayOwnerId(supabase, requestId),
   }) as Approver[];
   return { approvers, companyName: (company?.name as string | null) ?? null, emailsEnabled };
 }
@@ -185,6 +212,7 @@ export async function notifyHolidayRequested(opts: {
       supabase,
       opts.companyId,
       opts.branchId,
+      opts.requestId,
     );
     if (!emailsEnabled) {
       outcomes.disabled = "holiday_request_emails_disabled_for_company";
@@ -262,6 +290,7 @@ export async function notifyHolidayChangeRequested(opts: {
       supabase,
       opts.companyId,
       opts.branchId,
+      opts.requestId,
     );
     if (!emailsEnabled) {
       outcomes.disabled = "holiday_request_emails_disabled_for_company";

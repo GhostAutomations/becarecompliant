@@ -6,18 +6,16 @@ import BackLink from "@/components/back-link";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import StartReviewButton from "@/components/reg80/start-review-button";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { canEditRegReport, canViewRegReport } from "@/lib/reg73/roles";
 
 export const metadata: Metadata = { title: "Regulation 80 reviews" };
-
-const VIEW_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
-const START_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager"];
 
 export default async function Reg80ListPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   const bw = await getBranchTerms(profile.company_id);
-  if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
-  const canStart = START_ROLES.includes(profile.role);
+  if (!canViewRegReport(profile.role)) redirect("/reports");
+  const canStart = canEditRegReport(profile.role);
 
   const branches = await listAccessibleBranchTypes(profile.company_id, profile.role, user.id);
 

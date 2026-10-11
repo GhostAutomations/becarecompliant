@@ -1,7 +1,8 @@
 import "server-only";
 
 /**
- * Be Care Compliant — Regulation 73 visit reads (RLS scoped).
+ * Be Care Compliant — Regulation 73 visit reads (RLS scoped: Admins and the Registered roles
+ * read every branch's, a Branch Manager their own branches', nobody else; 0444, audit F16).
  */
 
 import { createClient } from "@/lib/supabase/server";

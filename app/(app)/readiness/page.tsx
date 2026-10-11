@@ -24,16 +24,9 @@ import OwnRating from "@/components/framework/own-rating";
 import AddAction from "@/components/framework/add-action";
 import { getSelfRatings } from "@/lib/framework/self-ratings";
 import { GAP_RISK_LABEL, actionText, metricGap } from "@/lib/framework/gaps";
+import { READINESS_ROLES } from "@/lib/framework/roles";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
-
-const ALLOWED = [
-  "platform_admin",
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-];
 
 const REGULATOR_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -114,7 +107,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
   const perfStart = Date.now();
   const { profile } = await timed("rd.requireCompany", requireCompany());
   if (!profile.company_id) redirect("/founder");
-  if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
+  if (!READINESS_ROLES.includes(profile.role)) redirect("/dashboard");
 
   const supabase = await createClient();
   const { data: company } = await supabase

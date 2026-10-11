@@ -5,9 +5,15 @@
  *
  *   requestHoliday        : anyone submits their own request (Holiday Form -> Evidence)
  *                           and a pending holiday_requests row is created.
- *   decideHoliday         : a Manager/Admin approves or declines; decide_holiday_request
+ *   bookHolidayForPerson  : the office books for somebody. An approver's booking is approved;
+ *                           a Supervisor's or Recruiter's, or an approver's own, waits (0444).
+ *   decideHoliday         : an approver approves or declines; decide_holiday_request
  *                           stamps the outcome (a decision, never a form).
- *   amendHoliday, cancelHoliday : the office changes or cancels, with a reason (0438).
+ *   amendHoliday, cancelHoliday : an approver changes or cancels, with a reason (0438).
+ * Approvers (Phil, 11 Oct 2026, audit F7): a Branch Manager for their own branches, the
+ * Responsible Individual, Registered Manager and Admin, the Founder in support mode. Nobody
+ * approves, declines or edits the dates of their own holiday; an approver may cancel their own.
+ * The database holds all of it (0444); the checks here only give a plain answer sooner.
  *   requestHolidayChange, requestHolidayCancel, withdrawHolidayChange : a carer changes or
  *                           cancels their own holiday before it starts (0438).
  *   dismissHolidayNotice  : a carer presses Got it on a portal notice (0438).
@@ -24,6 +30,7 @@ import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { ukDate } from "@/lib/dates";
+import { isHolidayApprover } from "@/lib/notifications/roles";
 import {
   notifyHolidayRequested,
   notifyHolidayDecided,
@@ -174,9 +181,11 @@ export async function requestHoliday(
   return { ok: "Request submitted." };
 }
 
-/** A Manager/Admin books holiday ON BEHALF of a chosen staff member. The manager is
- *  the authority, so it is recorded as approved directly (shows on the calendar).
- *  Completes the Holiday Form as Evidence against that person. */
+/** The office books holiday ON BEHALF of a chosen person, completing the Holiday Form as
+ *  Evidence against them. An approver booking somebody else's holiday is the authority, so it
+ *  is approved straight away (on the calendar). A Supervisor's or Recruiter's booking, or an
+ *  approver's booking of their own holiday, waits for an approver, who is emailed exactly as
+ *  for a carer's request (Phil, 11 Oct 2026). */
 export async function bookHolidayForPerson(
   _prev: ActionState,
   formData: FormData,
@@ -203,7 +212,7 @@ export async function bookHolidayForPerson(
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("full_name, branch_id, company_id")
+    .select("full_name, branch_id, company_id, profile_id")
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That person could not be found." };
@@ -213,21 +222,24 @@ export async function bookHolidayForPerson(
     return { error: "The Holiday Form is not available for your company yet." };
   }
 
-  // Branch Manager and above book directly (approved); a Supervisor's booking is
-  // logged as pending until a Branch Manager or higher approves it.
+  // An approver booking somebody else's holiday books it approved; anyone else's booking, and an
+  // approver's own, is logged as pending until another approver decides it (0444, audit F7).
   //
-  // ASK THE DATABASE, do not restate it. Migration 0206 puts this rule in a BEFORE
-  // INSERT trigger, because until then it lived only here: the INSERT policy never
-  // looked at `status`, so anybody in the company could POST an already approved
-  // holiday for anybody, in any branch. A role list here would answer a different
-  // question from the trigger's for a Branch Manager booking outside their own
-  // branches, and the insert would then be refused AFTER the Evidence was written,
-  // leaving an Evidence row with no request behind it. One source, asked first.
-  const { data: mayApprove } = await supabase.rpc("can_manage_holiday", {
+  // ASK THE DATABASE, do not restate it. The BEFORE INSERT trigger holds this rule (0206, then
+  // 0444), because a role list here would answer a different question from the trigger's for a
+  // Branch Manager booking outside their own branches or for their own record. One source, asked
+  // first, so the message below says what really happened. The trigger turns an "approved" it
+  // would not earn into pending rather than refusing it, so the Evidence is never left without
+  // its request.
+  const { data: mayApprove, error: mayErr } = await supabase.rpc("can_approve_holiday_for", {
     p_company: companyId,
     p_branch: (person.branch_id as string | null) ?? null,
+    p_person: personId,
   });
-  const canApproveOwn = mayApprove === true;
+  if (mayErr) {
+    return { error: `Could not check who may approve this holiday, so nothing was booked: ${mayErr.message}` };
+  }
+  const bookApproved = mayApprove === true;
 
   const result = await submitEvidence({
     formVersionId: form.versionId,
@@ -238,22 +250,43 @@ export async function bookHolidayForPerson(
     recordId: personId,
   });
   if (!result.ok) return { error: result.error };
-  const { error: insErr } = await supabase.from("holiday_requests").insert({
-    company_id: companyId,
-    branch_id: (person.branch_id as string | null) ?? null,
-    person_id: personId,
-    requested_by: user.id,
-    requester_name: person.full_name as string,
-    start_date: startDate,
-    end_date: endDate,
-    status: canApproveOwn ? "approved" : "pending",
-    request_evidence_id: result.evidenceId,
-    decided_by: canApproveOwn ? user.id : null,
-    decided_at: canApproveOwn ? new Date().toISOString() : null,
-  });
-  if (insErr) {
-    return { error: `Evidence was saved, but the booking could not be logged: ${insErr.message}` };
+  const branchId = (person.branch_id as string | null) ?? null;
+  const { data: booked, error: insErr } = await supabase
+    .from("holiday_requests")
+    .insert({
+      company_id: companyId,
+      branch_id: branchId,
+      person_id: personId,
+      requested_by: user.id,
+      requester_name: person.full_name as string,
+      start_date: startDate,
+      end_date: endDate,
+      status: bookApproved ? "approved" : "pending",
+      request_evidence_id: result.evidenceId,
+      decided_by: bookApproved ? user.id : null,
+      decided_at: bookApproved ? new Date().toISOString() : null,
+    })
+    .select("id, status")
+    .single();
+  if (insErr || !booked) {
+    return { error: `Evidence was saved, but the booking could not be logged: ${insErr?.message ?? "no id returned"}` };
   }
+  // What the database saved, not what was asked for: the trigger has the last word.
+  const waiting = booked.status === "pending";
+
+  // A booking that waits tells the approvers, exactly as a carer's own request does (Phil,
+  // 11 Oct 2026). Best effort and idempotent; the company's switch still silences it, and test
+  // companies send nothing.
+  const approverEmails = waiting
+    ? await notifyHolidayRequested({
+        companyId,
+        branchId,
+        requestId: booked.id as string,
+        requesterName: person.full_name as string,
+        startDate,
+        endDate,
+      })
+    : {};
 
   await writeAudit({
     companyId,
@@ -263,12 +296,32 @@ export async function bookHolidayForPerson(
     action: "holiday.booked",
     entityType: "holiday_request",
     entityId: personId,
-    summary: `Booked holiday for ${person.full_name} from ${ukDate(startDate)} to ${ukDate(endDate)}`,
-    metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
+    summary: `Booked holiday for ${person.full_name} from ${ukDate(startDate)} to ${ukDate(endDate)}${waiting ? ", waiting for approval" : ""}`,
+    metadata: {
+      evidence_id: result.evidenceId,
+      start_date: startDate,
+      end_date: endDate,
+      request_id: booked.id,
+      status: booked.status,
+      approver_emails: approverEmails,
+    },
   });
 
   revalidatePath("/people/holiday");
-  return { ok: canApproveOwn ? "Holiday booked." : "Holiday booked, pending approval." };
+  if (!waiting) return { ok: "Holiday booked." };
+  return {
+    ok:
+      person.profile_id === user.id
+        ? "Holiday booked. It is your own, so another approver will decide it."
+        : "Holiday booked, pending approval.",
+  };
+}
+
+/** The plain answer for a role that may not decide or change a holiday in the office. */
+function notAnApprover(what: string): ActionState {
+  return {
+    error: `Only a Branch Manager, the Responsible Individual, the Registered Manager or an Admin can ${what}.`,
+  };
 }
 
 /** The newest history row this person wrote on this holiday: what an email is about. */
@@ -317,7 +370,8 @@ const CHANGE_COLUMNS =
   "company_id, branch_id, requester_name, start_date, end_date, return_to_work_date, status, change_kind, change_reason, previous_start_date, previous_end_date";
 
 /**
- * Approve or decline a holiday request (Branch Manager and above).
+ * Approve or decline a holiday request (an approver, never on their own holiday:
+ * decide_holiday_request refuses that, and its message is shown as it comes).
  *
  * This is a DECISION, not a form. The old Holiday Response form (inherited from
  * Monday.com) made a Manager complete a form to click yes or no; it was deleted
@@ -334,6 +388,7 @@ export async function decideHoliday(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  if (!isHolidayApprover(profile.role)) return notAnApprover("decide a holiday");
   const requestId = String(formData.get("request_id") ?? "");
   if (!requestId) return { error: "Missing request." };
 
@@ -424,8 +479,9 @@ export async function decideHoliday(
 
 /**
  * The office cancels a holiday, pending or approved, with a reason the person sees
- * (Branch Manager and above; cancel_holiday_request enforces it). A carer cancels
- * their own through requestHolidayCancel, which holds the carer's rules.
+ * (an approver, their own holiday included; cancel_holiday_request enforces it). A carer, or
+ * a Supervisor or Recruiter withdrawing a booking they made, goes through requestHolidayCancel,
+ * which holds those rules.
  */
 export async function cancelHoliday(
   _prev: ActionState,
@@ -433,6 +489,7 @@ export async function cancelHoliday(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  if (!isHolidayApprover(profile.role)) return notAnApprover("cancel a holiday here");
   const requestId = String(formData.get("request_id") ?? "");
   if (!requestId) return { error: "Missing holiday." };
   const reason = reasonFrom(formData, "cancel_reason");
@@ -483,13 +540,15 @@ export async function cancelHoliday(
   return { ok: "Holiday cancelled." };
 }
 
-/** The office corrects the dates on a pending or approved holiday, with a reason (Branch Manager and above). */
+/** The office corrects the dates on a pending or approved holiday, with a reason (an approver, never
+ *  on their own holiday: amend_holiday_request refuses that). */
 export async function amendHoliday(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  if (!isHolidayApprover(profile.role)) return notAnApprover("change the dates of a holiday");
   const requestId = String(formData.get("request_id") ?? "");
   if (!requestId) return { error: "Missing holiday." };
   const startDate = isoOrNull(formData.get("start_date"));

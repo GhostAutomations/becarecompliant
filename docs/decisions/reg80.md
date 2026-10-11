@@ -27,3 +27,5 @@ company member, so any login, carers included, could read the rows and download 
   every branch's; a Branch Manager views only their own branches'; nobody else sees them (the
   same roles the screens already allow). The database read rule and both PDF routes are
   narrowed to match in step 7 of the audit fix plan (role limits).
+
+- [built] 0444 (11 Oct 2026): the select policy and the PDF route follow this rule; opening a report on screen writes an audit line (reg73.viewed / reg80.viewed).

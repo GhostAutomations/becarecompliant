@@ -29,6 +29,7 @@ import { eventKindLabel } from "@/lib/holidays/changes";
 import { readmeText, safeFileName, uniquePath, type SarKind } from "./layout";
 import { WORKING_STATUS_LABELS, PROBATION_STATUS_LABELS, RTW_LIMIT_LABELS } from "@/lib/people/types";
 import { SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
+import { carePlanExportName, inCarePlanFolder } from "@/lib/service-users/care-plan-path";
 import { competitorLabel, reasonLabel } from "@/lib/people/leaving";
 
 /** "cards" prints each row as its own set of labelled values: for a section too wide for a table
@@ -386,11 +387,51 @@ export async function buildSubjectAccessExport(input: {
       pdf: "cards",
     });
   } else {
-    // ---- Care plan file and care schedule
-    if (rec.care_plan_path) {
+    // ---- Care plan files (every version, audit F13) and care schedule
+    /* EVERY VERSION IS HELD, SO EVERY VERSION IS DISCLOSED (Phil, 11 Oct 2026: keep every
+       version). A Replace keeps the earlier file, and the database records each one (0444), so
+       the export carries them all, named by upload date and marked current or earlier. The
+       current path is added even without a row, for a file saved before the versions existed. */
+    const { data: cpData } = await db
+      .from("service_user_care_plan_files")
+      .select("storage_path, file_name, uploaded_at, uploaded_by_name, replaced_at")
+      .eq("service_user_id", recordId)
+      .eq("company_id", companyId)
+      .order("uploaded_at", { ascending: true });
+    const carePlanFiles = ((cpData ?? []) as Array<{
+      storage_path: string;
+      file_name: string;
+      uploaded_at: string | null;
+      uploaded_by_name: string | null;
+      replaced_at: string | null;
+    }>).filter((f) => inCarePlanFolder(f.storage_path, companyId, recordId));
+    if (rec.care_plan_path && !carePlanFiles.some((f) => f.storage_path === rec.care_plan_path)) {
       const p = String(rec.care_plan_path);
-      attachments.push({ bucket: EVIDENCE_BUCKET, path: p, folder: "files/care-plan", name: p.split("/").pop() ?? "care-plan.pdf" });
+      carePlanFiles.push({
+        storage_path: p,
+        file_name: p.split("/").pop() ?? "care-plan.pdf",
+        uploaded_at: (rec.care_plan_uploaded_at as string | null) ?? null,
+        uploaded_by_name: null,
+        replaced_at: null,
+      });
     }
+    for (const f of carePlanFiles) {
+      attachments.push({
+        bucket: EVIDENCE_BUCKET,
+        path: f.storage_path,
+        folder: "files/care-plan",
+        name: carePlanExportName({ uploadedAt: f.uploaded_at, fileName: f.file_name, current: !f.replaced_at }),
+      });
+    }
+    sections.push({
+      title: "Care plan files",
+      file: "care-plan-files.csv",
+      headers: ["File", "Uploaded", "Uploaded by", "Replaced", "Current"],
+      rows: carePlanFiles.map((f) => [
+        t(f.file_name), fmtDateTime(f.uploaded_at as string), t(f.uploaded_by_name), fmtDateTime(f.replaced_at as string), yes(!f.replaced_at),
+      ]),
+      empty: "No care plan document was uploaded.",
+    });
     const { data: sched } = await db
       .from("care_plan_entries")
       .select("day_of_week, slot, service, unit, quantity, carers, handed, effective_from, effective_to, position")

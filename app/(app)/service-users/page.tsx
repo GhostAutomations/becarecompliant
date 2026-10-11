@@ -14,6 +14,7 @@ import {
 } from "@/lib/service-users/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { callerPrimaryBranchId } from "@/lib/auth/branches";
 import { pickDefaultBranch } from "@/lib/branches/default-branch";
@@ -85,6 +86,12 @@ export default async function ServiceUsersPage({
 
   console.log(`[perf] su.data ${Date.now() - perfStart}`);
   const canManage = MANAGE_ROLES.includes(profile.role);
+  /* Which cells open Complete (lib/register/complete-offer.ts). Only a Recruiter's Planner
+     bookings count, so nobody else pays for the read. */
+  const completeOffer = {
+    role: profile.role,
+    bookedCheckIds: profile.role === "recruiter" ? [...(await bookedCheckInstanceIds(user.id))] : [],
+  };
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
   return (
@@ -101,6 +108,7 @@ export default async function ServiceUsersPage({
         columnText={columnText}
         reviewIntervalDays={reviewIntervalDays}
         canManage={canManage}
+        completeOffer={completeOffer}
         isAdmin={isAdmin}
         initialView={view ?? "main"}
         initialBranch={pickDefaultBranch(branches, primaryBranchId, branch ?? rememberedBranch)}

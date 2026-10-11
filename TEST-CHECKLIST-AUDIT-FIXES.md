@@ -74,3 +74,78 @@ morning reports gain an 08:00 UTC backup run.
     Phil checks:
     c. The Thistle morning reports arrived at about 07:00, once each.
     Pass: one of each, at 07:00 London. Fail: none, two of the same, or only at 08:00.
+
+---
+
+# Test checklist: role limits (migration 0444, audit step 7, 11 Oct 2026)
+
+Phil's decisions by popup, 11 Oct 2026 (permission-boundaries.md, reg73.md, reg80.md,
+audit-2026-10-decisions.md). Findings F3 (second half), F5, F7, F8, F9, F10, F11, F11b, F13, F16,
+F44, F50, F52, F53, F55, F59, F60, F65, the direct briefing write gap and the three People saves
+that failed silently. THE LIST 46 to 51 are parked and not built.
+
+## Checked by Claude (11 Oct 2026, whole 0444 inside begin ... rollback, Bevan and Demo only)
+
+1. Pass. Every builder's attacks and positive controls re-run together against the whole
+   migration: holidays 57, checks and Evidence 66, schedules and history 56, briefings 43, care
+   plan and Founder login 51, Reg 73, Reg 80, readiness and Planner 108.
+2. Pass. Provisioning a new trial company and a demo company as the Founder, and the full demo
+   seed (50 people, 40 service users, 620 checks, 1,438 Evidence, 185 closed briefings, 9 Planner
+   bookings) run with no refusal. Deleting a login that added a record still works.
+3. Pass. scripts/access-probe.sql for Supervisor, Recruiter, Branch Manager, Registered Manager,
+   On Call, Viewer, carer and Admin: every step 7 row reads "as the tile promises". The leftover
+   mismatches are the ones that were there before step 7 (an Admin with no branch, a carer's own
+   rows, branch counts against company totals, the due reports view).
+4. Pass. Parity, all companies, counts only: 707 checks completed with Evidence, 707 completion
+   dates match, 706 due dates match (the one is a Demo row seeded by demo_check_history), no
+   linked Evidence trips a stand down gate. Replay: 499 Evidence rows, 496 allowed, the 3 refused
+   are all on test companies.
+5. Not tested. After 0444 is applied: run the parity check below in the SQL editor (read only).
+   Expect done_match = linked and due_match = linked less 1.
+
+```sql
+select count(*) linked,
+       count(*) filter (where d.completed_on = ci.last_completed_on) done_match,
+       count(*) filter (where (case when cd.recurring then d.next_due when ci.service_user_id is not null then ci.due_date end) is not distinct from ci.due_date) due_match
+  from public.check_instances ci
+  join public.check_definitions cd on cd.id = ci.definition_id
+  cross join lateral public.check_dates_from_evidence(ci.id, ci.last_evidence_id) d
+ where ci.last_evidence_id is not null;
+```
+
+## For Phil, after 0444 is applied and the deploy is READY (on Bevan, never Thistle)
+
+All Not tested. Bevan is a test company, so no emails or texts are expected.
+
+1. Holidays. As the Bevan Supervisor, open People, Holiday and book a holiday for a carer in your
+   branch: it says "Holiday booked, pending approval" and shows Pending with no Approve, Edit
+   dates or Cancel. As the Bevan Admin, Approve it (it moves onto the calendar), then book one
+   for another carer: it goes straight onto the calendar as approved.
+2. Future dates. As the Bevan Supervisor, Complete a carer's Spot Check dated tomorrow: a message
+   says the date is in the future and everything typed stays. Change it to today with Passed set
+   to Fail and save: the record shows it done today, next due 7 days later.
+3. Appraisal. As the Bevan Admin, complete an Annual Appraisal for a carer dated today: the
+   Appraisal is next due a year from today and Supervision 1 is due 80 days from today.
+4. Briefings. As the Bevan Admin, send a carer a policy, a memo that needs a signature and a memo
+   to confirm, and withdraw a fourth sent by mistake. As the carer, sign and confirm them: the
+   signed copy says "Signed by" the carer. Back as the Admin, Briefings shows them done and the
+   withdrawn one gone.
+5. Start dates and history. As the Bevan Supervisor, move a branch carer's start date on a month
+   and Save: their not yet done checks move by the same month. Then Add a person, tick They
+   already work here, give a Supervision date of tomorrow: a plain message, nothing typed is
+   lost, nobody is added.
+6. Reg 80. As the Bevan carer, paste the live address followed by
+   /api/reports/reg80/49b0aae6-0258-45dc-a664-7c55dec74bff/pdf: one refusal line, no PDF. As the
+   Bevan Admin, open that review and Download: it works (Claude then checks the reg80.viewed line).
+7. Founder address. As the Bevan Admin, invite a Viewer using the Founder's sign in address: "That
+   email address already has a Be Care Compliant login, so it cannot be invited. Please use a
+   different email address for this person." No email arrives; the Founder page still opens.
+8. Care plan versions. As the Bevan Admin, Replace a service user's care plan with a file of the
+   same name: "Care plan uploaded" and View opens the new file. Download the subject access
+   export: files/care-plan holds both files and care-plan-files.csv lists both. Tell Claude which
+   service user, so storage can be checked.
+
+Also, lower risk: a carer's Change dates then Take back on an approved holiday restores it; the
+Admin changes Spot check from 30 to 31 days in Settings and back; the Holiday form sent as a
+briefing and completed by the carer leaves a Pending holiday; the Supervisor's Planner and
+Whiteboard still show their branch's bookings.

@@ -1,7 +1,8 @@
 import "server-only";
 
 /**
- * Be Care Compliant — Regulation 80 review reads (RLS scoped).
+ * Be Care Compliant — Regulation 80 review reads (RLS scoped: Admins and the Registered roles
+ * read every branch's, a Branch Manager their own branches', nobody else; 0444, audit F16).
  * The eligible signatory list is shared with Reg 73 (branch manager and above), so it
  * is imported from lib/reg73/data rather than duplicated.
  */

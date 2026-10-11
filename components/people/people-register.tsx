@@ -8,7 +8,7 @@
  * option navigates. The URL is kept in sync (history.replaceState) for refresh/back.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
@@ -21,6 +21,7 @@ import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/c
 import type { SortMode } from "@/lib/register/name-sort-pref";
 import { useBranchWord } from "@/components/branches/branch-word";
 import { useRememberBranch } from "@/components/register/use-remember-branch";
+import { mayOfferCheckComplete } from "@/lib/register/complete-offer";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; dbsAmber: number; cycleMode: "appraisal" | "four_supervisions"; present?: string[] };
 
@@ -68,6 +69,7 @@ export default function PeopleRegister({
   checkColumns = [],
   columnText = {},
   canManage,
+  completeOffer,
   isAdmin = false,
   initialView,
   initialBranch,
@@ -83,6 +85,9 @@ export default function PeopleRegister({
   /** Cell text keyed by evidence id, for columns pointed at a question on their form. */
   columnText?: Record<string, string>;
   canManage: boolean;
+  /** Who may open Complete from a cell (lib/register/complete-offer.ts): the viewer's role and
+   *  login, and the checks they are booked on the Planner to carry out (only a Recruiter's). */
+  completeOffer: { role: string; userId: string; bookedCheckIds: string[] };
   /** Only a Company Admin can change which columns show + their order. */
   isAdmin?: boolean;
   initialView: string;
@@ -104,6 +109,16 @@ export default function PeopleRegister({
   // Capped on READ as well as on save: whatever the database says, the register never renders
   // more than the limit an Admin was allowed to choose.
   const shownColumns = checkColumns.filter((c) => c.show).slice(0, MAX_REGISTER_COLUMNS);
+  /* A cell links to Complete only when the Complete page will open for this viewer: never on
+     their own row, and for a Recruiter only on a check they are booked to carry out. */
+  const booked = useMemo(() => new Set(completeOffer.bookedCheckIds), [completeOffer.bookedCheckIds]);
+  const mayComplete = (instanceId: string | undefined, personProfileId: string | null) =>
+    !!instanceId &&
+    mayOfferCheckComplete({
+      role: completeOffer.role,
+      ownRecord: !!personProfileId && personProfileId === completeOffer.userId,
+      bookedForThisCheck: booked.has(instanceId),
+    });
 
   const term = search.trim().toLowerCase();
   const filtered = rows.filter(
@@ -229,7 +244,7 @@ export default function PeopleRegister({
               <RegisterMatrix
                 rows={filtered}
                 config={config}
-                editable={canManage}
+                mayComplete={mayComplete}
                 columnLabels={columnLabels}
                 extraColumns={shownColumns}
                 columnText={columnText}

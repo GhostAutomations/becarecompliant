@@ -110,14 +110,19 @@ async function linkPersonToLogin(
 ): Promise<void> {
   try {
     const admin = createServiceClient();
+    /* A login of THIS company that is not the Founder's (audit F11b): the leaver step and Delete
+       person act on the login this link names. The database refuses anything else (0444,
+       zz_person_login_company), so a refusal is written to the log rather than lost. */
     const { data: profile } = await admin
       .from("profiles")
       .select("id")
       .eq("email", email)
       .eq("company_id", companyId)
+      .neq("role", "platform_admin")
       .maybeSingle();
     if (profile?.id) {
-      await admin.from("people").update({ profile_id: profile.id }).eq("id", personId);
+      const { error } = await admin.from("people").update({ profile_id: profile.id }).eq("id", personId);
+      if (error) console.error("[staff] could not link person to login:", error.message);
     }
   } catch (e) {
     // The link is a convenience, not a gate: their holidays simply will not show
@@ -199,10 +204,16 @@ export async function followPersonEmailChange(
     if (!person?.profile_id) return { moved: false, reason: "no_login" };
     const { data: login } = await admin
       .from("profiles")
-      .select("id, email, status, company_id")
+      .select("id, email, status, company_id, role")
       .eq("id", person.profile_id)
       .maybeSingle();
     if (!login) return { moved: false, reason: "no_login" };
+    /* Only a login of the record's own company, and never the Founder's (audit F11b): the sign in
+       address below is rewritten with the service role, so a link pointing anywhere else is treated
+       as no login at all. */
+    if (login.company_id !== person.company_id || login.role === "platform_admin") {
+      return { moved: false, reason: "no_login" };
+    }
     const oldEmail = String(login.email ?? "").trim().toLowerCase();
     // Back to the address the login already has: nothing to move and nothing to say.
     if (!newEmail || newEmail === oldEmail) return { moved: false, reason: "same" };

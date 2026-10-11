@@ -7,6 +7,7 @@ import { expireRecordUpdates, removeRecordUpdateLeftovers } from "@/lib/updates/
 import { expireRecordDocuments, removeRecordDocumentLeftovers } from "@/lib/documents/cleanup";
 import { removeOldSubjectAccessExports } from "@/lib/sar/cleanup";
 import { applyDueLeavings } from "@/lib/people/leaving-apply";
+import { expireCarePlanFiles, removeCarePlanFileLeftovers } from "@/lib/service-users/care-plan";
 
 /**
  * Daily evidence retention: anonymise evidence that is past its retention date.
@@ -77,6 +78,16 @@ export async function GET(request: NextRequest) {
   if (documentFiles.errors.length) {
     console.error("[cron/retention] document files:", documentFiles.errors.join(" | "));
   }
+  /* CARE PLAN FILES, EVERY VERSION (audit F13, 0444): the same retention rule as Documents, then
+     the files whose rows have gone (the service user was deleted, or retention erased them). */
+  const carePlanExpiry = await expireCarePlanFiles();
+  if (carePlanExpiry.error) {
+    console.error("[cron/retention] care plan expiry:", carePlanExpiry.error);
+  }
+  const carePlanFiles = await removeCarePlanFileLeftovers();
+  if (carePlanFiles.errors.length) {
+    console.error("[cron/retention] care plan files:", carePlanFiles.errors.join(" | "));
+  }
   /* SUBJECT ACCESS EXPORTS A DAY OLD (0326): a whole copy of somebody's data, made to be
      downloaded once. The file goes; the row saying one was made stays. */
   const sarExports = await removeOldSubjectAccessExports();
@@ -103,24 +114,25 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, carePlanExpiry, carePlanFiles, sarExports, leavers }, { status: 500 });
   }
   // Same rule for the purge half: a company that was due to be erased and was not is a failed
   // run, and a failed run must not answer 200. A purge that half-completed reports its error
   // here rather than only in the tombstone nobody is watching.
   if (companies.errors.length) {
     console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, carePlanExpiry, carePlanFiles, sarExports, leavers }, { status: 500 });
   }
   // Same rule for the Updates half: special category notes that were due to go and did not is a
-  // failed run, not a quiet one. Documents (0439) follow the same clock, so the same rule.
-  if (updateExpiry.error || documentExpiry.error) {
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers }, { status: 500 });
+  // failed run, not a quiet one. Documents (0439) and care plan files (0444) follow the same
+  // clock, so the same rule.
+  if (updateExpiry.error || documentExpiry.error || carePlanExpiry.error) {
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, carePlanExpiry, carePlanFiles, sarExports, leavers }, { status: 500 });
   }
   /* A body we could not collect is reported, never silent — but it does not fail the run,
      because retention and the purge did their work and a 500 here would hide that. */
   if (emailBodies.errors.length) {
     console.error("[cron/retention] email bodies:", emailBodies.errors.join(" | "));
   }
-  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, sarExports, leavers });
+  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, documentExpiry, documentFiles, carePlanExpiry, carePlanFiles, sarExports, leavers });
 }

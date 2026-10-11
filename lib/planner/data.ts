@@ -403,9 +403,11 @@ export async function listMyBookings(userId: string): Promise<PlannerBookingView
  * The calendar was on the Whiteboard and showed the whole company; the Whiteboard is the board
  * only now (Phil, 2026-08-17) and the calendar moved to the Planner, so it has to keep showing
  * the whole company or the move quietly lost the one grid that answers "who is where this
- * month". RLS scopes it: a Manager or Supervisor sees their branches, company-wide roles see
- * everything. listMyBookings is still what the overdue band reads, because Complete, Move and
- * Cancel are only yours to press.
+ * month". RLS scopes it: a Manager, Supervisor or Recruiter sees the branches they belong to,
+ * company-wide roles see everything, and the conductor and creator see their own. Carers,
+ * Seniors, Viewers and On Call have no Planner and no branch read (0444, audit F50).
+ * listMyBookings is still what the overdue band reads, because Complete, Move and Cancel are
+ * only yours to press.
  */
 export async function listCompanyBookings(
   fromIso: string,

@@ -9,8 +9,8 @@
  *   * evidence.pdf, every completed form in full,
  *   * files/, every attached file in its original form.
  * A Person's export carries their record, checks, evidence, Updates, training, holiday, absence
- * and leaving. A Service User's carries their record, checks, evidence, Updates, care plan, care
- * schedule and outcomes. Complaints, incidents, invoices and the access log are NOT included.
+ * and leaving. A Service User's carries their record, checks, evidence, Updates, every version of
+ * their care plan document (audit F13: a Replace keeps the earlier file), care schedule and outcomes. Complaints, incidents, invoices and the access log are NOT included.
  *
  * The company is the controller and answers the request; the product only gathers. README.txt
  * says so, and says the export must be read for other people's details before it is sent.
@@ -64,7 +64,7 @@ export function zipFileName(recordName: string, dateIso: string): string {
 export function sarSections(kind: SarKind): string[] {
   return kind === "person"
     ? ["Record", "Checks", "Updates", "Documents", "Training", "Holiday", "Holiday changes", "Absence", "Absence meetings", "Leaving", "Evidence"]
-    : ["Record", "Checks", "Updates", "Documents", "Care schedule", "Outcomes", "Outcome notes", "Outcome reviews", "Evidence"];
+    : ["Record", "Checks", "Updates", "Documents", "Care plan files", "Care schedule", "Outcomes", "Outcome notes", "Outcome reviews", "Evidence"];
 }
 
 /** README.txt: what the ZIP holds and what the company must do before sending it. No dashes. */

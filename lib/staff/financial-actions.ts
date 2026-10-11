@@ -12,9 +12,10 @@
  * this to be late for. It files Evidence against the carer's own record and nothing else --
  * a form that cannot be overdue must never make a company look non-compliant.
  *
- * Authorisation needs nothing new: submit_evidence already refuses anyone who is not a
- * member of the company, and the record it is filed against is the caller's OWN, looked up
- * from their profile rather than passed in from the browser. A carer cannot file a
+ * Authorisation: since 0444 submit_evidence asks may_file_evidence, which allows this form on
+ * the caller's own record (and otherwise only to whoever manages the record), and the record it
+ * is filed against is the caller's OWN, looked up from their profile rather than passed in from
+ * the browser. A carer cannot file a
  * transaction against somebody else by editing a form field, because no form field says who.
  */
 

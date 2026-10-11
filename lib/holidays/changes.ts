@@ -12,8 +12,16 @@
  *
  * The database enforces every one of these (request_holiday_change, request_holiday_cancel,
  * withdraw_holiday_change, decide_holiday_request, amend_holiday_request, cancel_holiday_request).
+ * A new holiday can never carry a change in flight: the insert trigger clears the change and
+ * previous columns, and only a change those functions recorded can be taken back (0444, audit F5).
  * This file only decides what to OFFER and what to SAY, so a button is never shown that the
  * database would refuse.
+ *
+ * Who decides (Phil, 11 Oct 2026, audit F7; can_approve_holiday in 0444): a Branch Manager for
+ * their own branches, the Responsible Individual, Registered Manager and Admin for any branch,
+ * the Founder in support mode as an Admin. Supervisors and Recruiters book, and their booking
+ * waits. Nobody approves, declines or edits the dates of their own holiday; an approver may
+ * cancel their own.
  *
  * IMPORTLESS, so it is safe in a client component and tested under the repo's type stripping test
  * runner (which resolves no aliases). That is why the date format below is local: it prints exactly
@@ -126,6 +134,52 @@ export function officeChangeLabel(row: HolidayChangeRow): string | null {
   if (row.change_kind === "amend") return "Change of holiday";
   if (row.change_kind === "cancel") return "Cancellation request";
   return null;
+}
+
+/** The fields that say whose holiday it is. */
+export type HolidayOwnerRow = { person_id: string | null; requested_by: string | null };
+
+/**
+ * Is this holiday the signed in user's own? The database's answer (holiday_request_owner): the
+ * login linked to the holiday's person, or, with no person on it, whoever asked for it. NOT "did I
+ * book it": a manager who booked a carer's holiday still decides that carer's change.
+ */
+export function isOwnHoliday(row: HolidayOwnerRow, myId: string, myPersonIds: readonly string[]): boolean {
+  if (row.person_id) return myPersonIds.includes(row.person_id);
+  return row.requested_by !== null && row.requested_by === myId;
+}
+
+/**
+ * What the office Holiday page offers on one holiday:
+ *   decide (Approve, Decline): an approver for its branch, while it waits, never on their own;
+ *   editDates: the same, on a holiday still waiting or booked;
+ *   cancel, with a reason: an approver for its branch, their own included (cancelling is not
+ *     approving, Phil 11 Oct 2026);
+ *   withdraw: whoever booked it, while it still waits with no change in flight (a Supervisor's or
+ *     Recruiter's booking). Somebody else's holiday whatever its dates, because leave already taken
+ *     is often recorded after it; your own only before it starts. The database says the same
+ *     (request_holiday_cancel, 0444 section 10.9), so the button is never one it would refuse.
+ */
+export function officeHolidayActions(opts: {
+  status: string;
+  /** An approver role, and the holiday is in a branch this login approves for. */
+  approverForBranch: boolean;
+  own: boolean;
+  bookedByMe: boolean;
+  /** A change or cancellation is waiting on it (change_kind). */
+  changeInFlight?: boolean;
+  /** holidayHasStarted, London's today. */
+  started?: boolean;
+}): { decide: boolean; editDates: boolean; cancel: boolean; withdraw: boolean } {
+  const active = opts.status === "pending" || opts.status === "approved";
+  const mayChange = active && opts.approverForBranch && !opts.own;
+  return {
+    decide: mayChange && opts.status === "pending",
+    editDates: mayChange,
+    cancel: active && opts.approverForBranch,
+    withdraw:
+      opts.status === "pending" && opts.bookedByMe && !opts.changeInFlight && (!opts.own || !opts.started),
+  };
 }
 
 function range(start: string | null, end: string | null): string {

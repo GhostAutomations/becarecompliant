@@ -4,15 +4,19 @@ import "server-only";
  * Be Care Compliant — evidence retention, anonymisation and SAR groundwork
  * (Phase 2). Evidence is our most sensitive store (special-category health and
  * social care data under UK GDPR), so retention and erasure are designed in from
- * the start. The heavy wiring (scheduled expiry, SAR export UI) lands later;
- * this module provides the correct primitives.
+ * the start.
+ *
+ * The nightly retention rule is the ONLY way Evidence is emptied, and a retention hold always
+ * stops it. The old Admin helper anonymiseEvidence was removed and anonymise_evidence revoked to
+ * the service role (audit F9, 0444): it ignored holds, wrote no audit line and left the files
+ * behind, and nothing called it. An Admin erasure tool is parked on THE LIST (49).
  *
  * Retention basis: minimum 8 years from a record's end of care, aligning with
  * the IGA / NHS Records Management Code for adult social care records. The clock
  * starts when a record ends (a leaver or a discharged service user), which is
  * why retention_until is null until then and backfilled from Phase 3/4.
  *
- * ITEM 18, 2026-08-11: for a year this module held the rule and NOTHING CALLED ANY OF IT.
+ * THE LIST 18, 2026-08-11: for a year this module held the rule and NOTHING CALLED ANY OF IT.
  * Every evidence row had retention_until null and nothing had ever been anonymised, so
  * evidence was kept for ever. It is wired up now:
  *
@@ -77,63 +81,6 @@ export async function backfillRetentionForRecord(input: {
 }
 
 /**
- * Anonymise a single evidence row (SAR erasure or retention expiry). Collects
- * the storage paths first (the RPC nulls them), invokes the admin-guarded
- * anonymise_evidence RPC, then removes the objects from the private bucket.
- */
-export async function anonymiseEvidence(input: {
-  evidenceId: string;
-  actor: { id: string; email: string; role: string };
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await createClient();
-
-  // 1. Gather the paths to purge before the RPC clears them.
-  const { data: ev } = await supabase
-    .from("evidence")
-    .select("company_id, pdf_path")
-    .eq("id", input.evidenceId)
-    .maybeSingle();
-  const { data: files } = await supabase
-    .from("evidence_files")
-    .select("storage_path")
-    .eq("evidence_id", input.evidenceId);
-
-  const paths = [
-    ...(ev?.pdf_path ? [ev.pdf_path] : []),
-    ...((files ?? []).map((f) => f.storage_path).filter((p): p is string => !!p)),
-    // The cached RENDER of this evidence is a full PDF of it, personal data and all. Erasing
-    // the row and leaving that behind would be erasure in name only.
-    ...(ev?.company_id ? [evidenceRenderPath(ev.company_id, input.evidenceId)] : []),
-    // An absence meeting's outcome letter sits beside its Evidence and holds the same personal data.
-    ...(ev?.company_id ? [outcomeLetterPath(ev.company_id, input.evidenceId)] : []),
-  ];
-
-  // 2. Anonymise the row(s) via the guarded RPC (runs with the caller's auth).
-  const { error } = await supabase.rpc("anonymise_evidence", { p_evidence_id: input.evidenceId });
-  if (error) return { ok: false, error: error.message };
-
-  // 3. Purge the storage objects (service role).
-  await deleteEvidenceObjects(paths);
-  await clearOutcomeLetterText([input.evidenceId]);
-  // The names its cloud drive copies were given (initials, SSID) are cleared from our own tables.
-  if (ev?.company_id) await forgetCloudEvidenceNames(ev.company_id, input.evidenceId);
-
-  await writeAudit({
-    companyId: ev?.company_id ?? null,
-    actorId: input.actor.id,
-    actorEmail: input.actor.email,
-    actorRole: input.actor.role,
-    action: "evidence.anonymised",
-    entityType: "evidence",
-    entityId: input.evidenceId,
-    summary: "Anonymised evidence (SAR erasure or retention expiry)",
-    metadata: { objects_removed: paths.length },
-  });
-
-  return { ok: true };
-}
-
-/**
  * SAR groundwork: gather all evidence for one data subject (a Person or Service
  * User record) for a subject access request export. Admin/Platform only (guarded
  * in the RPC). Returns the evidence rows; the export packaging lands in Phase 8.
@@ -175,7 +122,7 @@ export async function applyRetentionForRecord(input: {
   endOfCare: string | null;
   minYears?: number;
   // The error is RETURNED, not swallowed. A retention clock that silently fails to start, or
-  // silently fails to stop, is the exact failure this whole item exists to remove; the
+  // silently fails to stop, is the exact failure THE LIST 18 existed to remove; the
   // callers put it in the audit row so it is visible after the fact.
 }): Promise<{ updated: number; error?: string }> {
   const supabase = createServiceClient();

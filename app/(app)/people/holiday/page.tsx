@@ -9,7 +9,7 @@ import { listActivePeople } from "@/lib/absence/data";
 import { listHolidayRequests } from "@/lib/holidays/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import HolidayView from "@/components/holidays/holiday-view";
-import { HOLIDAY_APPROVER_ROLES, isCompanyWideRole } from "@/lib/notifications/roles";
+import { isCompanyWideRole, isHolidayApprover } from "@/lib/notifications/roles";
 
 export const metadata: Metadata = { title: "Holiday" };
 
@@ -39,10 +39,9 @@ export default async function HolidayPage() {
   // HOLIDAY_APPROVER_ROLES is the list the approver email uses, so the people
   // told a request is waiting are the people offered a decision. The founder is
   // added here and nowhere else: he has no company, so he is never a recipient.
-  const canApprove =
-    HOLIDAY_APPROVER_ROLES.includes(profile.role) || profile.role === "platform_admin";
+  const canApprove = isHolidayApprover(profile.role);
   // A Branch Manager's authority is their branch, so a request carrying no branch is
-  // not theirs to decide and can_manage_holiday refuses it. listBranches already
+  // not theirs to decide and can_approve_holiday refuses it. listBranches already
   // returns exactly their branches, and every branch for a company wide role.
   const companyWideApprover = isCompanyWideRole(profile.role) || profile.role === "platform_admin";
   const canBookForPerson = canApprove || profile.role === "supervisor" || profile.role === "recruiter";

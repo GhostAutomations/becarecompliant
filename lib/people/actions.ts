@@ -28,6 +28,8 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import { cleanAnswers, formCompletesCheck } from "@/lib/form-validate";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
+import { COMPLETE_REFUSED_TEXT } from "@/lib/register/complete-offer";
 import { closeBookingsForCheck, closeBookingsForTrackerForm } from "@/lib/planner/close-booking";
 import { emailEvidenceCopy, wantsEmailCopy } from "@/lib/evidence/email-copy";
 import type { ActionState } from "@/lib/forms";
@@ -43,6 +45,7 @@ import {
   addDaysIso,
 } from "./logic";
 import { START_GUARDED_KEYS, beforeStartProblem } from "./before-start";
+import { futureDateProblem } from "@/lib/import/future-date";
 import {
   parseProbationPeriod,
   probationFrom,
@@ -116,15 +119,23 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
 
   /* NOT BEFORE THEY STARTED (snag S19): "they already work here" history with a supervision or
      appraisal, or a probation end, dated before the start date is refused before the record is
-     made, so nothing half saves. What was typed stays on the form. */
-  if (start_date && String(formData.get(HISTORY_FLAG) ?? "") === "1") {
+     made, so nothing half saves. What was typed stays on the form.
+     NOT IN THE FUTURE either (audit F60, Phil 11 Oct 2026): a check done "tomorrow" is refused
+     here the same way, for every check and whether or not a start date was given. The database
+     refuses it too, but by then the person would already exist. Tracker dates are not checks. */
+  if (String(formData.get(HISTORY_FLAG) ?? "") === "1") {
     const typedNow: Record<string, string> = {};
     for (const [k, v] of formData.entries()) {
       if (typeof v === "string" && (k.startsWith("done_") || k.startsWith("t_"))) typedNow[k] = v;
     }
     const defsNow = await listPeopleCheckDefinitions(companyId);
     const [labelsNow, modeNow] = await Promise.all([getColumnLabels(companyId), getSupervisionCycleMode(companyId)]);
+    const today = todayIso();
     for (const e of historyEntries(historyBoxes(defsNow, labelsNow, modeNow), typedNow, defsNow)) {
+      for (const d of e.dates) {
+        const future = futureDateProblem(e.name, d, today);
+        if (future) return { error: future };
+      }
       const key = defsNow.find((d: CheckDefinition) => d.id === e.definitionId)?.key ?? "";
       if (!START_GUARDED_KEYS.has(key)) continue;
       for (const d of e.dates) {
@@ -492,14 +503,32 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
    * left behind it is an account attached to nobody, which is exactly the orphan that made
    * re-adding this morning's carer confusing (DEF-037). Best effort — the record is already
    * gone, and a login that outlives it is untidy, not dangerous.
+   *
+   * ONLY A LOGIN THAT IS THIS COMPANY'S, AND NOT AN ADMIN'S (audit F11b, Phil 11 Oct 2026). The
+   * link was trusted, so a record linked to the Founder's login, or to an Admin's, took that login
+   * with it. The login is read again here with the service client: deleted only when it belongs
+   * to this company and is not the Founder or a Company Admin. Admin logins stay managed in
+   * Settings, Users. A login we cannot read is kept, never guessed at.
    */
   let loginRemoved = false;
+  let loginKept: string | null = null;
   if (person.profile_id) {
     try {
       const admin = createServiceClient();
-      const { error } = await admin.auth.admin.deleteUser(person.profile_id as string);
-      loginRemoved = !error;
-      if (error) console.error("[deletePerson] login not removed:", error.message);
+      const { data: login } = await admin
+        .from("profiles")
+        .select("company_id, role")
+        .eq("id", person.profile_id as string)
+        .maybeSingle();
+      const l = login as { company_id: string | null; role: string } | null;
+      if (!l) loginKept = "not_found";
+      else if (l.role === "platform_admin" || l.role === "company_admin") loginKept = "admin_login";
+      else if (l.company_id !== companyId) loginKept = "other_company";
+      else {
+        const { error } = await admin.auth.admin.deleteUser(person.profile_id as string);
+        loginRemoved = !error;
+        if (error) console.error("[deletePerson] login not removed:", error.message);
+      }
     } catch (e) {
       console.error("[deletePerson] login not removed:", (e as Error).message);
     }
@@ -515,11 +544,17 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
     entityId: personId,
     summary: `Deleted ${fullName} from the People register`,
     /* The audit row is what is left of them, so it carries the proof the record was empty. */
-    metadata: { full_name: fullName, footprint, login_removed: loginRemoved },
+    metadata: { full_name: fullName, footprint, login_removed: loginRemoved, login_kept: loginKept },
   });
 
   revalidatePath("/people");
-  return { ok: `${fullName} has been deleted.`, redirectTo: "/people" };
+  return {
+    ok:
+      loginKept === "admin_login"
+        ? `${fullName} has been deleted. Their login was kept because it is an Admin login: manage it in Settings, Users.`
+        : `${fullName} has been deleted.`,
+    redirectTo: "/people",
+  };
 }
 
 /** Edit a Record's identity / employment fields. */
@@ -537,7 +572,7 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   // What the start date was BEFORE this save, so we only reschedule when it actually moved.
   const { data: before } = await supabase
     .from("people")
-    .select("start_date, company_id, job_title, work_email")
+    .select("start_date, company_id, job_title, work_email, profile_id")
     .eq("id", personId)
     .maybeSingle();
   const startMoved = (before?.start_date ?? null) !== startDate;
@@ -633,7 +668,18 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
 
      Only what has not happened yet is touched. A probation already ended keeps its dates,
      because the end actual is a fact and no correction to a start date changes it, and
-     reschedule_check_instances refuses any instance with a completion against it. */
+     reschedule_check_instances refuses any instance with a completion against it.
+
+     NEVER SILENT (audit F59, 2026-10-11). The call's answer used to go unread, so a Supervisor's
+     or a Registered Manager's correction saved the start date while every check kept its old due
+     date and the screen said Saved. Now Supervisors, Recruiters and the Registered roles may
+     re-date the records they may edit (Phil, popup), and if the database still refuses, the
+     start date stays saved and the message says the due dates did not move, and why. On your
+     own record nobody moves a check's due date (Phil, popup), so they are left for another
+     manager to move. */
+  let dueNote = "";
+  const ownRecord = !!before?.profile_id && before.profile_id === user.id;
+  const dueFailures: string[] = [];
   if (startMoved && before?.company_id) {
     const companyId = before.company_id as string;
 
@@ -675,11 +721,21 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       rows.push({ instance_id: i.id, due_date: initialDueDate(def, startDate) });
       byDefinition.set(def.id, rows);
     }
-    for (const [definitionId, rows] of byDefinition) {
-      await supabase.rpc("reschedule_check_instances", {
-        p_definition_id: definitionId,
-        p_rows: rows,
-      });
+    if (ownRecord) {
+      if (byDefinition.size > 0) {
+        dueNote = " This is your own record, so its checks' due dates were not moved. Ask another manager to set them.";
+      }
+    } else {
+      for (const [definitionId, rows] of byDefinition) {
+        const { error: dueErr } = await supabase.rpc("reschedule_check_instances", {
+          p_definition_id: definitionId,
+          p_rows: rows,
+        });
+        if (dueErr) dueFailures.push(dueErr.message);
+      }
+      if (dueFailures.length > 0) {
+        dueNote = ` The start date is saved, but their checks' due dates were not moved: ${dueFailures[0]}`;
+      }
     }
   }
 
@@ -692,11 +748,15 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
     entityType: "person",
     entityId: personId,
     summary: `Updated ${full_name}`,
+    metadata: {
+      start_date_moved: startMoved,
+      ...(startMoved ? { due_dates_moved: !ownRecord && dueFailures.length === 0, due_date_failures: dueFailures } : {}),
+    },
   });
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
-  return { ok: `Saved.${emailNote}` };
+  return { ok: `Saved.${emailNote}${dueNote}` };
 }
 
 /**
@@ -1126,9 +1186,15 @@ export async function applyMissingChecks(
 /** Adjust a People check from Settings: recurring checks store "every X days"
  *  (frequency=day, interval=days); expiry checks (right to work) store the number
  *  of days before the recorded expiry to flag (amber_days). Active toggles it on/off.
- *  Changes apply to future scheduling; the amber window affects RAG immediately. */
+ *  Changes apply to future scheduling; the amber window affects RAG immediately.
+ *
+ *  COMPANY ADMIN ONLY (audit F65, Phil 11 Oct 2026): a check's settings are company wide, so the
+ *  Admin changes them, and the Founder in support mode. The Settings pages were already Admin
+ *  only; this action and the database (check_definitions_update) now say the same. */
 export async function updateCheckDefinition(formData: FormData): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
   const definitionId = String(formData.get("definition_id") ?? "");
   if (!definitionId) return { error: "Missing check." };
 
@@ -1179,8 +1245,23 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("check_definitions").update(patch).eq("id", definitionId);
+  /* Never "Saved" for a save the database turned down (audit F65): a refused update comes back
+     with no error and no row, so the row is asked for and its absence said out loud. */
+  const { data: savedDef, error } = await supabase
+    .from("check_definitions")
+    .update(patch)
+    .eq("id", definitionId)
+    .eq("company_id", companyId)
+    .select("id");
   if (error) return { error: error.message };
+  if (!savedDef || savedDef.length === 0) {
+    return { error: "That check could not be saved. Only a Company Admin can change a check's settings." };
+  }
+  // What the save did not manage to move (the due dates), said with what it did save.
+  let dueNote = "";
+  /* Saved, and only the caller's own record was left (nobody moves the due dates on their own
+     record). That is not a failure, so it comes back as Saved with the note beside it. */
+  let ownNote = "";
 
   // Getting set up (0366): the check settings tick the first time one is saved.
   {
@@ -1206,6 +1287,7 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
     if (defRow) {
       const def = defRow as CheckDefinition;
       let rows: Array<{ instance_id: string; due_date: string | null }> = [];
+      let ownLeft = 0;
       if (def.population === "service_users") {
         // Service User checks anchor on the package start date, not a person start
         // date. Reschedule uncompleted instances via the SU initial-due rule so
@@ -1230,17 +1312,30 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       } else {
         const { data: insts } = await supabase
           .from("check_instances")
-          .select("id, people(start_date)")
+          .select("id, due_date, people(start_date, profile_id)")
           .eq("definition_id", definitionId)
           .is("last_completed_on", null);
         type InstRow = {
           id: string;
-          people: { start_date: string | null } | Array<{ start_date: string | null }> | null;
+          due_date: string | null;
+          people:
+            | { start_date: string | null; profile_id: string | null }
+            | Array<{ start_date: string | null; profile_id: string | null }>
+            | null;
         };
-        rows = ((insts as InstRow[] | null) ?? []).map((i) => {
+        for (const i of (insts as InstRow[] | null) ?? []) {
           const p = Array.isArray(i.people) ? i.people[0] : i.people;
-          return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null) };
-        });
+          const due = initialDueDate(def, p?.start_date ?? null);
+          /* Nobody moves a check's due date on their own record (Phil, 11 Oct 2026). The database
+             leaves such a row as it is; it is left out here too so the note below can say so,
+             and only when the new setting would have moved it (an amber window or on/off change
+             moves no due date, so it says nothing). */
+          if (p?.profile_id && p.profile_id === user.id) {
+            if ((due ?? null) !== (i.due_date ?? null)) ownLeft += 1;
+            continue;
+          }
+          rows.push({ instance_id: i.id, due_date: due });
+        }
       }
       /*
        * AND THE RECORDS THAT HAVE COMPLETED IT. The two branches above deliberately ask
@@ -1268,7 +1363,17 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       }
 
       if (rows.length > 0) {
-        await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
+        /* The answer is read (audit F59): a refused re-date used to say Saved while every due
+           date stayed where the old setting put it. The setting itself is saved either way. */
+        const { error: dueErr } = await supabase.rpc("reschedule_check_instances", {
+          p_definition_id: definitionId,
+          p_rows: rows,
+        });
+        if (dueErr) dueNote = `The setting is saved, but the due dates were not moved: ${dueErr.message}`;
+      }
+      if (ownLeft > 0 && !dueNote) {
+        ownNote =
+          "Your own record's due date was left as it is, because nobody moves the due dates on their own record. Another Admin can save this setting again to move it.";
       }
 
       /* The Annual Appraisal on "after supervision 3" schedules itself off the third
@@ -1280,7 +1385,12 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
          dates that actually differ are sent. */
       if (def.key === "appraisal" && def.population === "people" && def.schedule_mode === "after_sup3") {
         const { backfillAppraisalDueDates } = await import("@/lib/people/appraisal-backfill");
-        await backfillAppraisalDueDates(def.company_id as string);
+        // A backfill the database refuses is said on screen, like the reschedule above.
+        try {
+          await backfillAppraisalDueDates(def.company_id as string);
+        } catch (e) {
+          if (!dueNote) dueNote = `The setting is saved, but the appraisal due dates were not moved: ${(e as Error).message}`;
+        }
       }
     }
   }
@@ -1294,13 +1404,17 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
     entityType: "check_definition",
     entityId: definitionId,
     summary: "Updated a check configuration",
-    metadata: { anchor, patch },
+    metadata: { anchor, patch, ...(dueNote || ownNote ? { due_dates_note: dueNote || ownNote } : {}) },
   });
 
   revalidatePath("/settings/people");
   revalidatePath("/people");
   revalidatePath("/settings/service-users");
   revalidatePath("/service-users");
+  /* A refused re-date comes back as an error, starting with what WAS saved; pressing Save again is
+     harmless. Leaving only your own record is not a refusal: Saved, with the note beside it. */
+  if (dueNote) return { error: dueNote };
+  if (ownNote) return { ok: ownNote };
   return { ok: "Saved" };
 }
 
@@ -1638,9 +1752,13 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
 
   /* PASSING PROBATION SCHEDULES SUPERVISION 1 (snag S18, Phil 3 Oct). Supervision 1 falls due one
      supervision interval after the probation end (supervisionSlots), and the record page drew it,
-     but nothing wrote the stored due date the registers, reminders and Readiness read. Smith Tacho
-     Azang passed on 24 Sep and Readiness listed his supervision as "no due date". Only a supervision
-     never done and with no due date is touched, so an existing schedule is never overwritten. */
+     but nothing wrote the stored due date the registers, reminders and Readiness read. A carer who
+     passed on 24 Sep had their supervision listed by Readiness as "no due date". Only a supervision
+     never done and with no due date is touched, so an existing schedule is never overwritten.
+     Since 0444 the database works the date out itself (stored probation end plus the supervision
+     interval) and refuses on your own record, so its answer is read: a refusal is shown on the form
+     after the save, like a copy that did not send. */
+  let scheduleNote: string | null = null;
   if (
     formKey === "probation_review" &&
     patch.probation_status === "passed" &&
@@ -1659,7 +1777,12 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
       const defRow = Array.isArray(row.check_definitions) ? row.check_definitions[0] : row.check_definitions;
       const supDue = addDaysIso(patch.probation_end_actual, defRow?.interval ?? 90);
       if (supDue) {
-        await supabase.rpc("set_person_check_due", { p_person_id: personId, p_check_key: "supervision", p_due_date: supDue });
+        const { error: supErr } = await supabase.rpc("set_person_check_due", {
+          p_person_id: personId,
+          p_check_key: "supervision",
+          p_due_date: supDue,
+        });
+        if (supErr) scheduleNote = `The probation is saved, but Supervision 1 could not be scheduled: ${supErr.message}`;
       }
     }
   }
@@ -1717,7 +1840,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   revalidatePath("/people");
   /* A copy that did not send is worth stopping for. The Evidence is saved either way, so
      this is a message on the form rather than an error that loses their work. */
-  if (emailNote) return { error: emailNote };
+  if (scheduleNote || emailNote) return { error: [scheduleNote, emailNote].filter(Boolean).join(" ") };
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
   // to a URL with a query string trips Next.js issue #78396 (React #310).
   return { ok: "completed", redirectTo: `/people/${personId}?completed=${encodeURIComponent(spec.title)}` };
@@ -1759,6 +1882,11 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const isSenior = profile.role === "senior";
   if (isSenior && !(await seniorMayDo(instanceId))) {
     return { error: "This check is not one you can complete. Ask your manager if you think it should be." };
+  }
+  /* A RECRUITER completes only the check they are booked on the Planner to carry out (Phil,
+     11 Oct 2026; 0444 refuses the rest). Asked here, before any Evidence is stored, as above. */
+  if (profile.role === "recruiter" && !(await bookedCheckInstanceIds(user.id)).has(instanceId)) {
+    return { error: COMPLETE_REFUSED_TEXT.not_booked };
   }
   /* Where the form goes afterwards: a Senior has no record page, so back to their list. */
   const doneAt = (outcome: "completed" | "recorded" | "history", recordUrl: string) =>

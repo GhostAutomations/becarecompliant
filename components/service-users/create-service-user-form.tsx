@@ -8,8 +8,12 @@ import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function CreateServiceUserForm({
   branches,
+  offerSetup = true,
 }: {
   branches: Array<{ id: string; name: string }>;
+  /** "Add and complete Setup" goes to the Setup Visit's Complete page, so it is not offered to
+   *  someone who cannot complete a check (a Recruiter, Phil 11 Oct 2026). */
+  offerSetup?: boolean;
 }) {
   const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createServiceUser, IDLE_STATE);
@@ -103,9 +107,11 @@ export default function CreateServiceUserForm({
         <button type="submit" name="then" value="record" className="btn-primary" disabled={pending}>
           {pending ? "Adding…" : "Add service user"}
         </button>
-        <button type="submit" name="then" value="setup" className="btn-outline" disabled={pending}>
-          {pending ? "Adding…" : "Add service user and complete Setup"}
-        </button>
+        {offerSetup ? (
+          <button type="submit" name="then" value="setup" className="btn-outline" disabled={pending}>
+            {pending ? "Adding…" : "Add service user and complete Setup"}
+          </button>
+        ) : null}
       </div>
     </form>
   );

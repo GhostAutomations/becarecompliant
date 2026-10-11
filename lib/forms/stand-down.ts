@@ -28,6 +28,8 @@
  * that means something else has to say so with `completesCheck: true`.
  *
  * Pure and self-contained (no imports) so it can be unit tested directly.
+ *
+ * 0444 mirrors the "did it happen" rule in SQL (public.evidence_completes_check), so change both.
  */
 
 /**

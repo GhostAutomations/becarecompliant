@@ -29,7 +29,8 @@ export default async function NewServiceUserPage() {
       </div>
 
       <div className="glass-card p-6">
-        <CreateServiceUserForm branches={branchOptions} />
+        {/* A Recruiter adds service users but completes no checks, the Setup Visit included. */}
+        <CreateServiceUserForm branches={branchOptions} offerSetup={profile.role !== "recruiter"} />
       </div>
     </div>
   );

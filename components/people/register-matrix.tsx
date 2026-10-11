@@ -119,7 +119,7 @@ function WorkingStatusPill({ status }: { status: string }) {
 export default function RegisterMatrix({
   rows,
   config,
-  editable,
+  mayComplete,
   columnLabels,
   extraColumns = [],
   columnText = {},
@@ -129,7 +129,9 @@ export default function RegisterMatrix({
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
-  editable: boolean;
+  /** May this viewer open Complete on this check of this person (lib/register/complete-offer.ts)?
+   *  A cell that may not shows its date with no link, rather than a link that bounces. */
+  mayComplete: (instanceId: string | undefined, personProfileId: string | null) => boolean;
   columnLabels: Record<string, string>;
   /** Custom (non-curated) check columns to render at the right, already ordered + shown-only. */
   extraColumns?: RegisterCheckColumn[];
@@ -440,7 +442,7 @@ export default function RegisterMatrix({
                       recordId={row.person.id}
                       basePath="/people"
                       fromQuery={fromQuery}
-                      editable={editable}
+                      editable={mayComplete(row.statusByKey["audit"]?.instance_id, row.person.profile_id)}
                     />
                   </td> : null}
                   {extraColumns.map((c) => (
@@ -450,7 +452,7 @@ export default function RegisterMatrix({
                         recordId={row.person.id}
                         basePath="/people"
                         fromQuery={fromQuery}
-                        editable={editable}
+                        editable={mayComplete(row.statusByKey[c.key]?.instance_id, row.person.profile_id)}
                         text={cellText(c, row.statusByKey[c.key], columnText)}
                       />
                     </td>

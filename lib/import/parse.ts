@@ -15,7 +15,9 @@ import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
 import { jobTitleOrDefault } from "./job-title";
 import { settleSuppliedDue } from "./supplied-due";
+import { futureDateProblem } from "./future-date";
 import { dbsWarnings, withDbsRenewal } from "@/lib/people/dbs-check";
+import { todayIso } from "@/lib/people/logic";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
 const PROBATION_STATUS = new Set(["passed", "failed", "extended", "due"]);
@@ -169,6 +171,8 @@ export async function validateImport(
   const rows: ParsedRow[] = [];
   const counts = { new: 0, duplicate: 0, error: 0 };
   const seenKeys = new Set<string>();
+  // Today in Europe/London, once for the whole file, so every row is judged against the same day.
+  const today = todayIso();
 
   for (let r = 1; r < grid.length; r++) {
     const cols = grid[r];
@@ -264,6 +268,12 @@ export async function validateImport(
           const problem = beforeStartProblem(c.name, x.done, fields.start_date ?? null);
           if (problem) errors.push(problem);
         }
+      }
+      /* NOT IN THE FUTURE (audit F60, Phil 11 Oct 2026): a completion after today stops the row
+         here, on the preview, rather than at Import. Every check, both registers. */
+      for (const x of filled) {
+        const problem = futureDateProblem(c.name, x.done, today);
+        if (problem) errors.push(problem);
       }
 
       // Newest first, which is the order the commit seeds them in.

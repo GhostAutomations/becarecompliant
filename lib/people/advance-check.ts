@@ -10,6 +10,16 @@ import "server-only";
  * same "after Supervision 3" appraisal. So the scheduling lives here, once, and completeCheck
  * and the paper upload both call it. A copy in each would drift the first time either changed.
  *
+ * THE DATABASE DECIDES THE DATES (0444, audit F8 and F10). complete_check used to store whatever
+ * dates it was sent, with any Evidence or none, so a carer could mark their own Supervision done
+ * and due in 2099. It now works the completion date and the next due date out of the Evidence
+ * itself, with the same rules as the code below (lib/evidence/completion-date.ts, lib/recurrence.ts,
+ * lib/forms/retest.ts), and refuses a form dated in the future or filed on your own record. It
+ * also restarts the supervision cycle after an Appraisal and schedules the "after Supervision 3"
+ * Appraisal, in the same transaction, which used to be two more calls from here that nobody
+ * checked. The dates are still worked out here and sent, so the audit line can say what was
+ * meant, but the due date returned is the one the database stored.
+ *
  * What stays with the callers: the Evidence itself, closing the Planner booking and the audit
  * line, because those differ in wording and in what they record.
  */
@@ -19,7 +29,7 @@ import type { Answers, FormSchema } from "@/lib/form-schema";
 import { retestDue, withRetest } from "@/lib/forms/retest";
 import { parseCivilDate } from "@/lib/recurrence";
 import type { CheckDefinition } from "./types";
-import { nextDueAfterCompletion, addDaysIso } from "./logic";
+import { nextDueAfterCompletion } from "./logic";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -65,42 +75,13 @@ export async function advancePersonCheck(opts: {
     return { ok: false, error: `Evidence was saved, but the check could not be advanced: ${advanceErr.message}` };
   }
 
-  // Completing an Annual Appraisal restarts the supervision cycle: re-anchor the
-  // supervision check so its RAG reflects the new cycle (Sup 1 due = appraisal
-  // completion + supervision interval, none completed yet). The display slots use
-  // the same anchor (supervisionCycleAnchor), so screen and RAG stay in step.
-  if (def.key === "appraisal") {
-    const supDue = addDaysIso(completedOnIso, supInterval);
-    if (supDue) {
-      await supabase.rpc("reanchor_supervision_cycle", {
-        p_person_id: opts.personId,
-        p_due_date: supDue,
-      });
-    }
-  }
-
-  // Completing Supervision 3 schedules an "After Supervision 3" appraisal: due one
-  // supervision interval after the Sup 3 completion, keeping the cycle on cadence.
-  if (def.key === "supervision" && String(answers.supervision_type ?? "") === "3") {
-    const { data: apprDef } = await supabase
-      .from("check_definitions")
-      .select("schedule_mode")
-      .eq("company_id", opts.companyId)
-      .eq("population", "people")
-      .eq("key", "appraisal")
-      .eq("active", true)
-      .maybeSingle();
-    if ((apprDef?.schedule_mode as string | null) === "after_sup3") {
-      const apprDue = addDaysIso(completedOnIso, supInterval);
-      if (apprDue) {
-        await supabase.rpc("set_person_check_due", {
-          p_person_id: opts.personId,
-          p_check_key: "appraisal",
-          p_due_date: apprDue,
-        });
-      }
-    }
-  }
-
-  return { ok: true, nextDue };
+  /* WHAT WAS STORED, for the audit line. Read through the caller's own session: a booked
+     conductor stops seeing the Check once complete_check has closed their booking, and then the
+     date worked out above is what is reported, which the database works out the same way. */
+  const { data: stored } = await supabase
+    .from("check_instances")
+    .select("due_date")
+    .eq("id", opts.instanceId)
+    .maybeSingle();
+  return { ok: true, nextDue: stored ? ((stored.due_date as string | null) ?? null) : nextDue };
 }

@@ -64,6 +64,8 @@ export async function countCompanyContents(companyId: string): Promise<Record<st
     "profiles",
     "people",
     "service_users",
+    // Every version of every care plan document (audit F13, 0444).
+    "service_user_care_plan_files",
     "evidence",
     "check_instances",
     "complaints",
@@ -471,6 +473,19 @@ export async function purgeCompany(input: {
   if (!gone || gone.length === 0) return { ok: false, error: "Nothing was deleted." };
   removed.company = 1;
 
+  /* CARE PLAN FILES (audit F13, 0444). Every version sat under the company folder, so step 1
+     already removed the files themselves, and the cascade took their rows. Each row queued its
+     path for the nightly run as it went; those paths name files that are already gone, so the
+     queue is cleared now rather than leaving the file names of an erased company behind. */
+  {
+    const { count, error } = await supabase
+      .from("care_plan_file_trash")
+      .delete({ count: "exact" })
+      .eq("company_id", company.id);
+    if (error) console.error("[purge] care plan file queue not cleared:", error.message);
+    removed.care_plan_file_queue = count ?? 0;
+  }
+
   // 5. THE LOGINS, now that nothing references them.
   let logins = 0;
   const loginFailures: string[] = [];
@@ -512,7 +527,7 @@ export async function purgeCompany(input: {
 
   // 5. LOOK AT WHAT IS LEFT. A delete that returned no error is not proof that anything went.
   const leftovers: Record<string, number> = {};
-  for (const table of ["people", "service_users", "evidence", "audit_log"]) {
+  for (const table of ["people", "service_users", "service_user_care_plan_files", "care_plan_file_trash", "evidence", "audit_log"]) {
     const { count } = await supabase
       .from(table)
       .select("*", { count: "exact", head: true })

@@ -109,6 +109,21 @@ Built in step 7 of the audit fix plan (role limits), in the database and in `dec
   (a paper upload is THE LIST 50).
 - [stated] Deleting a Person record deletes its linked login only when that login is in the same
   company and is not the Founder or a Company Admin. Admin logins stay managed in Settings, Users.
+- [built] 0444 (audit step 7, 11 Oct 2026): can_approve_holiday (Branch Manager own branches, RI,
+  RM, Admin, Founder) guards deciding, amending and cancelling holidays; deciding and amending
+  refuse your own holiday, cancelling allows it; an approved booking by a Supervisor or Recruiter,
+  or of your own record, lands Pending and the approvers are emailed; a new holiday never carries
+  a change in flight (F5); a holiday decision takes no Evidence. The booker of somebody else's
+  holiday may withdraw it while it waits, whatever its dates.
+- [built] 0444: complete_check needs matching Evidence (same company, record, form, filed by the
+  caller, not already used) and takes its dates from it; nobody completes or re-dates a check on
+  their own record; a check form dated after today (London) is refused. A Recruiter completes a
+  check only when booked on the Planner as its conductor (is_booked_conductor_for_check).
+  submit_evidence files only onto a record in the company that the caller may complete for, or
+  the caller's own record for the carer page's forms. Check definitions change by Admin only.
+- [built] 0444: the Founder login (platform_admin) cannot be changed, invited or linked to a Person
+  from the app or by any signed in user; only a deliberate switch in the Supabase SQL editor.
+  Reg 73 and Reg 80 rows, the readiness history and the Planner are read only by the roles above.
 
 ## Sessions — ONE DESKTOP AND ONE MOBILE, not one (0273, 2026-09-15)
 

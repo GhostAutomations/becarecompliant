@@ -29,12 +29,10 @@ import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, 
 import type { CheckDefinition } from "@/lib/people/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { seniorReaderFor } from "@/lib/senior/access";
+import { checkCompleteRefusal } from "@/lib/register/complete-offer";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Complete check" };
-
-/* A Senior is on the list too (0339), but only for the Checks ticked on their tile: the
-   database answers that per Check (senior_may_do_instance), below. */
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin", "senior"];
 
 export default async function CompleteCheckPage({
   params,
@@ -43,10 +41,19 @@ export default async function CompleteCheckPage({
   params: Promise<{ id: string; instanceId: string }>;
   searchParams: Promise<{ sup?: string }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   const { id, instanceId } = await params;
   const { sup } = await searchParams;
-  if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/people/${id}`);
+  /* WHO MAY COMPLETE (lib/register/complete-offer.ts, the same rule as the record and the register).
+     A Senior is asked per Check below (senior_may_do_instance, 0339). A Recruiter only for the
+     check they are booked on the Planner to carry out (Phil, 11 Oct 2026). Anyone else goes back
+     to the record with the reason, never silently. */
+  const isSenior = profile.role === "senior";
+  if (!isSenior) {
+    const booked = profile.role === "recruiter" && (await bookedCheckInstanceIds(user.id)).has(instanceId);
+    const refused = checkCompleteRefusal({ role: profile.role, ownRecord: false, bookedForThisCheck: booked });
+    if (refused) redirect(`/people/${id}?refused=${refused}`);
+  }
   // Reachable only by typing the URL now that the buttons are hidden, but it is the
   // authoritative half: the save would be refused, so never render the form.
   if (profile.actingAsCompanyId) {
@@ -62,7 +69,6 @@ export default async function CompleteCheckPage({
   /* A SENIOR: asked of the database before anything is read. A Check they may not do sends
      them back to their list; one they may do hands the page a reader for the record's name,
      branch and supervision history, which their own client cannot read (lib/senior/access.ts). */
-  const isSenior = profile.role === "senior";
   let reader: SupabaseClient | undefined;
   if (isSenior) {
     const r = await seniorReaderFor(instanceId);
@@ -92,6 +98,8 @@ export default async function CompleteCheckPage({
   }
 
   const person = await getPerson(id, reader);
+  // Nobody completes a check on their own record (0444 refuses it): back to the record, saying so.
+  if (person && person.profile_id === user.id) redirect(`/people/${id}?refused=own_record`);
   const version = await getPublishedFormVersion(def.form_id);
   if (!version || !isFormSchema(version.schema)) {
     return (

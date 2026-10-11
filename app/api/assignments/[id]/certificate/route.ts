@@ -37,7 +37,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const { data: assignment } = await supabase
     .from("assignments")
     .select(
-      "id, company_id, kind, status, evidence_id, policy_id, policy_version, company_policies:policy_id(title, file_name, storage_path, source), people:person_id(full_name)",
+      "id, company_id, person_id, kind, status, evidence_id, policy_id, policy_version, company_policies:policy_id(title, file_name, storage_path, source), people:person_id(full_name, profile_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -48,10 +48,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: evidence } = await supabase
     .from("evidence")
-    .select("id, answers, submitted_at, author_name, company_id")
+    .select("id, answers, submitted_at, author_id, author_name, company_id, record_type, record_id")
     .eq("id", assignment.evidence_id)
     .maybeSingle();
-  if (!evidence) {
+  // The signature must be on this person's own record (audit F44): a copy is never built from
+  // Evidence filed somewhere else.
+  if (!evidence || evidence.record_type !== "person" || evidence.record_id !== assignment.person_id) {
     return NextResponse.json({ error: "Nothing signed to show." }, { status: 404 });
   }
 
@@ -63,7 +65,15 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     | null;
   const person = (Array.isArray(assignment.people)
     ? assignment.people[0]
-    : assignment.people) as { full_name: string } | null;
+    : assignment.people) as { full_name: string; profile_id: string | null } | null;
+
+  // Filed by a login other than the person's own (audit F44: possible before October 2026, not
+  // since). Said on the page, so it never reads as their own signature. Seeded demo rows have no
+  // author and a person with no login cannot be compared, so neither is marked.
+  const recordedBy =
+    evidence.author_id && person?.profile_id && evidence.author_id !== person.profile_id
+      ? ((evidence.author_name as string | null) ?? "someone in the office")
+      : null;
 
   const admin = createServiceClient();
   const signedVersion = Number(answers["policy_version"] ?? assignment.policy_version ?? 1);
@@ -131,6 +141,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     signaturePng,
     typedSignature: typed,
     reference: evidence.id as string,
+    recordedBy,
   });
 
   await writeAudit({
@@ -142,7 +153,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     entityType: "assignment",
     entityId: id,
     summary: "Downloaded a signed policy",
-    metadata: { evidence_id: evidence.id, version: signedVersion },
+    metadata: { evidence_id: evidence.id, version: signedVersion, recorded_by_someone_else: !!recordedBy },
   });
 
   const safeTitle = ((answers["policy"] as string) ?? policy?.title ?? "policy")

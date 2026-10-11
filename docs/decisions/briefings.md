@@ -31,3 +31,5 @@ Phil: "i didnt want to create a sub department called assignments. i want it to 
 **Test document:** a fake one page policy (Mobile Phones and Social Media, clearly marked TEST DOCUMENT, with tick box, signature and date on the page) lives in the iCloud "Be Care Compliant" folder for issuing tests. It has to be added through Settings, Policies by hand: the policy bytes live in the private evidence bucket and only the service role key can write there, and that key is in Vercel only, never in .env.local, so a policy row can NOT be seeded by SQL alone.
 
 Related: [assignments-policies](assignments-policies.md) [staff-logins](staff-logins.md) [holidays-absence](holidays-absence.md) [the-list](the-list.md)
+
+- [built] 0444 (audit F55 and F44, 11 Oct 2026): a briefing or assigned form closes only through its proper path with matching Evidence; nobody writes the assignments table to close one directly; only the person it was sent to signs a policy or memo (a paper upload is THE LIST 50).

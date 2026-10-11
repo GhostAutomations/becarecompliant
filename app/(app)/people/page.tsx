@@ -15,6 +15,7 @@ import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { callerPrimaryBranchId } from "@/lib/auth/branches";
 import { pickDefaultBranch } from "@/lib/branches/default-branch";
@@ -86,6 +87,13 @@ export default async function PeoplePage({
   );
 
   const canManage = MANAGE_ROLES.includes(profile.role);
+  /* Which cells open Complete (lib/register/complete-offer.ts). Only a Recruiter's Planner
+     bookings count, so nobody else pays for the read. */
+  const completeOffer = {
+    role: profile.role,
+    userId: user.id,
+    bookedCheckIds: profile.role === "recruiter" ? [...(await bookedCheckInstanceIds(user.id))] : [],
+  };
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
@@ -114,6 +122,7 @@ export default async function PeoplePage({
         checkColumns={checkColumns}
         columnText={columnText}
         canManage={canManage}
+        completeOffer={completeOffer}
         isAdmin={isAdmin}
         initialView={view ?? "main"}
         initialBranch={pickDefaultBranch(branches, primaryBranchId, branch ?? rememberedBranch, { allowAll: true })}

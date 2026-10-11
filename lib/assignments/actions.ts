@@ -649,12 +649,13 @@ export async function acknowledgePolicy(
   const { data: assignment } = await supabase
     .from("assignments")
     .select(
-      "id, company_id, person_id, policy_id, policy_version, status, company_policies:policy_id(title, version, file_name), people:person_id(full_name, branch_id)",
+      "id, company_id, person_id, kind, policy_id, policy_version, status, company_policies:policy_id(title, version, file_name), people:person_id(full_name, branch_id, profile_id)",
     )
     .eq("id", assignmentId)
     .maybeSingle();
-  if (!assignment) return { error: "That assignment could not be found." };
-  if (assignment.status !== "assigned") return { error: "That is already signed." };
+  if (!assignment || assignment.kind !== "policy" || !assignment.policy_id) {
+    return { error: "That policy could not be found." };
+  }
 
   const policy = (Array.isArray(assignment.company_policies)
     ? assignment.company_policies[0]
@@ -663,7 +664,14 @@ export async function acknowledgePolicy(
     | null;
   const person = (Array.isArray(assignment.people)
     ? assignment.people[0]
-    : assignment.people) as { full_name: string; branch_id: string | null } | null;
+    : assignment.people) as { full_name: string; branch_id: string | null; profile_id: string | null } | null;
+
+  // Only the person it was sent to signs it (audit F44, Phil 11 Oct 2026). The office can read
+  // other people's briefings, so without this a manager could file a signature in a carer's
+  // name. Checked before anything is filed, so a refusal never leaves Evidence on their record;
+  // complete_assignment refuses the same in the database.
+  if (person?.profile_id !== user.id) return { error: "Only the person it was sent to can sign it." };
+  if (assignment.status !== "assigned") return { error: "That is already signed." };
 
   // The rule that applies is THIS policy's, not the company's (0137).
   const rules = await getEffectivePolicyRules(
@@ -1311,11 +1319,12 @@ export async function completeAssignedForm(
   const supabase = await createClient();
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, company_id, person_id, form_id, status, people:person_id(branch_id, full_name, work_email), forms:form_id(key)")
+    .select("id, company_id, person_id, kind, form_id, status, people:person_id(branch_id, full_name, work_email, profile_id), forms:form_id(key)")
     .eq("id", assignmentId)
     .maybeSingle();
-  if (!assignment) return { error: "That assignment could not be found." };
-  if (assignment.status !== "assigned") return { error: "That is already done." };
+  if (!assignment || assignment.kind !== "form" || !assignment.form_id) {
+    return { error: "That form could not be found." };
+  }
 
   const person = (Array.isArray(assignment.people)
     ? assignment.people[0]
@@ -1323,7 +1332,14 @@ export async function completeAssignedForm(
     branch_id: string | null;
     full_name: string | null;
     work_email: string | null;
+    profile_id: string | null;
   } | null;
+
+  // Only the person it was sent to completes it (audit F55, Phil 11 Oct 2026). Checked before
+  // anything is filed, so a refusal never leaves Evidence or a holiday request on someone
+  // else's record; complete_assignment refuses the same in the database.
+  if (person?.profile_id !== user.id) return { error: "Only the person it was sent to can complete it." };
+  if (assignment.status !== "assigned") return { error: "That is already done." };
 
   // A briefing of the Holiday form must create a real, pending holiday request — not only
   // file Evidence — so approvers are told and it shows in Holiday, exactly like an in-app

@@ -220,6 +220,11 @@ export async function submitIncidentEvidence(_prev: ActionState, formData: FormD
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
+  // The branch office writes a case up. Said before any file is uploaded; since 0444 the database
+  // refuses the form for anyone else too (may_file_evidence).
+  if (!INCIDENTS_ROLES.includes(profile.role)) {
+    return { error: "An incident is written up by the branch office, so your role cannot fill in this form." };
+  }
 
   const incidentId = String(formData.get("incident_id") ?? "").trim();
   const formKey = String(formData.get("form_key") ?? "").trim();

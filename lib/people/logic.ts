@@ -121,6 +121,7 @@ export function probationEndDue(
  * The next due date (and any tracked expiry) after a check's Form is completed.
  * completedOn defaults to today in Europe/London. For expiry-anchored checks the
  * expiry is read from the form answer named by the definition's expiry_field_key.
+ * 0444 mirrors this rule in SQL (public.check_dates_from_evidence), so change both.
  */
 export function nextDueAfterCompletion(
   def: CheckDefinition,

@@ -46,6 +46,10 @@ export default function AlreadyHerePanel({
   historyBoxes: HistoryBoxView[];
 }) {
   const [on, setOn] = useState(false);
+  /* A check cannot be recorded as done on a date still to come (audit F60, Phil 11 Oct 2026). The
+     save and the database refuse it; the boxes stop at today in London as a courtesy. They are
+     drawn only once the box is ticked, so this never differs between server and browser. */
+  const todayLondon = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   /* ENHANCED DBS FOLLOWS THE DATE OF ISSUE (Phil, 2026-10-05): the renewal box fills with issue
      + 3 years and keeps following until somebody types their own date. The boxes are not
      controlled, so the last issue date is kept here to tell our date from theirs. */
@@ -131,7 +135,7 @@ export default function AlreadyHerePanel({
               {historyBoxes.map((b) => (
                 <div key={b.name}>
                   <label htmlFor={b.name} className="form-label">{b.label}</label>
-                  <input id={b.name} name={b.name} type="date" />
+                  <input id={b.name} name={b.name} type="date" max={todayLondon} />
                 </div>
               ))}
             </div>

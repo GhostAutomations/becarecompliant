@@ -59,6 +59,8 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [pending, startTransition] = useTransition();
   const [saved, flash, reset] = useSavedFlash();
   const [error, setError] = useState<string | null>(null);
+  /* Saved, with something to say beside it (only your own record's due date was left). */
+  const [note, setNote] = useState<string | null>(null);
 
   const [active, setActive] = useState(def.active);
   /* A one-off check is due BEFORE its anchor, so the box asks for a plain positive
@@ -102,9 +104,11 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       const res = await updateCheckDefinition(fd);
       if (res.error) {
         setError(res.error);
+        setNote(null);
         reset();
       } else {
         setError(null);
+        setNote(res.ok && res.ok !== "Saved" ? res.ok : null);
         flash();
         router.refresh();
       }
@@ -290,9 +294,15 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       ) : null}
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-        <p className="form-error mt-0" role="alert">
-          {error ?? ""}
-        </p>
+        {error ? (
+          <p className="form-error mt-0" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="form-hint mt-0" role="status">
+            {note ?? ""}
+          </p>
+        )}
         <button
           type="button"
           onClick={save}

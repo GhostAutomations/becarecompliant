@@ -10,9 +10,14 @@
  *  - Approving is a DECISION, not a form. The Holiday Response form was deleted
  *    in migration 0129: Approve is one click, Decline asks for a reason. Never
  *    reintroduce a form for the yes or no.
- *  - Plans change, so a Manager can cancel a pending or approved holiday and can
+ *  - Plans change, so an approver can cancel a pending or approved holiday and can
  *    correct its dates, and the person who submitted it in the app can withdraw
  *    their own while it is still pending (migration 0130 enforces all of that).
+ *  - Approvers (Phil, 11 Oct 2026, audit F7, 0444): a Branch Manager for their own
+ *    branches, the Responsible Individual, Registered Manager and Admin. A Supervisor or
+ *    Recruiter books, and the booking waits; they keep Withdraw on it. On their OWN holiday
+ *    an approver is offered only Cancel (and Withdraw on what they booked): another
+ *    approver decides it or moves its dates (officeHolidayActions).
  *  - 0438 (Phil, 2026-10-09): every edit and cancel carries a reason the person sees,
  *    and a carer's own change or cancellation of an approved holiday arrives here in
  *    Pending requests as a "Change of holiday" or a "Cancellation request", decided
@@ -39,7 +44,7 @@ import {
   amendHoliday,
   requestHolidayCancel,
 } from "@/lib/holidays/actions";
-import { officeChangeLabel } from "@/lib/holidays/changes";
+import { holidayHasStarted, londonTodayIso, officeChangeLabel, officeHolidayActions } from "@/lib/holidays/changes";
 import { useBranchWord } from "@/components/branches/branch-word";
 
 const HOLIDAY_HIDE_FOR_PERSON = [
@@ -78,18 +83,18 @@ function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): b
  */
 type ActionMode = "none" | "decline" | "dates" | "cancel";
 
+type OfficeActions = ReturnType<typeof officeHolidayActions>;
+
 function RequestActions({
   request,
-  canManage,
-  canWithdraw,
+  actions,
   initialMode = "none",
   onChoose,
 }: {
   request: HolidayRequestRow;
-  /** Branch Manager and above: decide, amend, cancel. */
-  canManage: boolean;
-  /** This user submitted it and it is still pending. */
-  canWithdraw: boolean;
+  /** What this login may do to this holiday (officeHolidayActions): decide and edit dates for an
+   *  approver on somebody else's holiday, cancel for an approver, withdraw for whoever booked it. */
+  actions: OfficeActions;
   /** Opened straight onto Edit dates, Decline or Cancel (from a list row). */
   initialMode?: ActionMode;
   /** In a list row: Decline, Edit dates and Cancel open the holiday's popup instead of
@@ -99,6 +104,8 @@ function RequestActions({
   const [mode, setModeState] = useState<ActionMode>(initialMode);
   const setMode = (m: ActionMode) => (m !== "none" && onChoose ? onChoose(m) : setModeState(m));
   const pending = request.status === "pending";
+  /* The office cancel, with a reason, for an approver; otherwise the booker's own withdraw. */
+  const officeCancel = actions.cancel;
 
   if (mode === "decline") {
     return (
@@ -141,7 +148,7 @@ function RequestActions({
              looked as if nothing had happened). */
           onDone={() => setMode("none")}
           /* A pending request can be approved on its new dates in the same press (Phil, 9 Oct). */
-          secondary={pending && request.change_kind !== "cancel" ? { label: "Save and approve", name: "then_approve", value: "1" } : undefined}
+          secondary={actions.decide && pending && request.change_kind !== "cancel" ? { label: "Save and approve", name: "then_approve", value: "1" } : undefined}
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
         >
           <HolidayDateFields
@@ -173,14 +180,14 @@ function RequestActions({
     return (
       <div className="w-full max-w-sm space-y-2">
         <ActionForm
-          action={canManage ? cancelHoliday : requestHolidayCancel}
+          action={officeCancel ? cancelHoliday : requestHolidayCancel}
           hidden={{ request_id: request.id }}
-          label={canManage ? "Cancel this holiday" : "Withdraw my request"}
-          savedLabel={canManage ? "Cancelled" : "Withdrawn"}
+          label={officeCancel ? "Cancel this holiday" : "Withdraw my request"}
+          savedLabel={officeCancel ? "Cancelled" : "Withdrawn"}
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
         >
           <label htmlFor={`cancel-${request.id}`} className="form-label">
-            Reason {canManage ? "(the person will see this)" : ""}
+            Reason {officeCancel && !request.own ? "(the person will see this)" : ""}
           </label>
           <textarea
             id={`cancel-${request.id}`}
@@ -199,7 +206,11 @@ function RequestActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {canManage && pending ? (
+      {request.own && pending ? (
+        /* Their own request: another approver decides it (0444). */
+        <span className="pill pill-amber">Waiting for another approver</span>
+      ) : null}
+      {actions.decide ? (
         <>
           <ActionForm
             action={decideHoliday}
@@ -218,7 +229,7 @@ function RequestActions({
           </button>
         </>
       ) : null}
-      {canManage ? (
+      {actions.editDates ? (
         <button
           type="button"
           className="btn-outline px-3 py-1.5 text-xs"
@@ -227,13 +238,13 @@ function RequestActions({
           Edit dates
         </button>
       ) : null}
-      {canManage || canWithdraw ? (
+      {actions.cancel || actions.withdraw ? (
         <button
           type="button"
           className="btn-ghost px-3 py-1.5 text-xs"
           onClick={() => setMode("cancel")}
         >
-          {canManage ? "Cancel" : "Withdraw"}
+          {actions.cancel ? "Cancel" : "Withdraw"}
         </button>
       ) : null}
     </div>
@@ -254,7 +265,8 @@ export default function HolidayView({
   branches: BranchLite[];
   people: PersonLite[];
   requestSchema: FormSchema | null;
-  /** Branch Manager and above: can approve, decline, amend and cancel. */
+  /** An approver role (isHolidayApprover): can approve, decline, amend and cancel, in the
+   *  branches below and never on their own holiday. */
   canApprove: boolean;
   /** The branches whose requests this user may decide, or null for a company wide
    *  role that may decide any of them. A Branch Manager's authority comes from
@@ -262,17 +274,28 @@ export default function HolidayView({
    *  database refuses it (0206). Without this the button was offered and the
    *  press came back as an error. */
   approvableBranchIds: string[] | null;
-  /** Branch Manager and above + Supervisor: can book a holiday for a person (a
-   *  Supervisor's booking is created pending until approved). */
+  /** An approver, a Supervisor or a Recruiter: can book a holiday for a person (a
+   *  Supervisor's or Recruiter's booking is created pending until approved). */
   canBookForPerson: boolean;
   /** So someone can withdraw their own pending request. */
   currentUserId: string;
 }) {
   const bw = useBranchWord();
-  const canDecide = (r: HolidayRequestRow) =>
+  /** An approver for this holiday's branch (before asking whose holiday it is). */
+  const approverFor = (r: HolidayRequestRow) =>
     canApprove &&
     (approvableBranchIds === null ||
       (r.branch_id !== null && approvableBranchIds.includes(r.branch_id)));
+  const actionsFor = (r: HolidayRequestRow) =>
+    officeHolidayActions({
+      status: r.status,
+      approverForBranch: approverFor(r),
+      own: r.own === true,
+      bookedByMe: r.requested_by === currentUserId,
+      changeInFlight: !!r.change_kind,
+      started: holidayHasStarted(r, londonTodayIso()),
+    });
+  const offersAny = (a: OfficeActions) => a.decide || a.editDates || a.cancel || a.withdraw;
 
   const now = new Date();
   const [branch, setBranch] = useState("");
@@ -489,11 +512,10 @@ export default function HolidayView({
                   ) : null}
                   {r.change_kind === "cancel" ? null : clashLine(r)}
                 </div>
-                {canDecide(r) || r.requested_by === currentUserId ? (
+                {offersAny(actionsFor(r)) ? (
                   <RequestActions
                     request={r}
-                    canManage={canDecide(r)}
-                    canWithdraw={r.requested_by === currentUserId}
+                    actions={actionsFor(r)}
                     onChoose={(m) => openHoliday(r.id, m)}
                   />
                 ) : (
@@ -526,7 +548,7 @@ export default function HolidayView({
                     {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                   </p>
                 </div>
-                <RequestActions request={r} canManage={canDecide(r)} canWithdraw={false} onChoose={(m) => openHoliday(r.id, m)} />
+                <RequestActions request={r} actions={actionsFor(r)} onChoose={(m) => openHoliday(r.id, m)} />
               </li>
             ))}
           </ul>
@@ -667,13 +689,12 @@ export default function HolidayView({
                 {r.status === "declined" && r.decision_note ? <p className="text-xs text-white/60">Reason: {r.decision_note}</p> : null}
                 {r.status === "cancelled" && r.cancel_reason ? <p className="text-xs text-white/60">Reason: {r.cancel_reason}</p> : null}
                 {live && r.change_kind !== "cancel" ? clashLine(r) : null}
-                {live && (canDecide(r) || (r.status === "pending" && r.requested_by === currentUserId)) ? (
+                {live && offersAny(actionsFor(r)) ? (
                   <div className="border-t border-white/10 pt-3">
                     <RequestActions
                       key={`${r.id}:${openMode}`}
                       request={r}
-                      canManage={canDecide(r)}
-                      canWithdraw={r.status === "pending" && r.requested_by === currentUserId}
+                      actions={actionsFor(r)}
                       initialMode={openMode}
                     />
                   </div>

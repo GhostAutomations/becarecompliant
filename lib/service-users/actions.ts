@@ -27,6 +27,8 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, flattenFields, isFormSchema } from "@/lib/form-schema";
 import { formCompletesCheck } from "@/lib/form-validate";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
+import { COMPLETE_REFUSED_TEXT } from "@/lib/register/complete-offer";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
@@ -55,7 +57,8 @@ import { branchName } from "@/lib/people/data";
 
 const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
-import { uploadCarePlanFile, signCarePlan } from "./care-plan";
+import { uploadCarePlanFile, removeUnsavedCarePlanFile, signCarePlan } from "./care-plan";
+import { REGISTER_ROLES } from "@/lib/auth/module-roles";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -185,15 +188,28 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
 
   // Optional Care Plan document uploaded on the Add form. If they do not have it yet
   // they can add it later on the Setup form or the record.
+  /* Only the roles the Care plan page is for (audit F13). Adding the record already needed a
+     Branch lead or company wide role, so this is belt and braces, checked before any file is
+     written. The database records the file as the record's first care plan version (0444). */
   const carePlan = formData.get("care_plan");
-  if (carePlan instanceof File && carePlan.size > 0) {
+  if (carePlan instanceof File && carePlan.size > 0 && REGISTER_ROLES.includes(profile.role)) {
     const up = await uploadCarePlanFile(companyId, su.id, carePlan);
     if (up.ok) {
-      await supabase
+      const { data: saved, error: saveErr } = await supabase
         .from("service_users")
         .update({ care_plan_path: up.path, care_plan_uploaded_at: new Date().toISOString() })
-        .eq("id", su.id);
-      await queueCloudCopy({ companyId, kind: "care_plan", sourceId: su.id, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
+        .eq("id", su.id)
+        .is("care_plan_path", null)
+        .select("id");
+      if (saveErr || !saved || saved.length === 0) {
+        // Not saved, so not recorded: take the file back out rather than leave it unpointed at.
+        await removeUnsavedCarePlanFile(companyId, up.path);
+        console.error("[createServiceUser] care plan not saved:", saveErr?.message ?? "no row updated");
+      } else {
+        await queueCloudCopy({ companyId, kind: "care_plan", sourceId: su.id, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
+      }
+    } else {
+      console.error("[createServiceUser] care plan not uploaded:", up.error);
     }
   }
 
@@ -854,6 +870,11 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   if (isSenior && !(await seniorMayDo(instanceId))) {
     return { error: "This check is not one you can complete. Ask your manager if you think it should be." };
   }
+  /* A RECRUITER completes only the check they are booked on the Planner to carry out (Phil,
+     11 Oct 2026; 0444 refuses the rest). Asked here, before any Evidence is stored, as above. */
+  if (profile.role === "recruiter" && !(await bookedCheckInstanceIds(user.id)).has(instanceId)) {
+    return { error: COMPLETE_REFUSED_TEXT.not_booked };
+  }
   const recordRw = isSenior ? createServiceClient() : supabase;
   const doneAt = (outcome: "completed" | "recorded" | "history", recordUrl: string) =>
     isSenior ? seniorListAfter("service_users", outcome, def.name) : recordUrl;
@@ -1262,10 +1283,27 @@ export async function updateServiceUserColumnLabels(formData: FormData): Promise
   return { ok: "Saved" };
 }
 
-/** Upload (or replace) a Service User's Care Plan document. */
+/**
+ * Upload (or replace) a Service User's Care Plan document.
+ *
+ * AUDIT F13 (10 Oct 2026). This used to check only that the caller could READ the record, then
+ * write the file with the service role BEFORE the record update that RLS might refuse, to a path
+ * named after the file and with upsert on. So a Viewer, or a carer booked on the service user,
+ * could overwrite the stored care plan by uploading a file of the same name, even though their
+ * update was then refused. Now:
+ *   - only the roles the Care plan page is for (REGISTER_ROLES), and only on a record the caller
+ *     may manage (can_manage_service_user, the service_users_update rule), both checked before
+ *     anything is written;
+ *   - each upload goes to a path of its own and never overwrites (care-plan.ts);
+ *   - the earlier file is KEPT (Phil, 11 Oct 2026: "Keep every version"); the database records
+ *     every version (0444), so retention, deletion and a subject access export find it;
+ *   - the save only lands if the care plan is still the one this person saw, so two people
+ *     replacing it at once cannot silently lose the other's file.
+ */
 export async function uploadCarePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  if (!REGISTER_ROLES.includes(profile.role)) return { error: "Your role cannot add or replace a care plan." };
   const suId = String(formData.get("service_user_id") ?? "");
   const file = formData.get("care_plan");
   if (!suId) return { error: "Missing record." };
@@ -1274,43 +1312,60 @@ export async function uploadCarePlan(_prev: ActionState, formData: FormData): Pr
   const supabase = await createClient();
   const { data: su } = await supabase
     .from("service_users")
-    .select("id, company_id")
+    .select("id, company_id, care_plan_path")
     .eq("id", suId)
     .maybeSingle();
   if (!su) return { error: "That record could not be found." };
+  const { data: may, error: mayErr } = await supabase.rpc("can_manage_service_user", { p_service_user_id: suId });
+  if (mayErr) return { error: "Could not check your access just now. Try again." };
+  if (may !== true) return { error: "You cannot change this service user's care plan." };
 
-  const up = await uploadCarePlanFile(su.company_id as string, su.id as string, file);
+  const companyId = su.company_id as string;
+  const previous = (su.care_plan_path as string | null) ?? null;
+  const up = await uploadCarePlanFile(companyId, su.id as string, file);
   if (!up.ok) return { error: up.error };
 
-  const { data, error } = await supabase
+  const update = supabase
     .from("service_users")
     .update({ care_plan_path: up.path, care_plan_uploaded_at: new Date().toISOString() })
-    .eq("id", suId)
-    .select("id");
-  if (error) return { error: error.message };
-  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
-  await queueCloudCopy({ companyId: su.company_id as string, kind: "care_plan", sourceId: su.id as string, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
+    .eq("id", suId);
+  const { data, error } = await (previous ? update.eq("care_plan_path", previous) : update.is("care_plan_path", null)).select("id");
+  if (error || !data || data.length === 0) {
+    // Not saved, so not recorded as a version: the new file comes back out. The earlier one stays.
+    await removeUnsavedCarePlanFile(companyId, up.path);
+    if (error) return { error: error.message };
+    return { error: "No change was saved. The care plan may have just been replaced: open it again and try once more." };
+  }
+  await queueCloudCopy({ companyId, kind: "care_plan", sourceId: su.id as string, dedupeKey: `care_plan:${su.id}:${Date.now()}` });
 
   await writeAudit({
-    companyId: su.company_id as string,
+    companyId,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
     action: "service_user.care_plan_uploaded",
     entityType: "service_user",
     entityId: suId,
-    summary: "Uploaded a care plan document",
+    summary: previous ? "Replaced the care plan document (the earlier file is kept)" : "Uploaded a care plan document",
+    metadata: { replaced: Boolean(previous) },
   });
 
   revalidatePath(`/service-users/${suId}`);
+  revalidatePath(`/service-users/${suId}/care-plan`);
   return { ok: "Care plan uploaded." };
 }
 
-/** Signed URL to view a Service User's Care Plan (RLS-checked read, then service-role sign). */
+/**
+ * Signed URL to view a Service User's Care Plan (RLS-checked read, then service-role sign).
+ * Only the roles the Care plan page is for (audit F13, Phil 11 Oct 2026), on a record they can
+ * see: a Supervisor booked to visit someone in another branch keeps it. Viewers, carers, Seniors
+ * and On Call never: they see the register, never the contents.
+ */
 export async function getCarePlanUrl(
   serviceUserId: string,
 ): Promise<{ url?: string; error?: string }> {
   const { user, profile } = await requireCompany();
+  if (!REGISTER_ROLES.includes(profile.role)) return { error: "Your role cannot open care plan documents." };
   const supabase = await createClient();
   const { data: su } = await supabase
     .from("service_users")

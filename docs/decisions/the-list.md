@@ -244,6 +244,11 @@ The next five were found by the step 7 check of the October audit fixes and park
     deletion and subject access requests find them; showing and opening earlier versions on the
     care plan page comes later.
 
+52. **Removing a demo login that conducts Planner bookings fails** (found proving step 7, parked
+    by Phil, popup 2026-10-11). planner_bookings_conductor_profile_id_fkey has no ON DELETE
+    action, so deleting that login is refused. discardDemoUser only runs before the seed, so the
+    app does not hit it today; purging a whole demo follows its own path.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.

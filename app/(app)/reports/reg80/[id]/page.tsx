@@ -7,17 +7,16 @@ import { getReg80Review } from "@/lib/reg80/data";
 import { listReg73Signatories } from "@/lib/reg73/data";
 import Reg80Form from "@/components/reg80/reg80-form";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { writeAudit } from "@/lib/audit";
+import { canEditRegReport, canViewRegReport } from "@/lib/reg73/roles";
 
 export const metadata: Metadata = { title: "Regulation 80 review" };
-
-const VIEW_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
-const EDIT_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager"];
 
 export default async function Reg80ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   const bw = await getBranchTerms(profile.company_id);
-  if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
+  if (!canViewRegReport(profile.role)) redirect("/reports");
 
   const { id } = await params;
   const review = await getReg80Review(id);
@@ -29,7 +28,21 @@ export default async function Reg80ReviewPage({ params }: { params: Promise<{ id
     listReg73Signatories(profile.company_id),
   ]);
   const branchName = (branch?.name as string) ?? bw.one;
-  const canEdit = EDIT_ROLES.includes(profile.role) && review.status === "draft";
+  const canEdit = canEditRegReport(profile.role) && review.status === "draft";
+
+  /* GDPR: opening a review is audited, not just exporting it (Phil, 11 Oct 2026, audit F16), the
+     same as service_user.viewed. The review holds safeguarding figures and named records. Best
+     effort; never blocks the page. */
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "reg80.viewed",
+    entityType: "reg80_review",
+    entityId: review.id,
+    summary: `Viewed the Regulation 80 review for ${branchName}`,
+  });
 
   return (
     <div className="page-shell space-y-5">

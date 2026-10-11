@@ -78,6 +78,8 @@ import { OutcomeLetterButton } from "@/components/absence/outcome-letter-dialog"
 import { listMeetingLetters, meetingLetterName, type MeetingLetterCopy } from "@/lib/absence/meeting-letter-data";
 import { ensureInvitationCopies } from "@/lib/absence/meeting-letters";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { completeRefusedText, mayOfferCheckComplete } from "@/lib/register/complete-offer";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Record" };
 
@@ -86,7 +88,6 @@ export const metadata: Metadata = { title: "Record" };
    drift is how a tile ends up showing HR sensitive detail to somebody the section itself
    would turn away. */
 const COMPLAINT_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string, size = "") {
@@ -135,11 +136,14 @@ export default async function PersonPage({
     login?: string;
     /** yyyy-mm-dd: opened from a dismissal to make them a leaver on that date (Phil, 2026-10-08). */
     leaver?: string;
+    /** Why a Complete page sent them back (lib/register/complete-offer.ts). Only our own words show. */
+    refused?: string;
   }>;
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, history, from, login: loginBanner, leaver: leaverParam } = await searchParams;
+  const { completed, recorded, history, from, login: loginBanner, leaver: leaverParam, refused } = await searchParams;
+  const refusedText = completeRefusedText(refused);
   const leaverDate = leaverParam && /^\d{4}-\d{2}-\d{2}$/.test(leaverParam) ? leaverParam : null;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
   // only accept in-app /people paths to avoid an open redirect.
@@ -190,7 +194,18 @@ export default async function PersonPage({
   const scwState = scwStatus(person.scw_registration_number ?? null, person.start_date, scwTodayIso);
   const scwRenewal = scwRenewalState(person.scw_renewal_date ?? null, scwTodayIso);
   const supportMode = Boolean(profile.actingAsCompanyId);
-  const canComplete = COMPLETE_ROLES.includes(profile.role) && !supportMode;
+  /* WHO IS OFFERED COMPLETE, per check (lib/register/complete-offer.ts, Phil 2026-10-11, audit
+     step 7). Nobody on their own record; a Recruiter only on the check they are booked on the
+     Planner to carry out, and Recruiters keep the tracker forms (DBS, Right to Work, probation).
+     The database refuses the rest (0444 complete_check), so the button is not offered either. */
+  const bookedChecks = profile.role === "recruiter" ? await bookedCheckInstanceIds(user.id) : new Set<string>();
+  const canComplete = (instanceId: string | null | undefined) =>
+    !supportMode &&
+    mayOfferCheckComplete({
+      role: profile.role,
+      ownRecord: person.profile_id === user.id,
+      bookedForThisCheck: !!instanceId && bookedChecks.has(instanceId),
+    });
   // The audit History timeline is Admins only (Founder + Company Admin).
   const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";
 
@@ -618,10 +633,10 @@ export default async function PersonPage({
               <dd className="text-white/85">{healthDates.week8 ? formatDisplayDate(healthDates.week8) : "—"}</dd>
             </div>
           </dl>
-          {st && def.form_id && canComplete && !probationPassed ? (
+          {st && def.form_id && canComplete(st.instance_id) && !probationPassed ? (
             <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
           ) : null}
-          {st && !def.form_id && canComplete && !probationPassed ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
+          {st && !def.form_id && canComplete(st.instance_id) && !probationPassed ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
         </div>
       );
     }
@@ -642,10 +657,10 @@ export default async function PersonPage({
           )}
           <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
         </dl>
-        {st && def.form_id && canComplete && !settledOneOff ? (
+        {st && def.form_id && canComplete(st.instance_id) && !settledOneOff ? (
           <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
         ) : null}
-        {st && !def.form_id && canComplete && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
+        {st && !def.form_id && canComplete(st.instance_id) && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
       </div>
     );
   };
@@ -662,7 +677,7 @@ export default async function PersonPage({
       href={
         /* Offered while the next appraisal is due and not yet done. This was "no appraisal on file",
            which hid the button from anybody appraised before, however overdue the next one was. */
-        appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.nextDueMet
+        appraisalStatus && appraisalTileDef.form_id && canComplete(appraisalStatus.instance_id) && appraisalReady && !aaSlot.nextDueMet
           ? `/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`
           : null
       }
@@ -725,6 +740,14 @@ export default async function PersonPage({
           </p>
         ) : null}
       </div>
+
+      {/* A Complete page that would not open says why here, rather than the record simply
+          reappearing (step 7 review, 11 Oct 2026). */}
+      {refusedText ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft" role="status">
+          {refusedText}
+        </div>
+      ) : null}
 
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
@@ -820,7 +843,7 @@ export default async function PersonPage({
                   comp={s.comp}
                   ragClass={slotPill(s.rag)}
                   href={
-                    supStatus && supFormId && canComplete && s.n === dueSupN
+                    supStatus && supFormId && canComplete(supStatus.instance_id) && s.n === dueSupN
                       ? `/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`
                       : null
                   }

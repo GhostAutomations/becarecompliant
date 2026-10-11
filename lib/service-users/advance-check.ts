@@ -44,7 +44,8 @@ export async function complexReviewContext(
   };
 }
 
-/** The next due date a completion on this date gives, without writing anything. */
+/** The next due date a completion on this date gives, without writing anything. 0444 mirrors
+ *  the Complex cadence in SQL (public.check_dates_from_evidence), so change both. */
 export async function serviceUserNextDue(opts: {
   supabase: Supabase;
   companyId: string;

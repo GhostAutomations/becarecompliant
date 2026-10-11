@@ -8,8 +8,8 @@
  * Supabase admin client, which no test can load. Both rules below have been
  * wrong at least once and both were defended only by a comment.
  *
- * THE ROLE LIST IS NINE LONG (profiles_role_check), and two of them are easy to
- * forget because they arrived after everything else was written:
+ * THE ROLE LIST IS ELEVEN LONG (profiles_role_check, the Founder included), and two of
+ * them are easy to forget because they arrived after everything else was written:
  * registered_individual (Responsible Individual) and registered_manager
  * (Registered Manager). Both are COMPANY WIDE, exactly like a Company Admin.
  * They received no digest, no chaser and no holiday email at all until
@@ -28,13 +28,25 @@ export const COMPLIANCE_RECIPIENT_ROLES: readonly string[] = [
 ];
 
 /** Who may decide a holiday request, and so who is told one is waiting. A
- *  Supervisor may book a holiday but not approve one, so they are not here. */
+ *  Supervisor or Recruiter may book a holiday but not approve one, so they are not
+ *  here (Phil, 11 Oct 2026, audit F7; can_approve_holiday in the database). */
 export const HOLIDAY_APPROVER_ROLES: readonly string[] = [
   "company_admin",
   "registered_individual",
   "registered_manager",
   "manager",
 ];
+
+/**
+ * May this role approve, decline, edit the dates of or cancel a holiday in the office?
+ * The approver roles plus the Founder, who has no company and so is never emailed (support
+ * mode carries company_admin anyway). A Branch Manager's answer is still only for their own
+ * branches, and nobody decides their own holiday: the database holds both of those
+ * (can_approve_holiday, decide_holiday_request), this only decides what the screen offers.
+ */
+export function isHolidayApprover(role: string): boolean {
+  return HOLIDAY_APPROVER_ROLES.includes(role) || role === "platform_admin";
+}
 
 /**
  * Who can be an SMS escalation recipient, and so who the Settings > Notifications
@@ -95,14 +107,20 @@ export function normaliseRecipientRole(
  * `managerIdsInBranch` is the set of manager profile ids with a user_branches
  * row for this request's branch. Passing an empty set when the branch has no
  * managers is correct and leaves only the company wide roles.
+ *
+ * `ownerId` is the login whose holiday it is (holiday_request_owner). Nobody
+ * decides their own holiday (audit F7, Phil 11 Oct 2026), so they are never
+ * asked to: an approver's own request goes to the other approvers only.
  */
 export function holidayApprovers<T extends { id: string; role: string }>(opts: {
   branchId: string | null;
   candidates: T[];
   managerIdsInBranch: string[];
+  ownerId?: string | null;
 }): T[] {
   const inBranch = new Set(opts.managerIdsInBranch);
   return opts.candidates.filter((c) => {
+    if (opts.ownerId && c.id === opts.ownerId) return false;
     if (isCompanyWideRole(c.role)) return true;
     if (c.role !== "manager") return false;
     return opts.branchId !== null && inBranch.has(c.id);

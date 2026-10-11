@@ -40,6 +40,12 @@ export type SignedCopyMeta = {
   typedSignature?: string | null;
   /** The evidence id, so the page can be traced back to the record. */
   reference: string;
+  /**
+   * Who filed it, when that was not the person named (audit F44). Since October 2026 only the
+   * person a briefing was sent to can close it, so this is never set for a new signature; it
+   * keeps any older row from reading as the person's own signature.
+   */
+  recordedBy?: string | null;
 };
 
 function formatWhen(d: Date): string {
@@ -112,7 +118,9 @@ export async function appendSignaturePage(
   y -= 30;
 
   // The statement, wrapped by hand: pdf-lib has no text flow.
-  const statement = `${meta.signerName} confirmed they had read and understood this policy, ${meta.policyTitle}, version ${meta.policyVersion}, and signed to that effect on ${formatWhen(meta.signedAt)}.`;
+  const statement = meta.recordedBy
+    ? `This was recorded by ${meta.recordedBy}, not signed by ${meta.signerName} in their own login. Policy ${meta.policyTitle}, version ${meta.policyVersion}, recorded on ${formatWhen(meta.signedAt)}.`
+    : `${meta.signerName} confirmed they had read and understood this policy, ${meta.policyTitle}, version ${meta.policyVersion}, and signed to that effect on ${formatWhen(meta.signedAt)}.`;
   const maxWidth = right - left;
   const words = statement.split(" ");
   let line = "";
@@ -137,9 +145,13 @@ export async function appendSignaturePage(
   drawLabelled(page, fonts, left, y, "Policy", meta.policyTitle.slice(0, 46));
   drawLabelled(page, fonts, left + 260, y, "Version", String(meta.policyVersion));
   y -= rowGap;
-  drawLabelled(page, fonts, left, y, "Signed by", meta.signerName);
-  drawLabelled(page, fonts, left + 260, y, "Signed at", formatWhen(meta.signedAt));
+  drawLabelled(page, fonts, left, y, meta.recordedBy ? "Recorded for" : "Signed by", meta.signerName);
+  drawLabelled(page, fonts, left + 260, y, meta.recordedBy ? "Recorded at" : "Signed at", formatWhen(meta.signedAt));
   y -= rowGap;
+  if (meta.recordedBy) {
+    drawLabelled(page, fonts, left, y, "Recorded by", meta.recordedBy);
+    y -= rowGap;
+  }
   drawLabelled(page, fonts, left, y, "Company", meta.companyName);
   drawLabelled(
     page,
@@ -191,7 +203,9 @@ export async function appendSignaturePage(
   page.drawLine({ start: { x: left, y }, end: { x: left + 280, y }, thickness: 0.5, color: MUTED });
   page.drawText(meta.signerName, { x: left, y: y - 14, size: 10, font: regular, color: INK });
 
-  const note = meta.signaturePng && meta.typedSignature
+  const note = meta.recordedBy
+    ? "Recorded in Be Care Compliant by someone other than the person named, so it is not their own signature."
+    : meta.signaturePng && meta.typedSignature
     ? "Signed by hand on a screen and by typing their full name, in Be Care Compliant."
     : meta.signaturePng
     ? "Signed by hand on a screen in Be Care Compliant."

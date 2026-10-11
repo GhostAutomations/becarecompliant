@@ -9,6 +9,7 @@ import { picksABranch, isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
 import { activeLoginHere, activeLoginRefusal, belongsToAnotherCompany, ONE_ACCOUNT_REFUSAL } from "@/lib/invite-one-account";
+import { FOUNDER_ADDRESS_REFUSAL, isFounderLogin } from "@/lib/invite-founder";
 import { foreignLinkError } from "@/lib/companies/links";
 
 export type InviteRole =
@@ -123,17 +124,23 @@ function confirmUrl(tokenHash: string, type: string): string {
  * token. We embed the token_hash in our own confirm URL, not the raw Supabase
  * action link, so verifyOtp can complete the sign in server side.
  */
-/** Does an account with this address already belong to another live company? (DEF-009) */
-async function addressHeldElsewhere(
+/**
+ * Why this address cannot be invited here, or null when it can: the Founder's login (audit F11),
+ * or an account that belongs to another live company (DEF-009).
+ */
+async function addressRefusal(
   admin: ServiceClient,
   email: string,
   targetCompanyId: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const { data: rows } = await admin
     .from("profiles")
-    .select("company_id")
+    .select("company_id, role")
     .ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`));
-  for (const r of ((rows as Array<{ company_id: string | null }> | null) ?? [])) {
+  for (const r of ((rows as Array<{ company_id: string | null; role: string | null }> | null) ?? [])) {
+    /* THE FOUNDER FIRST (audit F11). His login has no company, so the skip below let his address
+       straight through, and the promote further down then moved his account into this company. */
+    if (isFounderLogin(r.role)) return FOUNDER_ADDRESS_REFUSAL;
     if (!r.company_id || r.company_id === targetCompanyId) continue;
     const { data: other } = await admin
       .from("companies")
@@ -147,10 +154,10 @@ async function addressHeldElsewhere(
         targetCompanyId,
       })
     ) {
-      return true;
+      return ONE_ACCOUNT_REFUSAL;
     }
   }
-  return false;
+  return null;
 }
 
 async function generateConfirmUrl(
@@ -291,9 +298,12 @@ export async function createAndSendInvite(
   /* ONE ACCOUNT PER EMAIL, checked BEFORE a link is made (DEF-009). generateLink on an address
      that already has an account mints a sign in token for it and can rewrite its name, and
      neither should happen for a person another company holds. The same check runs again below
-     on the account the link resolved to, in case the address was stored differently. */
-  if (await addressHeldElsewhere(admin, email, p.companyId)) {
-    return { ok: false, error: ONE_ACCOUNT_REFUSAL };
+     on the account the link resolved to, in case the address was stored differently. The
+     Founder's address is refused here too (audit F11), so no sign in token is ever minted for his
+     account and its name is never rewritten. */
+  {
+    const refusal = await addressRefusal(admin, email, p.companyId);
+    if (refusal) return { ok: false, error: refusal };
   }
   /* ALREADY A LIVE LOGIN HERE (DEF-102): refused before any link is made, because making one
      and promoting the profile below would rewrite that person's role, name and status. */
@@ -318,9 +328,13 @@ export async function createAndSendInvite(
      active, and an invited one was silently moved. See lib/invite-one-account.ts. */
   const { data: existing } = await admin
     .from("profiles")
-    .select("company_id, status, full_name")
+    .select("company_id, status, full_name, role")
     .eq("id", link.userId)
     .maybeSingle();
+  // The Founder's login, found by the account the link resolved to (audit F11): never invited.
+  if (isFounderLogin((existing?.role as string | null | undefined) ?? null)) {
+    return { ok: false, error: FOUNDER_ADDRESS_REFUSAL };
+  }
   // The same DEF-102 check on the account the link resolved to, in case the address was stored differently.
   if (
     activeLoginHere({
@@ -375,7 +389,8 @@ export async function createAndSendInvite(
   // Promote the profile to the invited role/company (service role bypasses the
   // protected-fields trigger). Company Admins are implicitly all branches, so
   // only non-admin roles get a user_branches row.
-  const { error: promoteErr } = await admin
+  // Never the Founder's login (audit F11): the database refuses it too (0444, guard_founder_login).
+  const { data: promoted, error: promoteErr } = await admin
     .from("profiles")
     .update({
       company_id: p.companyId,
@@ -384,7 +399,23 @@ export async function createAndSendInvite(
       status: "invited",
       full_name: fullName,
     })
-    .eq("id", link.userId);
+    .eq("id", link.userId)
+    .neq("role", "platform_admin")
+    .select("id");
+  /* Nothing promoted is a failure too: either the login is the Founder's (the database guard
+     answers 42501, or the role filter matched nothing) or the profile was not there. Either way
+     the invites row comes back out, as below, and nothing is sent. */
+  const guardRefused = promoteErr?.code === "42501" && /Founder login/.test(promoteErr.message ?? "");
+  if (guardRefused || (!promoteErr && (!promoted || promoted.length === 0))) {
+    await supabase.from("invites").delete().eq("id", invite.id);
+    const founder = guardRefused || isFounderLogin((existing?.role as string | null | undefined) ?? null);
+    return {
+      ok: false,
+      error: founder
+        ? FOUNDER_ADDRESS_REFUSAL
+        : "The invitation could not be recorded, because that login could not be updated. Try again.",
+    };
+  }
   // The result used to be discarded, so a refused promotion still sent the email and still
   // reported success: the person got an invitation into a company they had not been added to.
   if (promoteErr) {

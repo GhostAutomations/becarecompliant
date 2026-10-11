@@ -39,6 +39,7 @@ import { AI_QUESTION_LIMIT, stripJsonFence, toAiQuestions, type ActionState, typ
 import { getRtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
 import { withRequiredFollowUps } from "@/lib/ai-follow-ups";
 import { changedAnswerNumbers, rtwProvenanceNote } from "@/lib/absence/rtw-questions";
+import { RTW_ROLE_REFUSAL, canRecordReturnToWork } from "./rtw-roles";
 
 // v4: the model writes ALL of the questions. The guardrails below are unchanged from
 // v1, v2 and v3 and must stay that way: never diagnose, never speculate about a medical
@@ -134,6 +135,8 @@ export async function draftReturnToWork(
 ): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  // Not On Call (Phil, 11 Oct 2026): asked before any credit is spent (lib/absence/rtw-roles.ts).
+  if (!canRecordReturnToWork(profile.role)) return { error: RTW_ROLE_REFUSAL };
   const absenceId = String(formData.get("absence_event_id") ?? "");
   if (!absenceId) return { error: "Missing absence." };
 
@@ -243,6 +246,9 @@ export async function recordReturnToWork(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  /* Not On Call (Phil, 11 Oct 2026). The database refuses their Return to Work form too (0444,
+     may_file_evidence); asked here first so the answer is plain and nothing is uploaded. */
+  if (!canRecordReturnToWork(profile.role)) return { error: RTW_ROLE_REFUSAL };
   const absenceId = String(formData.get("absence_event_id") ?? "");
   if (!absenceId) return { error: "Missing absence." };
 

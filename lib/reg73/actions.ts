@@ -16,8 +16,8 @@ import { runAi } from "@/lib/ai/anthropic";
 import { getReg73Prefill, type Reg73Prefill } from "@/lib/reg73/prefill";
 import { REG73_SECTIONS, buildInitialData, reg73DataSummary, REG73_AI_FIELDS } from "@/lib/reg73/spec";
 import type { ActionState } from "@/lib/forms";
+import { canEditRegReport } from "@/lib/reg73/roles";
 
-const RI_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager"];
 const ALL_KEYS = REG73_SECTIONS.flatMap((s) => s.fields.map((f) => f.key));
 
 function collect(formData: FormData): Record<string, string> {
@@ -36,7 +36,7 @@ function collect(formData: FormData): Record<string, string> {
 async function guard() {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." as const };
-  if (!RI_ROLES.includes(profile.role)) {
+  if (!canEditRegReport(profile.role)) {
     return { error: "Only the Responsible Individual or an Admin can run this report." as const };
   }
   return { profile };

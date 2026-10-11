@@ -13,6 +13,7 @@ import { packThemeHeading, packThemePairs } from "@/lib/framework/pack-lines";
 import { narrativeLines } from "@/lib/framework/narrative-text";
 import { resolveReadinessBranch } from "@/lib/framework/branches";
 import { noticeStatusLabel } from "@/lib/framework/notice-status";
+import { READINESS_ROLES } from "@/lib/framework/roles";
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -31,6 +32,13 @@ function fmt(iso: string): string {
 export async function GET(request: Request) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context.", 400);
+  /* THE SAME PEOPLE AS THE PAGE (audit F53 and F67, Phil 11 Oct 2026). The Readiness page turns
+     away anyone outside READINESS_ROLES, but this route only asked for a company, so a Supervisor,
+     Recruiter or On Call login could download the pack, and every download spends an AI credit
+     on the narrative. Refused here, before anything is read or drafted. */
+  if (!READINESS_ROLES.includes(profile.role)) {
+    return exportError("Only Admins, the Registered roles and Branch Managers can download the Inspection Readiness pack.", 403);
+  }
 
   const supabase = await createClient();
   const { data: company } = await supabase

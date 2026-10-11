@@ -37,3 +37,5 @@ Team Member logins increment 2, BUILT 2026-07-26/27. See [staff-logins](staff-lo
 **Follow-ons:** no SMS for briefings (email only). Everything else on the old follow-on list is now built.
 
 Related: [staff-logins](staff-logins.md) [briefings](briefings.md) [policy-signing-ux](policy-signing-ux.md) [phase2-decisions](phase2-decisions.md)
+
+- [built] 0444 (audit F44, 11 Oct 2026): acknowledgePolicy and complete_assignment refuse anyone but the person the policy was sent to.

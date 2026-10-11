@@ -80,3 +80,5 @@ orphaned storage objects (they were orphaned because the DB function was run dir
 object deletion is the route's job) — **worth confirming that bucket is empty afterwards.**
 
 Related: [the-list](the-list.md) [photo-evidence-pdf](photo-evidence-pdf.md) [phase2-decisions](phase2-decisions.md)
+
+- [built] 0444 (audit F9, 11 Oct 2026): anonymise_evidence can be run only by the service role (the nightly job); no Admin can blank Evidence. An erasure tool is THE LIST 49. Replaced care plan files are kept and recorded (service_user_care_plan_files) and follow an 8 year after discharge rule that respects holds; service user deletion, company purge and the subject access export find every version.

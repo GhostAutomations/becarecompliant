@@ -28,6 +28,7 @@ import {
   rtwSmsBody,
   ukMobileToE164,
 } from "@/lib/absence/rtw-questions";
+import { RTW_ROLE_REFUSAL, canRecordReturnToWork } from "./rtw-roles";
 
 function firstName(full: string | null | undefined): string {
   return String(full ?? "").trim().split(/\s+/)[0] ?? "";
@@ -41,6 +42,8 @@ export async function sendRtwQuestions(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  // Part of the Return to Work, which On Call does not hold (Phil, 11 Oct 2026, rtw-roles.ts).
+  if (!canRecordReturnToWork(profile.role)) return { error: RTW_ROLE_REFUSAL };
   const companyId = profile.company_id;
   const absenceId = String(formData.get("absence_event_id") ?? "");
   if (!absenceId) return { error: "Missing absence." };

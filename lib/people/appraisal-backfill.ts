@@ -71,9 +71,11 @@ export async function backfillAppraisalDueDates(companyId: string): Promise<numb
 
   if (changes.length === 0) return 0;
 
-  const { data } = await supabase.rpc("reschedule_check_instances", {
+  const { data, error } = await supabase.rpc("reschedule_check_instances", {
     p_definition_id: appraisalDef.id,
     p_rows: changes,
   });
-  return typeof data === "number" ? data : changes.length;
+  // A refusal is the caller's to show (updateCheckDefinition puts it on the settings screen).
+  if (error) throw new Error(error.message);
+  return typeof data === "number" ? data : 0;
 }

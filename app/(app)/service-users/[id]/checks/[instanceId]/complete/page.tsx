@@ -24,11 +24,10 @@ import type { CheckDefinition } from "@/lib/people/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { seniorReaderFor } from "@/lib/senior/access";
 import { writeAudit } from "@/lib/audit";
+import { checkCompleteRefusal } from "@/lib/register/complete-offer";
+import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Complete check" };
-
-/* A Senior too (0339), for the Checks ticked on their tile only: senior_may_do_instance, below. */
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin", "senior"];
 
 export default async function CompleteServiceUserCheckPage({
   params,
@@ -40,7 +39,16 @@ export default async function CompleteServiceUserCheckPage({
   const { user, profile } = await requireCompany();
   const { id, instanceId } = await params;
   const { rev } = await searchParams;
-  if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
+  /* WHO MAY COMPLETE (lib/register/complete-offer.ts, the same rule as the record and the register).
+     A Senior is asked per Check below (senior_may_do_instance, 0339). A Recruiter only for the
+     check they are booked on the Planner to carry out (Phil, 11 Oct 2026). Anyone else goes back
+     to the record with the reason, never silently. */
+  const isSenior = profile.role === "senior";
+  if (!isSenior) {
+    const booked = profile.role === "recruiter" && (await bookedCheckInstanceIds(user.id)).has(instanceId);
+    const refused = checkCompleteRefusal({ role: profile.role, ownRecord: false, bookedForThisCheck: booked });
+    if (refused) redirect(`/service-users/${id}?refused=${refused}`);
+  }
   if (profile.actingAsCompanyId) {
     return (
       <SupportModeNotice
@@ -54,7 +62,6 @@ export default async function CompleteServiceUserCheckPage({
   /* A SENIOR: the database says whether this Check is theirs before anything is read, and on
      a yes the page gets a reader for the name, address, phone and care plan the form prefills,
      which their own client cannot read (lib/senior/access.ts). */
-  const isSenior = profile.role === "senior";
   let reader: SupabaseClient | undefined;
   if (isSenior) {
     const r = await seniorReaderFor(instanceId);
