@@ -213,3 +213,13 @@ Compliant only, after the queue emptied.
   Absence; Right to Work in Right to Work; Individual Plan Review in Care Plan Review).
 - PASS. Briefings (1 memo) and Incidents (1 report) filled; Policies and Complaints empty because
   Thistle has none yet.
+
+## Audit fix F28 (11 Oct 2026): Bevan off the Thistle Admin's Microsoft account
+
+56. PASS (Phil, 11 Oct 2026, 16:13 London). As Bev Admin: Settings, Cloud drive, Disconnect, OK.
+    Nothing was touched in Microsoft. Read back: Bevan's connection is disconnected, both
+    Microsoft keys deleted, no copies waiting, audit cloud.disconnected. Thistle's connection is
+    still connected, still holds its key, nothing waiting. The Bevan test copies made before today
+    stay in the Thistle Admin's OneDrive (Be Care Compliant never deletes from a drive); Phil may
+    delete that folder there himself. Future Bevan tests connect only to a separate Microsoft 365
+    that holds no customer data.
