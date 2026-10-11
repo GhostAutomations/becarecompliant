@@ -4217,6 +4217,10 @@ Fix plan step 4 (F30, Phil's part): the Microsoft app secret was made 9 Oct 2026
 (TEST-CHECKLIST-CLOUD-DRIVE.md check 57). The app turned out not to be registered in Thistle's
 Microsoft 365, so its settings cannot be opened: the sign in address check (58) and a new home for
 the app go to step 9.
+Fix plan step 5 (F37, Phil's part): Phil, as Thistle's Global Administrator, confirmed only he can
+open the Be Care Compliant folder in Thistle's SharePoint (site visitors and members have no
+access), no sharing links exist, and Microsoft's audit log is on (8 file events found for 10 Oct)
+(TEST-CHECKLIST-CLOUD-DRIVE.md checks 59 to 61). The on screen part of F37 goes to step 10.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

@@ -247,3 +247,21 @@ Compliant only, after the queue emptied.
     can currently change its settings or renew its secret. Phil chose (popup, 11 Oct 2026) to
     sort it out in step 9 of the fix plan (cloud hardening), together with narrowing the app's
     permissions, so Thistle reconnects only once. This check stays NOT TESTED until then.
+
+## Audit fix F37, Phil's part (11 Oct 2026): who can open Thistle's copies in SharePoint
+
+59. PASS (Phil, 11 Oct 2026, checked himself as Thistle's Global Administrator, with Claude
+    Projects' help, before step 5 started). On the Be Care Compliant folder in Thistle's SharePoint
+    site, the site's visitors and members have no access; only Phil can open it. Not checked by
+    Claude (Be Care Compliant may not open a customer's SharePoint). The on screen part of F37 (a
+    tick list before a drive is connected, and rewording the chooser) is raised in step 10.
+60. PASS (Phil, 11 Oct 2026, checked himself). No sharing links have been made on Thistle's
+    SharePoint copies.
+61. PASS (Phil, 11 Oct 2026, in Microsoft Purview, Audit, signed in as Thistle's Global
+    Administrator). The Audit page shows no "Start recording user and admin activity" bar, so the
+    audit log is on (Microsoft: auditing is off by default on Business plans until switched on,
+    https://learn.microsoft.com/en-us/purview/audit-log-enable-disable). Proof: a search named
+    "Audit check" for FileUploaded,FileAccessed on 10 October 2026 (UTC) completed with 8 results,
+    the day Be Care Compliant copied files to Thistle's SharePoint. Audit (Standard) keeps records
+    for 180 days (https://learn.microsoft.com/en-us/purview/audit-solutions-overview), so who opens
+    a copy is recorded in Thistle's Microsoft 365 for six months.
