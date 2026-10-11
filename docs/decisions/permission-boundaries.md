@@ -72,6 +72,17 @@ UPDATE proves nothing, and that mistake was made once here before the RPC was fo
 So **the Registered roles DO have holiday approval** — via `is_company_wide` inside
 `is_branch_manager`, not via a rule of their own.
 
+**Decided by Phil, 11 Oct 2026 (popup, audit F7).** The table above was the agreed rule, but the
+live database later let more in: since 0312 `can_manage_holiday` uses `is_branch_lead`, so a
+Supervisor (own branch) and a Recruiter (every branch) could approve, including their own
+holiday, by posting the action or calling the database. Phil confirmed the rule:
+- [stated] Holidays are approved by a Branch Manager for their own branch, and by the Registered
+  Individual, Registered Manager and Company Admin for any branch (the Founder in support mode as
+  an Admin). Supervisors and Recruiters may book holidays, but what they book stays Pending.
+- [stated] Nobody approves, amends into approved or books as approved a holiday on their own
+  record; another approver must decide it.
+Built in step 7 of the audit fix plan (role limits), in the database and in `decideHoliday`.
+
 ## Sessions — ONE DESKTOP AND ONE MOBILE, not one (0273, 2026-09-15)
 
 ~~Single session: signing in anywhere invalidated every other device.~~ **Superseded by migration

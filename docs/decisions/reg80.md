@@ -20,3 +20,10 @@ LESSONS (permanent):
 Reg 73 and Reg 80 cards share one row in /reports (reordered so they pair; Training report moved below). Nav: the Acme "navy" rail opens the drawer ON HOVER now (navy-nav onMouseEnter setOpen, per-icon onMouseEnter openOn), closes 60ms after leaving.
 
 COLD TESTS logged to TEST-CHECKLIST-REG80.md (prefill accuracy vs a real branch, care/office split, audit-count source, previous-review carry-forward, PDF body, role/RLS gating, multi-branch, delete, empty state, audit trail). Additions item 21 (Incidents/Safeguarding/Whistleblowing log) on [the-list](the-list.md) so Reg 80 can auto-fill those later. See [cardiff-pqs](cardiff-pqs.md), [audit-check](audit-check.md).
+
+**Who sees them, decided by Phil 11 Oct 2026 (popup, audit F16).** The model above said read =
+company member, so any login, carers included, could read the rows and download the PDFs.
+- [stated] Reg 80 Quality of Care Reviews: Company Admin, Registered Individual and Registered Manager see and edit
+  every branch's; a Branch Manager views only their own branches'; nobody else sees them (the
+  same roles the screens already allow). The database read rule and both PDF routes are
+  narrowed to match in step 7 of the audit fix plan (role limits).

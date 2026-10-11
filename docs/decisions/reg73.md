@@ -22,3 +22,10 @@ KEY FIXES LEARNED THIS BUILD (permanent):
 5. SCROLL: the app scrolls inside `<main class=overflow-y-auto>`, NOT the window — `window.scrollTo` is a no-op. Scroll `document.querySelector("main")`. And do NOT `router.refresh()` in the same effect: it re-applies Next's scroll restoration and undoes the scroll (rely on the server action's own revalidation to flip to read-only).
 
 See [cardiff-pqs](cardiff-pqs.md), [tracking-drift](../process/tracking-drift.md).
+
+**Who sees them, decided by Phil 11 Oct 2026 (popup, audit F16).** The model above said read =
+company member, so any login, carers included, could read the rows and download the PDFs.
+- [stated] Reg 73 visit reports: Company Admin, Registered Individual and Registered Manager see and edit
+  every branch's; a Branch Manager views only their own branches'; nobody else sees them (the
+  same roles the screens already allow). The database read rule and both PDF routes are
+  narrowed to match in step 7 of the audit fix plan (role limits).

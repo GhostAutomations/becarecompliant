@@ -4221,6 +4221,11 @@ Fix plan step 5 (F37, Phil's part): Phil, as Thistle's Global Administrator, con
 open the Be Care Compliant folder in Thistle's SharePoint (site visitors and members have no
 access), no sharing links exist, and Microsoft's audit log is on (8 file events found for 10 Oct)
 (TEST-CHECKLIST-CLOUD-DRIVE.md checks 59 to 61). The on screen part of F37 goes to step 10.
+Fix plan step 6 (Phil's decisions, popups): F7, holidays are approved only by a Branch Manager (own
+branch), the Registered Individual, Registered Manager or Company Admin, never by the person whose
+holiday it is; F16, the Reg 73 and Reg 80 reports are seen only by Admins and the Registered roles
+(every branch) and Branch Managers (own branches, view only). Saved in permission-boundaries.md,
+reg73.md and reg80.md; built in step 7.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
