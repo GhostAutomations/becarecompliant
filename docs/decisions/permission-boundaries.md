@@ -82,6 +82,33 @@ holiday, by posting the action or calling the database. Phil confirmed the rule:
 - [stated] Nobody approves, amends into approved or books as approved a holiday on their own
   record; another approver must decide it.
 Built in step 7 of the audit fix plan (role limits), in the database and in `decideHoliday`.
+- [stated] 11 Oct 2026 (popup): an approver MAY cancel their own approved holiday straight from
+  the Holiday page (cancelling is not approving). Approving, amending into approved and booking as
+  approved stay refused on your own record.
+- [stated] 11 Oct 2026 (popup): when a Supervisor or Recruiter books a holiday and it lands Pending,
+  the approvers get the same "request waiting" email a carer's request sends (the company's email
+  switch still silences it; test companies send nothing).
+
+## Own record, check dates and history (Phil, popups 11 Oct 2026, audit step 7)
+
+- [stated] Nobody, whatever their role, completes a check or moves a check's due date on their
+  own People record. Carers keep only the forms their own page offers (holiday request, financial
+  transaction, signing what is sent to them, forms sent to them as a briefing).
+- [stated] A check's form cannot be dated in the future: refused with a plain message, the answers
+  stay on the form. Holiday and absence forms are not checks and keep future dates.
+- [stated] When a Supervisor or Recruiter corrects a start date on a record they may edit (own
+  branch for Supervisors, every branch for Recruiters), that person's not yet done checks are
+  re-dated, as for a Manager.
+- [stated] Check history with no Evidence ("They already work here", the import): Company Admins
+  and the Founder on any record; Managers, Supervisors, Recruiters and the Registered roles only on
+  a person they added within the last hour. Service user history: Admins and the Founder only.
+- [stated] Recruiters are not offered Complete on checks (the database never let them).
+- [stated] On Call is not offered Record return to work; On Call keeps recording absences and
+  absence meetings.
+- [stated] Only the person a policy or briefing was sent to signs it; nobody signs on their behalf
+  (a paper upload is THE LIST 50).
+- [stated] Deleting a Person record deletes its linked login only when that login is in the same
+  company and is not the Founder or a Company Admin. Admin logins stay managed in Settings, Users.
 
 ## Sessions — ONE DESKTOP AND ONE MOBILE, not one (0273, 2026-09-15)
 

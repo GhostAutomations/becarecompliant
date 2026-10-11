@@ -212,6 +212,38 @@ numbered bullets. Add new items to the end as they are agreed.
     drawing the PDF in the browser. To look at with the speed plan (BCC Documents,
     SPEED-PLAN-2026-10-07.md): what the viewer downloads before it shows the first page.
 
+The next five were found by the step 7 check of the October audit fixes and parked by Phil
+(popup, 2026-10-11). None affects live data today.
+
+46. **A booked conductor from another branch cannot file the form.** 0183 promised that being
+    booked to conduct a check is the permission to do it, but submit_evidence still asks for
+    membership of the branch ("Not a member of this branch", proved 11 Oct). 0 live bookings have
+    a conductor outside the subject's branch who is not company wide. To fix: when Evidence is
+    about a record, its branch is the record's branch and the record rule decides.
+
+47. **A person's checks do not move when the person changes branch.** The branch sync triggers
+    move the person but leave their check instances on the old branch.
+
+48. **Done checks are not re-dated when a check's frequency changes.** reschedule_check_instances
+    re-dates checks not yet done; a check completed under the old frequency keeps its old next
+    due date.
+
+49. **An Admin tool to erase a person's Evidence early** (for example a verified right to erasure
+    request). From audit F9: anonymise_evidence was callable by any Admin with no audit line and
+    left the files behind, so it is now service role only (0444). An erasure tool needs Phil's
+    rules first: refuse anything on hold, need a reason, audit in the same step, delete the files
+    and the cached PDF, flag the cloud drive copy.
+
+50. **Uploading a paper signed policy or briefing for a carer with no login.** From audit F44:
+    only the person signs, in their own login (Phil, 11 Oct). A later option: Company Admin only
+    uploads the scan, like Done on paper for Checks, and the signed copy says "Signed on paper,
+    uploaded by" the Admin.
+
+51. **A list of a service user's earlier care plan versions on screen** (Phil, 2026-10-11, audit
+    F13: "Keep every version"). Step 7 keeps every replaced file and records it so retention,
+    deletion and subject access requests find them; showing and opening earlier versions on the
+    care plan page comes later.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
