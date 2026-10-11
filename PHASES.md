@@ -4198,10 +4198,12 @@ Not yet: the second half of F3 (who may file Evidence on which record) goes with
 group; F7 (who approves holidays) and F16 (who sees Reg 73 and 80) need Phil's decision.
 Tests: TEST-CHECKLIST-AUDIT-FIXES.md. 11 Oct: checks 1 to 10 passed on Bevan (Evidence PDF, policy
 and certificate opened by Phil; care plan, complaint, incident report, record document and an
-invite with a branch run by Claude in Phil's Chrome and read back from the database). Still to
-run: opening a signed policy copy (part of 6), and 11 on Monday 26 October (morning reports after
-the clocks go back). Test rows left on Bevan: complaint BC11104, a near miss in Neath, a document
-"Audit fix test (Claude, 11 Oct)" and a pending Viewer invite "Code Test".
+invite with a branch run by Claude in Phil's Chrome and read back from the database). Later the
+same day: a signed policy copy (Gethin Lloyd given a carer login and a policy, Phil signed as him)
+and an incident edit, both passed. Still to run: 11 on Monday 26 October (morning reports after
+the clocks go back), in the Still to test list below. Test rows left on Bevan: complaint BC11104,
+a near miss in Neath, a document "Audit fix test (Claude, 11 Oct)", a pending Viewer invite "Code
+Test", and Gethin Lloyd's carer login (ppdavies+policysign) with one signed policy.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
@@ -4224,6 +4226,10 @@ To test NOW in Phase 13 (never Final Testing). Everything below is deployed and 
 - [ ] **Meeting letter fixes.** Send an absence meeting invitation. Exactly one copy is kept in the
   Evidence history (under Absence), dated the day it was sent; resending the same slot does not
   add a second copy; the letter opens from the history.
+- [ ] **Morning reports after the clocks go back (Monday 26 October 2026, after 08:15 London).**
+  The Thistle morning reports went once each at 07:00 London; the 06:00 UTC run was refused as
+  before 07:00 in London, and the new 08:00 UTC backup sent nothing new. Steps:
+  TEST-CHECKLIST-AUDIT-FIXES.md, check 11.
 
 Also to do, agreed 2026-10-07: tomorrow night, a fresh database export first, then the Supabase
 Micro → Small upgrade, then cut the reads per page, then remove the temporary `[perf]` timings.

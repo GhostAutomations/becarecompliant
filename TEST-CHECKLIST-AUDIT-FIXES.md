@@ -30,15 +30,25 @@ morning reports gain an 08:00 UTC backup run.
 
 5. Pass (Phil, 11 Oct 2026; audit log evidence.downloaded at 15:12 London, no runtime errors).
    Open an Evidence PDF from a person's record: it opens as before.
-6. Pass for the policy (Phil, 11 Oct 2026; policy.opened at 15:12 London); the signed copy not
-   yet tried. Open a policy from Policies, and a signed copy from a person's record: both open.
+6. Pass (policy: Phil, 11 Oct 2026, policy.opened at 15:12 London. Signed copy: 11 Oct 2026, Bevan
+   had no signed policy, so Claude in Phil's Chrome gave Gethin Lloyd (Bevan, Neath) a carer login
+   at ppdavies+policysign@gmail.com and sent him "Mobile Phones and Social Media (test upload)"
+   from Briefings; Phil signed in as Gethin and signed at 15:58 London; Claude opened the signed
+   copy as Bev Admin at 15:59: page 1 the stored document, page 2 the signature page, audit
+   policy.signed_copy_downloaded). Note: the office record has no link to the signed copy; it is
+   linked only from the carer's own page, and the office sees the signature in Evidence history.
+   The policy showed on Gethin's page only after a reload: THE LIST 44.
+   Open a policy from Policies, and a signed copy from a person's record: both open.
 7. Pass (certificate: Phil, 11 Oct 2026, training.certificate_downloaded at 15:13 London; care
    plan: Claude in Phil's Chrome, 15:18 London, the PDF opened from Bevan's own folder and the
    view was audit logged). Open a training certificate and a service user's care plan: both open.
 8. Pass (Claude in Phil's Chrome, 11 Oct 2026, as Bev Admin): complaint BC11104 logged in Neath
    with a Neath service user; a near miss reported through the incident report form in Neath with
    the same service user, its report Evidence filed. Read back: every row in Bevan, branch and
-   service user both Bevan's. Not separately tried: saving the incident edit form.
+   service user both Bevan's. Incident edit form: Pass (Claude in Phil's Chrome, 11 Oct 2026,
+   15:50 London): the immediate action text changed on the test near miss and Save changes
+   turned to Saved; read back, the change is stored, the incident is still Bevan's with Bevan's
+   branch and service user, audit incident.updated.
    Log a complaint and record an incident in a Bevan branch, with a service user: both save.
 9. Pass (Claude in Phil's Chrome, 11 Oct 2026, 15:23 London, as Bev Admin): a one page test PDF
    uploaded on a Bevan person's Documents tile as "Audit fix test (Claude, 11 Oct)", shown in the
@@ -53,6 +63,14 @@ morning reports gain an 08:00 UTC backup run.
     Bevan, its branch link to Neath passed the new user_branches rule. Phil to confirm the email
     arrived (it did). Invite a login with a branch from Settings, Users (test companies only send invites):
     it sends.
-11. Monday 26 October (first morning after the clocks go back): the morning reports arrive at
-    about 07:00 for Thistle, and Vercel shows the 07:00 UTC run sending and the 08:00 UTC run
-    finding nothing left to send.
+11. NOT YET RUN. Due **Monday 26 October 2026**, the first morning after the clocks go back
+    (Sunday 25 October, 02:00 BST becomes 01:00 GMT). Run it that morning, after 08:15 London.
+    Claude checks, read only:
+    a. Vercel runtime logs for `/api/cron/daily-digest` on 26 October: the 06:00 UTC run answers
+       "Before 07:00 in London" (it is 06:00 in London), the 07:00 UTC run sends, the 08:00 UTC
+       run sends nothing new. All answer 200 (a 500 means a send failed: read its failures).
+    b. `notification_log` for 26 October: each Thistle digest and report sent once, at about
+       07:00 London; nothing sent for Bevan or Demo except invites and password resets.
+    Phil checks:
+    c. The Thistle morning reports arrived at about 07:00, once each.
+    Pass: one of each, at 07:00 London. Fail: none, two of the same, or only at 08:00.

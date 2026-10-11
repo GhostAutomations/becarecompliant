@@ -199,6 +199,12 @@ numbered bullets. Add new items to the end as they are agreed.
     no keys for those projects, and the connector guard
     (`.claude/hooks/supabase-project-guard.sh`) already blocks both ids in every connector call.
 
+44. **New briefings appear on a carer's page without a refresh** (Phil, 2026-10-11, during the
+    audit fix tests: "maybe it needs to be a push with no refresh needed, that can be done
+    later"). A policy sent from Briefings showed on the carer's My page (My briefings) only after
+    a reload. To talk through: push it live to the carer's open page, the way the office screens
+    already update through Broadcast (0418).
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
