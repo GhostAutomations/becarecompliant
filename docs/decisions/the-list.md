@@ -205,6 +205,13 @@ numbered bullets. Add new items to the end as they are agreed.
     a reload. To talk through: push it live to the carer's open page, the way the office screens
     already update through Broadcast (0418).
 
+45. **A policy is slow to open on the carer's page** (Phil, 2026-10-11, signing a one page test
+    PDF as a carer: "opening the document took a while considering it is a one page pdf with
+    hardly any text"). Measured: the server handed the file over in about 1.7 seconds (request at
+    14:57:57 UTC, audit row at 14:57:58); the rest of the wait was the document viewer loading and
+    drawing the PDF in the browser. To look at with the speed plan (BCC Documents,
+    SPEED-PLAN-2026-10-07.md): what the viewer downloads before it shows the first page.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
