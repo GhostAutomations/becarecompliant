@@ -42,6 +42,7 @@ import { parseAbout } from "./about";
 import { isLateReason } from "@/lib/framework/gaps";
 import { getRecordUpdates } from "./data";
 import { formatComplaintRef } from "@/lib/complaints/logic";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 import type { RecordUpdates } from "./types";
 
 const BUCKET = "record-updates";
@@ -419,6 +420,8 @@ export async function openUpdateFile(input: { fileId: string }): Promise<{ ok: t
     .maybeSingle();
   const row = data as { storage_path: string; file_name: string; update_id: string; company_id: string } | null;
   if (!row) return { ok: false, error: "That file could not be found." };
+  // Only from this update's own company folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(row.storage_path, row.company_id)) return { ok: false, error: PATH_REFUSED };
 
   const service = createServiceClient();
   const { data: signed, error } = await service.storage

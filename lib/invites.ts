@@ -9,6 +9,7 @@ import { picksABranch, isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
 import { activeLoginHere, activeLoginRefusal, belongsToAnotherCompany, ONE_ACCOUNT_REFUSAL } from "@/lib/invite-one-account";
+import { foreignLinkError } from "@/lib/companies/links";
 
 export type InviteRole =
   | "company_admin"
@@ -278,6 +279,14 @@ export async function createAndSendInvite(
   }
 
   const supabase = await createClient();
+
+  /* The branch must be this company's (audit F2 and F19, 10 Oct 2026), checked BEFORE a link is
+     made: the branch link further down is written with the service role, so nothing else would
+     stop a branch of another company, and a refusal after the link would leave an orphan login. */
+  if (p.branchId) {
+    const foreign = await foreignLinkError(p.companyId, { branchId: p.branchId });
+    if (foreign) return { ok: false, error: foreign };
+  }
 
   /* ONE ACCOUNT PER EMAIL, checked BEFORE a link is made (DEF-009). generateLink on an address
      that already has an account mints a sign in token for it and can rewrite its name, and

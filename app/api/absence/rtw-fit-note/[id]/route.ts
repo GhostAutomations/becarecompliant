@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { exportError } from "@/lib/export/deliver";
 import { EVIDENCE_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/lib/evidence/storage";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 
 /**
  * View the fit note an employee uploaded with their Return to Work answers (0344), before it is
@@ -22,6 +23,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("id", id)
     .maybeSingle();
   if (!data?.fit_note_path) return exportError("That fit note could not be found.", 404);
+  // Only from this questionnaire's own company folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(data.fit_note_path, data.company_id)) return exportError(PATH_REFUSED, 404);
   const { data: signed, error } = await createServiceClient()
     .storage.from(EVIDENCE_BUCKET)
     .createSignedUrl(data.fit_note_path as string, SIGNED_URL_TTL_SECONDS);

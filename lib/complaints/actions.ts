@@ -29,6 +29,7 @@ import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence, get
 import { addBusinessOrCalendarDays, formatComplaintRef, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
 import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, needsInitialResponse, type ComplaintRelationship } from "./types";
 import { getCompanyRow } from "@/lib/companies/row";
+import { foreignLinkError } from "@/lib/companies/links";
 
 /** Is the 0389 complaints work switched on for this company (Bevan first, then everyone)? */
 async function complaintsV2(companyId: string): Promise<boolean> {
@@ -137,6 +138,13 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
      there is no due date to miss. */
   const needsAck = !(await complaintsV2(companyId)) || needsInitialResponse(intake.concern_type, config.no_initial_response);
 
+  // The branch and service user must be this company's, whatever was posted (audit F12).
+  const foreign = await foreignLinkError(companyId, {
+    branchId: branch_id,
+    serviceUserId: trimOrNull(formData.get("service_user_id")),
+  });
+  if (foreign) return { error: foreign };
+
   const supabase = await createClient();
   const { data: complaint, error } = await supabase
     .from("complaints")
@@ -195,6 +203,12 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
   const subject = String(formData.get("subject") ?? "").trim();
   if (!subject) return { error: "Enter a short subject for the complaint." };
   const relationship = trimOrNull(formData.get("complainant_relationship"));
+
+  // The service user must be this company's, whatever was posted (audit F12).
+  const foreign = await foreignLinkError(profile.company_id, {
+    serviceUserId: trimOrNull(formData.get("service_user_id")),
+  });
+  if (foreign) return { error: foreign };
 
   const supabase = await createClient();
   const intake = intakeFields(formData);

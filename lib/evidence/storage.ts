@@ -18,6 +18,7 @@ import "server-only";
 
 import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 import { writeAudit } from "@/lib/audit";
 
 export const EVIDENCE_BUCKET = "evidence";
@@ -113,6 +114,8 @@ export async function signEvidenceDownload(input: {
   /** What the id is, for the audit row. Evidence unless said otherwise. */
   entityType?: string;
 }): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  // Never sign a file outside this company's folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(input.path, input.companyId)) return { ok: false, error: PATH_REFUSED };
   const supabase = createServiceClient();
   const { data, error } = await supabase.storage
     .from(EVIDENCE_BUCKET)

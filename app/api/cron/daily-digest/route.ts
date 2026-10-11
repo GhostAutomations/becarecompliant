@@ -50,14 +50,17 @@ import { plannedFor, type PlannedVisit } from "@/lib/notifications/planned";
 
 /**
  * Daily compliance digest (Supervisor branch digest) + the two People / Service User
- * reports (Admins, Managers) + SMS escalation. Overdue items, with their days
+ * reports (Admins, Managers) + SMS escalation. Overdue checks, with their days
  * overdue, live inside the two reports; there is no separate chaser email.
  *
- * Scheduled twice in vercel.json (06:00 and 07:00 UTC) because Vercel Cron is
- * UTC only; the isLondonSendHour gate means exactly one of the two runs sends,
- * so the digest lands at 07:00 Europe/London in summer and winter. Every send
- * claims a dedupe key in notification_log first, so retries and the double
- * schedule can never double-send.
+ * Scheduled three times in vercel.json (06:00, 07:00 and 08:00 UTC) because Vercel
+ * Cron is UTC only; the isLondonSendHour gate refuses anything before 07:00 London,
+ * so the digest lands at 07:00 Europe/London in summer and winter, and each season
+ * keeps a later run as a backup. Vercel's own docs say a cron run can be missed and
+ * is never retried; before the 08:00 run, winter had no second chance (audit F74,
+ * 10 Oct 2026). Every send claims a dedupe key in notification_log first, so
+ * retries and the extra runs can never double-send. A run with any failure answers
+ * 500, so Vercel shows it as failed rather than healthy.
  *
  * Fails CLOSED: no CRON_SECRET in production means 503, wrong secret means 401.
  * This path is in middleware PUBLIC_PATHS (no user session), the secret is the
@@ -495,5 +498,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json(summary);
+  // A failed background job answers 500, never 200 (standing rule; audit F74).
+  return NextResponse.json(summary, { status: summary.failures.length > 0 ? 500 : 200 });
 }

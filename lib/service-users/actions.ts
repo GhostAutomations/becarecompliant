@@ -1319,7 +1319,7 @@ export async function getCarePlanUrl(
     .maybeSingle();
   const path = (su?.care_plan_path as string | null) ?? null;
   if (!su || !path) return { error: "No care plan on file." };
-  const res = await signCarePlan(path);
+  const res = await signCarePlan(su.company_id as string, path);
   if (!res.ok) return { error: res.error };
   await writeAudit({
     companyId: su.company_id as string,

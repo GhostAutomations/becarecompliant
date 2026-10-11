@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { exportError } from "@/lib/export/deliver";
 import { EVIDENCE_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/lib/evidence/storage";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 
 /**
  * A ticket's screenshot. Read through the caller's RLS client (can_see_support_ticket, 0432), so
@@ -23,6 +24,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const shots = Array.isArray(data?.screenshots) ? (data!.screenshots as Array<{ path: string }>) : [];
   const shot = Number.isInteger(index) && index >= 0 ? shots[index] : undefined;
   if (!data || !shot?.path) return exportError("That screenshot could not be found.", 404);
+  // Only from this ticket's own company folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(shot.path, data.company_id)) return exportError(PATH_REFUSED, 404);
   const { data: signed, error } = await createServiceClient()
     .storage.from(EVIDENCE_BUCKET)
     .createSignedUrl(shot.path, SIGNED_URL_TTL_SECONDS);

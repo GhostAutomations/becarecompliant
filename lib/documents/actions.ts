@@ -36,6 +36,7 @@ import {
   docTitleProblem,
 } from "./rules";
 import type { DocumentKind } from "./types";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 
 const BUCKET = "record-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -221,6 +222,8 @@ export async function openDocument(input: { documentId: string }): Promise<{ ok:
   } | null;
   if (!row) return { ok: false, error: "That document could not be found." };
   if (row.removed_at) return { ok: false, error: "That document has been removed." };
+  // Only from this document's own company folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(row.storage_path, row.company_id)) return { ok: false, error: PATH_REFUSED };
 
   const service = createServiceClient();
   const { data: signed, error } = await service.storage

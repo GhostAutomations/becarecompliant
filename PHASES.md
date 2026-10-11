@@ -4166,6 +4166,38 @@ answer): migration 0440 gives it a column, and Edit dates and Change dates now a
 
 Tests: TEST-CHECKLIST-HOLIDAY-CHANGES.md.
 
+### 2026-10-11 — Records stay in their own company (migration 0443, security audit, Phase 13)
+
+The security and bug audit of 10 October 2026 (report in BCC Documents,
+SECURITY-AUDIT-2026-10-10.md: 194 findings, 0 Critical, 17 High, 67 Medium, 110 Low, every
+Critical and High independently reviewed). Phil chose by popup to fix the **cross-company group
+first** (F1 to F4, F6, F12, F14, F15, F19, F41, F51, with F74 because the clocks go back on
+25 October), and to be **asked about the other findings one area at a time** later.
+Built:
+- 0443: on all 103 company owned tables a row can no longer move to another company, and every
+  link it holds (branch, person, service user, Evidence, form, policy, login and the rest, read
+  from the foreign keys) must point inside its own company. Evidence's record must be its own
+  company's, a login is linked only to its own company's branches, and every stored file path
+  must sit in its own company's folder (19 checks; a written policy may hold 'pending' until its
+  PDF is drawn). submit_evidence refuses another company's record or file in plain words.
+  record_update_audience (3 arguments) and branch_blocking_references are no longer callable by
+  signed in users. A new company owned table runs `select public.install_company_link_triggers();`.
+- Code: lib/storage/company-path.ts (tested) is checked before any file is signed or read: the
+  Evidence, policy, training certificate and care plan signers, ticket screenshots, fit notes,
+  record update and record document files, and the signed policy copy. lib/companies/links.ts:
+  complaint and incident actions and invites refuse another company's branch, service user or
+  person with a plain message, before anything is written.
+- F74: the morning reports have an 08:00 UTC backup run (winter had none) and a run with any
+  failure answers 500.
+Checked: live data had 0 rows out of place on every link and path before; in rolled back
+transactions all 15 audit attacks are refused, and ordinary work (a branch move, an own complaint,
+plain edits, a carer's own Evidence, an own file path), provisioning a new company and the full
+demo seed (50 people, 1,438 Evidence) all still work; security advisor 0 errors and 3 warnings
+fewer; typecheck, 1,769 tests and build pass.
+Not yet: the second half of F3 (who may file Evidence on which record) goes with the Role limits
+group; F7 (who approves holidays) and F16 (who sees Reg 73 and 80) need Phil's decision.
+Tests: TEST-CHECKLIST-AUDIT-FIXES.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

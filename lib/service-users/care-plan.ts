@@ -9,6 +9,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { EVIDENCE_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/lib/evidence/storage";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 
 function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "care-plan";
@@ -34,10 +35,13 @@ export async function uploadCarePlanFile(
   return { ok: true, path };
 }
 
-/** Short-lived signed URL to view/download a Care Plan. */
+/** Short-lived signed URL to view/download a Care Plan, only from that company's own folder. */
 export async function signCarePlan(
+  companyId: string,
   path: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  // Never sign a file outside this company's folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(path, companyId)) return { ok: false, error: PATH_REFUSED };
   const supabase = createServiceClient();
   const { data, error } = await supabase.storage
     .from(EVIDENCE_BUCKET)

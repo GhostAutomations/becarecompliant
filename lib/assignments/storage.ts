@@ -15,6 +15,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { EVIDENCE_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/lib/evidence/storage";
+import { pathInCompany, PATH_REFUSED } from "@/lib/storage/company-path";
 
 function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "policy";
@@ -70,6 +71,8 @@ export async function signPolicyDocument(input: {
   path: string;
   actor: { id: string; email: string; role: string };
 }): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  // Never sign a file outside this company's folder, whatever the row says (audit F1, 0443).
+  if (!pathInCompany(input.path, input.companyId)) return { ok: false, error: PATH_REFUSED };
   const supabase = createServiceClient();
   const { data, error } = await supabase.storage
     .from(EVIDENCE_BUCKET)

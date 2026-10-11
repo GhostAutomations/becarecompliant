@@ -30,6 +30,12 @@ paths:
 - Seeds: "all companies" means the `seed_company_*` functions as well as existing rows. An all NULL
   `VALUES` column types as text, so cast it.
 - Evidence is immutable; a correction is a new entry.
+- Records stay in their own company (0443): a row never changes company and every link it holds
+  points inside its company. A migration that adds a company owned table, or a new link on one,
+  ends with `select public.install_company_link_triggers();`. A new stored file path starts with
+  the company id, and code checks `pathInCompany` (`lib/storage/company-path.ts`) before signing
+  or reading one with the service role. Ids posted by a form are checked with
+  `foreignLinkError` (`lib/companies/links.ts`).
 - Today in SQL is `(now() at time zone 'Europe/London')::date`, never `current_date`.
 - "use server" files export only async functions; constants and types live in `lib/`.
 - Background jobs return 500 when a run fails, never 200, and are checked by reading the rows they

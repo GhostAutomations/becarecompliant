@@ -19,6 +19,7 @@ import type { ActionState } from "@/lib/forms";
 import { INCIDENT_STATUSES, type IncidentStatus } from "./types";
 import { todayIso } from "./logic";
 import { INCIDENTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { foreignLinkError } from "@/lib/companies/links";
 
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
@@ -86,6 +87,14 @@ export async function createIncident(_prev: ActionState, formData: FormData): Pr
   if (!category) return { error: "Choose a category." };
   if (!description) return { error: "Describe what happened." };
 
+  // The branch, service user and team member must be this company's, whatever was posted (audit F12).
+  const foreign = await foreignLinkError(companyId, {
+    branchId: branch_id,
+    serviceUserId: trimOrNull(formData.get("service_user_id")),
+    personId: trimOrNull(formData.get("person_id")),
+  });
+  if (foreign) return { error: foreign };
+
   const supabase = await createClient();
   const { data: incident, error } = await supabase
     .from("incidents")
@@ -140,6 +149,13 @@ export async function updateIncident(_prev: ActionState, formData: FormData): Pr
   if (!occurred_on) return { error: "Enter the date the incident happened." };
   if (!category) return { error: "Choose a category." };
   if (!description) return { error: "Describe what happened." };
+
+  // The service user and team member must be this company's, whatever was posted (audit F12).
+  const foreign = await foreignLinkError(profile.company_id, {
+    serviceUserId: trimOrNull(formData.get("service_user_id")),
+    personId: trimOrNull(formData.get("person_id")),
+  });
+  if (foreign) return { error: foreign };
 
   const supabase = await createClient();
   const { error } = await supabase

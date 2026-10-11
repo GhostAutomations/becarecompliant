@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
+import { pathInCompany } from "@/lib/storage/company-path";
 import { appendSignaturePage } from "@/lib/assignments/signed-copy";
 import { renderWrittenPolicy } from "@/lib/policies/render";
 
@@ -86,7 +87,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
         .maybeSingle();
       if (version?.storage_path) documentPath = version.storage_path as string;
     }
-    if (documentPath) {
+    // Only from this assignment's own company folder, whatever the rows say (audit F1, 0443).
+    if (documentPath && pathInCompany(documentPath, assignment.company_id)) {
       const dl = await admin.storage.from(EVIDENCE_BUCKET).download(documentPath);
       if (dl.data) original = Buffer.from(await dl.data.arrayBuffer());
     }
@@ -100,7 +102,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("evidence_id", evidence.id)
     .eq("kind", "signature")
     .maybeSingle();
-  if (sigFile?.storage_path) {
+  if (sigFile?.storage_path && pathInCompany(sigFile.storage_path, evidence.company_id)) {
     const dl = await admin.storage.from(EVIDENCE_BUCKET).download(sigFile.storage_path as string);
     if (dl.data) signaturePng = Buffer.from(await dl.data.arrayBuffer());
   }
