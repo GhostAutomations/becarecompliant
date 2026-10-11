@@ -223,3 +223,27 @@ Compliant only, after the queue emptied.
     stay in the Thistle Admin's OneDrive (Be Care Compliant never deletes from a drive); Phil may
     delete that folder there himself. Future Bevan tests connect only to a separate Microsoft 365
     that holds no customer data.
+
+## Audit fix F30, Phil's part (11 Oct 2026): the Microsoft app secret and sign in address
+
+57. PASS, with one gap (Phil, 11 Oct 2026). The app secret was made on 9 October 2026 (Vercel's
+    MS_CLIENT_SECRET was added at 00:33 London that day, and Thistle's Entra, Enterprise apps
+    shows the app created the same day) and Phil set it for 24 months, so it runs out on about
+    7 October 2028. Gap: the Expires date itself was not read, because the app is not registered
+    in Thistle's Microsoft 365 (its App registrations list is empty; Thistle only holds the app
+    under Enterprise apps, from connecting). The registration, with its secret, is in another
+    Microsoft account, not yet identified. Reminders: Phil added two calendar events (BCC
+    Documents, Project docs, reminders, microsoft-app-secret-renewal.ics) for 7 September 2028
+    and 30 September 2028, each holding the renewal steps; he confirmed 7 September shows.
+58. NOT TESTED. Microsoft sends sign ins back only to
+    https://www.becarecompliant.com/api/cloud/microsoft/callback (no localhost, vercel.app or *
+    address). Needs the Microsoft account that holds the app registration (Authentication, Web,
+    Redirect URIs). The same account is needed to renew the secret in 2028.
+    Found 11 Oct 2026: Phil is Global Administrator of Thistle's Microsoft 365 (GoDaddy sign in,
+    one directory), and its App registrations shows nothing on all four tabs (All, Owned,
+    Deleted, Deactivated), so the app is registered in another Microsoft directory. No personal
+    Microsoft account uses Phil's Thistle address (no account chooser), and he has no other
+    Microsoft login. The app still works (Thistle copied at 12:50 London that day), but nobody
+    can currently change its settings or renew its secret. Phil chose (popup, 11 Oct 2026) to
+    sort it out in step 9 of the fix plan (cloud hardening), together with narrowing the app's
+    permissions, so Thistle reconnects only once. This check stays NOT TESTED until then.

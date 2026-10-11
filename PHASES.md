@@ -4204,6 +4204,19 @@ and an incident edit, both passed. Still to run: 11 on Monday 26 October (mornin
 the clocks go back), in the Still to test list below. Test rows left on Bevan: complaint BC11104,
 a near miss in Neath, a document "Audit fix test (Claude, 11 Oct)", a pending Viewer invite "Code
 Test", and Gethin Lloyd's carer login (ppdavies+policysign) with one signed policy.
+Fix plan steps 2 and 3 (same day): F28, Bevan's cloud drive disconnected from the Thistle Admin's
+Microsoft account, Thistle still connected (TEST-CHECKLIST-CLOUD-DRIVE.md check 56, Pass). F38:
+Thistle's written instruction to keep its SharePoint copies, signed by Phil as Thistle's Company
+Admin, and a note for a solicitor (eight wording changes to the DPA and Subscription Agreement
+drafts, two questions), all as PDFs in BCC Documents, Project docs, legal. Phil sends them once he
+has found a solicitor. While checking, the DPA (live and draft, Annex 2) was found to promise two
+factor sign in for Company Admins and the Founder, which is not built (F62): Phil chose to build it
+after the 10 step fix plan is finished (mapping so far: docs/project/two-factor-sign-in.md).
+Fix plan step 4 (F30, Phil's part): the Microsoft app secret was made 9 Oct 2026 for 24 months
+(runs out about 7 Oct 2028); Phil added two calendar reminders, 7 and 30 Sep 2028
+(TEST-CHECKLIST-CLOUD-DRIVE.md check 57). The app turned out not to be registered in Thistle's
+Microsoft 365, so its settings cannot be opened: the sign in address check (58) and a new home for
+the app go to step 9.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
