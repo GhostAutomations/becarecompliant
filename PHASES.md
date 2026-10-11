@@ -4196,7 +4196,12 @@ demo seed (50 people, 1,438 Evidence) all still work; security advisor 0 errors 
 fewer; typecheck, 1,769 tests and build pass.
 Not yet: the second half of F3 (who may file Evidence on which record) goes with the Role limits
 group; F7 (who approves holidays) and F16 (who sees Reg 73 and 80) need Phil's decision.
-Tests: TEST-CHECKLIST-AUDIT-FIXES.md.
+Tests: TEST-CHECKLIST-AUDIT-FIXES.md. 11 Oct: checks 1 to 10 passed on Bevan (Evidence PDF, policy
+and certificate opened by Phil; care plan, complaint, incident report, record document and an
+invite with a branch run by Claude in Phil's Chrome and read back from the database). Still to
+run: opening a signed policy copy (part of 6), and 11 on Monday 26 October (morning reports after
+the clocks go back). Test rows left on Bevan: complaint BC11104, a near miss in Neath, a document
+"Audit fix test (Claude, 11 Oct)" and a pending Viewer invite "Code Test".
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

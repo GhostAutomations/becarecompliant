@@ -28,12 +28,30 @@ morning reports gain an 08:00 UTC backup run.
 
 ## For Phil, after the deploy is READY (on Bevan, never Thistle)
 
-5. Open an Evidence PDF from a person's record: it opens as before.
-6. Open a policy from Policies, and a signed copy from a person's record: both open.
-7. Open a training certificate and a service user's care plan: both open.
-8. Log a complaint and record an incident in a Bevan branch, with a service user: both save.
-9. Upload a document on a person's record and open it: it opens.
-10. Invite a carer login with a branch from Settings, Users (test companies only send invites):
+5. Pass (Phil, 11 Oct 2026; audit log evidence.downloaded at 15:12 London, no runtime errors).
+   Open an Evidence PDF from a person's record: it opens as before.
+6. Pass for the policy (Phil, 11 Oct 2026; policy.opened at 15:12 London); the signed copy not
+   yet tried. Open a policy from Policies, and a signed copy from a person's record: both open.
+7. Pass (certificate: Phil, 11 Oct 2026, training.certificate_downloaded at 15:13 London; care
+   plan: Claude in Phil's Chrome, 15:18 London, the PDF opened from Bevan's own folder and the
+   view was audit logged). Open a training certificate and a service user's care plan: both open.
+8. Pass (Claude in Phil's Chrome, 11 Oct 2026, as Bev Admin): complaint BC11104 logged in Neath
+   with a Neath service user; a near miss reported through the incident report form in Neath with
+   the same service user, its report Evidence filed. Read back: every row in Bevan, branch and
+   service user both Bevan's. Not separately tried: saving the incident edit form.
+   Log a complaint and record an incident in a Bevan branch, with a service user: both save.
+9. Pass (Claude in Phil's Chrome, 11 Oct 2026, 15:23 London, as Bev Admin): a one page test PDF
+   uploaded on a Bevan person's Documents tile as "Audit fix test (Claude, 11 Oct)", shown in the
+   tile, then downloaded. Read back: the row is Bevan's, its path is in Bevan's folder, the file is
+   in storage (642 bytes), audit log record_document.added then record_document.opened.
+   Upload a document on a person's record and open it: it opens.
+10. Pass (Phil confirmed the email arrived, 11 Oct 2026). Sent by Claude in Phil's Chrome, 15:30
+    London, as Bev Admin: Settings, Users,
+    Invite a person offers office roles only (carers get logins from their People record), so a
+    Viewer for Neath was invited at Phil's test address. Screen: "Invite emailed to ...". Read
+    back: invite pending in Bevan with Neath (Bevan's), email_sent_at set, the login invited in
+    Bevan, its branch link to Neath passed the new user_branches rule. Phil to confirm the email
+    arrived (it did). Invite a login with a branch from Settings, Users (test companies only send invites):
     it sends.
 11. Monday 26 October (first morning after the clocks go back): the morning reports arrive at
     about 07:00 for Thistle, and Vercel shows the 07:00 UTC run sending and the 08:00 UTC run
