@@ -113,6 +113,8 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     meeting_time: args.timeHHMM,
     meeting_when: `${displayDate} at ${args.timeHHMM}`,
     location: args.locationKind === "teams" ? "Microsoft Teams" : args.location,
+    // "held on Microsoft Teams", "held at 1 High Street" (Phil, 2026-10-12, Part C).
+    location_phrase: args.locationKind === "teams" ? "on Microsoft Teams" : `at ${args.location}`,
     duration: `${args.duration} minutes`,
   };
 

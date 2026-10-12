@@ -10,6 +10,9 @@ import {
   letterDate,
   letterDay,
   letterSignOff,
+  normaliseLetterDates,
+  numberWord,
+  smallNumbersInWords,
 } from "./invitation-letter.ts";
 
 test("dates read the way Thistle's letters write them", () => {
@@ -70,7 +73,7 @@ test("the letter carries everything Thistle's did", () => {
   assert.deepEqual(l.recipientLines, ["Jo Bloggs", "Flat 2, 10 Example Street", "Newport", "AB1 2CD"]);
   assert.equal(l.details[0].value, "Tuesday 20th October 2026");
   assert.equal(l.details[4].value, "Charlotte Davies, Manager");
-  assert.match(l.absenceIntro, /2 absences, 2 days in all, recorded in the last 6 months/);
+  assert.match(l.absenceIntro, /two absences, two days in all, recorded in the last six months/);
   assert.equal(l.absenceLines.length, 2);
   assert.deepEqual(l.opening, ["<p>This is your formal invitation.</p>"]);
   assert.deepEqual(l.closing, ["<p>It could lead to a first written warning.</p>", "<p>You may be accompanied.</p>"]);
@@ -194,4 +197,14 @@ test("the sign off follows the signer, else stays with the person holding the me
     role: "Supervisor",
   });
   assert.equal(letterSignOff("Jo Bloggs", null, { name: "  ", role: null }).name, "Jo Bloggs");
+});
+
+test("dates in a draft are written as the letter writes them; small numbers in words", () => {
+  assert.equal(
+    normaliseLetterDates("on 01/10/2026, 21 July 2026 and 3rd May 2026, not 32/13/2026"),
+    "on 1st October 2026, 21st July 2026 and 3rd May 2026, not 32/13/2026",
+  );
+  assert.equal(smallNumbersInWords("6 months, 7 working days, 12 months, Stage 2"), "six months, seven working days, 12 months, Stage 2");
+  assert.equal(numberWord(4), "four");
+  assert.equal(numberWord(11), "11");
 });

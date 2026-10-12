@@ -26,8 +26,9 @@ export type RichBlock =
   | { kind: "details"; rows: Array<{ label: string; value: string }> }
   | { kind: "space" };
 
-/** Points on the PDF: Small, Normal, Large, and the two headings. */
-export const LETTER_SIZES = { small: 9, normal: 10, large: 12, h2: 14, h3: 11.5 } as const;
+/** Points on the PDF: Small, Normal, Large, and the two headings. Normal is 11 (Phil, 2026-10-12,
+ *  Part C), the rest scaled with it. */
+export const LETTER_SIZES = { small: 10, normal: 11, large: 13, h2: 15, h3: 12.5 } as const;
 
 export const BULLET_CHAR = "•";
 

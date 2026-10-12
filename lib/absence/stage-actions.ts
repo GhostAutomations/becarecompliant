@@ -96,7 +96,8 @@ export function stageActionSentence(stage: number, action: StageAction | null): 
   if (action === "Informal discussion") {
     return `This is a Stage ${stage} meeting. It is an informal discussion and no formal warning will be given at this stage.`;
   }
-  return `This is a Stage ${stage} meeting and its outcome could be up to and including ${actionInWords(action)}.`;
+  // Plain words (Phil, 2026-10-12, Part C): not "its outcome could be up to and including".
+  return `The outcome of this meeting could be anything up to and including ${actionInWords(action)}.`;
 }
 
 /**

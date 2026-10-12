@@ -1474,6 +1474,7 @@ async function planCancel(formData: FormData, companyId: string): Promise<Cancel
     meeting_time: meeting.meeting_time ? String(meeting.meeting_time).slice(0, 5) : "",
     meeting_when: when,
     location: "",
+    location_phrase: "",
     duration: "",
   });
   const preheader = `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`;

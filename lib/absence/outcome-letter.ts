@@ -12,6 +12,7 @@
  */
 
 import { isLetterHtml, letterPlainText, toLetterHtml } from "../letters/rich-text.ts";
+import { normaliseLetterDates, numberWord } from "./invitation-letter.ts";
 
 export const OUTCOME_BODY_LIMIT = 6000;
 /** The same letter with its formatting: room for the tags around those words. */
@@ -26,8 +27,10 @@ export const OUTCOME_SYSTEM = [
   "The letter must be DETAILED (Phil, 2026-10-07: a short summary is not enough for an employment",
   "record). Write it as plain text with a blank line between paragraphs, in this order:",
   "1. What was discussed: ONE SHORT PARAGRAPH FOR EACH ABSENCE the meeting covered (Phil, 2026-10-07:",
-  "each absence on its own so they do not blend together), in date order. Start each paragraph with",
-  "the absence's date and reason, for example \"Your absence on 22nd September 2026 (childcare):\", then",
+  "each absence on its own so they do not blend together), in date order. Open each paragraph with",
+  "the absence's date and reason in a natural sentence, for example \"On 22nd September 2026 you were",
+  "absent because your childcare fell through.\", and vary how the paragraphs begin so they do not",
+  "all read the same (Phil, 2026-10-12). Then say",
   "what the employee explained about it and anything they confirmed, such as a problem now being",
   "resolved, using their answers to the questions asked. Anything discussed that is not about one",
   "absence, such as a pattern in the dates, goes in its own short paragraph after them.",
@@ -124,7 +127,7 @@ export function buildOutcomePrompt(opts: {
   return [
     opts.stage ? `This was a Stage ${opts.stage} absence management meeting.` : "This was a formal absence management meeting.",
     opts.stageAction
-      ? `Under the company's procedure a Stage ${opts.stage} meeting can lead to up to and including: ${opts.stageAction}. That is the most it could lead to, not what was decided.`
+      ? `Under the company's procedure the outcome of a Stage ${opts.stage} meeting can be anything up to and including: ${opts.stageAction}. That is the most it could lead to, not what was decided.`
       : "",
     "",
     "The meeting record:",
@@ -155,7 +158,8 @@ export function cleanOutcomeBody(raw: string): string {
     .split(/\n{2,}/)
     .filter((p) => !/:\s*$/.test(p.trim()) || p.trim().split("\n").length > 1)
     .join("\n\n");
-  return t.trim().slice(0, OUTCOME_BODY_LIMIT);
+  // Every date as the rest of the letter writes it, "21st July 2026" (Phil, 2026-10-12, Part C).
+  return normaliseLetterDates(t.trim()).slice(0, OUTCOME_BODY_LIMIT);
 }
 
 /** What the manager approved, ready to merge: trimmed and capped. Extra blank lines are KEPT (up
@@ -261,7 +265,7 @@ export function stageFacts(opts: {
   const next = opts.thresholds.find((t) => t.stage === (after ?? 0) + 1);
   if (next?.occasions) {
     out.push(
-      `If attendance does not improve: ${next.occasions === (atAfter?.occasions ?? 0) + 1 ? "a further absence" : `reaching ${next.occasions} absences within ${opts.windowWords}`} may lead to a ${label(next.stage)}${next.action ? `, which could result in up to and including a ${next.action.toLowerCase()}` : ""}`,
+      `If attendance does not improve: ${next.occasions === (atAfter?.occasions ?? 0) + 1 ? "a further absence" : `reaching ${next.occasions} absences within ${opts.windowWords}`} may lead to a ${label(next.stage)}${next.action ? `, where the outcome could be anything up to and including ${/dismissal/i.test(next.action) ? "dismissal" : `a ${next.action.toLowerCase()}`}` : ""}`,
     );
   }
   return out;
@@ -278,7 +282,9 @@ export function absencesBlock(
   if (absences.length === 0) return "";
   const discounted = new Set(discount?.dates ?? []);
   const intro =
-    absences.length === 1 ? "The meeting covered the following absence:" : `The meeting covered the following ${absences.length} absences:`;
+    absences.length === 1
+      ? "The meeting covered the following absence:"
+      : `The meeting covered the following ${numberWord(absences.length)} absences:`;
   const lines = absences.map((a) => `\u2022 ${a.line}${discounted.has(a.startDate) ? " (discounted at this meeting)" : ""}`);
   const gone = discount?.whens ?? [];
   const reason = (discount?.reason ?? "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");

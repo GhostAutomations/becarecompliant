@@ -119,6 +119,44 @@ export function letterDate(iso: string): string {
   return `${ordinal(Number(m[3]))} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
 }
 
+const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+
+/** Small whole numbers as words in a letter's sentences, "four absences" (Phil, 2026-10-12, Part C);
+ *  anything else as figures. */
+export function numberWord(n: number): string {
+  return Number.isInteger(n) && n >= 0 && n <= 10 ? NUMBER_WORDS[n] : String(n);
+}
+
+/** "6 months" as "six months", "7 working days" as "seven working days": a small number before a
+ *  word of time or count, in a phrase that reads as a sentence. */
+export function smallNumbersInWords(phrase: string): string {
+  return phrase.replace(
+    /\b(\d{1,2})(?=\s+(?:months?|weeks?|days?|working days?|absences?|occasions?)\b)/g,
+    (d) => numberWord(Number(d)),
+  );
+}
+
+const MONTH_NAMES = "January|February|March|April|May|June|July|August|September|October|November|December";
+
+/**
+ * Every date in a drafted letter written as the rest of the letter writes them, "1st October 2026"
+ * (Phil, 2026-10-12, Part C): an AI draft sometimes wrote 01/10/2026 or 21 July 2026 beside a list
+ * that says 21st July 2026. Anything that is not a real date is left alone.
+ */
+export function normaliseLetterDates(text: string): string {
+  return text
+    .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, (whole, d: string, m: string, y: string) => {
+      const day = Number(d);
+      const month = Number(m);
+      return month >= 1 && month <= 12 && day >= 1 && day <= 31
+        ? letterDate(`${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`)
+        : whole;
+    })
+    .replace(new RegExp(`\\b(\\d{1,2})\\s+(${MONTH_NAMES})\\s+(\\d{4})\\b`, "g"), (whole, d: string, m: string, y: string) =>
+      Number(d) >= 1 && Number(d) <= 31 ? `${ordinal(Number(d))} ${m} ${y}` : whole,
+    );
+}
+
 /** "Tuesday 20th October 2026". */
 export function letterDay(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -189,10 +227,13 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
 
   const total = i.absences.reduce((sum, a) => sum + dayCount(a), 0);
   const n = i.absences.length;
+  // Small numbers as words in the sentence, figures in the list (Phil, 2026-10-12, Part C).
+  const windowWords = smallNumbersInWords(i.windowWords);
+  const totalWords = Number.isInteger(total) ? `${numberWord(total)} ${total === 1 ? "day" : "days"}` : daysWords(total);
   const absenceIntro =
     n === 0
-      ? `The ${i.stageLabel} is about your absence record over the last ${i.windowWords}.`
-      : `The ${i.stageLabel} is about the following ${n === 1 ? "absence" : `${n} absences`}, ${daysWords(total)} in all, recorded in the last ${i.windowWords}:`;
+      ? `The ${i.stageLabel} is about your absence record over the last ${windowWords}.`
+      : `The ${i.stageLabel} is about the following ${n === 1 ? "absence" : `${numberWord(n)} absences`}, ${totalWords} in all, recorded in the last ${windowWords}:`;
   const absenceLines = i.absences.map(absenceLine);
 
   const signOff = letterSignOff(i.conductorName, i.conductorRole, i.signer);

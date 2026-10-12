@@ -34,7 +34,7 @@ export type LetterPlaceholder = {
 export const LETTER_PLACEHOLDERS: LetterPlaceholder[] = [
   { token: "recipient_name", label: "Who the letter is addressed to", example: "Joan Price" },
   { token: "employee_name", label: "The employee the meeting is about", example: "Joan Price" },
-  { token: "company_name", label: "Your company", example: "Acme Care Company" },
+  { token: "company_name", label: "Your company", example: "Example Care Ltd" },
   { token: "stage", label: "Stage number", example: "2" },
   { token: "stage_label", label: "Stage in words", example: "Stage 2 absence management meeting" },
   { token: "stage_action", label: "Most the stage can lead to (Settings, Absence)", example: "Written warning" },
@@ -48,6 +48,9 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholder[] = [
   { token: "meeting_time", label: "Time of the meeting", example: "10:30" },
   { token: "meeting_when", label: "Date and time together", example: "14/08/2026 at 10:30" },
   { token: "location", label: "Where it is held", example: "Microsoft Teams" },
+  /* "at 1 High Street, Cardiff" or "on Microsoft Teams", so a sentence reads right either way
+     (Phil, 2026-10-12, Part C: "held at Microsoft Teams"). */
+  { token: "location_phrase", label: "Where it is held, as words to follow \"held\"", example: "on Microsoft Teams" },
   { token: "duration", label: "How long it is scheduled for", example: "45 minutes" },
 ];
 
@@ -89,8 +92,8 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
       // Added 2026-09-29 (Phil: the invitation says what the meeting could lead to). Blank when
       // the company has set no action for the stage, and a blank paragraph is left out.
       "{{stage_action_sentence}}",
-      "The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by {{conductor_name}} and will be held at {{location}}.",
-      "You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.",
+      "The purpose of the meeting is to review your absence record, discuss any support you may need and consider the next steps under the procedure.",
+      "You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied, and by whom.",
     ].join("\n\n"),
     systemNote:
       "The Accept the invitation and I cannot attend buttons, the calendar attachment, and a note that a Teams invite will follow when the meeting is online, are added automatically underneath your wording.",
@@ -103,7 +106,7 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
     sentTo: "The manager conducting the meeting",
     defaultSubject: "Absence meeting with {{employee_name}} (Stage {{stage}})",
     defaultBody: [
-      "You are chairing this meeting: a {{stage_label}} for {{employee_name}}, held at {{location}}. This is about {{employee_name}}'s absence record, not your own.",
+      "You are chairing this meeting: a {{stage_label}} for {{employee_name}}, held {{location_phrase}}. This is about {{employee_name}}'s absence record, not your own.",
       "Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when {{employee_name}} accepts or declines.",
     ].join("\n\n"),
     systemNote: "The calendar attachment is added automatically.",
@@ -116,7 +119,7 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
     sentTo: "Everyone who received the original invitation",
     defaultSubject: "",
     defaultBody:
-      "This meeting has been rearranged. This invitation replaces the earlier one, please update your calendar.",
+      "This meeting has been rearranged. This invitation replaces the earlier one. Please update your calendar.",
     systemNote: "This one has no subject of its own: it appears inside the invitation letters.",
   },
   {
@@ -152,7 +155,7 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
           "At the meeting we discussed your two absences in September. We agreed that you will let your manager know by 7am on any day you cannot attend.\n\nThe outcome of the meeting is a verbal warning, which will remain on your record until 29/03/2027.",
       },
       { token: "letter_date", label: "Date of the letter", example: "30/09/2026" },
-      { token: "appeal_days", label: "Working days to appeal (chosen at the meeting, 7 unless changed)", example: "7" },
+      { token: "appeal_days", label: "Working days to appeal (chosen at the meeting, seven unless changed)", example: "seven" },
       { token: "appeal_manager", label: "Who will hear an appeal (chosen at the meeting)", example: "Sam Idris" },
     ],
     requiredTokens: ["outcome_body"],

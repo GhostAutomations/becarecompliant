@@ -41,6 +41,7 @@ import {
   letterDate,
   buildOutcomeLetterDoc,
   letterBodyBlocks,
+  numberWord,
   type OutcomeLetterDoc,
 } from "@/lib/absence/invitation-letter";
 import { blockText, blocksToLetterHtml, letterBlocksOf, letterEmailHtml, mergeLetterHtml, toLetterHtml } from "@/lib/letters/rich-text";
@@ -219,11 +220,17 @@ async function letterSetup(ctx: LetterCtx) {
     meeting_time: time,
     meeting_when: time ? `${meetingDate} at ${time}` : meetingDate,
     location: ctx.meeting.location ?? "",
+    location_phrase: !ctx.meeting.location
+      ? ""
+      : ctx.meeting.location === "Microsoft Teams"
+        ? "on Microsoft Teams"
+        : `at ${ctx.meeting.location}`,
     duration: ctx.meeting.duration_minutes ? `${ctx.meeting.duration_minutes} minutes` : "",
     outcome_body: "",
     letter_date: letterDate(todayIso),
     // Chosen in the meeting's Outcome section (Phil, 2026-10-07); seven days unless changed.
-    appeal_days: appealDays(ctx.answers.appeal_days),
+    // In words, "within seven working days" (Phil, 2026-10-12, Part C).
+    appeal_days: numberWord(Number(appealDays(ctx.answers.appeal_days))),
     appeal_manager: appealBy || "a manager",
   };
   return { wording, extras, config, values, stageLabel, todayIso };
@@ -326,7 +333,14 @@ async function fullLetterText(
   /* AS LETTER HTML (Phil, 2026-10-12, Job 2 Part B): the company's wording, formatted or plain, with
      the drafted middle put in whole where {{outcome_body}} stands, so the editor shows it formatted
      and the PDF prints what the editor shows. */
-  const merged = mergeLetterHtml(toLetterHtml(wording.body), values, {
+  /* The person hearing an appeal may be the one who held the meeting (Phil, 2026-10-12, Part C):
+     then the letter cannot say they were not involved, so that clause goes. */
+  const sameAsHolder =
+    !!values.appeal_manager && values.appeal_manager.trim().toLowerCase() === values.conductor_name.trim().toLowerCase();
+  const wordingHtml = sameAsHolder
+    ? toLetterHtml(wording.body).replace(/,?\s*who was not involved in this meeting/gi, "")
+    : toLetterHtml(wording.body);
+  const merged = mergeLetterHtml(wordingHtml, values, {
     outcome_body: toLetterHtml(withList.slice(0, OUTCOME_BODY_LIMIT)),
   });
   const blocks = letterBlocksOf(merged).filter((b) => !nfa || !/right to appeal|appeal will be heard/i.test(blockText(b)));

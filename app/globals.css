@@ -1677,7 +1677,8 @@ details.setup-card-gold:not([open]) .setup-card-count {
 
 /* THE LETTER EDITOR (Phil, 2026-10-12, Job 2 Part B): the same sheet as the textarea above, drawn
    at the letter's own measurements (100cqw is the A4 page's 595pt), so every format shows here as
-   it prints: Heading 14pt, Subheading 11.5pt, Small 9pt, Normal 10pt, Large 12pt, lists indented. */
+   it prints: Heading 15pt, Subheading 12.5pt, Small 10pt, Normal 11pt, Large 13pt, lists indented,
+   a full blank line between paragraphs (Part C, 2026-10-12). */
 .letter-paper .letter-editor-body {
   position: relative;
   display: block;
@@ -1687,10 +1688,10 @@ details.setup-card-gold:not([open]) .setup-card-count {
   color: #111827;
   border-radius: 0.5rem;
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.25);
-  padding: calc(100cqw * 34 / 595) calc(100cqw * 56 / 595);
+  padding: calc(100cqw * 44 / 595) calc(100cqw * 56 / 595);
   font-family: Helvetica, Arial, sans-serif;
-  font-size: calc(100cqw * 10 / 595);
-  line-height: 1.35;
+  font-size: calc(100cqw * 11 / 595);
+  line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1698,20 +1699,20 @@ details.setup-card-gold:not([open]) .setup-card-count {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 45%, transparent);
 }
-.letter-paper .letter-editor-body p { margin: 0 0 calc(100cqw * 8 / 595) 0; }
+.letter-paper .letter-editor-body p { margin: 0 0 calc(100cqw * 12 / 595) 0; }
 .letter-paper .letter-editor-body h2 {
-  font-size: calc(100cqw * 14 / 595);
+  font-size: calc(100cqw * 15 / 595);
+  font-weight: 700;
+  margin: calc(100cqw * 6 / 595) 0 calc(100cqw * 8 / 595) 0;
+}
+.letter-paper .letter-editor-body h3 {
+  font-size: calc(100cqw * 12.5 / 595);
   font-weight: 700;
   margin: calc(100cqw * 4 / 595) 0 calc(100cqw * 6 / 595) 0;
 }
-.letter-paper .letter-editor-body h3 {
-  font-size: calc(100cqw * 11.5 / 595);
-  font-weight: 700;
-  margin: calc(100cqw * 2 / 595) 0 calc(100cqw * 4 / 595) 0;
-}
 .letter-paper .letter-editor-body ul,
 .letter-paper .letter-editor-body ol {
-  margin: 0 0 calc(100cqw * 8 / 595) 0;
+  margin: 0 0 calc(100cqw * 12 / 595) 0;
   padding-left: calc(100cqw * 28 / 595);
 }
 .letter-paper .letter-editor-body ul { list-style: disc; }
@@ -1719,8 +1720,8 @@ details.setup-card-gold:not([open]) .setup-card-count {
 .letter-paper .letter-editor-body li { margin: 0 0 calc(100cqw * 2 / 595) 0; }
 .letter-paper .letter-editor-body li p { margin: 0; }
 .letter-paper .letter-editor-body strong { font-weight: 700; }
-.letter-paper .letter-editor-body span[data-size="small"] { font-size: calc(100cqw * 9 / 595); }
-.letter-paper .letter-editor-body span[data-size="large"] { font-size: calc(100cqw * 12 / 595); }
+.letter-paper .letter-editor-body span[data-size="small"] { font-size: calc(100cqw * 10 / 595); }
+.letter-paper .letter-editor-body span[data-size="large"] { font-size: calc(100cqw * 13 / 595); }
 .letter-editor.is-empty .letter-editor-body::before {
   content: attr(data-placeholder);
   position: absolute;

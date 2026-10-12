@@ -17,7 +17,6 @@ import { countedAbsences, windowStartIso } from "@/lib/absence/discount";
 import { windowLabel } from "@/lib/absence/window";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
-import { ROLE_LABELS } from "@/lib/nav";
 import { meetingNameInSentence } from "@/lib/absence/meeting-name";
 import type { InvitationAbsence } from "@/lib/absence/invitation-letter";
 
@@ -61,12 +60,11 @@ export async function loadLetterExtras(opts: {
   countDiscountedFrom?: string;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
-  const [{ data: person }, { data: branches }, { data: conductorPerson }, { data: conductorProfile }, { data: events }, meetingName, logoDataUrl, config] =
+  const [{ data: person }, { data: branches }, { data: conductorPerson }, { data: events }, meetingName, logoDataUrl, config] =
     await Promise.all([
       admin.from("people").select("branch_id, home_address").eq("id", opts.personId).eq("company_id", opts.companyId).maybeSingle(),
       admin.from("branches").select("id, name, kind, address, phone, uses_office_address").eq("company_id", opts.companyId),
       admin.from("people").select("job_title").eq("company_id", opts.companyId).eq("profile_id", opts.conductorId).limit(1).maybeSingle(),
-      admin.from("profiles").select("role").eq("id", opts.conductorId).maybeSingle(),
       admin
         .from("absence_events")
         .select("start_date, end_date, days, reason, discounted_at, discount_reason")
@@ -98,14 +96,15 @@ export async function loadLetterExtras(opts: {
   );
 
   const jobTitle = ((conductorPerson?.job_title as string | null) ?? "").trim();
-  const role = (conductorProfile?.role as string | undefined) ?? "";
   return {
     meetingName,
     homeAddress: ((person?.home_address as string | null) ?? null) || null,
     letterheadAddress: headAddress,
     letterheadPhone: (head?.phone ?? null) || null,
     logoDataUrl,
-    conductorRole: jobTitle || ROLE_LABELS[role] || null,
+    /* Their job title from their People record, or nothing (Phil, 2026-10-12, Part C): the system
+       role ("Admin") read as odd on a letter. */
+    conductorRole: jobTitle || null,
     absences: counted.map((e) => ({ start_date: e.start_date, end_date: e.end_date, days: e.days, reason: e.reason })),
     discountedHere: here
       .filter((e) => counted.some((c) => c.start_date === e.start_date))

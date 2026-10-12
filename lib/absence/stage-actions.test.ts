@@ -34,11 +34,11 @@ test("each stage reads its own action, and nothing is invented", () => {
 test("the invitation sentence, and none when no action is set", () => {
   assert.equal(
     stageActionSentence(1, "Verbal warning"),
-    "This is a Stage 1 meeting and its outcome could be up to and including a verbal warning.",
+    "The outcome of this meeting could be anything up to and including a verbal warning.",
   );
   assert.equal(
     stageActionSentence(4, "Dismissal"),
-    "This is a Stage 4 meeting and its outcome could be up to and including dismissal.",
+    "The outcome of this meeting could be anything up to and including dismissal.",
   );
   assert.match(stageActionSentence(1, "Informal discussion"), /no formal warning/);
   assert.equal(stageActionSentence(2, null), "");

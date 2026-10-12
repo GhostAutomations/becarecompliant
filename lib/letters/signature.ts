@@ -2,7 +2,6 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { ROLE_LABELS } from "@/lib/nav";
 import {
   MAX_SIGNATURE_BYTES,
   mayKeepLetterSignature,
@@ -41,9 +40,9 @@ type SignerProfile = {
   actingAsCompanyId?: string | null;
 };
 
-/** Their job title on their People record, else the role's name: the same rule as the person
- *  holding the meeting (letter-extras.ts). */
-export async function letterJobTitle(companyId: string, profileId: string, role: string): Promise<string | null> {
+/** Their job title on their People record, or nothing: the same rule as the person holding the
+ *  meeting (letter-extras.ts). Never the system role (Phil, 2026-10-12, Part C). */
+export async function letterJobTitle(companyId: string, profileId: string): Promise<string | null> {
   const admin = createServiceClient();
   const { data } = await admin
     .from("people")
@@ -53,7 +52,7 @@ export async function letterJobTitle(companyId: string, profileId: string, role:
     .limit(1)
     .maybeSingle();
   const title = ((data?.job_title as string | null) ?? "").trim();
-  return title || ROLE_LABELS[role] || null;
+  return title || null;
 }
 
 const KIND_WORDS = {
@@ -113,7 +112,7 @@ export async function resolveLetterSignature(
       dataUrl: `data:${type};base64,${bytes.toString("base64")}`,
       signerId: profile.id,
       signerName: profile.full_name || profile.email,
-      signerRole: await letterJobTitle(profile.company_id, profile.id, profile.role),
+      signerRole: await letterJobTitle(profile.company_id, profile.id),
     },
   };
 }

@@ -147,7 +147,7 @@ export function buildMeetingPrompt(ctx: MeetingContext): string {
   const parts: string[] = [];
   parts.push(
     ctx.stage
-      ? `This is a Stage ${ctx.stage} absence management meeting.${ctx.stageAction ? ` Under the company's procedure a Stage ${ctx.stage} meeting can lead to up to and including: ${ctx.stageAction}.` : ""}`
+      ? `This is a Stage ${ctx.stage} absence management meeting.${ctx.stageAction ? ` Under the company's procedure the outcome of a Stage ${ctx.stage} meeting can be anything up to and including: ${ctx.stageAction}.` : ""}`
       : "This is a formal absence management meeting.",
   );
   parts.push("", "Absences this meeting discusses:");

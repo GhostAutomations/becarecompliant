@@ -98,7 +98,7 @@ test("stage facts: why this stage, and what a further absence could lead to", ()
   ];
   assert.deepEqual(stageFacts({ stage: 2, thresholds, windowWords: "6 months" }), [
     "Why this stage: Stage 2 is reached at 4 absences within 6 months",
-    "If attendance does not improve: a further absence may lead to a Stage 3 meeting, which could result in up to and including a final written warning",
+    "If attendance does not improve: a further absence may lead to a Stage 3 meeting, where the outcome could be anything up to and including a final written warning",
   ]);
   assert.equal(stageFacts({ stage: 4, thresholds, windowWords: "6 months" }).length, 1);
   assert.deepEqual(stageFacts({ stage: null, thresholds, windowWords: "6 months" }), []);
@@ -110,7 +110,7 @@ test("absences block lists each absence like the invitation, discounted ones mar
   assert.equal(absencesBlock([a]), "The meeting covered the following absence:\n\u2022 22nd September 2026: Childcare, 1 day");
   assert.equal(
     absencesBlock([b, a], { dates: ["2026-08-03"], whens: ["3rd August 2026"], reason: "Agreed at the Stage 2 meeting held on 20/10/2026." }),
-    "The meeting covered the following 2 absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20/10/2026.",
+    "The meeting covered the following two absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20/10/2026.",
   );
   assert.equal(absencesBlock([]), "");
 });
@@ -143,7 +143,7 @@ test("what happens next follows the stage after the meeting", () => {
   ];
   const f = stageFacts({ stage: 2, thresholds, windowWords: "6 months", stageAfter: 1, label: (n) => `Stage ${n} disciplinary hearing` });
   assert.ok(f.some((x) => x.includes("REMAINS AT STAGE 1")));
-  assert.ok(f.some((x) => x.includes("may lead to a Stage 2 disciplinary hearing, which could result in up to and including a written warning")));
+  assert.ok(f.some((x) => x.includes("may lead to a Stage 2 disciplinary hearing, where the outcome could be anything up to and including a written warning")));
   assert.ok(!f.some((x) => x.includes("Stage 3")));
 });
 
