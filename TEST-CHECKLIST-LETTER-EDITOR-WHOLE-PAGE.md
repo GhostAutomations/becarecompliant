@@ -23,5 +23,5 @@ title of ZZ Test Supervisor to Senior Supervisor".
 | W10 | Book meeting: an edited letter keeps its words when the date changes, and the locked details follow; Teams and No signature match the PDF; Back to the standard letter works | PASS (12 Oct, Chrome as Bev Admin, ZZ Stage One, not saved) |
 | W11 | Fresh AI outcome letters: a warning letter has the appeal paragraph; discounted absences are marked and explained; dates in full | PASS (ZZ Stage One C Stage 2 and ZZ TEST DBS Warn Stage 1, drafted, not sent) |
 | W12 | The AI never talks to the employee about "the record", "not recorded" or "questions asked" | PASS (after the change, ZZ TEST Audit Starter Stage 1: none of those words) |
-| W13 | Small counts in AI drafts in words ("three absences within a six month period") | Not tested (built and unit tested; goes live with the next push) |
+| W13 | Small counts in AI drafts in words ("three absences within a six month period"); Not now a button like Save to file | PASS (12 Oct, live dpl_8mXtN, ZZ TEST Senior Stage 1 draft: "absent for ten days"; figures stay in the absence list by design; Not now outlined like Save to file) |
 
