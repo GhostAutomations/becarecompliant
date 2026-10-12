@@ -4290,6 +4290,20 @@ two found in testing (a kept but not emailed letter's audit row, the narrow Rear
 and retested. Decision: docs/decisions/letter-signatures.md. Parts B (editor) and C (spacing and
 wording) to follow on Phil's "next part".
 
+### 2026-10-12 — Letters, Part B: the formatted letter editor (Phil's task list, Job 2, Phase 13)
+
+TipTap (MIT, 3.31.4, approved by popup) in Book meeting, the outcome letter (meeting form and dialog)
+and the company templates in Settings, Letters: Heading and Subheading, Small, Normal and Large text,
+bold, italic, underline, bulleted and numbered lists, with the PDF beside it showing the same. Letter
+text is stored as a fixed set of tags (lib/letters/rich-text.ts) that every PDF, email and save goes
+through, so Word paste arrives clean and nothing else can reach a letter. Old plain text letters and
+templates read as before (pixel identical PDFs). The two letter templates get a PDF preview with the
+company's letterhead. tsconfig allowImportingTsExtensions lets pure modules import each other.
+Tested 12 Oct on Bevan (Bev Admin in Phil's Chrome, phone width in the app's browser): every check in
+TEST-CHECKLIST-LETTER-EDITOR.md passes or is covered (E4 by E3 and E8, Phil's choice); one bug found
+in testing (the editor opened empty in Book meeting) fixed and retested. Decision:
+docs/decisions/letter-editor.md. Part C (spacing and wording) to follow on Phil's "next part".
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
