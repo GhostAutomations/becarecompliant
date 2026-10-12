@@ -288,13 +288,15 @@ export type ComplaintResponseRow = {
   sent_at: string | null;
   created_at: string;
   author_name: string | null;
+  /** The signed letter as it went (THE LIST 54), or null for a response recorded before. */
+  pdf_path: string | null;
 };
 
 type ComplaintResponseDbRow = Omit<ComplaintResponseRow, "author_name"> & {
   created_by: string | null;
 };
 
-const RESPONSE_COLS = "id, method, kind, subject, body, recipient, sent_at, created_at, created_by";
+const RESPONSE_COLS = "id, method, kind, subject, body, recipient, sent_at, created_at, created_by, pdf_path";
 
 export type InvestigationAttachment = {
   path: string;

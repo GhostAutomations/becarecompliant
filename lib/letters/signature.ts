@@ -127,6 +127,8 @@ export async function auditSignatureUse(opts: {
   letter: string;
   meetingId?: string | null;
   letterId?: string | null;
+  /** What the letter is about when it is not a person (a complaint, THE LIST 54). */
+  entityType?: string;
 }): Promise<void> {
   await writeAudit({
     companyId: opts.companyId,
@@ -134,7 +136,7 @@ export async function auditSignatureUse(opts: {
     actorEmail: opts.actorEmail,
     actorRole: opts.actorRole,
     action: "signature.used",
-    entityType: "person",
+    entityType: opts.entityType ?? "person",
     entityId: opts.personId,
     summary: `Signed the ${opts.letter} with their ${KIND_WORDS[opts.signature.kind]}`,
     metadata: {

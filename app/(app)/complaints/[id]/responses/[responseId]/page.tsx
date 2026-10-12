@@ -33,15 +33,23 @@ export default async function ComplaintResponsePage({
   if (!response) redirect(`/complaints/${id}`);
 
   const kindLabel = response.kind === "response" ? "Complaint response" : "Initial response";
-  const heading = `${kindLabel} (${response.method === "email" ? "email" : "letter"})`;
+  const heading = `${kindLabel} (${response.method === "email" ? (response.pdf_path ? "letter by email" : "email") : "letter"})`;
 
   return (
     <div className="page-shell space-y-5">
       <BackLink href={`/complaints/${id}`} label="Back to complaint" />
 
-      <div>
-        <h1 className="page-title">{heading}</h1>
-        <p className="page-subtitle">Recorded response, stored unchanged as your inspection record.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">{heading}</h1>
+          <p className="page-subtitle">Recorded response, stored unchanged as your inspection record.</p>
+        </div>
+        {/* The signed letter as it went (Phil, 2026-10-12, THE LIST 54); each download is audit logged. */}
+        {response.pdf_path ? (
+          <a href={`/api/complaints/letter/${response.id}`} target="_blank" rel="noreferrer" className="btn-primary text-sm">
+            Open the letter (PDF)
+          </a>
+        ) : null}
       </div>
 
       <div className="glass-card grid gap-3 p-5 sm:grid-cols-3">
@@ -75,8 +83,8 @@ export default async function ComplaintResponsePage({
       </div>
 
       <p className="text-xs text-white/40">
-        Sent {formatUkDate((response.sent_at ?? response.created_at).slice(0, 10))}. This response is kept as
-        a permanent record of your initial reply.
+        {response.sent_at ? "Sent" : "Kept"} {formatUkDate((response.sent_at ?? response.created_at).slice(0, 10))}. This
+        response is kept as a permanent record of your {response.kind === "response" ? "response" : "initial reply"}.
       </p>
     </div>
   );

@@ -8,8 +8,7 @@ import BackLink from "@/components/back-link";
 import EditComplaintForm from "@/components/complaints/edit-complaint-form";
 import ComplaintForms from "@/components/complaints/complaint-forms";
 import ComplaintStatusControl from "@/components/complaints/complaint-status-control";
-import InitialResponseButton from "@/components/complaints/initial-response-button";
-import ComplaintResponseButton from "@/components/complaints/complaint-response-button";
+import ComplaintLetterButton from "@/components/complaints/complaint-letter-dialog";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import {
   getComplaint,
@@ -427,8 +426,10 @@ export default async function ComplaintPage({
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {ackNeeded || responses.some((r) => r.kind === "initial") ? (
-            <InitialResponseButton
+            /* A signed PDF letter on the letterhead (Phil, 2026-10-12, THE LIST 54). */
+            <ComplaintLetterButton
               complaintId={complaint.id}
+              kind="initial"
               contactMethod={complaint.contact_method}
               contactEmail={complaint.contact_email}
               contactAddress={complaint.contact_address}
@@ -442,12 +443,13 @@ export default async function ComplaintPage({
             />
           ) : null}
           {isFormal ? (
-            <ComplaintResponseButton
+            <ComplaintLetterButton
               complaintId={complaint.id}
+              kind="response"
               contactMethod={complaint.contact_method}
               contactEmail={complaint.contact_email}
               contactAddress={complaint.contact_address}
-              hasInvestigation={completedFormKeys.has("complaints_concerns")}
+              disabledReason={completedFormKeys.has("complaints_concerns") ? null : "Complete the Complaint Investigation first"}
               done={responses.some((r) => r.kind === "response")}
             />
           ) : null}

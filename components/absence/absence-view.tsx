@@ -542,7 +542,11 @@ export default function AbsenceView({
                     windowStart={windowStart}
                     openOnMount={openViewPersonId === r.personId}
                   />
-                  {canManage ? (
+                  {/* Nothing left to book once every stage has been held (Phil, 2026-10-12, THE LIST 55):
+                      said on the card instead of a Book meeting that opens empty. */}
+                  {canManage && availableStages(s.meetingStage, s.derivedStage).length === 0 ? (
+                    <p className="self-center text-xs text-white/50">Every stage has been held.</p>
+                  ) : canManage ? (
                     <BookMeetingDialog
                       personId={r.personId}
                       personName={r.fullName}
