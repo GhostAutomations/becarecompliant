@@ -4355,6 +4355,12 @@ Bevan in Phil's Chrome: L1 to L10 in TEST-CHECKLIST-COMPLAINT-LETTERS.md pass (a
 Investigation added on Bevan BC28091 to test the full response). Then Phil asked for the formatting
 bar on the title row beside "The letter" so the two pages start level (Book meeting, outcome letter,
 meeting form, complaint letters). Decision: docs/decisions/complaint-letters.md.
+Then (13 Oct): "Dear Mrs Example" greetings; complaint letters copied to the cloud drive's Complaints
+folder; the two title rows share one row so the pages stay level when the bar wraps; the meeting
+form's letter in the standard box, as wide as Book meeting. Found testing: complaint and incident
+forms never kept their uploaded files (only the name); fixed with one shared collectFormFiles, no
+real loss (no Thistle form ever named a file). L1 to L15 in TEST-CHECKLIST-COMPLAINT-LETTERS.md pass
+apart from L12 (drive copy, Bevan's drive is disconnected).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
