@@ -45,6 +45,7 @@ import {
   addDaysIso,
 } from "./logic";
 import { START_GUARDED_KEYS, beforeStartProblem } from "./before-start";
+import { startSetsDue } from "./start-dated";
 import { futureDateProblem } from "@/lib/import/future-date";
 import {
   parseProbationPeriod,
@@ -717,6 +718,10 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
     for (const i of ((insts as Array<{ id: string; definition_id: string }>) ?? [])) {
       const def = definitions.find((d) => d.id === i.definition_id);
       if (!def) continue;
+      /* Only the checks the start date sets (lib/people/start-dated.ts). Supervision runs from
+         probation end and each appraisal, so re-dating it from the start date wrote a blank over
+         its real due date (found testing audit step 7, Phil 12 Oct 2026). */
+      if (!startSetsDue(def.key, def.anchor)) continue;
       const rows = byDefinition.get(def.id) ?? [];
       rows.push({ instance_id: i.id, due_date: initialDueDate(def, startDate) });
       byDefinition.set(def.id, rows);
@@ -1309,7 +1314,11 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
           const s = Array.isArray(i.service_users) ? i.service_users[0] : i.service_users;
           return { instance_id: i.id, due_date: suInitialDueDate(def, s?.package_start_date ?? null) };
         });
-      } else {
+      } else if (startSetsDue(def.key, def.anchor)) {
+        /* Only a check the start date sets is re-dated from it (lib/people/start-dated.ts).
+           Saving the Supervision setting used to blank every pending Supervision due date in the
+           company, because the start date says nothing about when a supervision is due (found
+           testing audit step 7, Phil 12 Oct 2026). */
         const { data: insts } = await supabase
           .from("check_instances")
           .select("id, due_date, people(start_date, profile_id)")

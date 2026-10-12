@@ -249,6 +249,14 @@ The next five were found by the step 7 check of the October audit fixes and park
     action, so deleting that login is refused. discardDemoUser only runs before the seed, so the
     app does not hit it today; purging a whole demo follows its own path.
 
+53. **The Annual Appraisal can be completed early by typing its address** (found testing step 7,
+    parked by Phil, popup 2026-10-12). The record page offers Complete only after Supervision 3 of
+    the cycle, but the Complete page and complete_check accept it at any time. Saving one early
+    muddles the supervision card (proved on the Bevan test record ZZ TEST Branch Folder Person: a
+    second appraisal three days after the first left Supervisions 2 and 3 of the old cycle showing
+    as done and the appraisal due 28 Dec 2026, while the stored dates were right). To fix: the
+    Complete page and the database refuse an appraisal before Supervision 3 in appraisal mode.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.

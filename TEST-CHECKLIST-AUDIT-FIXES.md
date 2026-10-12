@@ -120,30 +120,86 @@ select count(*) linked,
 
 All Not tested. Bevan is a test company, so no emails or texts are expected.
 
-1. Holidays. As the Bevan Supervisor, open People, Holiday and book a holiday for a carer in your
+1. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome, Phil signed in). As ZZ Test
+   Supervisor: booked ZZ Stage One 16 to 20 Nov 2026; it went to Pending requests with only
+   Withdraw (no Approve, Edit dates or Cancel); read back pending, booked by the Supervisor, no
+   decider; the approver email was logged as skipped (test company). As Bev Admin: Approve, Decline
+   and Edit dates shown; Approve put it on the November calendar, decided by Bev Admin at 08:59
+   London; Bev Admin booked ZZ Stage One B 7 to 8 Dec 2026 and it saved approved straight away.
+   Test rows left on Bevan: those two holidays.
+   Holidays. As the Bevan Supervisor, open People, Holiday and book a holiday for a carer in your
    branch: it says "Holiday booked, pending approval" and shows Pending with no Approve, Edit
    dates or Cancel. As the Bevan Admin, Approve it (it moves onto the calendar), then book one
    for another carer: it goes straight onto the calendar as approved.
-2. Future dates. As the Bevan Supervisor, Complete a carer's Spot Check dated tomorrow: a message
+2. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome as ZZ Test Supervisor). Spot Check on
+   ZZ TEST Branch Folder Person (Swansea) dated 13 Oct: "The date on this form is in the future.
+   Enter the date it was done.", every answer and the signature kept, no Evidence stored. Dated 12
+   Oct with Fail: saved; read back last completed 12 Oct 2026, next due 19 Oct 2026, Evidence by
+   the Supervisor at 09:29 London.
+   Future dates. As the Bevan Supervisor, Complete a carer's Spot Check dated tomorrow: a message
    says the date is in the future and everything typed stays. Change it to today with Passed set
    to Fail and save: the record shows it done today, next due 7 days later.
-3. Appraisal. As the Bevan Admin, complete an Annual Appraisal for a carer dated today: the
+3. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome as Bev Admin). Annual Appraisal for ZZ
+   TEST Branch Folder Person dated 12 Oct 2026: read back, Appraisal next due 12 Oct 2027 and
+   Supervision 1 due 31 Dec 2026 (80 days). Claude opened the form by its address although the
+   record did not offer it (the cycle's Supervision 3 was not done); the form accepted it and the
+   record's supervision card now looks muddled: THE LIST 53, an older gap, not step 7.
+   Appraisal. As the Bevan Admin, complete an Annual Appraisal for a carer dated today: the
    Appraisal is next due a year from today and Supervision 1 is due 80 days from today.
-4. Briefings. As the Bevan Admin, send a carer a policy, a memo that needs a signature and a memo
+4. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome, Phil signed in each login). As Bev
+   Admin: sent Gethin Lloyd (Bevan, Neath) the policy Driving for Work, "Audit test memo to sign"
+   and "Audit test memo to confirm", and sent then withdrew "Audit test memo to withdraw" (Are you
+   sure, Yes; it left the sent list). Each send said emails are off for a test company. As Gethin:
+   My briefings showed the three, not the withdrawn one; confirmed one, signed the memo and the
+   policy by typing his name. Read back: policy and signed memo completed with Evidence filed by
+   Gethin, the confirm memo completed with no Evidence, the withdrawn one cancelled. The signed
+   copy (page 9 of 9) reads Signed by Gethin Lloyd, 12 October 2026 at 09:24, typed full name.
+   The Admin's Briefings screen was not re-opened afterwards (it reads the same rows).
+   Briefings. As the Bevan Admin, send a carer a policy, a memo that needs a signature and a memo
    to confirm, and withdraw a fourth sent by mistake. As the carer, sign and confirm them: the
    signed copy says "Signed by" the carer. Back as the Admin, Briefings shows them done and the
    withdrawn one gone.
-5. Start dates and history. As the Bevan Supervisor, move a branch carer's start date on a month
+5. Part 2 PASS, part 1 to re-run (12 Oct 2026; run by Claude in Phil's Chrome as ZZ Test
+   Supervisor). Part 1: ZZ TEST Branch Folder Person's start date 5 Oct to 5 Nov saved; the Audit
+   (not done) moved 5 Jan to 5 Feb 2027, done checks untouched, BUT the not yet done Supervision's
+   due date (31 Dec 2026) was blanked. Cause, older than step 7: a moved start date, and saving a
+   check setting, re-dated every not yet done check from the start date, and Supervision is not
+   dated from it. Fixed (Phil, popup): only the checks the start date sets are re-dated
+   (startSetsDue, lib/people/start-dated.ts). The test record's Supervision was put back to 31 Dec
+   2026. Thistle checked: its 14 blank Supervision dates are all people still in probation, as
+   expected. Part 2: Add a person with They already work here and Supervision 1 dated 13 Oct: the
+   browser refused ("Value must be 12/10/2026 or earlier."), everything typed kept, nobody added.
+   Start dates and history. As the Bevan Supervisor, move a branch carer's start date on a month
    and Save: their not yet done checks move by the same month. Then Add a person, tick They
    already work here, give a Supervision date of tomorrow: a plain message, nothing typed is
    lost, nobody is added.
-6. Reg 80. As the Bevan carer, paste the live address followed by
+6. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome). As Bev Admin: the Llanelli review
+   opened (audit reg80.viewed 09:14 London); a draft has no Download button, so the PDF address was
+   opened directly: a 4 page draft that reads correctly, audit reg80.exported 09:15 (copy moved to
+   the Trash). As Gethin Lloyd (carer): the same PDF address showed only "Only Admins, the
+   Responsible Individual, the Registered Manager and Branch Managers can open this report.", no
+   PDF, no download, no audit export line.
+   Reg 80. As the Bevan carer, paste the live address followed by
    /api/reports/reg80/49b0aae6-0258-45dc-a664-7c55dec74bff/pdf: one refusal line, no PDF. As the
    Bevan Admin, open that review and Download: it works (Claude then checks the reg80.viewed line).
-7. Founder address. As the Bevan Admin, invite a Viewer using the Founder's sign in address: "That
+7. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome as Bev Admin, Phil agreed to his
+   address being typed). Settings, Users, Invite a person: a Viewer for Neath with the Founder's
+   sign in address showed the refusal below and kept what was typed. Read back: no invite for the
+   address, the Founder profile still platform_admin, active, no company; nothing in
+   notification_log. (A first try did nothing because the section was folded shut, so the click
+   never reached the form; not an app fault.)
+   Founder address. As the Bevan Admin, invite a Viewer using the Founder's sign in address: "That
    email address already has a Be Care Compliant login, so it cannot be invited. Please use a
    different email address for this person." No email arrives; the Founder page still opens.
-8. Care plan versions. As the Bevan Admin, Replace a service user's care plan with a file of the
+8. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome as Bev Admin). Berwyn Foulkes (Bevan
+   test service user, Llanelli): Replace with a 642 byte test file named care-plan.pdf showed
+   Uploaded; View opened the new file from its own new path. Read back: two rows in
+   service_user_care_plan_files, the 9 Oct file replaced at 09:05 London and the new one current
+   by Bev Admin, both in storage. The subject access export (16 files) held
+   files/care-plan/2026-10-09_earlier_care-plan.pdf and 2026-10-12_current_care-plan.pdf and
+   care-plan-files.csv listed both; Claude moved its downloaded copy to the Trash. Audit:
+   care_plan_uploaded, care_plan_viewed, care_plan_downloaded, subject_access_exported.
+   Care plan versions. As the Bevan Admin, Replace a service user's care plan with a file of the
    same name: "Care plan uploaded" and View opens the new file. Download the subject access
    export: files/care-plan holds both files and care-plan-files.csv lists both. Tell Claude which
    service user, so storage can be checked.
