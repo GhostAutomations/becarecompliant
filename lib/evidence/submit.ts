@@ -47,6 +47,24 @@ export type EvidenceFileInput = {
   bytes: Buffer;
 };
 
+/** The files a form posted ("file:<field key>"), ready for submitEvidence. Every form that can
+ *  carry an upload passes these on (found 2026-10-12: complaint and incident forms did not). */
+export async function collectFormFiles(formData: FormData): Promise<EvidenceFileInput[]> {
+  const files: EvidenceFileInput[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("file:") && value instanceof File && value.size > 0) {
+      files.push({
+        fieldKey: key.slice(5),
+        kind: "upload",
+        fileName: value.name,
+        contentType: value.type || "application/octet-stream",
+        bytes: Buffer.from(await value.arrayBuffer()),
+      });
+    }
+  }
+  return files;
+}
+
 export type SubmitEvidenceInput = {
   formVersionId: string;
   branchId: string | null;

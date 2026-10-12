@@ -15,7 +15,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { submitEvidence } from "@/lib/evidence/submit";
+import { collectFormFiles, submitEvidence } from "@/lib/evidence/submit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
@@ -371,6 +371,9 @@ export async function submitComplaintEvidence(_prev: ActionState, formData: Form
     answers,
     recordType: "complaint",
     recordId: complaintId,
+    /* The uploaded files go with the form (found 2026-10-12: they were never passed on, so a
+       complaint form kept only the file's name, and nothing could be attached to a response). */
+    files: await collectFormFiles(formData),
   });
   if (!result.ok) return { error: result.error };
 

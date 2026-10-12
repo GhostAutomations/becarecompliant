@@ -25,7 +25,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { submitEvidence } from "@/lib/evidence/submit";
+import { collectFormFiles, submitEvidence } from "@/lib/evidence/submit";
 import { incidentReportChoices } from "@/lib/incidents/report-choices";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { runAi } from "@/lib/ai/anthropic";
@@ -176,6 +176,8 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
     recordType: "incident",
     lookupChoices: await incidentReportChoices(companyId),
     recordId: incident.id as string,
+    // The uploaded document goes with the report (found 2026-10-12: it was never passed on).
+    files: await collectFormFiles(formData),
   });
   /* A CASE WITH NO ACCOUNT ON IT IS WORSE THAN NO CASE. If the Evidence will not store, the
      case goes with it rather than sitting in the register as a category and a date. */
@@ -253,6 +255,8 @@ export async function submitIncidentEvidence(_prev: ActionState, formData: FormD
     answers,
     recordType: "incident",
     recordId: incidentId,
+    // The uploaded documents go with the form (found 2026-10-12: they were never passed on).
+    files: await collectFormFiles(formData),
   });
   if (!result.ok) return { error: result.error };
 
