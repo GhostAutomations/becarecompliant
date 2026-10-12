@@ -159,7 +159,7 @@ export default function NoticesSent({ assignments }: { assignments: AssignmentRo
                       savedLabel="Withdrawn"
                       buttonClassName="btn-outline btn-xs"
                       className=""
-                      confirm={`Withdraw this from the ${r.open} ${r.open === 1 ? "person" : "people"} who have not done it yet? It disappears from their list.`}
+                      confirm={`Withdraw this from the ${r.open} ${r.open === 1 ? "person who has" : "people who have"} not done it yet? It disappears from their list.`}
                     />
                   ) : null}
                 </div>
