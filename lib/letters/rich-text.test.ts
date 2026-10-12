@@ -100,3 +100,12 @@ test("a paragraph that is only an empty token is left out, not printed as a gap"
   assert.equal(mergeLetterHtml("<p>A</p><p>{{stage_action_sentence}}</p><p>B</p>", { stage_action_sentence: "" }), "<p>A</p><p>B</p>");
   assert.equal(mergeLetterHtml("<p>A</p><p>{{x}}</p>", { x: "kept" }), "<p>A</p><p>kept</p>");
 });
+
+test("a block token is filled even when its value is listed as empty (the lost outcome, Thistle 12 Oct)", () => {
+  const out = mergeLetterHtml(
+    "<p>Thank you for attending.</p><p>{{outcome_body}}</p><p>Appeal wording.</p>",
+    { outcome_body: "" },
+    { outcome_body: "<p>What was discussed.</p><p>The outcome.</p>" },
+  );
+  assert.equal(out, "<p>Thank you for attending.</p><p>What was discussed.</p><p>The outcome.</p><p>Appeal wording.</p>");
+});

@@ -17,7 +17,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { runAi } from "@/lib/ai/anthropic";
+import { giveBackAiCredits, runAi } from "@/lib/ai/anthropic";
 import { writeAudit } from "@/lib/audit";
 import { queueCloudCopy } from "@/lib/cloud/queue";
 import type { ActionState } from "@/lib/forms";
@@ -62,6 +62,7 @@ import {
   normaliseApprovedBody,
   outcomeFacts,
   slashDate,
+  letterHasOwnWords,
 } from "@/lib/absence/outcome-letter";
 import { redactName } from "@/lib/absence/meeting-questions";
 import { stageFrom } from "@/lib/absence/record-meeting";
@@ -393,6 +394,29 @@ function letterDocHtml(doc: OutcomeLetterDoc): string {
   ].join("");
 }
 
+/** The absences discounted at a recorded meeting, as its letter states them. */
+async function heldDiscount(ctx: LetterCtx): Promise<{ dates: string[]; whens: string[]; reason: string } | undefined> {
+  const { extras: asHeld } = await letterSetup(ctx);
+  const dates = asHeld.discountedHere.map((d) => d.start_date);
+  return dates.length
+    ? { dates, whens: dates.map((d) => letterDate(d)), reason: asHeld.discountedHere.find((d) => d.reason)?.reason ?? "" }
+    : undefined;
+}
+
+/* A LETTER WITH NO OUTCOME IN IT (Phil, 2026-10-12, after a Thistle letter was saved holding only its
+   opening sentence): one that says nothing beyond the company's fixed wording and the absences list
+   is never sent. The manager is told, and Regenerate redoes it at no cost to them. */
+async function lacksOutcome(
+  ctx: LetterCtx,
+  body: string,
+  discount?: { dates: string[]; whens: string[]; reason: string },
+): Promise<boolean> {
+  return !letterHasOwnWords(body, await fullLetterText(ctx, "", discount));
+}
+
+const NO_OUTCOME =
+  "This letter is missing what the meeting discussed and decided, so it cannot be sent. Press Regenerate the letter: there is no charge for it.";
+
 /** AI drafts the middle of the letter. Returns the saved draft without spending when there is one. */
 export async function draftOutcomeLetter(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
@@ -402,21 +426,17 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
   if (ctx.letter && FINAL.has(ctx.letter.status)) return { error: "This meeting's outcome letter has already gone." };
   // A send that failed hands back what was approved; otherwise the saved draft. Either way, free.
   const kept = ctx.letter?.approved_body || ctx.letter?.draft_body;
-  if (kept) return { ok: "Drafted", data: { body: kept } };
+  const discount = await heldDiscount(ctx);
+  if (kept && !(await lacksOutcome(ctx, kept, discount))) return { ok: "Drafted", data: { body: kept } };
+  /* A saved letter with no outcome in it was our fault, so redoing it is free: the credit spent
+     below is given back once the new letter is saved (Phil, 2026-10-12). */
+  const onTheHouse = Boolean(kept);
 
   const config = await getAbsenceConfig(ctx.companyId);
   /* A MEETING ALREADY RECORDED (the absence recheck, 2026-10-08): its absences as they stood that
      day, the ones discounted at it marked, and the stage after it as decided when it was saved.
      Built from today's record it listed the wrong stage's absences and said nothing was discounted. */
-  const { extras: asHeld } = await letterSetup(ctx);
-  const discountedDates = asHeld.discountedHere.map((d) => d.start_date);
-  const discount = discountedDates.length
-    ? {
-        dates: discountedDates,
-        whens: discountedDates.map((d) => letterDate(d)),
-        reason: asHeld.discountedHere.find((d) => d.reason)?.reason ?? "",
-      }
-    : undefined;
+  const discountedDates = discount?.dates ?? [];
   const stageAfter = ctx.meeting.stage_after != null
     ? ctx.meeting.stage_after || null
     : await stageAfterFor(ctx, discountedDates, ctx.meeting.id);
@@ -444,6 +464,11 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
   const middle = cleanOutcomeBody(result.ok);
   if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
   const body = await fullLetterText(ctx, middle, discount);
+  // Never saved or shown without its outcome: the credit goes back and the manager is told.
+  if (await lacksOutcome(ctx, body, discount)) {
+    await giveBackAiCredits(ctx.companyId, 1);
+    return { error: "The letter came back without the outcome of the meeting, so it was not kept. Your AI credit has been given back. Press the button again to try once more." };
+  }
 
   if (ctx.letter) {
     await ctx.supabase
@@ -472,6 +497,7 @@ export async function draftOutcomeLetter(_prev: ActionState, formData: FormData)
       if (won?.draft_body) return { ok: "Drafted", data: { body: won.draft_body as string } };
     }
   }
+  if (onTheHouse) await giveBackAiCredits(ctx.companyId, 1);
   return { ok: "Drafted", data: { body } };
 }
 
@@ -514,6 +540,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
   if (ctx.letter && FINAL.has(ctx.letter.status)) return { error: "This meeting's outcome letter has already gone." };
   const body = normaliseApprovedBody(formData.get("body"));
   if (!body) return { error: "Write the outcome, or draft it, before sending the letter." };
+  if (await lacksOutcome(ctx, body, await heldDiscount(ctx))) return { error: NO_OUTCOME };
   // Before anything is saved: a signature that was asked for and cannot be used stops it here.
   const signed = await resolveLetterSignature(formData, profile);
   if ("error" in signed) return { error: signed.error };
@@ -837,11 +864,14 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
   const middle = cleanOutcomeBody(result.ok);
   if (!middle) return { error: "The AI's reply came back empty. Try again, or write the outcome yourself." };
   const reason = clipText(formData.get("discount_reason"), 500);
-  return { body: await fullLetterText(
-      loaded.ctx,
-      middle,
-      dates.length ? { dates, whens: [...dates].sort().map(letterDate), reason } : undefined,
-    ) };
+  const formDiscount = dates.length ? { dates, whens: [...dates].sort().map(letterDate), reason } : undefined;
+  const body = await fullLetterText(loaded.ctx, middle, formDiscount);
+  // Never handed over without its outcome (Phil, 2026-10-12): the credit goes back instead.
+  if (await lacksOutcome(loaded.ctx, body, formDiscount)) {
+    await giveBackAiCredits(profile.company_id, 1);
+    return { error: "The letter came back without the outcome of the meeting. Your AI credit has been given back. Press Generate outcome to try once more." };
+  }
+  return { body };
 }
 
 /** The real PDF of the whole letter, for the preview beside the words. Saves and sends nothing. */
@@ -871,7 +901,7 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
  */
 export async function outcomeLetterPdfPreview(
   formData: FormData,
-): Promise<{ pdf?: string; to?: string | null; name?: string; fileName?: string; error?: string }> {
+): Promise<{ pdf?: string; to?: string | null; name?: string; fileName?: string; missingOutcome?: boolean; error?: string }> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const ctx = await load(String(formData.get("meeting_id") ?? ""), profile.company_id);
@@ -909,6 +939,7 @@ export async function outcomeLetterPdfPreview(
     }
     return {
       pdf: pdf.toString("base64"),
+      missingOutcome: await lacksOutcome(ctx, body, await heldDiscount(ctx)),
       to: ctx.employee.email,
       name: ctx.employee.name,
       fileName: `Outcome letter ${ctx.employee.name}${ctx.meeting.meeting_date ? ` ${ctx.meeting.meeting_date}` : ""}.pdf`.replace(/[\\/:*?"<>|]/g, ""),

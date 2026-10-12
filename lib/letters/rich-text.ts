@@ -474,16 +474,20 @@ export function mergeLetterHtml(
   values: Record<string, string>,
   rawHtml: Record<string, string> = {},
 ): string {
-  // A paragraph that is only a token with nothing to say is left out, not printed as a gap (a stage
-  // with no action sentence, for example), as the plain text letters always did.
-  let out = html.replace(/<p>((?:<[^>]+>)*)\s*\{\{\s*([a-z_]+)\s*\}\}\s*((?:<\/[^>]+>)*)<\/p>/g, (whole, _o, token: string) =>
-    Object.prototype.hasOwnProperty.call(values, token) && !String(values[token] ?? "").trim() ? "" : whole,
-  );
+  /* The block tokens first (the drafted outcome, say), so they are never mistaken for an empty
+     token below: an outcome letter's values carry outcome_body as "", and taking that paragraph
+     out first threw away every drafted outcome (Thistle, 2026-10-12). */
+  let out = html;
   for (const [token, blockHtml] of Object.entries(rawHtml)) {
     const alone = new RegExp(`<p>(?:<[^>]+>)*\\s*\\{\\{\\s*${token}\\s*\\}\\}\\s*(?:<\\/[^>]+>)*</p>`, "g");
     out = out.replace(alone, blockHtml);
     out = out.replace(new RegExp(`\\{\\{\\s*${token}\\s*\\}\\}`, "g"), escapeHtml(letterPlainText(blockHtml)).replace(/\n/g, "<br>"));
   }
+  // A paragraph that is only a token with nothing to say is left out, not printed as a gap (a stage
+  // with no action sentence, for example), as the plain text letters always did.
+  out = out.replace(/<p>((?:<[^>]+>)*)\s*\{\{\s*([a-z_]+)\s*\}\}\s*((?:<\/[^>]+>)*)<\/p>/g, (whole, _o, token: string) =>
+    Object.prototype.hasOwnProperty.call(values, token) && !String(values[token] ?? "").trim() ? "" : whole,
+  );
   return out.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (whole, token: string) =>
     Object.prototype.hasOwnProperty.call(values, token)
       ? escapeHtml(values[token] ?? "").replace(/\r?\n/g, "<br>")

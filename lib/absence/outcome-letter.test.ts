@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   OUTCOME_SYSTEM,
+  letterHasOwnWords,
   buildOutcomePrompt,
   cleanOutcomeBody,
   absencesBlock,
@@ -188,4 +189,15 @@ test("the stage line only mentions discounts when some were made", () => {
 test("cleanOutcomeBody takes out a paragraph that is only an opening", () => {
   const out = cleanOutcomeBody("Your absence on 3rd August 2026 (cold):\n\nYour absence on 10th September 2026 (cold): you explained it.\n\nThe outcome was no further action.");
   assert.equal(out, "Your absence on 10th September 2026 (cold): you explained it.\n\nThe outcome was no further action.");
+});
+
+test("a letter that is only the fixed wording has no outcome; one with the drafted words has", () => {
+  const skeleton =
+    "<p>Thank you for attending the Stage 1 hearing.</p><p>The meeting covered the following absence:</p>" +
+    "<ul><li><p>21st September 2026: Sickness, 1 day</p></li></ul>";
+  assert.equal(letterHasOwnWords("<p>Thank you for attending the Stage 1 hearing.</p>", skeleton), false);
+  assert.equal(letterHasOwnWords(skeleton, skeleton), false);
+  assert.equal(letterHasOwnWords("", skeleton), false);
+  assert.equal(letterHasOwnWords(`${skeleton}<p>You explained the absence was due to illness.</p>`, skeleton), true);
+  assert.equal(letterHasOwnWords("<p>A letter the manager wrote themselves.</p>", skeleton), true);
 });

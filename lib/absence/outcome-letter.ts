@@ -11,7 +11,7 @@
  * PRIVACY: the model is sent what the meeting recorded and nothing that identifies the employee.
  */
 
-import { isLetterHtml, letterPlainText, toLetterHtml } from "../letters/rich-text.ts";
+import { blockText, isLetterHtml, letterBlocksOf, letterPlainText, toLetterHtml } from "../letters/rich-text.ts";
 import { normaliseLetterDates, numberWord } from "./invitation-letter.ts";
 
 export const OUTCOME_BODY_LIMIT = 6000;
@@ -332,4 +332,33 @@ export function stageAfterMeeting(o: {
 /** No further action: no right of appeal paragraph (Phil, 2026-10-07). */
 export function isNoFurtherAction(outcome: unknown): boolean {
   return typeof outcome === "string" && outcome.trim() === "No further action";
+}
+
+/**
+ * Whether a saved outcome letter says anything beyond the company's fixed wording (Phil,
+ * 2026-10-12, a Thistle letter saved holding only its opening sentence): true when any paragraph,
+ * heading or list line is not one the letter would have with no outcome written. `skeleton` is
+ * that letter: the same wording and absences list with an empty middle. A letter that is only
+ * the skeleton, or part of it, has no outcome yet, so Draft the outcome letter is offered again.
+ */
+export function letterHasOwnWords(body: string | null | undefined, skeleton: string | null | undefined): boolean {
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  const fixed = new Set<string>();
+  for (const b of letterBlocksOf(skeleton)) {
+    if (b.kind === "list") for (const l of b.items) fixed.add(norm(l.map((line) => line.map((r) => r.text).join("")).join(" ")));
+    else fixed.add(norm(blockText(b)));
+  }
+  for (const b of letterBlocksOf(body)) {
+    if (b.kind === "space") continue;
+    if (b.kind === "list") {
+      for (const l of b.items) {
+        const t = norm(l.map((line) => line.map((r) => r.text).join("")).join(" "));
+        if (t && !fixed.has(t)) return true;
+      }
+      continue;
+    }
+    const t = norm(blockText(b));
+    if (t && !fixed.has(t)) return true;
+  }
+  return false;
 }

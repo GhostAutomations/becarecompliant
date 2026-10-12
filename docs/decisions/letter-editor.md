@@ -13,3 +13,15 @@ Phil, 2026-10-12, standing:
   and Large (9, 10 and 12 point on the PDF), and two heading levels (Heading and Subheading).
 - Existing templates and letters keep working: plain text is read as before (a blank line starts a
   paragraph, a bullet line is a list, "Label: value" lines are the meeting details).
+
+## An outcome letter with no outcome in it (Phil, 2026-10-12)
+
+- [found] Part B's merge took out the paragraph holding {{outcome_body}} before the drafted outcome
+  was put in (its value was listed as empty), so every outcome letter drafted from Part B's deploy
+  until the fix kept only the company's fixed wording. One letter was hit: Thistle, 12 Oct 13:29.
+  Fixed: block tokens are filled first.
+- [stated] If a letter ever comes back or is saved without the outcome (it says nothing beyond the
+  fixed wording and the absences list), the manager is told plainly, it cannot be sent (refused on
+  the server too), and a Regenerate the letter button redoes it. That cost is ours, not the
+  customer's: the AI credit is spent and given straight back. A generation that comes back without
+  its outcome is never kept and its credit is given back.

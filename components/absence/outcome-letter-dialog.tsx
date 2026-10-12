@@ -85,6 +85,10 @@ export default function OutcomeLetterDialog({
   /* The final look's PDF did not draw (the absence recheck, 2026-10-08): said, and nothing can be
      sent from a blank box. Cleared each time a new final look is made. */
   const [pdfFailed, setPdfFailed] = useState(false);
+  /* The letter says nothing beyond the fixed wording (Phil, 2026-10-12, after a Thistle letter was
+     saved holding only its opening sentence): told plainly, never sent, and Regenerate redoes it
+     at no cost. */
+  const [missingOutcome, setMissingOutcome] = useState(false);
   const [previewing, startPreview] = useTransition();
   const [draftState, draftAction, drafting] = useActionState(draftOutcomeLetter, IDLE_STATE);
   const [sendState, sendAction, sending] = useActionState(sendOutcomeLetter, IDLE_STATE);
@@ -97,7 +101,14 @@ export default function OutcomeLetterDialog({
   useEffect(() => {
     setDraftPressed(false);
     const drafted = draftState.data?.body;
-    if (drafted) setBody((prev) => (prev.trim() ? prev : drafted));
+    if (!drafted) return;
+    if (regenerating.current) {
+      // Regenerated: the new letter replaces the one with no outcome, ready to read and check.
+      regenerating.current = false;
+      setBody(drafted);
+      setMissingOutcome(false);
+      setFinalLook(null);
+    } else setBody((prev) => (prev.trim() ? prev : drafted));
   }, [draftState]);
 
   useEffect(() => {
@@ -116,7 +127,9 @@ export default function OutcomeLetterDialog({
     return f;
   };
 
+  const regenerating = useRef(false);
   function draft() {
+    regenerating.current = missingOutcome;
     setDraftPressed(true);
     const f = new FormData();
     f.set("meeting_id", meetingId);
@@ -131,6 +144,7 @@ export default function OutcomeLetterDialog({
       const result = await outcomeLetterPdfPreview(f);
       if (result.pdf) {
         setPdfFailed(false);
+        setMissingOutcome(Boolean(result.missingOutcome));
         setFinalLook({
           bytes: toBytes(result.pdf),
           to: result.to ?? null,
@@ -188,6 +202,39 @@ export default function OutcomeLetterDialog({
   }
 
   const busy = drafting || draftPressed || previewing || sending || saving;
+
+  const draftButton = (label: string) => (
+    <button type="button" className="btn-outline px-3 py-1.5 text-xs" disabled={busy} onClick={draft}>
+      {drafting || draftPressed ? (
+        <>
+          <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Drafting…
+        </>
+      ) : (
+        <>
+          <AiIcon />
+          {label}
+        </>
+      )}
+    </button>
+  );
+
+  /** Said wherever the letter is shown while it has no outcome in it. */
+  const noOutcomeNotice = (
+    <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-amber-100">
+          This letter is missing what the meeting discussed and decided, so it cannot be sent. Regenerate it
+          from the meeting record: there is no charge for this.
+        </p>
+        {draftButton("Regenerate the letter")}
+      </div>
+      {drafting || draftPressed ? (
+        <p className="mt-2 animate-pulse text-sm text-white/70">Writing the outcome from the meeting record. This takes a few seconds.</p>
+      ) : null}
+      {draftState.error ? <p className="form-error">{draftState.error}</p> : null}
+    </div>
+  );
   if (!mounted) return null;
 
   return createPortal(
@@ -225,6 +272,7 @@ export default function OutcomeLetterDialog({
                 ? `This is the letter as it will go. Approve and send emails it to ${finalLook.to} with this PDF attached, and keeps the PDF on the meeting. Once sent it cannot be changed.`
                 : `${finalLook.name} has no email address, so this letter will not be emailed. Approving keeps it as a PDF on the meeting, marked not emailed, for you to print and hand over.`}
             </p>
+            {missingOutcome ? noOutcomeNotice : null}
             <div className="h-[60vh] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
               <PolicyReader url="" data={finalLook.bytes} onRendered={() => setPdfFailed(false)} onFailed={() => setPdfFailed(true)} />
             </div>
@@ -238,7 +286,7 @@ export default function OutcomeLetterDialog({
               <button
                 type="button"
                 className="btn-primary text-xs"
-                disabled={busy || !!sendState.ok || pdfFailed}
+                disabled={busy || !!sendState.ok || pdfFailed || missingOutcome}
                 onClick={() => {
                   const f = fd();
                   startTransition(() => sendAction(f));
@@ -272,6 +320,7 @@ export default function OutcomeLetterDialog({
               right of appeal (Settings, Letters) with what the meeting covered and decided in the
               middle. The letterhead, address, Dear and sign off are added as the letter is laid out.
             </p>
+            {body.trim() && missingOutcome ? noOutcomeNotice : null}
             {!body.trim() ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
