@@ -12,7 +12,7 @@
  */
 
 import { blockText, isLetterHtml, letterBlocksOf, letterPlainText, toLetterHtml } from "../letters/rich-text.ts";
-import { normaliseLetterDates, numberWord } from "./invitation-letter.ts";
+import { normaliseLetterDates, numberWord, smallNumbersInWords } from "./invitation-letter.ts";
 
 export const OUTCOME_BODY_LIMIT = 6000;
 /** The same letter with its formatting: room for the tags around those words. */
@@ -163,8 +163,9 @@ export function cleanOutcomeBody(raw: string): string {
     .split(/\n{2,}/)
     .filter((p) => !/:\s*$/.test(p.trim()) || p.trim().split("\n").length > 1)
     .join("\n\n");
-  // Every date as the rest of the letter writes it, "21st July 2026" (Phil, 2026-10-12, Part C).
-  return normaliseLetterDates(t.trim()).slice(0, OUTCOME_BODY_LIMIT);
+  // Every date as the rest of the letter writes it, "21st July 2026", and small counts in words,
+  // "three absences within a six month period" (Phil, 2026-10-12, Part C).
+  return smallNumbersInWords(normaliseLetterDates(t.trim())).slice(0, OUTCOME_BODY_LIMIT);
 }
 
 /** What the manager approved, ready to merge: trimmed and capped. Extra blank lines are KEPT (up

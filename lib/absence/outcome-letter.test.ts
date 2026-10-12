@@ -212,3 +212,13 @@ test("a discount reason's date is written like the rest of the letter", () => {
   );
   assert.match(out, /held on 12th October 2026\.$/);
 });
+
+test("an AI draft's small counts are written in words, dates and times left alone", () => {
+  const out = cleanOutcomeBody(
+    "A Stage 1 meeting is triggered at 3 absences within a 6 month period. The meeting was at 10:00 on 01/10/2026 and lasted 45 minutes.",
+  );
+  assert.equal(
+    out,
+    "A Stage 1 meeting is triggered at three absences within a six month period. The meeting was at 10:00 on 1st October 2026 and lasted 45 minutes.",
+  );
+});
