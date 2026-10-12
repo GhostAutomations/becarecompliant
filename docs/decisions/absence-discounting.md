@@ -24,3 +24,16 @@
 - [stated] 2026-10-08: Childcare or dependant absences counting towards stages: not decided yet (flagged; Acas says dismissal for taking dependant leave is automatically unfair).
 - [stated] 2026-10-08 (two Thistle staff records): discounted absences must not push people up a stage. If a meeting discounts absences (no warning given / no further action), the person drops back to the stage their remaining absences reach, and their next absence re-triggers that same stage, not the next one (e.g. discounted Stage 3 with NFA leaves them on Stage 2; next absence = Stage 3 again, not 4). The card still shows the last meeting held.
 - [stated] 2026-10-08 Return to Work, all companies: remove adjustment/support questions completely (asked of everyone they invite flexible working requests, e.g. "Change my availability"); Employee comments moves up to sit with the Questions to ask; add a Manager comments box at the bottom.
+
+## Which discounts a meeting's letter calls "discounted at this meeting" (Phil, 2026-10-12)
+
+- [stated] Only the meeting's own. A discount whose reason names a meeting date ("held on
+  10/07/2026" or "held on 10th July 2026") belongs to that meeting. Otherwise it belongs to the
+  meeting if it was made on or after the meeting day and before the person's next meeting. So a
+  discount made at a later meeting is never claimed by an earlier letter, and discounts entered by
+  hand afterwards for a back entered meeting (Thistle, 25 Sep) stay with it.
+- Checked 12 Oct against every recorded meeting: Thistle's letters unchanged; one Bevan test meeting
+  now correctly includes a discount its reason names.
+- Counting, unchanged and checked: an absence counts when it is inside the window and not discounted
+  (the window's first day counts, the day before does not); the outcome letter uses the window as it
+  stood on the meeting day; each stage's letter lists only that stage's absences.

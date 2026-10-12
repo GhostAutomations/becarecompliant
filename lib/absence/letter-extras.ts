@@ -14,7 +14,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { letterJobTitle } from "@/lib/letters/signature";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { getAbsenceConfig } from "@/lib/absence/data";
-import { countedAbsences, windowStartIso } from "@/lib/absence/discount";
+import { countedAbsences, discountedAtMeeting, windowStartIso } from "@/lib/absence/discount";
 import { windowLabel } from "@/lib/absence/window";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
@@ -59,6 +59,9 @@ export async function loadLetterExtras(opts: {
    *  after this day (yyyy-mm-dd, the meeting day) still counted when it was held, so they are in
    *  its list, marked as discounted at the meeting. */
   countDiscountedFrom?: string;
+  /** The person's next meeting day, if any: a discount made from then on is that meeting's, not
+   *  this one's (Phil, 2026-10-12). */
+  countDiscountedBefore?: string | null;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
   const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config] =
@@ -89,7 +92,7 @@ export async function loadLetterExtras(opts: {
   const from = opts.countDiscountedFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.countDiscountedFrom) ? opts.countDiscountedFrom : null;
   const raw = ((events ?? []) as Array<InvitationAbsence & { discounted_at: string | null; discount_reason: string | null }>)
     .filter((e) => e.start_date <= today);
-  const here = from ? raw.filter((e) => e.discounted_at && e.discounted_at.slice(0, 10) >= from) : [];
+  const here = discountedAtMeeting(raw, from, opts.countDiscountedBefore);
   const hereDates = new Set(here.map((e) => e.start_date));
   const counted = countedAbsences(
     raw.map((e) => (hereDates.has(e.start_date) ? { ...e, discounted_at: null } : e)),

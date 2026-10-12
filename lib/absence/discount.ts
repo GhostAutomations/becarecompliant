@@ -90,3 +90,41 @@ export function countedAbsences<T extends { start_date: string; discounted_at: s
     .filter((e) => absenceCountState(e, opts) === "counted")
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
 }
+
+const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+/** The meeting date a discount reason names ("...meeting held on 10/07/2026" or "held on 10th July
+ *  2026"), as yyyy-mm-dd, or null. */
+export function meetingDateInReason(reason: string | null | undefined): string | null {
+  const t = String(reason ?? "");
+  const slash = /held on (\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(t);
+  if (slash) return `${slash[3]}-${slash[2].padStart(2, "0")}-${slash[1].padStart(2, "0")}`;
+  const words = /held on (\d{1,2})(?:st|nd|rd|th)? ([a-z]+) (\d{4})/i.exec(t);
+  if (words) {
+    const m = MONTH_NAMES.indexOf(words[2].toLowerCase());
+    if (m >= 0) return `${words[3]}-${String(m + 1).padStart(2, "0")}-${words[1].padStart(2, "0")}`;
+  }
+  return null;
+}
+
+/**
+ * The absences discounted AT a meeting (Phil, 2026-10-12), for its letter's "discounted at this
+ * meeting". A reason that names a meeting date decides it; otherwise one discounted on or after the
+ * meeting day and before the person's next meeting. So a discount made at a later meeting is never
+ * claimed by an earlier one, and one entered afterwards for this meeting (Thistle's back entered
+ * meetings, discounted by hand the next day) still belongs to it.
+ */
+export function discountedAtMeeting<T extends { discounted_at: string | null; discount_reason?: string | null }>(
+  events: T[],
+  meetingDay: string | null | undefined,
+  nextMeetingDay?: string | null,
+): T[] {
+  if (!meetingDay || !/^\d{4}-\d{2}-\d{2}$/.test(meetingDay)) return [];
+  return events.filter((e) => {
+    if (!e.discounted_at) return false;
+    const named = meetingDateInReason(e.discount_reason);
+    if (named) return named === meetingDay;
+    const day = e.discounted_at.slice(0, 10);
+    return day >= meetingDay && (!nextMeetingDay || day < nextMeetingDay);
+  });
+}

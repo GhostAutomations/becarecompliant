@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   absenceCountState,
+  discountedAtMeeting,
+  meetingDateInReason,
   canDiscountAbsences,
   countedAbsences,
   discountReasonProblem,
@@ -50,4 +52,23 @@ test("what counts: discounted and outside the window do not", () => {
   assert.equal(absenceCountState(evs[2], opts), "discounted");
   assert.equal(absenceCountState(evs[3], opts), "counted");
   assert.deepEqual(countedAbsences(evs, opts).map((e) => e.id), ["d", "a"]);
+});
+
+test("a discount belongs to the meeting its reason names, else to the meeting before the next one", () => {
+  const ev = [
+    { id: "at meeting", discounted_at: "2026-10-12T13:29:20Z", discount_reason: "Agreed at the Stage 1 meeting held on 12/10/2026" },
+    { id: "back entered", discounted_at: "2026-10-25T00:04:00Z", discount_reason: "Disallowed at the Stage 1 meeting held on 12th October 2026" },
+    { id: "named other meeting", discounted_at: "2026-10-13T09:00:00Z", discount_reason: "Agreed at the Stage 2 meeting held on 13/10/2026" },
+    { id: "by hand, no date", discounted_at: "2026-10-14T09:00:00Z", discount_reason: "Hospital letter seen" },
+    { id: "by hand after next meeting", discounted_at: "2026-11-02T09:00:00Z", discount_reason: "Hospital letter seen" },
+    { id: "earlier", discounted_at: "2026-10-01T09:00:00Z", discount_reason: null },
+    { id: "never", discounted_at: null, discount_reason: null },
+  ];
+  assert.deepEqual(
+    discountedAtMeeting(ev, "2026-10-12", "2026-11-01").map((e) => e.id),
+    ["at meeting", "back entered", "by hand, no date"],
+  );
+  assert.deepEqual(discountedAtMeeting(ev, null), []);
+  assert.equal(meetingDateInReason("Disallowed at the Stage 1 meeting held on 9/6/2026"), "2026-06-09");
+  assert.equal(meetingDateInReason("no date here"), null);
 });

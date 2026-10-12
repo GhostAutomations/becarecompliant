@@ -94,6 +94,8 @@ type Loaded = {
   /** A recorded meeting's letter counts absences as they stood on its day (absence recheck). */
   asOfIso?: string;
   discountedFrom?: string;
+  /** The person's next meeting day, so a discount made at it is not called this meeting's. */
+  discountedBefore?: string | null;
   personId: string;
   conductorId: string | null;
   employee: { name: string; email: string | null; profileId: string | null };
@@ -105,6 +107,24 @@ type Loaded = {
     approved_body: string | null;
   } | null;
 };
+
+/** The day of the person's next meeting after this one, if there is one. */
+async function nextMeetingDay(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  personId: string,
+  meetingDay: string | null,
+): Promise<string | null> {
+  if (!meetingDay) return null;
+  const { data } = await supabase
+    .from("absence_meetings")
+    .select("meeting_date")
+    .eq("person_id", personId)
+    .gt("meeting_date", meetingDay)
+    .order("meeting_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data?.meeting_date as string | null) ?? null;
+}
 
 async function load(meetingId: string, companyId: string): Promise<Loaded | { error: string }> {
   if (!meetingId) return { error: "Missing meeting." };
@@ -161,6 +181,7 @@ async function load(meetingId: string, companyId: string): Promise<Loaded | { er
     answers,
     asOfIso: (m.meeting_date as string | null) ?? undefined,
     discountedFrom: (m.meeting_date as string | null) ?? undefined,
+    discountedBefore: await nextMeetingDay(supabase, m.person_id as string, (m.meeting_date as string | null) ?? null),
     personId: m.person_id as string,
     conductorId: (m.conducted_by as string | null) ?? null,
     employee: {
@@ -183,6 +204,7 @@ type LetterCtx = Pick<Loaded, "supabase" | "companyId" | "companyName" | "employ
   conductorId: string | null;
   asOfIso?: string;
   discountedFrom?: string;
+  discountedBefore?: string | null;
 };
 
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
@@ -196,6 +218,7 @@ async function letterSetup(ctx: LetterCtx) {
       conductorId: ctx.conductorId ?? NO_ONE,
       asOfIso: ctx.asOfIso,
       countDiscountedFrom: ctx.discountedFrom,
+      countDiscountedBefore: ctx.discountedBefore,
     }),
     getAbsenceConfig(ctx.companyId),
   ]);
