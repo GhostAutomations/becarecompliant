@@ -117,7 +117,9 @@ const RichLetterEditor = forwardRef<RichLetterEditorHandle, Props>(function Rich
       },
       transformPastedHTML: wordListsToLists,
     },
-    onUpdate: ({ editor: e }) => {
+    onUpdate: ({ editor: e, transaction }) => {
+      // Only a change to the words counts as an edit.
+      if (!transaction.docChanged) return;
       const html = toLetterHtml(e.getHTML());
       lastSent.current = html;
       onChange(html);
@@ -135,8 +137,10 @@ const RichLetterEditor = forwardRef<RichLetterEditorHandle, Props>(function Rich
     editor.commands.setContent(next, { emitUpdate: false });
   }, [value, editor]);
 
+  // Locked or unlocked without reporting a change: TipTap's setEditable announces an update by
+  // default, which read as "the letter was edited and is now empty" (found testing, 12 Oct).
   useEffect(() => {
-    editor?.setEditable(!disabled);
+    editor?.setEditable(!disabled, false);
   }, [disabled, editor]);
 
   useImperativeHandle(ref, () => ({
