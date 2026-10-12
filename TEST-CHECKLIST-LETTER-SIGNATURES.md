@@ -14,7 +14,7 @@ the unsigned invitation unchanged.
 Dry run of 0446 on the live database, rolled back (12 Oct): the Supervisor kept, saw and removed
 their own row and file; writing a row or a file for the Admin was refused; the Admin and the Founder
 saw 0 rows and 0 files of the Supervisor's and changed nothing; the Founder and a Senior could not
-keep one. Afterwards no table, bucket or policy remained.
+keep one. Afterwards no table, bucket or policy remained. Applied live 12 Oct; security advisor 0 errors (the two new helper functions join the existing group of functions signed in users may run; each only answers for the caller's own login).
 
 | # | Check | Result |
 |---|-------|--------|
@@ -25,7 +25,7 @@ keep one. Afterwards no table, bucket or policy remained.
 | L5 | Save to history: the kept letter PDF carries the signature; audit `signature.used` | Not tested |
 | L6 | Outcome letter: the final look shows the signature, a changed choice redraws it; Save to file and Approve and keep carry it; audit `signature.used` | Not tested |
 | L7 | Rearrange: the letter preview shows the signature and the new letter carries it | Not tested |
-| L8 | After applying: the same privacy checks as the dry run pass on the live tables | Not tested |
+| L8 | After applying: the same privacy checks as the dry run pass on the live tables | PASS (12 Oct, after applying, rolled back: own row and file kept and seen; writing for the Admin refused; the Admin and the Founder saw and changed nothing; the Founder and a Senior could not keep one) |
 | L9 | Founder in support mode: no My signature link, the page says it is not available, no signing choice on letters | Not tested |
 | L10 | Remove a saved signature: gone from the page, its file gone from storage | Not tested |
 | L11 | Phone width: My signature and the signing choice fit with no sideways scroll | Not tested |
