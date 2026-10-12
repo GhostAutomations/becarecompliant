@@ -19,6 +19,8 @@ import {
 import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
 import { ImportTemplatesButton } from "@/components/founder/import-templates-button";
 import SupervisionCycleToggle from "@/components/founder/supervision-cycle-toggle";
+import HistoricOutcomesWindow from "@/components/founder/historic-outcomes-window";
+import { historicWindowOpen } from "@/lib/service-users/outcome-history";
 import FounderColumnNamesForm from "@/components/founder/founder-column-names-form";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
@@ -88,7 +90,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test, branch_word, branch_word_plural")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test, branch_word, branch_word_plural, historic_outcomes_until")
     .eq("id", id)
     .maybeSingle();
 
@@ -573,6 +575,23 @@ export default async function FounderCompanyPage({
         <SupervisionCycleToggle
           companyId={company.id}
           mode={(company.supervision_cycle_mode as "appraisal" | "four_supervisions") ?? "appraisal"}
+        />
+      </section>
+
+      <section aria-label="Past outcomes and updates" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Past outcomes and updates</h2>
+        <p className="mb-3 text-sm text-white/60">
+          While open, this company can add a personal outcome that began in the past (From and To) and an
+          outcome update dated in the past. Each one is marked as added later. It closes by itself after
+          the last day.
+        </p>
+        <HistoricOutcomesWindow
+          companyId={company.id}
+          until={(company.historic_outcomes_until as string | null) ?? null}
+          open={historicWindowOpen(
+            (company.historic_outcomes_until as string | null) ?? null,
+            new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date()),
+          )}
         />
       </section>
 

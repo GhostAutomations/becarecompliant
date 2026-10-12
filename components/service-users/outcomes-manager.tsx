@@ -24,6 +24,10 @@ import {
   type OutcomeProgress,
 } from "@/lib/service-users/outcome-consts";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
+import { enteredLaterLine, londonDate, outcomeFrom, ukDate, updateDate } from "@/lib/service-users/outcome-history";
+
+/** The Founder's window for past entries, when it is open for this company (0449). */
+type PastWindow = { until: string } | null;
 
 function fmt(iso: string | null): string {
   if (!iso) return "—";
@@ -36,19 +40,33 @@ export default function OutcomesManager({
   outcomes,
   intervalMonths,
   today,
+  past,
+  discharged,
 }: {
   serviceUserId: string;
   outcomes: OutcomeRow[];
   intervalMonths: number;
   today: string;
+  past: PastWindow;
+  /** The discharge date, when this person has been discharged. */
+  discharged: string | null;
 }) {
   const active = outcomes.filter((o) => o.status !== "achieved");
   const achieved = outcomes.filter((o) => o.status === "achieved");
   const [showAchieved, setShowAchieved] = useState(false);
+  // A discharged person takes past entries only, while the window is open (Phil, 2026-10-13).
+  const ctx: EntryCtx = { past, discharged, today, pastOnly: !!past && !!discharged };
 
   return (
     <div className="space-y-6">
-      <AddOutcome serviceUserId={serviceUserId} />
+      {past ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          You can add past outcomes and past updates until the end of {ukDate(past.until)}. Each one is marked
+          as added later, with the date it speaks for.
+          {ctx.pastOnly ? ` This person was discharged on ${ukDate(discharged)}, so only past entries can be added.` : ""}
+        </p>
+      ) : null}
+      <AddOutcome serviceUserId={serviceUserId} ctx={ctx} />
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
@@ -60,7 +78,7 @@ export default function OutcomesManager({
           </div>
         ) : (
           active.map((o) => (
-            <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} today={today} />
+            <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
           ))
         )}
       </div>
@@ -76,7 +94,7 @@ export default function OutcomesManager({
           </button>
           {showAchieved
             ? achieved.map((o) => (
-                <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} today={today} />
+                <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
               ))
             : null}
         </div>
@@ -85,10 +103,41 @@ export default function OutcomesManager({
   );
 }
 
-function AddOutcome({ serviceUserId }: { serviceUserId: string }) {
+type EntryCtx = { past: PastWindow; discharged: string | null; today: string; pastOnly: boolean };
+
+/** The past option's tick box, shown only while the window is open. */
+function PastTick({
+  ctx,
+  label,
+  checked,
+  onChange,
+}: {
+  ctx: EntryCtx;
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  if (!ctx.past) return null;
+  return (
+    <label className="flex items-center gap-2 text-sm text-white/80">
+      <input
+        type="checkbox"
+        checked={checked || ctx.pastOnly}
+        disabled={ctx.pastOnly}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+function AddOutcome({ serviceUserId, ctx }: { serviceUserId: string; ctx: EntryCtx }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(createOutcome, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
+  const [pastTicked, setPastTicked] = useState(false);
+  const isPast = !!ctx.past && (pastTicked || ctx.pastOnly);
+  const latestFrom = ctx.discharged && ctx.discharged < ctx.today ? ctx.discharged : ctx.today;
 
   useEffect(() => {
     if (state.ok && !pending) {
@@ -116,13 +165,28 @@ function AddOutcome({ serviceUserId }: { serviceUserId: string }) {
         <label className="form-label">What matters, and how we will support it (optional)</label>
         <textarea name="detail" rows={3} placeholder="The detail behind this outcome and the steps being taken." />
       </div>
-      <div className="max-w-[12rem]">
-        <label className="form-label">Target date (optional)</label>
-        <input type="date" name="target_date" />
-      </div>
+      <PastTick ctx={ctx} label="This is a past outcome" checked={pastTicked} onChange={setPastTicked} />
+      {isPast ? <input type="hidden" name="entered_later" value="1" /> : null}
+      {isPast ? (
+        <div className="grid max-w-[25rem] gap-3 sm:grid-cols-2">
+          <div>
+            <label className="form-label">From</label>
+            <input type="date" name="start_date" required max={latestFrom} />
+          </div>
+          <div>
+            <label className="form-label">To, the target date (optional)</label>
+            <input type="date" name="target_date" />
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-[12rem]">
+          <label className="form-label">Target date (optional)</label>
+          <input type="date" name="target_date" />
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-primary"}`}>
-          {pending ? "Adding…" : saved ? "Added" : "Add outcome"}
+          {pending ? "Adding…" : saved ? "Added" : isPast ? "Add past outcome" : "Add outcome"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="btn-ghost text-xs">Cancel</button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
@@ -137,18 +201,22 @@ function OutcomeCard({
   serviceUserId,
   outcome,
   intervalMonths,
-  today,
+  ctx,
 }: {
   serviceUserId: string;
   outcome: OutcomeRow;
   intervalMonths: number;
-  today: string;
+  ctx: EntryCtx;
 }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [showHistory, setShowHistory] = useState(false);
   const isActive = outcome.status !== "achieved";
-  const anchor = (outcome.last_update_at ?? outcome.created_at)?.slice(0, 10) ?? null;
-  const rag = outcomeUpdateRag(anchor, intervalMonths, today, isActive);
+  // A past outcome with no update yet is due from the day it began.
+  const anchor = (outcome.last_update_at ?? outcome.start_date ?? outcome.created_at)?.slice(0, 10) ?? null;
+  const rag = outcomeUpdateRag(anchor, intervalMonths, ctx.today, isActive);
+  const from = outcomeFrom(outcome);
+  const achievedStamp = outcome.achieved_at ?? outcome.last_update_at;
+  const achievedOn = !isActive && achievedStamp ? londonDate(achievedStamp) : null;
 
   return (
     <div className="glass-card space-y-3 p-5">
@@ -156,7 +224,13 @@ function OutcomeCard({
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-white">{outcome.title}</h3>
           {outcome.detail ? <p className="mt-1 text-sm text-white/65">{outcome.detail}</p> : null}
+          {outcome.entered_later && outcome.start_date ? (
+            <p className="mt-1 text-xs text-amber-200/80">
+              {enteredLaterLine(outcome.created_at, outcome.entered_by_name, outcome.start_date)}
+            </p>
+          ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-white/45">
+            {outcome.start_date ? <span>From {ukDate(outcome.start_date)}</span> : null}
             {/* The target date is edited WHERE IT IS SHOWN (Phil, 2026-09-15). It used to be
                 grey text, with the only way to change it three clicks away behind Edit, so it
                 read as something the system had worked out rather than something you set. */}
@@ -178,14 +252,24 @@ function OutcomeCard({
         {isActive ? (
           <>
             <button type="button" onClick={() => setPanel(panel === "update" ? null : "update")} className="btn-outline text-xs">
-              Log update
+              {ctx.pastOnly ? "Add a past update" : "Log update"}
             </button>
-            <button type="button" onClick={() => setPanel(panel === "complete" ? null : "complete")} className="btn-outline text-xs">
-              Mark achieved
-            </button>
+            {ctx.pastOnly ? null : (
+              <button type="button" onClick={() => setPanel(panel === "complete" ? null : "complete")} className="btn-outline text-xs">
+                Mark achieved
+              </button>
+            )}
           </>
         ) : (
-          <ReopenButton serviceUserId={serviceUserId} outcomeId={outcome.id} />
+          <>
+            <ReopenButton serviceUserId={serviceUserId} outcomeId={outcome.id} />
+            {/* History before the achievement can still be filled in while the window is open. */}
+            {ctx.past ? (
+              <button type="button" onClick={() => setPanel(panel === "update" ? null : "update")} className="btn-outline text-xs">
+                Add a past update
+              </button>
+            ) : null}
+          </>
         )}
         <button type="button" onClick={() => setPanel(panel === "edit" ? null : "edit")} className="btn-outline text-xs">
           Edit
@@ -199,7 +283,14 @@ function OutcomeCard({
       </div>
 
       {panel === "update" ? (
-        <LogUpdateForm serviceUserId={serviceUserId} outcomeId={outcome.id} onDone={() => setPanel(null)} />
+        <LogUpdateForm
+          serviceUserId={serviceUserId}
+          outcomeId={outcome.id}
+          onDone={() => setPanel(null)}
+          ctx={ctx}
+          from={from}
+          achievedOn={achievedOn}
+        />
       ) : null}
       {panel === "complete" ? (
         <CompleteForm serviceUserId={serviceUserId} outcomeId={outcome.id} onDone={() => setPanel(null)} />
@@ -214,7 +305,7 @@ function OutcomeCard({
             <li key={u.id} className="rounded-lg bg-white/5 px-3 py-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-white/60">{fmt(u.created_at)}</span>
+                  <span className="text-white/60">{ukDate(updateDate(u))}</span>
                   {u.kind === "completed" ? (
                     <span className="pill pill-green">Achieved</span>
                   ) : u.kind === "reopened" ? (
@@ -226,6 +317,9 @@ function OutcomeCard({
                 <span className="text-xs text-white/40">{u.author_name ?? "—"}</span>
               </div>
               {u.note ? <p className="mt-1 text-xs text-white/60">{u.note}</p> : null}
+              {u.entered_later && u.dated_on ? (
+                <p className="mt-1 text-xs text-amber-200/80">{enteredLaterLine(u.created_at, u.author_name, u.dated_on)}</p>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -234,10 +328,30 @@ function OutcomeCard({
   );
 }
 
-function LogUpdateForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: string; outcomeId: string; onDone: () => void }) {
+function LogUpdateForm({
+  serviceUserId,
+  outcomeId,
+  onDone,
+  ctx,
+  from,
+  achievedOn,
+}: {
+  serviceUserId: string;
+  outcomeId: string;
+  onDone: () => void;
+  ctx: EntryCtx;
+  /** The day the outcome began: a past update cannot be dated before it. */
+  from: string;
+  /** The day it was achieved, for an achieved outcome: only past updates up to then. */
+  achievedOn: string | null;
+}) {
   const [state, formAction, pending] = useActionState(logOutcomeUpdate, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
-  const [progress, setProgress] = useState<OutcomeProgress>("progressing");
+  const [progress, setProgress] = useState<OutcomeProgress | "achieved">("progressing");
+  const [pastTicked, setPastTicked] = useState(false);
+  const forcePast = ctx.pastOnly || achievedOn !== null;
+  const isPast = !!ctx.past && (pastTicked || forcePast);
+  const latest = [ctx.today, ctx.discharged, achievedOn].filter((d): d is string => !!d).sort()[0];
   useEffect(() => {
     if (state.ok && !pending) {
       flash();
@@ -249,13 +363,29 @@ function LogUpdateForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: st
     <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
-      <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
+      {achievedOn ? null : (
+        <PastTick ctx={ctx} label="This is a past update" checked={pastTicked} onChange={setPastTicked} />
+      )}
+      {isPast ? <input type="hidden" name="entered_later" value="1" /> : null}
+      <div className={`grid gap-3 ${isPast ? "sm:grid-cols-[10rem_12rem_1fr]" : "sm:grid-cols-[12rem_1fr]"}`}>
+        {isPast ? (
+          <div>
+            <label className="form-label">Date of the update</label>
+            <input type="date" name="dated_on" required min={from} max={latest} />
+          </div>
+        ) : null}
         <div>
           <label className="form-label">Progress</label>
-          <select name="progress" value={progress} onChange={(e) => setProgress(e.target.value as OutcomeProgress)}>
+          <select
+            name="progress"
+            value={!isPast && progress === "achieved" ? "progressing" : progress}
+            onChange={(e) => setProgress(e.target.value as OutcomeProgress | "achieved")}
+          >
             {OUTCOME_PROGRESS.map((p) => (
               <option key={p.value} value={p.value}>{p.label}</option>
             ))}
+            {/* A past update may mark the outcome achieved on its day (Phil, 2026-10-13). */}
+            {isPast && !achievedOn ? <option value="achieved">Achieved</option> : null}
           </select>
         </div>
         <div>
@@ -265,7 +395,7 @@ function LogUpdateForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: st
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-primary"} text-xs`}>
-          {pending ? "Recording…" : saved ? "Recorded" : "Record update"}
+          {pending ? "Recording…" : saved ? "Recorded" : isPast ? "Record past update" : "Record update"}
         </button>
         <button type="button" onClick={onDone} className="btn-ghost text-xs">Cancel</button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}

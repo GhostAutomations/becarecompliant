@@ -42,7 +42,8 @@ import type { ReportDoc, ReportCell } from "@/lib/export/pdf";
 import { fmtDate, generatedAt } from "@/lib/export/format";
 import { getTrainingMatrix } from "@/lib/training/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
-import { getOutcomesRegister } from "@/lib/service-users/data";
+import { getOutcomesAsAt } from "@/lib/service-users/data";
+import { outcomesPqs } from "@/lib/service-users/outcome-history";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { scwCountsAsRegistered } from "@/lib/people/scw";
 import type { BranchTerms } from "@/lib/branches/word";
@@ -661,15 +662,11 @@ async function computeOnTime(input: OnTimeInput) {
   // questions across reviews completed in the same window (branch scoped to match).
   const satisfaction = await getSatisfaction(input.companyId, { from: win.from, to: win.to }, input.branchId);
 
-  // Personal outcomes: percentage of service user outcomes achieved or progressing,
-  // branch scoped to match this report.
-  const outcomesReg = await getOutcomesRegister(input.companyId);
-  const outcomeRows = input.branchId
-    ? outcomesReg.rows.filter((r) => r.branch_id === input.branchId)
-    : outcomesReg.rows;
-  const outcomeInScope = outcomeRows.reduce((n, r) => n + r.total, 0);
-  const outcomeAchieving = outcomeRows.reduce((n, r) => n + r.achievingOrProgressing, 0);
-  const outcomesPct = floorPct(outcomeAchieving, outcomeInScope);
+  // Personal outcomes: percentage of service user outcomes achieved or progressing, as they stood
+  // on the period's last day (Phil, 2026-10-13, popup), branch scoped to match this report. A
+  // period ending today is the register's own figure. Banded by the sheet's own outcomes bands.
+  const outcomesAt = await getOutcomesAsAt(input.companyId, input.branchId, win.to);
+  const outcomes = outcomesPqs(outcomesAt.achievingOrProgressing, outcomesAt.inScope);
 
   // Two of the PQS measures are on-time checks already in the table, so we just
   // star those rows. The other three are not checks, so they are appended as their
@@ -720,12 +717,11 @@ async function computeOnTime(input: OnTimeInput) {
     {
       name: "Personal outcomes",
       register: "Service Users",
-      // Outcomes carry a current status and no history, so this row is a position as at today
-      // whatever period is asked for. The label says so rather than letting the Period line above
-      // speak for it.
-      gradedAt: "Achieved or progressing, as at today",
-      rate: outcomesPct,
-      band: bandPct(outcomesPct),
+      // Outcomes carry their history (dated updates, 0449), so this row is the position on the
+      // period's last day. Said on the row rather than left to the Period line above.
+      gradedAt: "Achieved or progressing, on the last day",
+      rate: outcomes.rate,
+      band: outcomes.band,
       star: "Supplier Performance Q2: percentage of service user personal outcomes achieved or progressing.",
     },
   ];
@@ -973,7 +969,7 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "Every row is a Cardiff PQS scored measure: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post at the end of the period, and their registration is read as it stands today. Training is judged at the end of the period. Personal outcomes carry no history, so that row is today's position. Every rate is rounded DOWN to one decimal, never up. Active records only, as the register stands today.",
+      "Every row is a Cardiff PQS scored measure: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post at the end of the period, and their registration is read as it stands today. Training is judged at the end of the period. Personal outcomes are counted as they stood on the last day of the period, rounded down to two decimals and scored on the sheet's own outcomes bands: over 85 percent is 10, over 70 is 7, over 50 is 5, 1 to 50 is 2, 0 is 0, and a service user discharged after the period ended still counts there. Every other rate is rounded DOWN to one decimal, never up. Active records only, as the register stands today.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {

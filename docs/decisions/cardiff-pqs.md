@@ -12,6 +12,8 @@ SECTIONS + QUESTIONS:
 
 SCORE BANDS (percentage questions): 100% = 10, 85.00 to 99.99% = 7, 70.00 to 84.99% = 5, 50.00 to 69.99% = 2, 0.00 to 49.99% = 0.
 
+EXCEPT Supplier Performance Q2, personal outcomes (cycle 2 SAQ sheet, Phil sent 2026-10-13): 85.01 to 100% = 10, 70.01 to 85.00% = 7, 50.01 to 70.00% = 5, 1.00 to 50.00% = 2, 0.00% = 0. Counted as on the period's last day. See historic-outcomes.md.
+
 MAPPING TO BCC:
 - Auto-calculable from our compliance data: Personal Plan Review on-time % (SU Care Plan Review checks), Supervision on-time % (People Supervision checks), mandatory training compliance %, safeguarding training % (needs a safeguarding check).
 - New data agreed to add (Phil, 2026-07-14): **Social Care Wales registration** (per person) and a **mandatory safeguarding training** check. (Satisfaction/outcomes surveys deferred.)

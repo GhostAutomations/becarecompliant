@@ -1050,6 +1050,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
         value: answers[field.key],
         actorId: user.id,
         actorName: profile.full_name || profile.email || null,
+        onIso: completedOnIso,
+        todayIso: todayIso(),
       });
       await writeAudit({
         companyId: instance.company_id as string,

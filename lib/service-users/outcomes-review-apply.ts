@@ -18,6 +18,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseOutcomesReview, settingNew, type OutcomesReviewValue } from "./outcomes-review";
+import { middayOf, outcomeFrom, pastUpdateIsLatest, type TimelineUpdate } from "./outcome-history";
 
 export type RecordOutcome = { id: string; title: string; target: string | null };
 
@@ -44,17 +45,46 @@ export async function applyOutcomesReview(opts: {
   value: unknown;
   actorId: string;
   actorName: string | null;
+  /** The review's own date (its first date answer), London. Today unless it was filed later. */
+  onIso: string;
+  todayIso: string;
 }): Promise<AppliedOutcomes> {
   const db = createServiceClient();
   const v: OutcomesReviewValue = parseOutcomesReview(opts.value);
   const out: AppliedOutcomes = { updated: 0, achieved: 0, created: false, failed: null };
   const at = new Date().toISOString();
+  /* A review filed after the day it happened speaks for ITS day, not the day it was typed in
+     (Phil, 2026-10-13): its updates are dated the review's date, and a new outcome begins then.
+     A review done today is exactly as before. */
+  const backDated = opts.onIso < opts.todayIso;
 
   const onRecord = new Set((await outcomesForReview(opts.serviceUserId, db)).map((o) => o.id));
+
+  // For a back dated review: when each outcome began and what is already on its timeline.
+  const begun = new Map<string, string>();
+  const timeline = new Map<string, TimelineUpdate[]>();
+  if (backDated && onRecord.size > 0) {
+    const ids = [...onRecord];
+    const [{ data: outs }, { data: ups }] = await Promise.all([
+      db.from("service_user_outcomes").select("id, start_date, created_at").in("id", ids),
+      db.from("service_user_outcome_updates").select("outcome_id, kind, progress, dated_on, created_at").in("outcome_id", ids),
+    ]);
+    for (const o of (outs as Array<{ id: string; start_date: string | null; created_at: string }> | null) ?? []) {
+      begun.set(o.id, outcomeFrom(o));
+    }
+    for (const u of (ups as Array<TimelineUpdate & { outcome_id: string }> | null) ?? []) {
+      const list = timeline.get(u.outcome_id) ?? [];
+      list.push(u);
+      timeline.set(u.outcome_id, list);
+    }
+  }
 
   for (const line of v.current) {
     if (!line.progress || !onRecord.has(line.id)) continue;
     const achieved = line.progress === "achieved";
+    // Never before the outcome began: an outcome added after the review took place is updated
+    // from its first day.
+    const dated = backDated ? [opts.onIso, begun.get(line.id) ?? opts.onIso].sort()[1] : null;
     const { error } = await db.from("service_user_outcome_updates").insert({
       company_id: opts.companyId,
       service_user_id: opts.serviceUserId,
@@ -66,6 +96,7 @@ export async function applyOutcomesReview(opts: {
       author_name: opts.actorName,
       created_at: at,
       evidence_id: opts.evidenceId,
+      ...(dated && dated < opts.todayIso ? { dated_on: dated } : {}),
     });
     if (error) {
       // 23505: this review's update is already there, so this is a second run. Not a failure.
@@ -73,17 +104,25 @@ export async function applyOutcomesReview(opts: {
       out.failed = "An outcome update could not be saved to the Outcomes page.";
       continue;
     }
-    const { error: upErr } = await db
+    // A back dated review moves an outcome's status only when nothing on it is later.
+    if (dated && !pastUpdateIsLatest(timeline.get(line.id) ?? [], dated, false)) {
+      if (achieved) out.achieved += 1;
+      else out.updated += 1;
+      continue;
+    }
+    const stamp = dated && dated < opts.todayIso ? middayOf(dated) : at;
+    const { data: moved, error: upErr } = await db
       .from("service_user_outcomes")
       .update(
         achieved
-          ? { status: "achieved", achieved_at: at, last_update_at: at, updated_by: opts.actorId, updated_at: at }
-          : { status: line.progress, last_update_at: at, updated_by: opts.actorId, updated_at: at },
+          ? { status: "achieved", achieved_at: stamp, last_update_at: stamp, updated_by: opts.actorId, updated_at: at }
+          : { status: line.progress, last_update_at: stamp, updated_by: opts.actorId, updated_at: at },
       )
       .eq("id", line.id)
       .eq("service_user_id", opts.serviceUserId)
-      .eq("company_id", opts.companyId);
-    if (upErr) out.failed = "An outcome's status could not be updated on the Outcomes page.";
+      .eq("company_id", opts.companyId)
+      .select("id");
+    if (upErr || !moved?.length) out.failed = "An outcome's status could not be updated on the Outcomes page.";
     else if (achieved) out.achieved += 1;
     else out.updated += 1;
   }
@@ -108,6 +147,7 @@ export async function applyOutcomesReview(opts: {
       updated_by: opts.actorId,
       updated_at: at,
       source_evidence_id: opts.evidenceId,
+      ...(backDated ? { start_date: opts.onIso } : {}),
     });
     if (!error) out.created = true;
     else if (error.code !== "23505") out.failed = "The new outcome could not be added to the Outcomes page.";

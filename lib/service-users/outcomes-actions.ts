@@ -13,6 +13,18 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import type { OutcomeProgress } from "./outcome-consts";
+import {
+  enteredLaterLine,
+  historicWindowOpen,
+  londonDate,
+  middayOf,
+  outcomeFrom,
+  pastOutcomeError,
+  pastUpdateError,
+  pastUpdateIsLatest,
+  ukDate,
+  type TimelineUpdate,
+} from "./outcome-history";
 
 const PROGRESS: OutcomeProgress[] = ["progressing", "no_change", "regressing"];
 
@@ -20,15 +32,54 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-/** Resolve + authorise the service user for an outcome action. Returns its company. */
+function londonToday(): string {
+  return londonDate(nowIso());
+}
+
+/** The database's own refusals (0449) are written for people; anything else stays generic. */
+function refusal(error: { code?: string; message: string } | null, fallback: string): string {
+  if (error && (error.code === "23514" || error.code === "42501") && !/row-level security/i.test(error.message)) {
+    return error.message;
+  }
+  return fallback;
+}
+
+const DISCHARGED_PAST_ONLY =
+  "This person has been discharged, so only past entries can be added. Tick the past option and give its date.";
+
+/**
+ * Resolve + authorise the service user for an outcome action. Returns its company, whether the
+ * person has been discharged (their discharge date), and whether the company's window for past
+ * outcomes and updates is open today (docs/decisions/historic-outcomes.md).
+ */
 async function loadServiceUser(serviceUserId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("service_users")
-    .select("company_id")
+    .select("company_id, service_status, discharge_date, companies(historic_outcomes_until)")
     .eq("id", serviceUserId)
-    .maybeSingle();
-  return { supabase, companyId: (data?.company_id as string | undefined) ?? null };
+    .maybeSingle<{
+      company_id: string;
+      service_status: string;
+      discharge_date: string | null;
+      companies: { historic_outcomes_until: string | null } | null;
+    }>();
+  const until = data?.companies?.historic_outcomes_until ?? null;
+  const discharged = data?.service_status === "cancelled";
+  return {
+    supabase,
+    companyId: data?.company_id ?? null,
+    discharged,
+    dischargeDate: discharged ? (data?.discharge_date ?? null) : null,
+    windowOpen: historicWindowOpen(until, londonToday()),
+    until,
+  };
+}
+
+function windowClosedError(until: string | null): string {
+  return until
+    ? `Adding past outcomes and updates closed at the end of ${ukDate(until)}.`
+    : "Adding past outcomes and updates is not open for your company.";
 }
 
 /** Create a new outcome (title required, optional detail + target date). */
@@ -42,9 +93,25 @@ export async function createOutcome(_prev: ActionState, formData: FormData): Pro
   const target_date = /^\d{4}-\d{2}-\d{2}$/.test(targetRaw) ? targetRaw : null;
   if (!serviceUserId) return { error: "Missing service user." };
   if (!title) return { error: "Give the outcome a title." };
+  if (targetRaw && !target_date) return { error: "That target date is not a date the calendar recognises." };
 
-  const { supabase, companyId } = await loadServiceUser(serviceUserId);
+  const { supabase, companyId, discharged, dischargeDate, windowOpen, until } = await loadServiceUser(serviceUserId);
   if (!companyId) return { error: "Service user not found." };
+
+  /* A PAST OUTCOME (Phil, 2026-10-13): one that began before today, added while the Founder has
+     the company's window open. From is when it began, To is its target date. Marked as entered
+     later on screen, in exports and in the audit log. */
+  const past = formData.get("entered_later") === "1";
+  const from = String(formData.get("start_date") ?? "").trim();
+  if (past) {
+    if (!windowOpen) return { error: windowClosedError(until) };
+    const bad = pastOutcomeError({ from, to: target_date, todayIso: londonToday(), dischargeDate });
+    if (bad) return { error: bad };
+  } else if (discharged && windowOpen) {
+    return { error: DISCHARGED_PAST_ONLY };
+  }
+  const by = profile.full_name || profile.email;
+  const at = nowIso();
 
   const { data: last } = await supabase
     .from("service_user_outcomes")
@@ -65,9 +132,10 @@ export async function createOutcome(_prev: ActionState, formData: FormData): Pro
     position,
     created_by: profile.id,
     updated_by: profile.id,
-    updated_at: nowIso(),
+    updated_at: at,
+    ...(past ? { start_date: from, entered_later: true, entered_by_name: by } : {}),
   });
-  if (error) return { error: "Could not add the outcome. Please try again." };
+  if (error) return { error: refusal(error, "Could not add the outcome. Please try again.") };
 
   await writeAudit({
     companyId,
@@ -77,7 +145,10 @@ export async function createOutcome(_prev: ActionState, formData: FormData): Pro
     action: "service_user.outcome_added",
     entityType: "service_user",
     entityId: serviceUserId,
-    summary: `Added personal outcome: ${title}`,
+    summary: past
+      ? `Added a past personal outcome: ${title}. ${enteredLaterLine(at, by, from)}${target_date ? `, To ${ukDate(target_date)}` : ""}`
+      : `Added personal outcome: ${title}`,
+    ...(past ? { metadata: { entered_later: true, start_date: from, target_date } } : {}),
   });
   revalidatePath(`/service-users/${serviceUserId}/outcomes`);
   revalidatePath(`/service-users/${serviceUserId}`);
@@ -117,7 +188,7 @@ export async function setOutcomeTarget(_prev: ActionState, formData: FormData): 
     .eq("service_user_id", serviceUserId)
     .select("title")
     .maybeSingle<{ title: string }>();
-  if (error) return { error: "Could not save the target date. Please try again." };
+  if (error) return { error: refusal(error, "Could not save the target date. Please try again.") };
 
   await writeAudit({
     companyId,
@@ -146,20 +217,21 @@ export async function editOutcome(_prev: ActionState, formData: FormData): Promi
   const outcomeId = String(formData.get("outcome_id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim().slice(0, 300);
   const detail = (String(formData.get("detail") ?? "").trim().slice(0, 2000)) || null;
-  const targetRaw = String(formData.get("target_date") ?? "").trim();
-  const target_date = /^\d{4}-\d{2}-\d{2}$/.test(targetRaw) ? targetRaw : null;
   if (!serviceUserId || !outcomeId) return { error: "Missing outcome." };
   if (!title) return { error: "Give the outcome a title." };
 
   const { supabase, companyId } = await loadServiceUser(serviceUserId);
   if (!companyId) return { error: "Service user not found." };
 
-  const { error } = await supabase
+  // The target date is NOT written here (2026-10-13): the edit form stopped sending it when the
+  // date moved onto the card, so writing it from this form erased the target on every edit.
+  const { data: saved, error } = await supabase
     .from("service_user_outcomes")
-    .update({ title, detail, target_date, updated_by: profile.id, updated_at: nowIso() })
+    .update({ title, detail, updated_by: profile.id, updated_at: nowIso() })
     .eq("id", outcomeId)
-    .eq("service_user_id", serviceUserId);
-  if (error) return { error: "Could not save the outcome. Please try again." };
+    .eq("service_user_id", serviceUserId)
+    .select("id");
+  if (error || !saved?.length) return { error: "Could not save the outcome. Please try again." };
 
   await writeAudit({
     companyId,
@@ -184,11 +256,27 @@ export async function logOutcomeUpdate(_prev: ActionState, formData: FormData): 
   const outcomeId = String(formData.get("outcome_id") ?? "").trim();
   const progress = String(formData.get("progress") ?? "") as OutcomeProgress;
   const note = (String(formData.get("note") ?? "").trim().slice(0, 2000)) || null;
+  const past = formData.get("entered_later") === "1";
   if (!serviceUserId || !outcomeId) return { error: "Missing outcome." };
-  if (!PROGRESS.includes(progress)) return { error: "Choose progressing, no change or regressing." };
+  // A past update may also mark the outcome achieved on its day (Phil, 2026-10-13).
+  const marksAchieved = past && String(formData.get("progress") ?? "") === "achieved";
+  if (!marksAchieved && !PROGRESS.includes(progress)) return { error: "Choose progressing, no change or regressing." };
 
-  const { supabase, companyId } = await loadServiceUser(serviceUserId);
+  const ctx = await loadServiceUser(serviceUserId);
+  const { supabase, companyId } = ctx;
   if (!companyId) return { error: "Service user not found." };
+  if (past) {
+    return logPastUpdate({
+      ctx: { ...ctx, companyId },
+      profile,
+      serviceUserId,
+      outcomeId,
+      progress: marksAchieved ? null : progress,
+      note,
+      date: String(formData.get("dated_on") ?? "").trim(),
+    });
+  }
+  if (ctx.discharged && ctx.windowOpen) return { error: DISCHARGED_PAST_ONLY };
 
   const at = nowIso();
   const { error: insErr } = await supabase.from("service_user_outcome_updates").insert({
@@ -204,11 +292,17 @@ export async function logOutcomeUpdate(_prev: ActionState, formData: FormData): 
   });
   if (insErr) return { error: "Could not record the update. Please try again." };
 
-  await supabase
+  // F83 (audit 2026-10-10): this used to ignore its own error, so a status the database refused
+  // left the outcome showing its old status under a new update. Now it is said.
+  const { data: moved, error: upErr } = await supabase
     .from("service_user_outcomes")
     .update({ status: progress, last_update_at: at, updated_by: profile.id, updated_at: at })
     .eq("id", outcomeId)
-    .eq("service_user_id", serviceUserId);
+    .eq("service_user_id", serviceUserId)
+    .select("id");
+  if (upErr || !moved?.length) {
+    return { error: "The update is recorded, but the outcome's status could not be changed. Please try again or tell us." };
+  }
 
   await writeAudit({
     companyId,
@@ -225,6 +319,113 @@ export async function logOutcomeUpdate(_prev: ActionState, formData: FormData): 
   return { ok: "Update recorded" };
 }
 
+/**
+ * A PAST UPDATE (Phil, 2026-10-13): progress, or Achieved, dated on a day before today, added while
+ * the company's window is open. Never before the outcome began, never in the future, never after
+ * it was achieved. It sets the outcome's status only when nothing on the outcome speaks for a later
+ * day, so filling in history never overwrites where an outcome stands now.
+ */
+async function logPastUpdate(i: {
+  ctx: Awaited<ReturnType<typeof loadServiceUser>> & { companyId: string };
+  profile: Awaited<ReturnType<typeof requireCompany>>["profile"];
+  serviceUserId: string;
+  outcomeId: string;
+  /** Null when the past update marks the outcome achieved. */
+  progress: OutcomeProgress | null;
+  note: string | null;
+  date: string;
+}): Promise<ActionState> {
+  const { supabase, companyId } = i.ctx;
+  if (!i.ctx.windowOpen) return { error: windowClosedError(i.ctx.until) };
+
+  const [{ data: outcome }, { data: existing }] = await Promise.all([
+    supabase
+      .from("service_user_outcomes")
+      .select("id, title, status, start_date, created_at, achieved_at, last_update_at")
+      .eq("id", i.outcomeId)
+      .eq("service_user_id", i.serviceUserId)
+      .is("archived_at", null)
+      .maybeSingle<{
+        id: string;
+        title: string | null;
+        status: string;
+        start_date: string | null;
+        created_at: string;
+        achieved_at: string | null;
+        last_update_at: string | null;
+      }>(),
+    supabase
+      .from("service_user_outcome_updates")
+      .select("kind, progress, dated_on, created_at")
+      .eq("outcome_id", i.outcomeId),
+  ]);
+  if (!outcome) return { error: "Outcome not found." };
+  const timeline = (existing as TimelineUpdate[] | null) ?? [];
+  const achieved = outcome.status === "achieved";
+  const achievedStamp = outcome.achieved_at ?? outcome.last_update_at;
+  const marksAchieved = i.progress === null;
+
+  const bad = pastUpdateError({
+    date: i.date,
+    todayIso: londonToday(),
+    outcomeFromIso: outcomeFrom(outcome),
+    achievedOn: achieved && achievedStamp ? londonDate(achievedStamp) : null,
+    dischargeDate: i.ctx.dischargeDate,
+    marksAchieved,
+    existing: timeline,
+  });
+  if (bad) return { error: bad };
+
+  const by = i.profile.full_name || i.profile.email;
+  const at = nowIso();
+  const { error: insErr } = await supabase.from("service_user_outcome_updates").insert({
+    company_id: companyId,
+    service_user_id: i.serviceUserId,
+    outcome_id: i.outcomeId,
+    kind: marksAchieved ? "completed" : "progress",
+    progress: i.progress,
+    note: i.note,
+    created_by: i.profile.id,
+    author_name: by,
+    created_at: at,
+    dated_on: i.date,
+    entered_later: true,
+  });
+  if (insErr) return { error: refusal(insErr, "Could not record the update. Please try again.") };
+
+  if (pastUpdateIsLatest(timeline, i.date, achieved)) {
+    const stamp = middayOf(i.date);
+    const { data: moved, error: upErr } = await supabase
+      .from("service_user_outcomes")
+      .update(
+        marksAchieved
+          ? { status: "achieved", achieved_at: stamp, last_update_at: stamp, updated_by: i.profile.id, updated_at: at }
+          : { status: i.progress, last_update_at: stamp, updated_by: i.profile.id, updated_at: at },
+      )
+      .eq("id", i.outcomeId)
+      .eq("service_user_id", i.serviceUserId)
+      .select("id");
+    if (upErr || !moved?.length) {
+      return { error: "The update is recorded, but the outcome's status could not be changed. Please try again or tell us." };
+    }
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: i.profile.id,
+    actorEmail: i.profile.email,
+    actorRole: i.profile.role,
+    action: marksAchieved ? "service_user.outcome_achieved" : "service_user.outcome_updated",
+    entityType: "service_user",
+    entityId: i.serviceUserId,
+    summary: `${marksAchieved ? "Marked a personal outcome achieved, as a past update" : `Logged a past outcome update (${i.progress})`}: ${outcome.title ?? "outcome"}. ${enteredLaterLine(at, by, i.date)}`,
+    metadata: { entered_later: true, dated_on: i.date, outcome_id: i.outcomeId },
+  });
+  revalidatePath(`/service-users/${i.serviceUserId}/outcomes`);
+  revalidatePath("/service-users/outcomes");
+  return { ok: marksAchieved ? "Recorded as achieved" : "Update recorded" };
+}
+
 /** Mark an outcome achieved (moves it to the Achieved list). */
 export async function completeOutcome(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
@@ -234,8 +435,9 @@ export async function completeOutcome(_prev: ActionState, formData: FormData): P
   const note = (String(formData.get("note") ?? "").trim().slice(0, 2000)) || null;
   if (!serviceUserId || !outcomeId) return { error: "Missing outcome." };
 
-  const { supabase, companyId } = await loadServiceUser(serviceUserId);
+  const { supabase, companyId, discharged, windowOpen } = await loadServiceUser(serviceUserId);
   if (!companyId) return { error: "Service user not found." };
+  if (discharged && windowOpen) return { error: DISCHARGED_PAST_ONLY };
 
   const at = nowIso();
   await supabase.from("service_user_outcome_updates").insert({

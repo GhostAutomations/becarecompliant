@@ -8,6 +8,8 @@ import { getServiceUser, getServiceUserOutcomes, getOutcomesReviewMonths } from 
 import { isOutcomeAchievingOrProgressing } from "@/lib/service-users/outcome-consts";
 import { featureEnabled } from "@/lib/billing/tier";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getCompanyRow } from "@/lib/companies/row";
+import { historicWindowOpen } from "@/lib/service-users/outcome-history";
 
 export const metadata: Metadata = { title: "Personal outcomes" };
 
@@ -44,11 +46,16 @@ export default async function ServiceUserOutcomesPage({
   const backHref = cameFromRegister ? "/service-users/outcomes" : `/service-users/${id}`;
   const backLabel = cameFromRegister ? "Back to Outcomes" : "Back to record";
 
-  const [outcomes, intervalMonths] = await Promise.all([
+  const [outcomes, intervalMonths, company] = await Promise.all([
     getServiceUserOutcomes(id),
     getOutcomesReviewMonths(profile.company_id),
+    getCompanyRow(profile.company_id),
   ]);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  // Past outcomes and updates, while the Founder has this company's window open (0449).
+  const pastUntil = (company?.historic_outcomes_until as string | null | undefined) ?? null;
+  const past = historicWindowOpen(pastUntil, today) ? { until: pastUntil as string } : null;
+  const discharged = su.service_status === "cancelled" ? (su.discharge_date ?? today) : null;
 
   const inScope = outcomes.length;
   const ap = outcomes.filter((o) => isOutcomeAchievingOrProgressing(o.status)).length;
@@ -74,7 +81,14 @@ export default async function ServiceUserOutcomesPage({
         What matters to this person, tracked over time with progress updates. These feed the well-being outcomes in your PQS return.
       </p>
 
-      <OutcomesManager serviceUserId={id} outcomes={outcomes} intervalMonths={intervalMonths} today={today} />
+      <OutcomesManager
+        serviceUserId={id}
+        outcomes={outcomes}
+        intervalMonths={intervalMonths}
+        today={today}
+        past={past}
+        discharged={discharged}
+      />
     </div>
   );
 }

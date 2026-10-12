@@ -90,6 +90,10 @@ export type OutcomeUpdateRow = {
   note: string | null;
   author_name: string | null;
   created_at: string;
+  /** The day it speaks for, when added later (past updates, back dated reviews). */
+  dated_on: string | null;
+  /** Added after the fact while the company's window was open. */
+  entered_later: boolean;
 };
 
 export type OutcomeRow = {
@@ -101,6 +105,11 @@ export type OutcomeRow = {
   achieved_at: string | null;
   last_update_at: string | null;
   created_at: string;
+  /** From, when the outcome began before the day it was added. */
+  start_date: string | null;
+  /** Added after the fact while the company's window was open. */
+  entered_later: boolean;
+  entered_by_name: string | null;
   position: number;
   updates: OutcomeUpdateRow[];
 };

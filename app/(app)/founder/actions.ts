@@ -349,6 +349,46 @@ export async function founderImportTemplates(
 
 /** Founder: set a company's People supervision cycle mode (Annual Appraisal cycle,
  *  or four supervisions with no appraisal). */
+/**
+ * Open, extend or close a company's window for past outcomes and past updates (Phil, 2026-10-13,
+ * docs/decisions/historic-outcomes.md). The date is the last London day it is open; blank closes
+ * it. Only Be Care Compliant can change it (companies_guard_founder_columns, 0449).
+ */
+export async function setHistoricOutcomesUntil(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const raw = String(formData.get("until") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (raw !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: "That is not a date the calendar recognises." };
+  const until = raw === "" ? null : raw;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ historic_outcomes_until: until })
+    .eq("id", companyId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Could not save: the company was not found." };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.historic_outcomes_window_set",
+    entityType: "company",
+    entityId: companyId,
+    summary: until
+      ? `Past outcomes and updates open until the end of ${until.split("-").reverse().join("/")}`
+      : "Past outcomes and updates closed",
+    metadata: { historic_outcomes_until: until },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  return { ok: until ? "Saved" : "Closed" };
+}
+
 export async function setSupervisionCycleMode(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requirePlatformAdmin();
   const companyId = String(formData.get("company_id") ?? "").trim();

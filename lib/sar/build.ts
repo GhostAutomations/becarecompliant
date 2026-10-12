@@ -29,6 +29,7 @@ import { eventKindLabel } from "@/lib/holidays/changes";
 import { readmeText, safeFileName, uniquePath, type SarKind } from "./layout";
 import { WORKING_STATUS_LABELS, PROBATION_STATUS_LABELS, RTW_LIMIT_LABELS } from "@/lib/people/types";
 import { SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
+import { enteredLaterLine, sortUpdates, updateDate } from "@/lib/service-users/outcome-history";
 import { carePlanExportName, inCarePlanFolder } from "@/lib/service-users/care-plan-path";
 import { competitorLabel, reasonLabel } from "@/lib/people/leaving";
 
@@ -453,34 +454,43 @@ export async function buildSubjectAccessExport(input: {
     // ---- Outcomes, notes and reviews
     const { data: outs } = await db
       .from("service_user_outcomes")
-      .select("id, title, statement, detail, status, target_date, achieved_at, last_reviewed, review_note, archived_at, created_at")
+      .select("id, title, statement, detail, status, target_date, achieved_at, last_reviewed, review_note, archived_at, created_at, start_date, entered_later, entered_by_name")
       .eq("service_user_id", recordId)
       .order("position", { ascending: true });
     const outcomeName = new Map<string, string>();
     sections.push({
       title: "Outcomes",
       file: "outcomes.csv",
-      headers: ["Outcome", "Statement", "Detail", "Status", "Target", "Achieved", "Last reviewed", "Review note", "Archived", "Added"],
+      headers: ["Outcome", "Statement", "Detail", "Status", "From", "Target", "Achieved", "Last reviewed", "Review note", "Archived", "Added", "Entered later"],
       rows: ((outs ?? []) as Array<Record<string, unknown>>).map((o) => {
         outcomeName.set(String(o.id), t(o.title) || t(o.statement));
         return [
-          t(o.title), t(o.statement), t(o.detail), t(o.status), fmtDate(o.target_date as string), fmtDateTime(o.achieved_at as string),
-          fmtDate(o.last_reviewed as string), t(o.review_note), fmtDateTime(o.archived_at as string), fmtDateTime(o.created_at as string),
+          t(o.title), t(o.statement), t(o.detail), t(o.status), fmtDate(o.start_date as string), fmtDate(o.target_date as string),
+          fmtDateTime(o.achieved_at as string), fmtDate(o.last_reviewed as string), t(o.review_note), fmtDateTime(o.archived_at as string),
+          fmtDateTime(o.created_at as string),
+          // A past outcome says so (0449): when it was added, by whom, and the date it speaks for.
+          o.entered_later && o.start_date
+            ? enteredLaterLine(String(o.created_at), (o.entered_by_name as string | null) ?? null, String(o.start_date))
+            : "",
         ];
       }),
       empty: "No personal outcomes.",
     });
     const { data: notes } = await db
       .from("service_user_outcome_updates")
-      .select("outcome_id, kind, progress, note, author_name, created_at")
+      .select("outcome_id, kind, progress, note, author_name, created_at, dated_on, entered_later")
       .eq("service_user_id", recordId)
       .order("created_at", { ascending: true });
     sections.push({
       title: "Outcome notes",
       file: "outcome-notes.csv",
-      headers: ["When", "Outcome", "Type", "Progress", "Note", "Written by"],
-      rows: ((notes ?? []) as Array<Record<string, unknown>>).map((n) => [
+      headers: ["When", "Outcome", "Type", "Progress", "Note", "Written by", "Dated", "Entered later"],
+      rows: sortUpdates((notes ?? []) as Array<Record<string, unknown> & { dated_on: string | null; created_at: string }>).map((n) => [
         fmtDateTime(n.created_at as string), outcomeName.get(String(n.outcome_id)) ?? "", t(n.kind), t(n.progress), t(n.note), t(n.author_name),
+        fmtDate(updateDate(n)),
+        n.entered_later && n.dated_on
+          ? enteredLaterLine(String(n.created_at), (n.author_name as string | null) ?? null, String(n.dated_on))
+          : "",
       ]),
       empty: "No outcome notes.",
     });

@@ -4362,6 +4362,23 @@ forms never kept their uploaded files (only the name); fixed with one shared col
 real loss (no Thistle form ever named a file). L1 to L15 in TEST-CHECKLIST-COMPLAINT-LETTERS.md pass
 apart from L12 (drive copy, Bevan's drive is disconnected).
 
+### 2026-10-13 — Past personal outcomes and past outcome updates, for a limited time (Phase 13)
+
+Thistle asked to enter outcomes and updates from before they used the Outcomes page. "This is a past
+outcome" (From and To, To being the target date) and "This is a past update" (a date; may mark
+Achieved), shown only while the Founder has the company's window open (Founder console, "Past
+outcomes and updates", the last day it is open). Each entry is marked "Added on [date] by [name],
+dated [date]" on screen, in the data request export and in the audit log. Rules enforced in the
+database (0449, applied, advisor clean): no future dates, To not before From, no update before its
+outcome began, only the Founder sets the window, closed means refused. History reads by each update's
+own date; a past update moves the status only when it is the latest. PQS (Cardiff cycle 2 sheet, sent
+by Phil): the outcomes row is the position on the period's last day (today's figure unchanged), a
+discharged service user counts in a past period they were receiving a service in, and the outcomes
+question's own bands (over 85 = 10, over 70 = 7, over 50 = 5, 1 to 50 = 2). Also fixed: F83 (the
+status check refused No change and Regressing, and the error was ignored), editing an outcome's title
+erased its target date, a back dated Individual Plan Review dated its outcome updates today. Decision:
+docs/decisions/historic-outcomes.md. Tests: TEST-CHECKLIST-HISTORIC-OUTCOMES.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

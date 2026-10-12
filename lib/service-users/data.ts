@@ -274,13 +274,13 @@ export async function getServiceUserOutcomes(
   const [{ data: outcomes }, { data: updates }] = await Promise.all([
     supabase
       .from("service_user_outcomes")
-      .select("id, title, detail, status, target_date, achieved_at, last_update_at, created_at, position")
+      .select("id, title, detail, status, target_date, achieved_at, last_update_at, created_at, start_date, entered_later, entered_by_name, position")
       .eq("service_user_id", serviceUserId)
       .is("archived_at", null)
       .order("position", { ascending: true }),
     supabase
       .from("service_user_outcome_updates")
-      .select("id, outcome_id, kind, progress, note, author_name, created_at")
+      .select("id, outcome_id, kind, progress, note, author_name, created_at, dated_on, entered_later")
       .eq("service_user_id", serviceUserId)
       .order("created_at", { ascending: true }),
   ]);
@@ -288,14 +288,28 @@ export async function getServiceUserOutcomes(
   const byOutcome = new Map<string, import("./outcome-consts").OutcomeUpdateRow[]>();
   for (const u of (updates as Array<{ outcome_id: string } & import("./outcome-consts").OutcomeUpdateRow> | null) ?? []) {
     const list = byOutcome.get(u.outcome_id) ?? [];
-    list.push({ id: u.id, kind: u.kind, progress: u.progress, note: u.note, author_name: u.author_name, created_at: u.created_at });
+    list.push({
+      id: u.id,
+      kind: u.kind,
+      progress: u.progress,
+      note: u.note,
+      author_name: u.author_name,
+      created_at: u.created_at,
+      dated_on: u.dated_on ?? null,
+      entered_later: !!u.entered_later,
+    });
     byOutcome.set(u.outcome_id, list);
   }
 
+  // The timeline runs by the day each update speaks for, so a past update sits where it belongs.
+  const { sortUpdates } = await import("./outcome-history");
   return ((outcomes as Array<Omit<import("./outcome-consts").OutcomeRow, "updates" | "detail"> & { detail: string | null }> | null) ?? []).map((o) => ({
     ...o,
     detail: o.detail ?? null,
-    updates: byOutcome.get(o.id) ?? [],
+    start_date: o.start_date ?? null,
+    entered_later: !!o.entered_later,
+    entered_by_name: o.entered_by_name ?? null,
+    updates: sortUpdates(byOutcome.get(o.id) ?? []),
   }));
 }
 
@@ -339,7 +353,7 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
       .order("surname_key", { ascending: true }),
     supabase
       .from("service_user_outcomes")
-      .select("service_user_id, status, last_update_at, created_at")
+      .select("service_user_id, status, last_update_at, created_at, start_date")
       .eq("company_id", companyId)
       .is("archived_at", null),
     getCompanyRow(companyId).then((company) => ({ data: company })),
@@ -350,13 +364,14 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
 
   type Acc = { inScope: number; ap: number; achieved: number; rag: string; dueIso: string | null };
   const byId = new Map<string, Acc>();
-  for (const o of (outcomes as Array<{ service_user_id: string; status: string; last_update_at: string | null; created_at: string }> | null) ?? []) {
+  for (const o of (outcomes as Array<{ service_user_id: string; status: string; last_update_at: string | null; created_at: string; start_date: string | null }> | null) ?? []) {
     const rec = byId.get(o.service_user_id) ?? { inScope: 0, ap: 0, achieved: 0, rag: "none", dueIso: null };
     rec.inScope += 1;
     if (o.status === "achieved") rec.achieved += 1;
     if (o.status === "achieved" || o.status === "progressing") rec.ap += 1;
     const isActive = o.status !== "achieved";
-    const anchor = (o.last_update_at ?? o.created_at)?.slice(0, 10) ?? null;
+    // A past outcome with no update yet is due from the day it began, not the day it was typed in.
+    const anchor = (o.last_update_at ?? o.start_date ?? o.created_at)?.slice(0, 10) ?? null;
     const r = outcomeUpdateRag(anchor, intervalMonths, today, isActive);
     if (RAG_RANK[r.rag] < RAG_RANK[rec.rag]) {
       rec.rag = r.rag;
@@ -403,6 +418,96 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
     pqsPct: totalInScope > 0 ? Math.floor((totalAP / totalInScope) * 100) : null,
     reviewsOverdue,
   };
+}
+
+/**
+ * The personal outcomes figure as it stood at the end of `endIso` (Phil, 2026-10-13, popup): every
+ * outcome begun by then, with the progress it had on that day, for the service users receiving a
+ * service then (a discharged one counts in a period that ended before their discharge). A day on
+ * or after today is exactly the register's figure, so today's numbers never move.
+ */
+export async function getOutcomesAsAt(
+  companyId: string,
+  branchId: string | null,
+  endIso: string,
+): Promise<{ inScope: number; achievingOrProgressing: number }> {
+  const { countsOn, statusAsAt } = await import("./outcome-history");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  if (endIso >= today) {
+    const reg = await getOutcomesRegister(companyId);
+    const rows = branchId ? reg.rows.filter((r) => r.branch_id === branchId) : reg.rows;
+    return {
+      inScope: rows.reduce((n, r) => n + r.total, 0),
+      achievingOrProgressing: rows.reduce((n, r) => n + r.achievingOrProgressing, 0),
+    };
+  }
+  const supabase = await createClient();
+  // Read in full: PostgREST stops at 1000 rows without saying so, and a short read here is a
+  // wrong compliance figure. A failed page fails the figure rather than shrinking it.
+  const all = async <T,>(
+    label: string,
+    page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  ): Promise<T[]> => {
+    const out: T[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await page(from, from + 999);
+      if (error) throw new Error(`Could not read ${label}: ${error.message}`);
+      const rows = (data as T[] | null) ?? [];
+      out.push(...rows);
+      if (rows.length < 1000) return out;
+    }
+  };
+  const [sus, outcomes, updates] = await Promise.all([
+    all<{ id: string; service_status: string; discharge_date: string | null }>("service users", (a, b) =>
+      supabase
+        .from("service_users")
+        .select("id, service_status, discharge_date")
+        .eq("company_id", companyId)
+        .match(branchId ? { branch_id: branchId } : {})
+        .order("id")
+        .range(a, b),
+    ),
+    all<{
+      id: string;
+      service_user_id: string;
+      status: import("./outcome-consts").OutcomeStatus;
+      start_date: string | null;
+      created_at: string;
+    }>("outcomes", (a, b) =>
+      supabase
+        .from("service_user_outcomes")
+        .select("id, service_user_id, status, start_date, created_at")
+        .eq("company_id", companyId)
+        .is("archived_at", null)
+        .order("id")
+        .range(a, b),
+    ),
+    all<import("./outcome-history").TimelineUpdate & { outcome_id: string }>("outcome updates", (a, b) =>
+      supabase
+        .from("service_user_outcome_updates")
+        .select("outcome_id, kind, progress, dated_on, created_at")
+        .eq("company_id", companyId)
+        .order("id")
+        .range(a, b),
+    ),
+  ]);
+  const counted = new Set(sus.filter((s) => countsOn(s, endIso, today)).map((s) => s.id));
+  const byOutcome = new Map<string, import("./outcome-history").TimelineUpdate[]>();
+  for (const u of updates) {
+    const list = byOutcome.get(u.outcome_id) ?? [];
+    list.push(u);
+    byOutcome.set(u.outcome_id, list);
+  }
+  let inScope = 0;
+  let ap = 0;
+  for (const o of outcomes) {
+    if (!counted.has(o.service_user_id)) continue;
+    const st = statusAsAt(o, byOutcome.get(o.id) ?? [], endIso, today);
+    if (st === null) continue;
+    inScope += 1;
+    if (st === "achieved" || st === "progressing") ap += 1;
+  }
+  return { inScope, achievingOrProgressing: ap };
 }
 
 /** `client`: a Senior's Complete page only, after senior_may_do_instance (lib/senior/access.ts). */
