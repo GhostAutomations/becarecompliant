@@ -14,8 +14,12 @@ test("the RE line and email subject carry the complaint reference", () => {
   assert.equal(complaintEmailSubject("initial", "CMP-2026-007"), "Your complaint, reference CMP-2026-007");
 });
 
-test("Dear uses the name as recorded, or Sir or Madam", () => {
-  assert.equal(complaintSalutation("Mrs  Jo Bloggs "), "Dear Mrs Jo Bloggs");
+test("Dear uses the title and surname, else the name as recorded, else Sir or Madam", () => {
+  assert.equal(complaintSalutation("Mrs  Jo Bloggs "), "Dear Mrs Bloggs");
+  assert.equal(complaintSalutation("Dr. Amira Khan-Patel"), "Dear Dr. Khan-Patel");
+  assert.equal(complaintSalutation("Mr Smith"), "Dear Mr Smith");
+  assert.equal(complaintSalutation("Jo Bloggs"), "Dear Jo Bloggs");
+  assert.equal(complaintSalutation("Mrs"), "Dear Mrs");
   assert.equal(complaintSalutation(""), "Dear Sir or Madam");
   assert.equal(complaintSalutation(null), "Dear Sir or Madam");
 });
@@ -44,7 +48,7 @@ test("the letter is laid out with the complainant, the reference and the sender"
     signer: { name: "Sam Idris", role: "Registered Manager" },
   });
   assert.deepEqual(doc.recipientLines, ["Mrs Jo Bloggs", "2 Low Road", "Town"]);
-  assert.equal(doc.salutation, "Dear Mrs Jo Bloggs");
+  assert.equal(doc.salutation, "Dear Mrs Bloggs");
   assert.equal(doc.reLine, "RE: Your complaint, reference CMP-1");
   assert.equal(doc.date, "12th October 2026");
   assert.deepEqual(doc.signOff, { closing: "Yours sincerely", name: "Sam Idris", role: "Registered Manager" });

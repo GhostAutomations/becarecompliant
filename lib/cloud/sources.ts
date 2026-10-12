@@ -14,6 +14,7 @@ import { renderEvidenceBytes } from "@/lib/evidence/on-demand";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import { datedFileName, fileExtensionOf, initialsOf, isRecordKey, recordFileName, safeDriveName, type FolderKey } from "@/lib/cloud/names";
 import { categoryTargetFor, recordCategorySet } from "@/lib/cloud/categories";
+import { deriveComplaintPrefix, formatComplaintRef } from "@/lib/complaints/logic";
 
 export type CloudSourceKind =
   | "evidence"
@@ -21,6 +22,7 @@ export type CloudSourceKind =
   | "training_cert"
   | "meeting_letter"
   | "outcome_letter"
+  | "complaint_letter"
   | "care_plan"
   | "record_folder"
   | "policy_version"
@@ -361,6 +363,56 @@ async function outcomeLetterCopy(companyId: string, letterId: string): Promise<R
   };
 }
 
+/**
+ * A complaint response letter as it went (Phil, 2026-10-12, THE LIST 54): into the Complaints folder
+ * beside the complaint's forms, named by its date, the complaint's reference and which letter it is.
+ */
+async function complaintLetterCopy(companyId: string, responseId: string): Promise<ResolvedCopy | null> {
+  const db = createServiceClient();
+  const { data } = await db
+    .from("complaint_responses")
+    .select("complaint_id, kind, created_at, pdf_path")
+    .eq("id", responseId)
+    .eq("company_id", companyId)
+    .maybeSingle<{ complaint_id: string; kind: string; created_at: string; pdf_path: string | null }>();
+  if (!data?.pdf_path) return null;
+  const bytes = await download(companyId, data.pdf_path);
+  if (!bytes) return null;
+  // The complaint's reference as the letter prints it (read with the server key: the copy job has no login).
+  const [{ data: complaint }, { data: cfg }, { data: company }] = await Promise.all([
+    db
+      .from("complaints")
+      .select("ref_number, date_raised")
+      .eq("id", data.complaint_id)
+      .eq("company_id", companyId)
+      .maybeSingle<{ ref_number: number | null; date_raised: string | null }>(),
+    db.from("complaints_config").select("ref_prefix").eq("company_id", companyId).maybeSingle<{ ref_prefix: string | null }>(),
+    db.from("companies").select("name").eq("id", companyId).maybeSingle<{ name: string | null }>(),
+  ]);
+  const prefix = (cfg?.ref_prefix ?? "").trim() || deriveComplaintPrefix(company?.name ?? null);
+  const ref = complaint?.ref_number != null ? formatComplaintRef(prefix, complaint.date_raised, complaint.ref_number) : "";
+  const day = londonDay(data.created_at);
+  // A second letter of the same kind for the same complaint that day gets " (2)".
+  const w = dayWindow(day);
+  const { data: rows } = await db
+    .from("complaint_responses")
+    .select("id, created_at")
+    .eq("company_id", companyId)
+    .eq("complaint_id", data.complaint_id)
+    .eq("kind", data.kind)
+    .not("pdf_path", "is", null)
+    .gte("created_at", w.from)
+    .lt("created_at", w.to);
+  const n = ordinalOn(((rows ?? []) as Array<{ id: string; created_at: string }>).map((r) => ({ id: r.id, at: r.created_at })), day, responseId);
+  const what = data.kind === "response" ? "complaint response letter" : "initial response letter";
+  return {
+    folderKey: "section:complaints",
+    fileName: datedFileName(day, `Complaint ${ref} ${what}`.replace(/\s+/g, " "), { n }),
+    bytes,
+    contentType: "application/pdf",
+  };
+}
+
 async function carePlanCopy(companyId: string, serviceUserId: string): Promise<ResolvedCopy | null> {
   const db = createServiceClient();
   const { data } = await db
@@ -606,6 +658,8 @@ async function resolveFlat(companyId: string, kind: string, sourceId: string): P
       return meetingLetterCopy(companyId, sourceId);
     case "outcome_letter":
       return outcomeLetterCopy(companyId, sourceId);
+    case "complaint_letter":
+      return complaintLetterCopy(companyId, sourceId);
     case "care_plan":
       return carePlanCopy(companyId, sourceId);
     case "policy_version":

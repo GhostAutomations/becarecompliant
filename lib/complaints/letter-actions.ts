@@ -29,6 +29,7 @@ import { runAi, giveBackAiCredits } from "@/lib/ai/anthropic";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
+import { queueCloudCopy } from "@/lib/cloud/queue";
 import { pathInCompany } from "@/lib/storage/company-path";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
@@ -431,6 +432,9 @@ export async function sendComplaintLetter(_prev: ActionState, formData: FormData
           : `The letter could not be recorded: ${insErr.message}`,
     };
   }
+
+  // A copy to the company's cloud drive, beside the complaint's forms (Phil, 2026-10-12).
+  await queueCloudCopy({ companyId: l.companyId, kind: "complaint_letter", sourceId: responseId, dedupeKey: `complaint_letter:${responseId}` });
 
   // Sending the first reply acknowledges the complaint today.
   if (l.kind === "initial" && !l.c.date_acknowledged) {

@@ -27,10 +27,19 @@ export function complaintEmailSubject(kind: ComplaintLetterKind, ref: string): s
   return kind === "initial" ? `Your complaint, reference ${ref}` : `Our response to your complaint, reference ${ref}`;
 }
 
-/** "Dear" and the complainant's name as recorded; "Dear Sir or Madam" when no name was given. */
+const TITLES = /^(mr|mrs|ms|miss|mx|dr|prof|professor|rev|revd|sir|dame|lady|lord)\.?$/i;
+
+/**
+ * "Dear" for a formal letter (Phil, 2026-10-12): the title and surname when the name starts with a
+ * title ("Mrs Jo Example" is "Dear Mrs Example"), otherwise the name as recorded, and "Dear Sir or
+ * Madam" when no name was given.
+ */
 export function complaintSalutation(name: string | null | undefined): string {
   const n = String(name ?? "").trim().replace(/\s+/g, " ");
-  return n ? `Dear ${n}` : "Dear Sir or Madam";
+  if (!n) return "Dear Sir or Madam";
+  const parts = n.split(" ");
+  if (parts.length >= 2 && TITLES.test(parts[0])) return `Dear ${parts[0]} ${parts[parts.length - 1]}`;
+  return `Dear ${n}`;
 }
 
 /** What the AI must and must not write, for both letters. */

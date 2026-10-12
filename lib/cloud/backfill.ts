@@ -80,6 +80,11 @@ export async function queueEverything(companyId: string): Promise<number> {
     db.from("absence_outcome_letters").select("id").eq("company_id", companyId).not("pdf_path", "is", null).range(a, b),
   );
   outcomes.forEach((l) => add("outcome_letter", l.id));
+  // Complaint response letters kept as PDFs (THE LIST 54).
+  const complaintLetters = await all<{ id: string }>((a, b) =>
+    db.from("complaint_responses").select("id").eq("company_id", companyId).not("pdf_path", "is", null).range(a, b),
+  );
+  complaintLetters.forEach((l) => add("complaint_letter", l.id));
 
   // Every version of every policy, so the history is there too.
   const policies = await all<{ id: string }>((a, b) => db.from("company_policies").select("id").eq("company_id", companyId).range(a, b));
