@@ -390,7 +390,7 @@ export default function OutcomeLetterDialog({
               <button type="button" className="btn-outline text-xs" disabled={busy || !current || !!sendState.ok} onClick={saveToFile}>
                 {saving ? "Saving…" : "Save to file"}
               </button>
-              <button type="button" className="btn-ghost text-xs" disabled={sending} onClick={onClose}>
+              <button type="button" className="btn-outline text-xs" disabled={sending} onClick={onClose}>
                 {sendState.ok ? "Close" : "Not now"}
               </button>
             </div>
