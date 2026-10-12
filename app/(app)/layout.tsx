@@ -9,6 +9,8 @@ import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
+import UserMenu from "@/components/user-menu";
+import { avatarInitials } from "@/lib/ui/avatar-initials";
 import ToastHost from "@/components/toast-host";
 import SessionWatch from "@/components/session-watch";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
@@ -119,17 +121,11 @@ export default async function AppLayout({
   // A carer's own login, Team Member or Senior (0338): their employer's name leads.
   const isStaff = isCarerLogin(profile.role);
   const employerName = companyName || "Your company";
-  // The third line of the top right block: the company, or the one being managed. The Founder
+  // The company line in the profile panel: the company, or the one being managed. The Founder
   // outside a support session belongs to no company, so the line is left out.
   const userBlockCompany =
     profile.role === "platform_admin" && !actingCompanyId ? "" : companyName;
-  const initials = (profile.full_name || profile.email || "?")
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = avatarInitials(profile.full_name, profile.email);
   /* The departments this company has switched off for this role. The nav asks the same function
      the middleware gate asks, so a tab can never lead somewhere the gate bounces them out of. */
   /* The name THEY chose for the role, where there is one (0314). Phil, 2026-09-21: the custom
@@ -255,37 +251,23 @@ export default async function AppLayout({
                 Be Care <span className="text-gold-400/70">Compliant</span>
               </span>
             ) : null}
-            {/* No role line for a Team Member (Phil, 2026-07-27): telling a carer what they are
-                adds nothing to a screen whose whole job is "here is what you need to do", and
-                their employer's name already leads the bar on the left. */}
-            {isStaff ? (
-              <span className="hidden text-sm font-medium text-white/80 sm:block">
-                {displayName}
-              </span>
-            ) : (
-              /* Name, role, company, stacked (Phil, 2026-10-12). The company is the one being
-                 managed in a support session, and nothing for the Founder outside one. On a
-                 phone the name stays hidden, as before, and role and company remain. */
-              <div className="min-w-0 max-w-[11rem] text-right leading-tight sm:max-w-[16rem]">
-                <div className="hidden truncate text-sm font-medium text-white/80 sm:block">
-                  {displayName}
-                </div>
-                <div className="truncate text-xs text-white/55">
-                  {displayRoleLabel(
-                    (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
-                    myCustomRole?.name ?? null,
-                  )}
-                </div>
-                {userBlockCompany ? (
-                  <div className="truncate text-xs text-white/55">{userBlockCompany}</div>
-                ) : null}
-              </div>
-            )}
-            <form action="/auth/signout" method="post">
-              <button type="submit" className="btn-ghost px-3 py-2 text-xs">
-                Sign out
-              </button>
-            </form>
+            {/* The round profile button (Phil, 2026-10-12): initials only in the bar; name, job
+                title, company and Sign out in the panel it opens. No role line for a carer's own
+                login (Phil, 2026-07-27): telling a carer what they are adds nothing to a screen
+                whose whole job is "here is what you need to do". */}
+            <UserMenu
+              initials={initials}
+              name={displayName}
+              role={
+                isStaff
+                  ? null
+                  : displayRoleLabel(
+                      (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
+                      myCustomRole?.name ?? null,
+                    )
+              }
+              company={userBlockCompany}
+            />
           </div>
         </header>
 
