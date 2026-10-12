@@ -4274,6 +4274,22 @@ writes the audit row with old and new name. Evidence and anything already sent k
 Bevan (Claude in Phil's Chrome as Bev Admin, Phil signed in as the renamed login): all 12 checks in
 TEST-CHECKLIST-LOGIN-NAMES.md; every test name put back. Decision: docs/decisions/login-names.md.
 
+### 2026-10-12 — Letters, Part A: signatures (Phil's task list, Job 2, migration 0446, Phase 13)
+
+Why letters had no signature: they were never built to carry one. Now a Supervisor, Recruiter,
+Manager, Registered Manager, Registered Individual or Company Admin keeps an uploaded and a drawn
+signature on My signature (profile panel, top right). The absence meeting invitation, rearranged
+invitation and outcome letter offer: saved upload, saved drawing, sign now, or no signature; the
+signer's own name and job title go under it, and with no signature the person holding the meeting
+stays in the sign off. Owner only in the database and a private bucket (0446): nobody else, the
+Founder in support mode included, can see or use one. Every use, save and removal is audited;
+deleting a login or company removes the files. Letters already kept never change. Complaint letters
+as PDFs parked as THE LIST 54. Tested 12 Oct on Bevan (Bev Admin in Phil's Chrome, phone width in the
+app's browser, support mode as Founder): every check in TEST-CHECKLIST-LETTER-SIGNATURES.md passes;
+two found in testing (a kept but not emailed letter's audit row, the narrow Rearrange layout) fixed
+and retested. Decision: docs/decisions/letter-signatures.md. Parts B (editor) and C (spacing and
+wording) to follow on Phil's "next part".
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
