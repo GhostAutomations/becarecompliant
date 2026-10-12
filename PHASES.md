@@ -4243,6 +4243,12 @@ attack refused and every ordinary flow kept, in rolled back transactions on Beva
 the whole migration; a new company, a demo company and the full demo seed provision cleanly;
 typecheck, 1,809 tests and build pass. Parked: THE LIST 46 to 52. Tests:
 TEST-CHECKLIST-AUDIT-FIXES.md, role limits section.
+12 Oct: 0444 applied live (security advisor 0 errors, parity check 707/707/706) and deployed. All 8
+role limits tests passed on Bevan, run by Claude in Phil's Chrome with Phil signing in each login
+(holidays, future dates, appraisal dates, briefings and signing, start dates and history, Reg 80,
+the Founder address, care plan versions). Found while testing and fixed the same day: a moved start
+date, or a saved check setting, blanked a pending Supervision due date (older than step 7); Thistle
+unaffected. Parked: THE LIST 53 (an appraisal can be completed early by its address).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

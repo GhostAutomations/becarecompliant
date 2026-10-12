@@ -159,8 +159,9 @@ All Not tested. Bevan is a test company, so no emails or texts are expected.
    to confirm, and withdraw a fourth sent by mistake. As the carer, sign and confirm them: the
    signed copy says "Signed by" the carer. Back as the Admin, Briefings shows them done and the
    withdrawn one gone.
-5. Part 2 PASS, part 1 to re-run (12 Oct 2026; run by Claude in Phil's Chrome as ZZ Test
-   Supervisor). Part 1: ZZ TEST Branch Folder Person's start date 5 Oct to 5 Nov saved; the Audit
+5. PASS (Phil, 12 Oct 2026; run by Claude in Phil's Chrome as ZZ Test Supervisor). Re-run after
+   the fix went live (deploy 42ac84e2 READY): start date 5 Nov back to 5 Oct saved, the Audit moved
+   back to 5 Jan 2027 and the Supervision kept 31 Dec 2026. First run: Part 1: ZZ TEST Branch Folder Person's start date 5 Oct to 5 Nov saved; the Audit
    (not done) moved 5 Jan to 5 Feb 2027, done checks untouched, BUT the not yet done Supervision's
    due date (31 Dec 2026) was blanked. Cause, older than step 7: a moved start date, and saving a
    check setting, re-dated every not yet done check from the start date, and Supervision is not
