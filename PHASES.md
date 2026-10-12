@@ -4317,7 +4317,9 @@ After the first push Phil ruled that the appeal is still picked in the drop down
 says "who was not involved in this meeting". No migration; no company had its own templates, so every
 company's next letters get the new wording, and letters already kept never change. Tested 12 Oct on
 Bevan (live, Bev Admin in the app's browser, nothing saved or sent): C1 to C5, C7 and C8 in
-TEST-CHECKLIST-LETTER-LAYOUT.md pass; C6 (the appeal line) goes live with the next push. Decision:
+TEST-CHECKLIST-LETTER-LAYOUT.md pass, then C6 (the appeal line) and C9 (meeting emails now date
+"21st October 2026", Phil's popup) after the second push. Book meeting offered with no stage left
+parked as THE LIST 55. Decision:
 docs/decisions/letter-layout-wording.md. Part C is the last part of Job 2.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
