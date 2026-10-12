@@ -287,7 +287,8 @@ export function absencesBlock(
       : `The meeting covered the following ${numberWord(absences.length)} absences:`;
   const lines = absences.map((a) => `\u2022 ${a.line}${discounted.has(a.startDate) ? " (discounted at this meeting)" : ""}`);
   const gone = discount?.whens ?? [];
-  const reason = (discount?.reason ?? "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
+  // Its dates as the letter writes them, "12th October 2026", not 12/10/2026 (Phil, 2026-10-12).
+  const reason = normaliseLetterDates((discount?.reason ?? "").replace(/\s+/g, " ").trim().replace(/[.]$/, ""));
   const sentence =
     gone.length === 0
       ? ""

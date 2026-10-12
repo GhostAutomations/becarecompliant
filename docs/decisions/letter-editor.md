@@ -25,3 +25,8 @@ Phil, 2026-10-12, standing:
   the server too), and a Regenerate the letter button redoes it. That cost is ours, not the
   customer's: the AI credit is spent and given straight back. A generation that comes back without
   its outcome is never kept and its credit is given back.
+- [stated] The outcome letter box is laid out like Book meeting (Phil, 2026-10-12: "the editor next
+  to each other"): the editor on the left, the real PDF on the right redrawn a second after the
+  words or signature change, Approve and send, Save to file and Not now underneath. The separate
+  "Check the letter" step is gone: the PDF beside the words is the final look.
+- [stated] A discount reason's dates print in full ("12th October 2026"), like the rest of the letter.

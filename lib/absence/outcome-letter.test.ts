@@ -111,7 +111,7 @@ test("absences block lists each absence like the invitation, discounted ones mar
   assert.equal(absencesBlock([a]), "The meeting covered the following absence:\n\u2022 22nd September 2026: Childcare, 1 day");
   assert.equal(
     absencesBlock([b, a], { dates: ["2026-08-03"], whens: ["3rd August 2026"], reason: "Agreed at the Stage 2 meeting held on 20/10/2026." }),
-    "The meeting covered the following two absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20/10/2026.",
+    "The meeting covered the following two absences:\n\u2022 3rd August 2026: Car, 1 day (discounted at this meeting)\n\u2022 22nd September 2026: Childcare, 1 day\n\nThe absence on 3rd August 2026 was discounted at this meeting and no longer counts towards your attendance: Agreed at the Stage 2 meeting held on 20th October 2026.",
   );
   assert.equal(absencesBlock([]), "");
 });
@@ -200,4 +200,12 @@ test("a letter that is only the fixed wording has no outcome; one with the draft
   assert.equal(letterHasOwnWords("", skeleton), false);
   assert.equal(letterHasOwnWords(`${skeleton}<p>You explained the absence was due to illness.</p>`, skeleton), true);
   assert.equal(letterHasOwnWords("<p>A letter the manager wrote themselves.</p>", skeleton), true);
+});
+
+test("a discount reason's date is written like the rest of the letter", () => {
+  const out = absencesBlock(
+    [{ line: "21st September 2026: Childcare, 1 day", startDate: "2026-09-21", when: "21st September 2026" }],
+    { dates: ["2026-09-21"], whens: ["21st September 2026"], reason: "Agreed at the Stage 1 meeting held on 12/10/2026" },
+  );
+  assert.match(out, /held on 12th October 2026\.$/);
 });
