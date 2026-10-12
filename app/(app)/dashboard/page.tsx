@@ -666,6 +666,12 @@ export default async function DashboardPage() {
 
   let heading = `Welcome, ${(profile.full_name || profile.email).split(" ")[0]}`;
   let subtitle = "Here is what is happening with your compliance today.";
+  /* The company's name in a small line above the greeting (Phil, 2026-10-12). Left out in a
+     support session, whose heading already names the company being managed. */
+  let companyLine: string | null = null;
+  if (!profile.actingAsCompanyId) {
+    companyLine = (await getCompanyRow(companyId))?.name ?? null;
+  }
   if (profile.actingAsCompanyId) {
     const co = await getCompanyRow(profile.actingAsCompanyId);
     heading = `Support session: ${co?.name ?? "this company"}`;
@@ -860,7 +866,8 @@ export default async function DashboardPage() {
       {billingMessage ? <BillingAttention message={billingMessage} /> : null}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
+          {companyLine ? <p className="truncate text-xs text-white/55">{companyLine}</p> : null}
           <h1 className="page-title">{heading}</h1>
           <p className="page-subtitle">{subtitle}</p>
         </div>

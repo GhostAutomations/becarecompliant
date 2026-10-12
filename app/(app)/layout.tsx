@@ -119,6 +119,10 @@ export default async function AppLayout({
   // A carer's own login, Team Member or Senior (0338): their employer's name leads.
   const isStaff = isCarerLogin(profile.role);
   const employerName = companyName || "Your company";
+  // The third line of the top right block: the company, or the one being managed. The Founder
+  // outside a support session belongs to no company, so the line is left out.
+  const userBlockCompany =
+    profile.role === "platform_admin" && !actingCompanyId ? "" : companyName;
   const initials = (profile.full_name || profile.email || "?")
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -251,20 +255,31 @@ export default async function AppLayout({
                 Be Care <span className="text-gold-400/70">Compliant</span>
               </span>
             ) : null}
-            <span className="hidden text-sm font-medium text-white/80 sm:block">
-              {displayName}
-            </span>
-            {/* No role badge for a Team Member (Phil, 2026-07-27): a role pill is
-                for people who hold several, and telling a carer what they are
-                adds nothing to a screen whose whole job is "here is what you
-                need to do". */}
-            {isStaff ? null : (
-              <span className="pill-neutral">
-                {displayRoleLabel(
-                  (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
-                  myCustomRole?.name ?? null,
-                )}
+            {/* No role line for a Team Member (Phil, 2026-07-27): telling a carer what they are
+                adds nothing to a screen whose whole job is "here is what you need to do", and
+                their employer's name already leads the bar on the left. */}
+            {isStaff ? (
+              <span className="hidden text-sm font-medium text-white/80 sm:block">
+                {displayName}
               </span>
+            ) : (
+              /* Name, role, company, stacked (Phil, 2026-10-12). The company is the one being
+                 managed in a support session, and nothing for the Founder outside one. On a
+                 phone the name stays hidden, as before, and role and company remain. */
+              <div className="min-w-0 max-w-[11rem] text-right leading-tight sm:max-w-[16rem]">
+                <div className="hidden truncate text-sm font-medium text-white/80 sm:block">
+                  {displayName}
+                </div>
+                <div className="truncate text-xs text-white/55">
+                  {displayRoleLabel(
+                    (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
+                    myCustomRole?.name ?? null,
+                  )}
+                </div>
+                {userBlockCompany ? (
+                  <div className="truncate text-xs text-white/55">{userBlockCompany}</div>
+                ) : null}
+              </div>
             )}
             <form action="/auth/signout" method="post">
               <button type="submit" className="btn-ghost px-3 py-2 text-xs">
