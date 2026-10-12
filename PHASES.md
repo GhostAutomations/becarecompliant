@@ -4333,8 +4333,12 @@ Then, from Phil's review of Book meeting: every letter editor shows the whole le
 it (letterhead to sign off), only the words editable; the meeting details show as the PDF's table and
 are locked to the booking; an Admin sets each login's job title on Settings, Users (0447, applied),
 printed under the name and shown in the top right menu; the send message and buttons sit centred
-beside the signature box. Tested 12 Oct live on Bevan in Phil's Chrome: W1 to W8 in
-TEST-CHECKLIST-LETTER-EDITOR-WHOLE-PAGE.md pass; W9 (phone width) not tested. Decisions:
+beside the signature box. Later the same day: an outcome letter calls an absence "discounted at
+this meeting" only when the discount is that meeting's (its reason names the meeting, else made
+before the person's next meeting; checked against every recorded meeting); the AI never talks to the
+employee about "the record" and leaves out what was not recorded; small counts in AI drafts in words;
+Not now a button like Save to file. All 13 checks in TEST-CHECKLIST-LETTER-EDITOR-WHOLE-PAGE.md pass
+(live on Bevan in Phil's Chrome, phone width in the app's browser). Bevan test drafts removed. Decisions:
 docs/decisions/letter-editor-whole-page.md and docs/decisions/letter-editor.md.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
