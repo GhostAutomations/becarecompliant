@@ -21,11 +21,11 @@ the name X to Y". Afterwards nothing remained. Applied live 12 Oct; security adv
 | N5 | ZZ Audit Walk Person (invite not accepted): the pending invite takes the new name | PASS (ZZ Audit Walk Person, box unticked: login and pending invite became ZZ Audit Walk Renamed, People record unchanged; renamed back) |
 | N6 | A blank name is refused beside the button, and what was typed stays | PASS (blank name: "Enter a name." beside the button, the box kept what was typed, nothing saved) |
 | N7 | Evidence filed before the rename still shows the old name | PASS (4 Evidence entries still carry ZZ Test Supervisor, none carry the new name) |
-| N8 | Signed in as the renamed login: the circle top right and its panel show the new name | Not tested |
+| N8 | Signed in as the renamed login: the circle top right and its panel show the new name | PASS (Phil, 12 Oct: signed in as ZZ Test Supervisor, circle ZR, panel read ZZ Test Supervisor Renamed) |
 | N9 | Phone width: the name box, tick box and Save name fit in the popup | PASS (Chrome at its narrowest, 500 wide: name box, tick box and Save name fit, no sideways scroll) |
 | N10 | After applying: a Supervisor cannot rename anyone, themselves included, even directly in the database | PASS (12 Oct, live function, rolled back: ZZ Test Supervisor refused renaming themselves and the Admin through the function, and a direct update was refused) |
 | N12 | Planner: the person picker lists the new name and the old name appears nowhere on the page | PASS (as Bev Admin, /planner) |
-| N11 | Every test name put back as it was | Not tested |
+| N11 | Every test name put back as it was | PASS (ZZ Test Supervisor renamed back through rename_login as Bev Admin, audited; no test name left on any login, People record, invite or form) |
 
 Known and left alone: a form someone already has open in their browser before a rename still holds
 the old name in "Conducted by"; saving it is refused until they pick the name again. An outcome

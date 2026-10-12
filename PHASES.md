@@ -4261,6 +4261,19 @@ desktop (Claude in Phil's Chrome) and on Phil's iPhone; the Founder outside supp
 company line) and in support mode on Bevan (Bevan Care Ltd in the panel). Decision:
 docs/decisions/top-bar-profile.md.
 
+### 2026-10-12 — Changing a login's name (Phil's task list, Job 1, migration 0445, Phase 13)
+
+A login's name can be corrected or changed on Settings, Users: a Name box and Save name at the top
+of every login's popup. Company Admins for any login in their company, other Admins and themselves
+included, and the Founder in support mode; nobody else, enforced in the database (rename_login, and
+the name is now locked so no login can rename itself behind the screens). One save changes the
+login, its pending invite, the linked People record when the tick box is ticked (ticked by
+default), open support tickets and pending holiday requests, rebakes the Conducted by dropdowns, and
+writes the audit row with old and new name. Evidence and anything already sent keep the old name.
+0445 dry run rolled back then applied live; security advisor 0 errors. Tested and passed 12 Oct on
+Bevan (Claude in Phil's Chrome as Bev Admin, Phil signed in as the renamed login): all 12 checks in
+TEST-CHECKLIST-LOGIN-NAMES.md; every test name put back. Decision: docs/decisions/login-names.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
