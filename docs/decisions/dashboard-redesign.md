@@ -22,3 +22,8 @@ STANDING GOTCHA (cost a live-test bug 2026-07-17): a completed NON-recurring che
 - [stated] Two lines of big tiles were rejected: "tiles are way too big why didnt you make the fonts slightly smaller". Preference: keep one line and make the fonts slightly smaller, rather than wrapping into bigger tiles
 - [stated] "the ciw readiness tile is too big" (at two tiles wide); approved one line with Readiness about 1.5 tiles, figures 32px, two figure tiles 28px, labels 11px
 - Built as .dash-top-row (globals.css container queries, data-cells), DEF-106
+
+## PQS Report boxes stay white (Phil, 2026-10-12, standing)
+- [stated] "the PQS boxes are fine. It makes them stand out." The white inner boxes of the PQS
+  Report card on the Dashboard are a deliberate exception to the no light backgrounds rule. Do
+  not flag or change them.

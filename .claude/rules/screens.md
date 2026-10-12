@@ -12,7 +12,8 @@ paths:
 
 - Dark theme everywhere: navy gradient background (navy-950 to navy-800), dark glass cards
   (bg-white/10, border-white/10, blur), light text. Never a light background on an app screen
-  (rejected twice as "too much white").
+  (rejected twice as "too much white"). One agreed exception: the white PQS Report boxes on the
+  Dashboard, which Phil keeps so they stand out (`docs/decisions/dashboard-redesign.md`).
 - Gold accent at the rich amber end only: #fbbf24, #f59e0b, #d97706, #b45309, nothing lighter.
   Primary buttons are #f59e0b with navy text.
 - Form controls are styled only in `app/globals.css`. Never style a control inline. Never
