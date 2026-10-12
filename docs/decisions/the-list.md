@@ -257,13 +257,13 @@ The next five were found by the step 7 check of the October audit fixes and park
     as done and the appraisal due 28 Dec 2026, while the stored dates were right). To fix: the
     Complete page and the database refuse an appraisal before Supervision 3 in appraisal mode.
 
-54. **Complaint responses as PDF letters with a signature** (Phil, popup 2026-10-12, Job 2 Part A).
+54. ~~**Complaint responses as PDF letters with a signature**~~ **DONE 2026-10-12** (0448, docs/decisions/complaint-letters.md; TEST-CHECKLIST-COMPLAINT-LETTERS.md all pass). (Phil, popup 2026-10-12, Job 2 Part A).
     The complaint Initial Response and Complaint Response are AI drafted text, emailed or copied onto
     headed paper, with no PDF, no letterhead and no signature; the drafted wording leaves a blank
     line for a hand signature. To do: render them on the same PDF letterhead as the absence letters,
     with the same signing choices (saved upload, saved drawing, sign now, no signature).
 
-55. **Book meeting offered when no stage is left to book** (Phil, popup 2026-10-12, Job 2 Part C).
+55. ~~**Book meeting offered when no stage is left to book**~~ **DONE 2026-10-12**: the card says "Every stage has been held." instead. (Phil, popup 2026-10-12, Job 2 Part C).
     On the Absence page a person who has already had every stage (Bevan's ZZ Stage One B, Stage 4
     held) still shows Book meeting, and it opens with an empty Stage list and an empty letter. To
     do: hide the button (or say why) when no stage is left to book.

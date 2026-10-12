@@ -1834,3 +1834,5 @@ details.setup-card-gold:not([open]) .setup-card-count {
   border-radius: 0.5rem;
 }
 .letter-tool-gap { width: 0.25rem; }
+/* On the title row beside "The letter" (Phil, 2026-10-12): no gap under it there. */
+.letter-toolbar.letter-toolbar-inline { margin-bottom: 0; }

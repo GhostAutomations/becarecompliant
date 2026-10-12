@@ -167,6 +167,10 @@ function BookMeetingForm({
   /* Everything the PDF prints around the words, so the editor shows the whole letter (Phil,
      2026-10-12). */
   const [frame, setFrame] = useState<LetterFrame | null>(null);
+  /* The formatting bar sits on the title row beside "The letter", so the editor's page and the
+     PDF's page start level (Phil, 2026-10-12). */
+  const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
+
   const [drawing, setDrawing] = useState(false);
   const urlRef = useRef<string | null>(null);
 
@@ -377,8 +381,9 @@ function BookMeetingForm({
         {/* The words on the left, the letter on the right (on a phone, the letter underneath). */}
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div className="flex flex-col">
-            <div className="mb-1 flex items-center justify-between gap-2">
+            <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
               <span className="form-label mb-0">The letter</span>
+              <div ref={setToolbarEl} className="min-w-0 flex-1" />
               {edited ? (
                 <button
                   type="button"
@@ -400,6 +405,7 @@ function BookMeetingForm({
                         width of the PDF page, so it wraps and looks as the PDF prints. */}
                     <RichLetterEditor
                       label="The letter"
+                      toolbarTarget={toolbarEl}
                       frame={frame}
                       lockDetails
                       value={body}
@@ -426,7 +432,7 @@ function BookMeetingForm({
           </div>
 
           <div className="flex flex-col">
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-1 flex min-h-9 items-center justify-between">
               <span className="form-label mb-0">The invitation letter</span>
               <span className="text-xs text-white/50">
                 {drawing ? "Updating…" : pdfUrl && current ? (

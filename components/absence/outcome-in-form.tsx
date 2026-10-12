@@ -59,6 +59,10 @@ export default function OutcomeInForm({
   const [drawing, setDrawing] = useState(false);
   // Everything the PDF prints around the words, so the editor shows the whole letter (Phil, 2026-10-12).
   const [frame, setFrame] = useState<LetterFrame | null>(null);
+  /* The formatting bar sits on the title row beside "The letter", so the editor's page and the
+     PDF's page start level (Phil, 2026-10-12). */
+  const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
+
   const urlRef = useRef<string | null>(null);
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -179,10 +183,13 @@ export default function OutcomeInForm({
           </p>
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
             <div>
-              <span className="form-label">The letter</span>
+              <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
+                <span className="form-label mb-0">The letter</span>
+                <div ref={setToolbarEl} className="min-w-0 flex-1" />
+              </div>
               {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
               <div className="h-[560px] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
-                <RichLetterEditor label="The letter" frame={frame} value={body} disabled={busy} onChange={setBody} />
+                <RichLetterEditor label="The letter" toolbarTarget={toolbarEl} frame={frame} value={body} disabled={busy} onChange={setBody} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {generateButton("Generate again")}
@@ -190,8 +197,8 @@ export default function OutcomeInForm({
               </div>
             </div>
             <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="form-label">The letter as a PDF</span>
+              <div className="mb-1 flex min-h-9 items-center justify-between">
+                <span className="form-label mb-0">The letter as a PDF</span>
                 <span className="text-xs text-white/50">
                   {drawing ? "Updating…" : pdfUrl ? (
                     <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">

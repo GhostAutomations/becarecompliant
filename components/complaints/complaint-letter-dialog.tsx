@@ -118,6 +118,10 @@ function ComplaintLetterDialog({
   const [signature, setSignature] = useState<SignatureValue>({ choice: "none", now: "" });
   const signatureKey = `${signature.choice}:${signature.now.length}`;
   const [frame, setFrame] = useState<LetterFrame | null>(null);
+  /* The formatting bar sits on the title row beside "The letter", so the editor's page and the
+     PDF's page start level (Phil, 2026-10-12). */
+  const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
+
   const [drawn, setDrawn] = useState<Drawn | null>(null);
   const [drawnKey, setDrawnKey] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
@@ -306,19 +310,15 @@ function ComplaintLetterDialog({
 
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div className="flex flex-col">
-            <div className="mb-1 flex items-center justify-between gap-2">
+            <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
               <span className="form-label mb-0">The letter</span>
-              {hasWords ? (
-                <span className="flex items-center gap-2">
-                  {draftButton("Regenerate", true)}
-                  <span className="text-[10px] text-white/40">Uses another AI credit and replaces the words.</span>
-                </span>
-              ) : null}
+              <div ref={setToolbarEl} className="min-w-0 flex-1" />
             </div>
             <div className="h-[68vh] min-h-72 overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
               <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">
                 <RichLetterEditor
                   label="The letter"
+                  toolbarTarget={toolbarEl}
                   frame={hasWords ? frame : null}
                   value={body}
                   disabled={busy || !!sendState.ok || loading}
@@ -331,12 +331,18 @@ function ComplaintLetterDialog({
               The whole letter as it will print. Type in the words between the RE line and Yours sincerely; the rest is
               set for you. Use the bar above it for headings, text size, bold, italic, underline and lists.
             </p>
+            {hasWords ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {draftButton("Regenerate", true)}
+                <span className="text-[10px] text-white/40">Uses another AI credit and replaces the words.</span>
+              </div>
+            ) : null}
             {draftState.data?.note ? <p className="mt-1 text-xs text-amber-200">{draftState.data.note}</p> : null}
             {hasWords && draftState.error ? <p className="form-error">{draftState.error}</p> : null}
           </div>
 
           <div className="flex flex-col">
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-1 flex min-h-9 items-center justify-between">
               <span className="form-label mb-0">The letter as a PDF</span>
               <span className="text-xs text-white/50">
                 {drawing ? "Updating…" : drawn && current ? (

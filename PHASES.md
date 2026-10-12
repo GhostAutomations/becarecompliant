@@ -4341,6 +4341,21 @@ Not now a button like Save to file. All 13 checks in TEST-CHECKLIST-LETTER-EDITO
 (live on Bevan in Phil's Chrome, phone width in the app's browser). Bevan test drafts removed. Decisions:
 docs/decisions/letter-editor-whole-page.md and docs/decisions/letter-editor.md.
 
+### 2026-10-12 — Complaint responses as signed PDF letters (THE LIST 54); Book meeting (55) (Phase 13)
+
+The Initial Response and the Complaint Response are now letters laid out like the absence letters, on
+the company letterhead with the complainant's name and address, an RE line with the complaint
+reference and the sender's signature choice, name and job title; editor and PDF side by side. Email:
+the letter in the email with the signed PDF attached (and ticked investigation files for the full
+response). Post: Save and print keeps the PDF and opens it to print. The AI draft is made on a button
+and kept, so opening again costs nothing. The PDF is kept on each response (0448, applied) and opened
+from the response page through an audited link. The old copy and paste boxes retired. 55: a person
+who has had every stage shows "Every stage has been held." in place of Book meeting. Tested live on
+Bevan in Phil's Chrome: L1 to L10 in TEST-CHECKLIST-COMPLAINT-LETTERS.md pass (a ZZ TEST Complaint
+Investigation added on Bevan BC28091 to test the full response). Then Phil asked for the formatting
+bar on the title row beside "The letter" so the two pages start level (Book meeting, outcome letter,
+meeting form, complaint letters). Decision: docs/decisions/complaint-letters.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

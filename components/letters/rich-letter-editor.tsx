@@ -22,6 +22,7 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { createPortal } from "react-dom";
 import { EditorContent, Extension, Mark, Node, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -214,10 +215,14 @@ type Props = {
   lockDetails?: boolean;
   /** Read only blocks the letter adds after its first paragraph (Settings, Letters). */
   insertAfterFirst?: string | null;
+  /** Where the formatting bar goes when it sits on the title row beside "The letter" (Phil,
+   *  2026-10-12: so the editor's page and the PDF's page start level). Inline above the page
+   *  when not given. */
+  toolbarTarget?: HTMLElement | null;
 };
 
 const RichLetterEditor = forwardRef<RichLetterEditorHandle, Props>(function RichLetterEditor(
-  { value, onChange, disabled, placeholder, label, frame, lockDetails, insertAfterFirst },
+  { value, onChange, disabled, placeholder, label, frame, lockDetails, insertAfterFirst, toolbarTarget },
   ref,
 ) {
   const lastSent = useRef<string>("");
@@ -319,9 +324,8 @@ const RichLetterEditor = forwardRef<RichLetterEditorHandle, Props>(function Rich
     </button>
   );
 
-  return (
-    <div className={`letter-editor${state?.empty ? " is-empty" : ""}`}>
-      <div className="letter-toolbar" role="toolbar" aria-label="Formatting">
+  const toolbar = (
+      <div className={toolbarTarget ? "letter-toolbar letter-toolbar-inline" : "letter-toolbar"} role="toolbar" aria-label="Formatting">
         <select
           className="letter-tool-select"
           aria-label="Text style"
@@ -363,6 +367,11 @@ const RichLetterEditor = forwardRef<RichLetterEditorHandle, Props>(function Rich
         {tool(state?.bullets, "• List", "Bulleted list", () => editor?.chain().focus().toggleBulletList().run())}
         {tool(state?.numbers, "1. List", "Numbered list", () => editor?.chain().focus().toggleOrderedList().run())}
       </div>
+  );
+
+  return (
+    <div className={`letter-editor${state?.empty ? " is-empty" : ""}`}>
+      {toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar}
       <div className="letter-paper">
         {frame ? (
           <div className="letter-sheet">

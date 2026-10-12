@@ -18,3 +18,7 @@ exactly, so people aren't trying to edit something that doesn't need editing").
   used when the login has none. Never the system role (Part C). The top right menu shows it too.
 - [stated] Under the editor, the signature box; beside it, under the PDF, what Approve or Save does
   and the buttons, centred in a box the same height (outcome letter and Book meeting).
+- [stated] The formatting bar sits on the title row beside "The letter", not above the page inside
+  its box, so the editor's page and the PDF's page start level (Book meeting, the outcome letter, the
+  meeting form and the complaint letters; Settings, Letters keeps it above, its subject line sits over
+  the editor) (Phil, 2026-10-12).
