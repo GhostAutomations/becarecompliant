@@ -1138,18 +1138,6 @@ async function sendMeetingLetters(
         : `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.`,
     };
   }
-  // Every use of a signature is in the audit log (Phil, 2026-10-12): a signed letter went or was kept.
-  if (args.signature && (outcomes.employee === "sent" || opts.printEmployee)) {
-    await auditSignatureUse({
-      signature: args.signature,
-      companyId: args.companyId,
-      actorEmail: sentBy.email ?? null,
-      actorRole: sentBy.role ?? null,
-      personId: args.personId,
-      letter: args.rearranged ? "rearranged absence meeting invitation" : "absence meeting invitation",
-      meetingId: args.meetingId,
-    });
-  }
   /* A deduped send (this slot's email already went) needs no new copy only when the latest copy is
      already for this slot. Moving a meeting A to B and back to A dedupes A's email, but the latest
      copy is B's, so A's copy is kept again (review, 2026-10-07). */
@@ -1181,6 +1169,21 @@ async function sendMeetingLetters(
     sendOutcome: outcomes.employee ?? "skipped_no_email",
     sentBy: { id: sentBy.id, name: sentBy.name },
   });
+  /* Every use of a signature is in the audit log (Phil, 2026-10-12): a signed letter that went, or
+     that was kept on their record (emailed or not: a test company emails nothing, and Save to
+     history and Save and print send nothing, but the signed letter exists all the same). */
+  if (args.signature && (kept.ok || outcomes.employee === "sent")) {
+    await auditSignatureUse({
+      signature: args.signature,
+      companyId: args.companyId,
+      actorEmail: sentBy.email ?? null,
+      actorRole: sentBy.role ?? null,
+      personId: args.personId,
+      letter: args.rearranged ? "rearranged absence meeting invitation" : "absence meeting invitation",
+      meetingId: args.meetingId,
+      letterId: kept.ok ? kept.id : null,
+    });
+  }
   return {
     outcomes,
     copyNote: kept.ok

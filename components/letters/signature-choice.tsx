@@ -79,16 +79,18 @@ export default function SignatureChoice({
       {img ? (
         // Your own signature only, through a link that lasts two minutes.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={img} alt="" className="h-8 max-w-[7rem] rounded bg-white object-contain p-0.5" />
+        <img src={img} alt="" className="h-8 w-24 shrink-0 rounded bg-white object-contain p-0.5" />
       ) : null}
     </label>
   );
 
   return (
-    <div className={`space-y-2 ${className ?? ""}`}>
+    <div className={`@container space-y-2 ${className ?? ""}`}>
       <input type="hidden" name="signature_choice" value={choice} />
       <span className="form-label mb-0">Signature</span>
-      <div className="grid gap-2 sm:grid-cols-2">
+      {/* Two across only when the box itself is wide enough, not the screen: in the narrow
+          Rearrange dialog they stack, so a name never runs under its picture. */}
+      <div className="grid gap-2 @md:grid-cols-2">
         {option("upload", "My uploaded signature", mine.upload?.url ?? null, mine.upload ? undefined : "None saved yet")}
         {option("drawn", "My drawn signature", mine.drawn?.url ?? null, mine.drawn ? undefined : "None saved yet")}
         {option("now", "Sign now", null)}
