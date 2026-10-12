@@ -41,7 +41,7 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholder[] = [
   {
     token: "stage_action_sentence",
     label: "What the meeting could lead to, as a sentence (blank if no action is set)",
-    example: "This is a Stage 2 meeting and its outcome could be up to and including a written warning.",
+    example: "The outcome of this meeting could be anything up to and including a written warning.",
   },
   { token: "conductor_name", label: "Who is conducting the meeting", example: "Sam Idris" },
   { token: "meeting_date", label: "Date of the meeting", example: "14th August 2026" },

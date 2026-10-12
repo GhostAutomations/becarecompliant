@@ -4322,6 +4322,21 @@ TEST-CHECKLIST-LETTER-LAYOUT.md pass, then C6 (the appeal line) and C9 (meeting 
 parked as THE LIST 55. Decision:
 docs/decisions/letter-layout-wording.md. Part C is the last part of Job 2.
 
+### 2026-10-12 — Outcome letters fixed; the whole letter on the editor page; job titles (Phase 13)
+
+A Thistle outcome letter (meeting of 12 Oct) was saved holding only its opening sentence: Part B's
+merge took out the {{outcome_body}} paragraph before the drafted outcome went in. Fixed and tested;
+a letter with no outcome is now flagged, cannot be sent, and Regenerate the letter redoes it free
+(the credit is spent and given back). Thistle's lost credit refunded at Phil's go; Phil regenerated
+the letter and Hayley sent it. The outcome letter box is now side by side like Book meeting.
+Then, from Phil's review of Book meeting: every letter editor shows the whole letter as the PDF prints
+it (letterhead to sign off), only the words editable; the meeting details show as the PDF's table and
+are locked to the booking; an Admin sets each login's job title on Settings, Users (0447, applied),
+printed under the name and shown in the top right menu; the send message and buttons sit centred
+beside the signature box. Tested 12 Oct live on Bevan in Phil's Chrome: W1 to W8 in
+TEST-CHECKLIST-LETTER-EDITOR-WHOLE-PAGE.md pass; W9 (phone width) not tested. Decisions:
+docs/decisions/letter-editor-whole-page.md and docs/decisions/letter-editor.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
