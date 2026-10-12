@@ -11,6 +11,7 @@ import "server-only";
 
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import type { OutcomeLetterDoc } from "@/lib/absence/invitation-letter";
+import { LetterBody } from "@/lib/letters/letter-body-pdf";
 
 // Never break a word in half (see lib/evidence/pdf.tsx).
 Font.registerHyphenationCallback((word) => [word]);
@@ -80,16 +81,8 @@ export async function renderOutcomeLetterPdf(opts: {
         <Text style={styles.para}>{l.salutation}</Text>
         <Text style={styles.re}>{l.reLine}</Text>
 
-        {/* A single line break the manager typed is kept as a line break, a blank line starts a
-            new paragraph, so they can space the letter as they like. */}
-        {l.paragraphs.map((p, i) =>
-          p ? (
-            <Text key={i} style={styles.para}>{p}</Text>
-          ) : (
-            // An empty line the manager added with Enter: one line of space.
-            <Text key={i}>{" "}</Text>
-          ),
-        )}
+        {/* The letter as approved, with its formatting (Phil, 2026-10-12). */}
+        <LetterBody body={l.body} />
 
         <View style={styles.signOff} wrap={false}>
           <Text>{l.signOff.closing}</Text>

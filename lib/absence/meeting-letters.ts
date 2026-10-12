@@ -10,7 +10,8 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { letterWordingFor } from "@/lib/letters/data";
-import { mergeLetterText, renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
+import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
+import { letterEmailHtml, letterPlainText, mergeLetterHtml, splitLetterHtml, toLetterHtml } from "@/lib/letters/rich-text";
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor, stageActionSentence } from "@/lib/absence/stage-actions";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -134,11 +135,13 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     letterWordingFor(args.supabase, args.companyId, "absence_meeting_rearranged"),
   ]);
 
-  const paragraphsOf = (body: string) =>
-    mergeLetterText(body, values)
-      .split(/\n\s*\n/)
-      .map((p) => p.trim())
-      .filter(Boolean);
+  /* The company's wording as letter HTML blocks, formatted or plain (Phil, 2026-10-12): its
+     formatting carries into the letter. Spaces between blocks are dropped, as blank paragraphs
+     always were here. */
+  const blocksOf = (body: string) =>
+    splitLetterHtml(mergeLetterHtml(toLetterHtml(body), values)).filter((b) => b !== "<p></p>");
+  const noteOf = (body: string) =>
+    letterPlainText(mergeLetterHtml(toLetterHtml(body), values)).replace(/\s*\n+\s*/g, " ").trim();
 
   const invitation = buildInvitationLetter({
     companyName: args.companyName,
@@ -157,8 +160,8 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     teams: args.locationKind === "teams",
     conductorName: args.conductor.name,
     conductorRole: extras.conductorRole,
-    wordingParagraphs: paragraphsOf(employeeLetter.body),
-    rearrangedNote: args.rearranged ? paragraphsOf(rearrangedLetter.body).join(" ") || null : null,
+    wordingParagraphs: blocksOf(employeeLetter.body),
+    rearrangedNote: args.rearranged ? noteOf(rearrangedLetter.body) || null : null,
     absences: stageAbsences,
     windowWords: extras.windowWords,
     bodyOverride: args.bodyOverride ?? null,
@@ -235,11 +238,7 @@ export function invitationPreviewHtml(l: InvitationLetter, signatureDataUrl?: st
       ${p(l.recipientLines.join("\n")).replace(/\n/g, "<br/>")}
       ${p(l.salutation)}
       ${p(l.reLine, "font-weight:700;")}
-      ${l.opening.map((t) => p(t)).join("")}
-      ${p(l.details.map((d) => `${d.label}: ${d.value}`).join("\n")).replace(/\n/g, "<br/>")}
-      ${p(l.absenceIntro)}
-      <ul style="margin:0 0 8px 18px;padding:0;">${l.absenceLines.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-      ${l.closing.map((t) => p(t)).join("")}
+      ${letterEmailHtml(l.body)}
       ${
         signatureDataUrl && /^data:image\/(png|jpeg);base64,/.test(signatureDataUrl)
           ? `${p(l.signOff.closing)}<img src="${signatureDataUrl}" alt="" style="display:block;height:46px;max-width:200px;object-fit:contain;margin:0 0 4px 0;"/>${p([l.signOff.name, l.signOff.role ?? ""].filter(Boolean).join("\n")).replace(/\n/g, "<br/>")}`

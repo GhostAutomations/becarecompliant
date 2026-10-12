@@ -22,6 +22,7 @@ import {
 import { AiIcon } from "@/components/ai-icon";
 import PolicyReader from "@/components/staff/policy-reader";
 import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
+import RichLetterEditor from "@/components/letters/rich-letter-editor";
 
 function toBytes(base64: string): Uint8Array {
   const bin = atob(base64);
@@ -304,17 +305,17 @@ export default function OutcomeLetterDialog({
               </div>
             ) : null}
             <div>
-              <label htmlFor={`ol-${meetingId}`} className="form-label">
-                The letter
-              </label>
-              <textarea
-                id={`ol-${meetingId}`}
-                rows={12}
-                value={body}
-                disabled={busy}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Or write it yourself. Leave a blank line between paragraphs."
-              />
+              <span className="form-label">The letter</span>
+              {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
+              <div className="h-[55vh] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
+                <RichLetterEditor
+                  label="The letter"
+                  value={body}
+                  disabled={busy}
+                  onChange={setBody}
+                  placeholder="Or write it yourself."
+                />
+              </div>
             </div>
             {previewError ? <p className="form-error">{previewError}</p> : null}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

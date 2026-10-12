@@ -11,8 +11,23 @@
  * (invitation-letter-pdf.tsx) only lays it out. The middle of the letter is the company's own
  * wording (Settings, Letters), merged exactly as the email always merged it.
  *
- * Pure and self-contained (no runtime imports). No dashes in anything a customer reads.
+ * Pure: its only import is the letter text rules (lib/letters/rich-text.ts), itself pure. No dashes
+ * in anything a customer reads.
+ *
+ * THE LETTER'S WORDS ARE LETTER HTML (Phil, 2026-10-12, Job 2 Part B): bold, italic, underline,
+ * sizes, lists and headings, made in the editor. Old plain text wording and letters are read by the
+ * rules they always had (rich-text.ts), so nothing written before needs changing.
  */
+
+import {
+  blockText,
+  blocksToLetterHtml,
+  escapeHtml,
+  letterBlocksOf,
+  letterPlainText,
+  toLetterHtml,
+  type RichBlock,
+} from "../letters/rich-text.ts";
 
 export type InvitationAbsence = {
   start_date: string;
@@ -43,7 +58,8 @@ export type InvitationLetterInput = {
   teams: boolean;
   conductorName: string;
   conductorRole: string | null;
-  /** The company's invitation wording, merged, blank paragraphs already dropped. */
+  /** The company's invitation wording, merged, blank paragraphs already dropped: each one a
+   *  paragraph of plain text or a block of letter HTML. */
   wordingParagraphs: string[];
   /** The rearranged note, merged, when the meeting has moved. */
   rearrangedNote: string | null;
@@ -67,15 +83,15 @@ export type InvitationLetter = {
   recipientLines: string[];
   salutation: string;
   reLine: string;
-  /** Before the meeting details: the rearranged note and the first paragraph of the wording. */
+  /** Before the meeting details: the rearranged note and the first block of the wording, as letter HTML. */
   opening: string[];
   details: Array<{ label: string; value: string }>;
   absenceIntro: string;
   absenceLines: string[];
-  /** The rest of the wording. */
+  /** The rest of the wording, as letter HTML blocks. */
   closing: string[];
-  /** The letter between the RE line and Yours sincerely as text: what the PDF prints, and what the
-   *  Book meeting box shows. The edited text when there is one, else standardBody. */
+  /** The letter between the RE line and Yours sincerely as letter HTML: what the PDF prints, and what
+   *  the Book meeting editor shows. The edited letter when there is one, else standardBody. */
   body: string;
   /** The same, built from the company's wording and the meeting: what "standard wording" means. */
   standardBody: string;
@@ -156,8 +172,12 @@ export function letterSignOff(
 
 export function buildInvitationLetter(i: InvitationLetterInput): InvitationLetter {
   const firstName = i.recipientName.trim().split(/\s+/)[0] || i.recipientName.trim();
-  const [first, ...rest] = i.wordingParagraphs;
-  const opening = [i.rearrangedNote, first].filter((p): p is string => Boolean(p && p.trim()));
+  const wording = i.wordingParagraphs.map((p) => toLetterHtml(p)).filter(Boolean);
+  const [first, ...rest] = wording;
+  const opening = [
+    i.rearrangedNote && i.rearrangedNote.trim() ? `<p>${escapeHtml(i.rearrangedNote.trim())}</p>` : null,
+    first,
+  ].filter((p): p is string => Boolean(p));
 
   const details = [
     { label: "Date", value: letterDay(i.meetingDateIso) },
@@ -187,7 +207,7 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
   const date = letterDate(i.letterDateIso);
   const salutation = `Dear ${firstName}`;
 
-  const standardBody = invitationBodyText({ opening, details, absenceIntro, absenceLines, closing: rest });
+  const standardBody = invitationBodyHtml({ opening, details, absenceIntro, absenceLines, closing: rest });
   const body = cleanLetterBody(i.bodyOverride, i.recipientName) || standardBody;
 
   const plainText = [
@@ -196,7 +216,7 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
     recipientLines.join("\n"),
     salutation,
     reLine,
-    body,
+    letterPlainText(body),
     [signOff.closing, signOff.name, signOff.role ?? ""].filter(Boolean).join("\n"),
   ].join("\n\n");
 
@@ -228,112 +248,61 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
  * Where...) prints as the meeting details table.
  * ------------------------------------------------------------------------------------------- */
 
-export const BULLET = "\u2022";
-
-/** The standard letter between the RE line and Yours sincerely, as text. */
-export function invitationBodyText(p: {
+/** The standard letter between the RE line and Yours sincerely, as letter HTML: the wording's
+ *  first block, the meeting details (drawn as the details table), the absences as a list, then
+ *  the rest of the wording. */
+export function invitationBodyHtml(p: {
   opening: string[];
   details: Array<{ label: string; value: string }>;
   absenceIntro: string;
   absenceLines: string[];
   closing: string[];
 }): string {
-  return [
-    ...p.opening,
-    p.details.map((d) => `${d.label}: ${d.value}`).join("\n"),
-    [p.absenceIntro, ...p.absenceLines.map((l) => `${BULLET} ${l}`)].join("\n"),
-    ...p.closing,
-  ]
-    .filter((x) => x.trim())
-    .join("\n\n");
+  const details = `<p>${p.details.map((d) => escapeHtml(`${d.label}: ${d.value}`)).join("<br>")}</p>`;
+  const absences =
+    `<p>${escapeHtml(p.absenceIntro)}</p>` +
+    (p.absenceLines.length ? `<ul>${p.absenceLines.map((l) => `<li><p>${escapeHtml(l)}</p></li>`).join("")}</ul>` : "");
+  return [...p.opening, details, absences, ...p.closing].join("");
 }
 
-/** An edited letter, tidied: no Dear line or sign off of its own (the letter prints both), capped.
- *  Empty when nothing usable was typed, so the standard letter is used. */
-export function cleanLetterBody(raw: string | null | undefined, recipientName: string): string {
-  if (!raw) return "";
-  const lines = String(raw).replace(/\r\n?/g, "\n").slice(0, 12_000).split("\n");
+const isGreeting = (text: string, name: string, first: string) => {
+  const t = text.trim().toLowerCase();
+  const who = t.replace(/^dear\s+/, "").replace(/[,.:]$/, "").trim();
+  return t.length <= 80 && (who === name || who === first);
+};
+
+/**
+ * The letter's blocks without a greeting or sign off of their own: the letter prints "Dear Jo" and
+ * the sign off itself, so neither appears twice. A sign off ends the letter there, the blocks after
+ * it go with it. Spaces at either end go too.
+ */
+export function letterBodyBlocks(blocks: RichBlock[], recipientName: string): RichBlock[] {
   const name = recipientName.trim().toLowerCase();
   const first = name.split(/\s+/)[0] ?? "";
-  while (lines.length && !lines[0].trim()) lines.shift();
-  if (lines.length) {
-    const greet = lines[0].trim().toLowerCase();
-    const who = greet.replace(/^dear\s+/, "").replace(/[,.:]$/, "").trim();
-    if (greet.startsWith("dear ") && (who === name || who === first)) lines.shift();
+  const out: RichBlock[] = [];
+  for (const b of blocks) {
+    if (b.kind === "para" || b.kind === "heading") {
+      const cut = b.lines.findIndex((l) => SIGN_OFF.test(l.map((r) => r.text).join("").trim()));
+      if (cut === 0) break;
+      if (cut > 0) {
+        out.push({ ...b, lines: b.lines.slice(0, cut) });
+        break;
+      }
+      if (!out.some((o) => o.kind !== "space") && isGreeting(blockText(b), name, first)) continue;
+    }
+    out.push(b);
   }
-  const end = lines.findIndex((l) => SIGN_OFF.test(l.trim()));
-  const kept = end >= 0 ? lines.slice(0, end) : lines;
-  while (kept.length && !kept[0].trim()) kept.shift();
-  while (kept.length && !kept[kept.length - 1].trim()) kept.pop();
-  return kept.map((l) => l.replace(/\s+$/, "")).join("\n");
+  while (out.length && out[0].kind === "space") out.shift();
+  while (out.length && out[out.length - 1].kind === "space") out.pop();
+  return out;
 }
 
-export type BodyBlock =
-  | { kind: "text"; text: string }
-  | { kind: "details"; rows: Array<{ label: string; value: string }> }
-  | { kind: "bullets"; lines: string[] }
-  | { kind: "space" };
-
-const BULLET_LINE = /^\s*[\u2022*]\s+(.*)$/;
-const DETAIL_LINE = /^([A-Za-z][A-Za-z ]{0,13}):\s+(\S.*)$/;
-
-/** The letter text as blocks for the PDF, in order. */
-export function bodyBlocks(text: string): BodyBlock[] {
-  const blocks: BodyBlock[] = [];
-  let para: string[] = [];
-  let broke = false;
-  const flush = () => {
-    if (!para.length) return;
-    const details = para.length >= 2 && para.every((l) => DETAIL_LINE.test(l.trim()));
-    if (details) {
-      blocks.push({
-        kind: "details",
-        rows: para.map((l) => {
-          const m = l.trim().match(DETAIL_LINE)!;
-          return { label: m[1], value: m[2] };
-        }),
-      });
-    } else {
-      let run: string[] = [];
-      let bullets: string[] = [];
-      const endRun = () => {
-        if (run.length) blocks.push({ kind: "text", text: run.join("\n") });
-        run = [];
-      };
-      const endBullets = () => {
-        if (bullets.length) blocks.push({ kind: "bullets", lines: bullets });
-        bullets = [];
-      };
-      for (const line of para) {
-        const m = line.match(BULLET_LINE);
-        if (m) {
-          endRun();
-          bullets.push(m[1]);
-        } else {
-          endBullets();
-          run.push(line);
-        }
-      }
-      endRun();
-      endBullets();
-    }
-    para = [];
-  };
-  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
-    if (!line.trim()) {
-      if (para.length) {
-        flush();
-        broke = true;
-      } else if (broke) {
-        blocks.push({ kind: "space" });
-      }
-    } else {
-      para.push(line.replace(/\s+$/, ""));
-    }
-  }
-  flush();
-  while (blocks.length && blocks[blocks.length - 1].kind === "space") blocks.pop();
-  return blocks;
+/** An edited letter, tidied: no Dear line or sign off of its own (the letter prints both), capped,
+ *  as letter HTML. Empty when nothing usable was typed, so the standard letter is used. */
+export function cleanLetterBody(raw: string | null | undefined, recipientName: string): string {
+  if (!raw) return "";
+  const kept = letterBodyBlocks(letterBlocksOf(String(raw).slice(0, 40_000)), recipientName);
+  return kept.some((b) => b.kind !== "space") ? blocksToLetterHtml(kept) : "";
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -367,8 +336,10 @@ export type OutcomeLetterInput = {
   meetingTitle: string;
   conductorName: string;
   conductorRole: string | null;
-  /** The company's outcome wording, merged, split into paragraphs. */
-  wordingParagraphs: string[];
+  /** The company's outcome wording, merged, split into paragraphs (plain text). */
+  wordingParagraphs?: string[];
+  /** Or the whole letter between Dear and Yours sincerely as letter HTML, as approved. */
+  bodyHtml?: string;
   /** Whoever signs the letter: their name and job title go under the signature (letterSignOff). */
   signer?: { name: string; role: string | null } | null;
 };
@@ -381,7 +352,8 @@ export type OutcomeLetterDoc = {
   recipientLines: string[];
   salutation: string;
   reLine: string;
-  paragraphs: string[];
+  /** The letter between Dear and Yours sincerely, as letter HTML. */
+  body: string;
   signOff: { closing: string; name: string; role: string | null };
   plainText: string;
 };
@@ -421,7 +393,10 @@ export function buildOutcomeLetterDoc(i: OutcomeLetterInput): OutcomeLetterDoc {
   const reLine = `RE: ${i.stage ? `Stage ${i.stage} ` : ""}${i.meetingTitle} Outcome`;
   const date = letterDate(i.letterDateIso);
   const salutation = `Dear ${firstName}`;
-  const paragraphs = letterBodyParagraphs(i.wordingParagraphs, i.recipientName);
+  const raw =
+    i.bodyHtml ??
+    (i.wordingParagraphs ?? []).map((p) => (p.trim() ? toLetterHtml(p) : "<p></p>")).join("");
+  const body = blocksToLetterHtml(letterBodyBlocks(letterBlocksOf(raw), i.recipientName));
   const signOff = letterSignOff(i.conductorName, i.conductorRole, i.signer);
   const plainText = [
     [i.companyName, ...letterheadLines, ...phoneLines].join("\n"),
@@ -429,7 +404,7 @@ export function buildOutcomeLetterDoc(i: OutcomeLetterInput): OutcomeLetterDoc {
     recipientLines.join("\n"),
     salutation,
     reLine,
-    ...paragraphs,
+    letterPlainText(body),
     [signOff.closing, signOff.name, signOff.role ?? ""].filter(Boolean).join("\n"),
   ].join("\n\n");
   return {
@@ -440,7 +415,7 @@ export function buildOutcomeLetterDoc(i: OutcomeLetterInput): OutcomeLetterDoc {
     recipientLines,
     salutation,
     reLine,
-    paragraphs,
+    body,
     signOff,
     plainText,
   };

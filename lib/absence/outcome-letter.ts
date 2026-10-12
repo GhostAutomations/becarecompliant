@@ -11,7 +11,11 @@
  * PRIVACY: the model is sent what the meeting recorded and nothing that identifies the employee.
  */
 
+import { isLetterHtml, letterPlainText, toLetterHtml } from "../letters/rich-text.ts";
+
 export const OUTCOME_BODY_LIMIT = 6000;
+/** The same letter with its formatting: room for the tags around those words. */
+export const OUTCOME_HTML_LIMIT = 40_000;
 
 export const OUTCOME_SYSTEM = [
   "You are helping a UK care sector manager write the middle part of a formal letter confirming the",
@@ -158,6 +162,12 @@ export function cleanOutcomeBody(raw: string): string {
  *  to four in a row): the manager presses Enter to space the letter (Phil, 2026-10-07). */
 export function normaliseApprovedBody(body: unknown): string {
   if (typeof body !== "string") return "";
+  /* Made in the letter editor (Phil, 2026-10-12, Job 2 Part B): kept as letter HTML, through the
+     same rules that keep only the formatting a letter allows. Empty when it holds no words. */
+  if (isLetterHtml(body)) {
+    const html = toLetterHtml(body.slice(0, OUTCOME_HTML_LIMIT));
+    return letterPlainText(html).trim() ? html : "";
+  }
   return body
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")

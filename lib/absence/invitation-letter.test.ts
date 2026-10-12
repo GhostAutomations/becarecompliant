@@ -72,8 +72,8 @@ test("the letter carries everything Thistle's did", () => {
   assert.equal(l.details[4].value, "Charlotte Davies, Manager");
   assert.match(l.absenceIntro, /2 absences, 2 days in all, recorded in the last 6 months/);
   assert.equal(l.absenceLines.length, 2);
-  assert.deepEqual(l.opening, ["This is your formal invitation."]);
-  assert.deepEqual(l.closing, ["It could lead to a first written warning.", "You may be accompanied."]);
+  assert.deepEqual(l.opening, ["<p>This is your formal invitation.</p>"]);
+  assert.deepEqual(l.closing, ["<p>It could lead to a first written warning.</p>", "<p>You may be accompanied.</p>"]);
   assert.ok(!/[–—]/.test(l.plainText));
 });
 
@@ -97,7 +97,7 @@ test("outcome letter: laid out like the invitation, greeting and sign off not pr
   assert.deepEqual(doc.recipientLines, ["Jo Sample", "2 Home Street", "Townville"]);
   assert.deepEqual(doc.letterheadLines, ["1 Office Road", "Townville", "AB1 2CD"]);
   assert.deepEqual(doc.phoneLines, ["Tel: 01234 567890"]);
-  assert.deepEqual(doc.paragraphs, ["Thank you for attending.", "", "The outcome."]);
+  assert.equal(doc.body, "<p>Thank you for attending.</p><p></p><p>The outcome.</p>");
   assert.deepEqual(doc.signOff, { closing: "Yours sincerely", name: "Sam Manager", role: "Registered Manager" });
 });
 
@@ -113,7 +113,8 @@ test("appeal days default to seven", () => {
 });
 
 /* The Book meeting box holds the whole letter, and the PDF is drawn from it (Phil, 2026-10-08). */
-import { bodyBlocks, cleanLetterBody } from "./invitation-letter.ts";
+import { cleanLetterBody } from "./invitation-letter.ts";
+import { letterPlainText, pdfBlocks } from "../letters/rich-text.ts";
 
 const BASE = {
   companyName: "Bevan Care Ltd",
@@ -141,30 +142,41 @@ const BASE = {
   windowWords: "6 months",
 };
 
-test("the standard letter text draws the same letter: paragraphs, details table, absences list", () => {
+test("the standard letter draws the same letter: paragraphs, details table, absences list", () => {
   const l = buildInvitationLetter(BASE);
   assert.equal(l.body, l.standardBody);
-  const blocks = bodyBlocks(l.body);
-  assert.deepEqual(blocks.map((b) => b.kind), ["text", "details", "text", "bullets", "text"]);
+  const blocks = pdfBlocks(l.body);
+  assert.deepEqual(blocks.map((b) => b.kind), ["para", "details", "para", "list", "para"]);
   const details = blocks[1];
   assert.ok(details.kind === "details" && details.rows[0].label === "Date" && details.rows[4].label === "Held by");
-  const bullets = blocks[3];
-  assert.ok(bullets.kind === "bullets" && bullets.lines.length === 2);
-  assert.ok(l.plainText.includes(l.body));
+  const list = blocks[3];
+  assert.ok(list.kind === "list" && list.items.length === 2);
+  assert.ok(l.plainText.includes(letterPlainText(l.body)));
 });
 
-test("an edited letter prints exactly what was typed, extra blank lines as space", () => {
-  const typed = "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n• one\n• two";
+test("an old plain text edit still prints as typed, extra blank lines as space", () => {
+  const typed = "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n\u2022 one\n\u2022 two";
+  const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
+  const blocks = pdfBlocks(l.body);
+  assert.deepEqual(blocks.map((b) => b.kind), ["para", "space", "para", "list"]);
+  assert.equal(letterPlainText(l.body), "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n\u2022 one\n\u2022 two");
+});
+
+test("a formatted edit prints with its formatting", () => {
+  const typed = "<h2>Notice</h2><p>Please <strong>attend</strong> <em>on time</em>.</p><ol><li><p>Bring ID</p></li></ol>";
   const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
   assert.equal(l.body, typed);
-  const blocks = bodyBlocks(l.body);
-  assert.deepEqual(blocks.map((b) => b.kind), ["text", "space", "text", "bullets"]);
-  const second = blocks[2];
-  assert.ok(second.kind === "text" && second.text === "After extra space.\nSame paragraph, new line.");
+  assert.deepEqual(pdfBlocks(l.body).map((b) => b.kind), ["heading", "para", "list"]);
+});
+
+test("formatted company wording carries into the standard letter", () => {
+  const l = buildInvitationLetter({ ...BASE, wordingParagraphs: ["<p>This is your <strong>formal</strong> invitation.</p>", "<p>Bring someone.</p>"] });
+  assert.ok(l.standardBody.startsWith("<p>This is your <strong>formal</strong> invitation.</p><p>Date: "));
 });
 
 test("an edited letter loses its own Dear line and sign off, and an empty one falls back", () => {
-  assert.equal(cleanLetterBody("Dear Jo,\n\nHello.\n\nYours sincerely\nBev", "Jo Bloggs"), "Hello.");
+  assert.equal(cleanLetterBody("Dear Jo,\n\nHello.\n\nYours sincerely\nBev", "Jo Bloggs"), "<p>Hello.</p>");
+  assert.equal(cleanLetterBody("<p>Dear Jo,</p><p><strong>Hello.</strong></p><p>Yours sincerely</p><p>Bev</p>", "Jo Bloggs"), "<p><strong>Hello.</strong></p>");
   assert.equal(cleanLetterBody("   \n  ", "Jo Bloggs"), "");
   const l = buildInvitationLetter({ ...BASE, bodyOverride: "  " });
   assert.equal(l.body, l.standardBody);

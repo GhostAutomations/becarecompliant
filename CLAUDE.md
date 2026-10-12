@@ -38,7 +38,8 @@ framework, component library, ORM or service without asking Phil first.
 
 - `npm run typecheck` (tsc --noEmit)
 - `npm test` (node --test over `lib/**/*.test.ts`, no path aliases, so tested logic stays in
-  importless modules)
+  importless modules; one pure module may import another by its relative `.ts` path, e.g.
+  `"../letters/rich-text.ts"`, which tsconfig's `allowImportingTsExtensions` allows)
 - `npm run build` (catches what tsc misses, such as a "use server" file exporting a non async
   value)
 

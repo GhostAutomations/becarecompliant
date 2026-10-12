@@ -9,7 +9,8 @@ import "server-only";
  */
 
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import { bodyBlocks, type InvitationLetter } from "@/lib/absence/invitation-letter";
+import { type InvitationLetter } from "@/lib/absence/invitation-letter";
+import { LetterBody } from "@/lib/letters/letter-body-pdf";
 
 // Never break a word in half (see lib/evidence/pdf.tsx).
 Font.registerHyphenationCallback((word) => [word]);
@@ -30,13 +31,6 @@ const styles = StyleSheet.create({
   recipient: { marginBottom: 12 },
   para: { marginBottom: 8 },
   re: { fontWeight: 700, marginBottom: 8 },
-  detailsBox: { marginBottom: 10, paddingLeft: 12 },
-  detailRow: { flexDirection: "row", marginBottom: 2 },
-  detailLabel: { width: 60, fontWeight: 700 },
-  detailValue: { flex: 1 },
-  bulletRow: { flexDirection: "row", marginBottom: 2, paddingLeft: 12 },
-  bullet: { width: 12 },
-  bulletText: { flex: 1 },
   signOff: { marginTop: 4 },
   signName: { marginTop: 16, fontWeight: 700 },
   // The signer's signature, above their name (Phil, 2026-10-12, docs/decisions/letter-signatures.md).
@@ -90,33 +84,10 @@ export async function renderInvitationLetterPdf(opts: {
         <Text style={styles.para}>{l.salutation}</Text>
         <Text style={styles.re}>{l.reLine}</Text>
 
-        {/* The letter between the RE line and Yours sincerely, drawn from its text (the Book meeting
-            box), so what was read and edited there is exactly what prints (Phil, 2026-10-08). */}
-        {bodyBlocks(l.body).map((b, i) =>
-          b.kind === "text" ? (
-            <Text key={i} style={styles.para}>{b.text}</Text>
-          ) : b.kind === "details" ? (
-            <View key={i} style={styles.detailsBox}>
-              {b.rows.map((d, j) => (
-                <View key={j} style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>{d.label}</Text>
-                  <Text style={styles.detailValue}>{d.value}</Text>
-                </View>
-              ))}
-            </View>
-          ) : b.kind === "bullets" ? (
-            <View key={i} style={{ marginBottom: 8 }}>
-              {b.lines.map((line, j) => (
-                <View key={j} style={styles.bulletRow} wrap={false}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>{line}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View key={i} style={{ height: 10 }} />
-          ),
-        )}
+        {/* The letter between the RE line and Yours sincerely, drawn from the Book meeting editor's
+            text with its formatting, so what was read and edited there is exactly what prints
+            (Phil, 2026-10-08; formatting 2026-10-12). */}
+        <LetterBody body={l.body} />
 
         <View style={styles.signOff} wrap={false}>
           <Text>{l.signOff.closing}</Text>

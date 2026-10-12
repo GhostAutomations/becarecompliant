@@ -27,6 +27,7 @@ import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { bookAbsenceMeeting, previewBookingLetterPdf } from "@/lib/absence/actions";
 import PolicyReader from "@/components/staff/policy-reader";
 import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
+import RichLetterEditor from "@/components/letters/rich-letter-editor";
 import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
@@ -365,7 +366,7 @@ function BookMeetingForm({
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div className="flex flex-col">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <label htmlFor="bm-letter" className="form-label mb-0">The letter</label>
+              <span className="form-label mb-0">The letter</span>
               {edited ? (
                 <button
                   type="button"
@@ -383,24 +384,24 @@ function BookMeetingForm({
                     and type size, so the words wrap where the letter wraps (Phil, 2026-10-08). */}
                 <div className="h-[68vh] min-h-72 overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
                   <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">
-                    <div className="letter-paper">
-                      <textarea
-                        id="bm-letter"
-                        value={body}
-                        disabled={busy || (!edited && !body)}
-                        onChange={(e) => {
-                          setBody(e.target.value);
-                          setEdited(true);
-                        }}
-                      />
-                    </div>
+                    {/* The letter editor (Phil, 2026-10-12, Job 2 Part B): formatted, on a sheet the
+                        width of the PDF page, so it wraps and looks as the PDF prints. */}
+                    <RichLetterEditor
+                      label="The letter"
+                      value={body}
+                      disabled={busy || (!edited && !body)}
+                      onChange={(html) => {
+                        setBody(html);
+                        setEdited(true);
+                      }}
+                    />
                   </div>
                 </div>
                 <p className={hint}>
                   The whole letter between the RE line and Yours sincerely, exactly as the PDF prints it, for
-                  this letter only. Leave a blank line between paragraphs and press Enter again for more space.
-                  Lines starting with • print as a list, and lines like &quot;Date: ...&quot; together print as the
-                  meeting details.
+                  this letter only. Use the bar above it for headings, text size, bold, italic, underline and
+                  lists. Press Enter on an empty line for more space. Lines like &quot;Date: ...&quot; together print
+                  as the meeting details.
                   {edited ? " Once you change the letter, check it again if you change the details above." : null}
                 </p>
                 <div className="mt-4">

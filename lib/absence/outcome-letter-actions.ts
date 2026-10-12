@@ -40,9 +40,10 @@ import {
   appealDays,
   letterDate,
   buildOutcomeLetterDoc,
-  letterBodyParagraphs,
+  letterBodyBlocks,
   type OutcomeLetterDoc,
 } from "@/lib/absence/invitation-letter";
+import { blockText, blocksToLetterHtml, letterBlocksOf, letterEmailHtml, mergeLetterHtml, toLetterHtml } from "@/lib/letters/rich-text";
 import { discussedAbsences } from "@/lib/absence/meeting-questions";
 import { windowLabel } from "@/lib/absence/window";
 import { windowStartIso } from "@/lib/absence/discount";
@@ -52,13 +53,11 @@ import {
   buildOutcomePrompt,
   cleanOutcomeBody,
   clipText,
-  joinLetterParagraphs,
   OUTCOME_BODY_LIMIT,
   absencesBlock,
   isNoFurtherAction,
   stageAfterMeeting,
   stageFacts,
-  letterParagraphs,
   normaliseApprovedBody,
   outcomeFacts,
   slashDate,
@@ -324,10 +323,14 @@ async function fullLetterText(
   const withList = block ? `${block}\n\n${middle}` : middle;
   // No further action: no right of appeal paragraph (Phil, 2026-10-07).
   const nfa = isNoFurtherAction(ctx.answers.meeting_outcome);
-  const paragraphs = letterParagraphs(wording.body, { ...values, outcome_body: withList }).filter(
-    (p) => !nfa || !/right to appeal|appeal will be heard/i.test(p),
-  );
-  return joinLetterParagraphs(letterBodyParagraphs(paragraphs, ctx.employee.name)).slice(0, OUTCOME_BODY_LIMIT);
+  /* AS LETTER HTML (Phil, 2026-10-12, Job 2 Part B): the company's wording, formatted or plain, with
+     the drafted middle put in whole where {{outcome_body}} stands, so the editor shows it formatted
+     and the PDF prints what the editor shows. */
+  const merged = mergeLetterHtml(toLetterHtml(wording.body), values, {
+    outcome_body: toLetterHtml(withList.slice(0, OUTCOME_BODY_LIMIT)),
+  });
+  const blocks = letterBlocksOf(merged).filter((b) => !nfa || !/right to appeal|appeal will be heard/i.test(blockText(b)));
+  return blocksToLetterHtml(letterBodyBlocks(blocks, ctx.employee.name));
 }
 
 /** Build the whole letter from the text the manager approved: subject, email and the PDF's layout. */
@@ -346,7 +349,7 @@ async function compose(ctx: LetterCtx, letterText: string, signature?: LetterSig
     meetingTitle: meetingNameAsTitle(extras.meetingName),
     conductorName: ctx.conductorName,
     conductorRole: extras.conductorRole,
-    wordingParagraphs: letterParagraphs(letterText, {}),
+    bodyHtml: toLetterHtml(letterText),
     // The sign off follows the signer (Phil, 2026-10-12): their name and job title under it.
     signer: signature ? { name: signature.signerName, role: signature.signerRole } : null,
   });
@@ -374,7 +377,7 @@ function letterDocHtml(doc: OutcomeLetterDoc): string {
     p(doc.date),
     p(doc.salutation),
     p(doc.reLine, "font-weight:700;"),
-    ...doc.paragraphs.map((t) => p(t)),
+    letterEmailHtml(doc.body),
     p([doc.signOff.closing, "", doc.signOff.name, doc.signOff.role ?? ""].filter((x, i) => i === 1 || x).join("\n")),
   ].join("");
 }

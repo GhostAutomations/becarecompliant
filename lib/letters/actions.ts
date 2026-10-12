@@ -12,7 +12,15 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
-import { letterDefinition, missingRequiredTokens } from "./letters";
+import { letterDefinition, missingRequiredTokens, placeholdersFor } from "./letters";
+import { letterPlainText, mergeLetterHtml, splitLetterHtml, toLetterHtml } from "./rich-text";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
+import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
+import { buildInvitationLetter, buildOutcomeLetterDoc } from "@/lib/absence/invitation-letter";
+import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
+import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 
 function trimOrEmpty(v: FormDataEntryValue | null): string {
   return String(v ?? "").trim();
@@ -31,8 +39,11 @@ export async function saveLetterTemplate(
   if (!def) return { error: "That is not a letter we send." };
 
   const subject = trimOrEmpty(formData.get("subject"));
-  const body = trimOrEmpty(formData.get("body"));
-  if (!body) return { error: "The letter needs some wording." };
+  /* As letter HTML, through the rules that keep only what a letter allows (Phil, 2026-10-12, Job 2
+     Part B): the editor's formatting is kept, anything else is dropped, old plain text still reads. */
+  const raw = trimOrEmpty(formData.get("body")).slice(0, 40_000);
+  const body = raw ? toLetterHtml(raw) : "";
+  if (!letterPlainText(body).trim()) return { error: "The letter needs some wording." };
   const missing = missingRequiredTokens(def, body);
   if (missing.length > 0) {
     const labels = missing.map((t) => def.extraPlaceholders?.find((p) => p.token === t)?.label ?? t);
@@ -144,4 +155,83 @@ export async function resetLetterTemplate(
 
   revalidatePath("/settings/letters");
   return { ok: "Reset" };
+}
+
+/** The two templates that become PDF letters, and so get a PDF preview in Settings, Letters. */
+const PDF_TEMPLATES = new Set(["absence_meeting_invite_employee", "absence_meeting_outcome"]);
+
+/**
+ * THE TEMPLATE AS A LETTER (Phil, 2026-10-12, Job 2 Part B: "the templates get a PDF preview beside
+ * them"). The wording being edited, merged with example details, laid out exactly as a real letter
+ * from this company: its name, logo and office address. Nothing is saved or sent.
+ */
+export async function previewLetterTemplatePdf(formData: FormData): Promise<{ pdf?: string; error?: string }> {
+  const { profile } = await requireCompanyAdmin();
+  const companyId = profile.company_id;
+  if (!companyId) return { error: "No company context." };
+  const key = trimOrEmpty(formData.get("letter_key"));
+  const def = letterDefinition(key);
+  if (!def || !PDF_TEMPLATES.has(key)) return { error: "This wording is sent as an email, not a PDF letter." };
+  const body = toLetterHtml(trimOrEmpty(formData.get("body")).slice(0, 40_000));
+  if (!letterPlainText(body).trim()) return { error: "Write some wording to see the letter." };
+
+  const admin = createServiceClient();
+  const [{ data: company }, { data: branches }, logoDataUrl] = await Promise.all([
+    admin.from("companies").select("name").eq("id", companyId).maybeSingle(),
+    admin.from("branches").select("id, name, kind, address, phone, uses_office_address").eq("company_id", companyId),
+    getCompanyLogoDataUrl(companyId).catch(() => null),
+  ]);
+  const rows = (branches ?? []) as (BranchAddressRow & { phone: string | null })[];
+  const office = rows.find((b) => b.kind === "team") ?? null;
+  const companyName = (company?.name as string | undefined) ?? "Your company";
+  const values: Record<string, string> = Object.fromEntries(placeholdersFor(def).map((p) => [p.token, p.example]));
+  values.company_name = companyName;
+  const shared = {
+    companyName,
+    letterheadAddress: office ? resolveBranchAddress(office, officeAddress(rows)).address : null,
+    letterheadPhone: office?.phone ?? null,
+    letterDateIso: formatCivilDate(todayInLondon()),
+    recipientName: values.recipient_name ?? "Joan Price",
+    recipientAddress: "1 Example Street\nExample Town\nAB1 2CD",
+  };
+
+  try {
+    if (key === "absence_meeting_outcome") {
+      const { outcome_body: middle = "", ...rest } = values;
+      const doc = buildOutcomeLetterDoc({
+        ...shared,
+        stage: 2,
+        meetingTitle: "Absence Management Meeting",
+        conductorName: values.conductor_name ?? "Sam Idris",
+        conductorRole: "Registered Manager",
+        bodyHtml: mergeLetterHtml(body, rest, { outcome_body: toLetterHtml(middle) }),
+      });
+      const pdf = await renderOutcomeLetterPdf({ letter: doc, logoDataUrl });
+      return { pdf: pdf.toString("base64") };
+    }
+    const letter = buildInvitationLetter({
+      ...shared,
+      stage: 2,
+      stageLabel: values.stage_label ?? "Stage 2 absence management meeting",
+      meetingTitle: "Absence Management Meeting",
+      meetingDateIso: formatCivilDate(todayInLondon()),
+      meetingTime: values.meeting_time ?? "10:30",
+      durationMinutes: 45,
+      location: values.location ?? "Microsoft Teams",
+      teams: true,
+      conductorName: values.conductor_name ?? "Sam Idris",
+      conductorRole: "Registered Manager",
+      wordingParagraphs: splitLetterHtml(mergeLetterHtml(body, values)).filter((b) => b !== "<p></p>"),
+      rearrangedNote: null,
+      absences: [
+        { start_date: "2026-06-02", end_date: null, days: 1, reason: "Example reason" },
+        { start_date: "2026-07-14", end_date: "2026-07-15", days: 2, reason: "Example reason" },
+      ],
+      windowWords: "6 months",
+    });
+    const pdf = await renderInvitationLetterPdf({ letter, logoDataUrl });
+    return { pdf: pdf.toString("base64") };
+  } catch (e) {
+    return { error: `The letter could not be drawn: ${(e as Error).message}` };
+  }
 }

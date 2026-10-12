@@ -18,6 +18,7 @@ import type { Answers } from "@/lib/form-schema";
 import { draftOutcomeFromForm, previewOutcomePdfFromForm } from "@/lib/absence/outcome-letter-actions";
 import { AiIcon } from "@/components/ai-icon";
 import PolicyReader from "@/components/staff/policy-reader";
+import RichLetterEditor from "@/components/letters/rich-letter-editor";
 
 type Ctx = {
   answers: Answers;
@@ -169,21 +170,16 @@ export default function OutcomeInForm({
         <>
           <p className="mt-1 text-xs text-white/60">
             This is the whole letter between Dear and Yours sincerely, so what you see here is what the
-            PDF shows. Leave a blank line between paragraphs, and press Enter again for more space. If
+            PDF shows. Use the bar above it for headings, text size, bold, italic, underline and lists. If
             you change who hears an appeal or the days allowed, change them here too, or generate again.
           </p>
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
             <div>
-              <label htmlFor={`oif-${personId}`} className="form-label">
-                The letter
-              </label>
-              <textarea
-                id={`oif-${personId}`}
-                rows={18}
-                value={body}
-                disabled={busy}
-                onChange={(e) => setBody(e.target.value)}
-              />
+              <span className="form-label">The letter</span>
+              {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
+              <div className="h-[560px] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
+                <RichLetterEditor label="The letter" value={body} disabled={busy} onChange={setBody} />
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {generateButton("Generate again")}
                 <span className="text-xs text-white/40">Generating again uses another AI credit and replaces the words.</span>

@@ -15,6 +15,8 @@
  * buttons, the calendar attachment) stay system rendered around the wording.
  */
 
+import { letterEmailHtml, mergeLetterHtml, toLetterHtml } from "./rich-text.ts";
+
 export type LetterKey =
   | "absence_meeting_invite_employee"
   | "absence_meeting_invite_conductor"
@@ -171,17 +173,6 @@ export function letterDefinition(key: string): LetterDefinition | undefined {
   return LETTER_DEFINITIONS.find((l) => l.key === key);
 }
 
-/** Minimal HTML escape, matching lib/email/templates escapeHtml. Kept local so this
- *  module stays pure and importable from a client component. */
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 /** Substitute {{tokens}} into plain text. Unknown tokens are left as written so a
  *  typo is visible in a preview rather than silently vanishing from a legal letter. */
 export function mergeLetterText(body: string, values: Record<string, string>): string {
@@ -191,25 +182,13 @@ export function mergeLetterText(body: string, values: Record<string, string>): s
 }
 
 /**
- * Render a letter body to the HTML fragment the email shell expects: blank line
- * separated paragraphs, everything escaped. Merge values are escaped too, so a
- * client called O'Brien or a company called Smith & Sons cannot break the markup.
+ * Render a letter body to the HTML fragment the email shell expects. The wording may be formatted
+ * (the letter editor, Phil 2026-10-12) or old plain text; either way only the formatting a letter
+ * allows reaches the email, and merge values are escaped, so a client called O'Brien or a company
+ * called Smith & Sons cannot break the markup.
  */
 export function renderLetterHtml(body: string, values: Record<string, string>): string {
-  const escaped: Record<string, string> = {};
-  for (const [k, v] of Object.entries(values)) escaped[k] = esc(v ?? "");
-  const merged = mergeLetterText(esc(body), escaped);
-  const paragraphs = merged
-    .split(/\n\s*\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (paragraphs.length === 0) return "";
-  return paragraphs
-    .map(
-      (para, i) =>
-        `<p style="margin:0 0 ${i === paragraphs.length - 1 ? 14 : 10}px 0;">${para.replace(/\n/g, "<br />")}</p>`,
-    )
-    .join("");
+  return letterEmailHtml(mergeLetterHtml(toLetterHtml(body), values));
 }
 
 /** The same merge for a plain text field such as an email subject. */

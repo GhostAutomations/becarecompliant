@@ -17,15 +17,29 @@
  * ActionForm's confirmation dialog.
  */
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import ActionForm from "@/components/action-form";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   mergeLetterText,
   placeholdersFor,
+  renderLetterHtml,
   type LetterDefinition,
 } from "@/lib/letters/letters";
 import type { ActionState } from "@/lib/forms";
+import RichLetterEditor, { type RichLetterEditorHandle } from "@/components/letters/rich-letter-editor";
+import PolicyReader from "@/components/staff/policy-reader";
+import { previewLetterTemplatePdf } from "@/lib/letters/actions";
+
+/** The two templates that become PDF letters: their preview is the letter as a PDF. */
+const PDF_TEMPLATES = new Set(["absence_meeting_invite_employee", "absence_meeting_outcome"]);
+
+function toBytes(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -74,17 +88,40 @@ export default function LetterEditor({
     setSubject(letter.subject);
     setBody(letter.body);
   }
-  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const editorRef = useRef<RichLetterEditorHandle | null>(null);
+  const isPdf = PDF_TEMPLATES.has(def.key);
 
-  const preview = useMemo(
-    () =>
-      mergeLetterText(body, EXAMPLE)
-        .split(/\n\s*\n/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    [body],
-  );
+  /* An email's wording, previewed as the email shows it: only the formatting a letter allows, all
+     text escaped (renderLetterHtml), so it is safe to draw. */
+  const preview = useMemo(() => renderLetterHtml(body, EXAMPLE), [body]);
   const previewSubject = useMemo(() => mergeLetterText(subject, EXAMPLE), [subject]);
+
+  /* A letter's wording, previewed as the PDF (Phil, 2026-10-12, Job 2 Part B): redrawn a second
+     after the last change, with example details and this company's letterhead. */
+  const [pdf, setPdf] = useState<Uint8Array | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  useEffect(() => {
+    if (!open || !isPdf) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const fd = new FormData();
+      fd.set("letter_key", letter.key);
+      fd.set("body", body);
+      setDrawing(true);
+      const res = await previewLetterTemplatePdf(fd);
+      if (cancelled) return;
+      setDrawing(false);
+      if (res.pdf) {
+        setPdf(toBytes(res.pdf));
+        setPdfError(null);
+      } else setPdfError(res.error ?? "The letter could not be drawn.");
+    }, 1000);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [body, open, isPdf, letter.key]);
 
   function saveLetter() {
     const fd = new FormData();
@@ -104,21 +141,9 @@ export default function LetterEditor({
 
   /** Drop a placeholder in at the cursor rather than making them type the braces. */
   function insert(token: string) {
-    const el = bodyRef.current;
     const chunk = `{{${token}}}`;
-    if (!el) {
-      setBody((b) => `${b}${chunk}`);
-      return;
-    }
-    const start = el.selectionStart ?? body.length;
-    const end = el.selectionEnd ?? body.length;
-    const next = `${body.slice(0, start)}${chunk}${body.slice(end)}`;
-    setBody(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const caret = start + chunk.length;
-      el.setSelectionRange(caret, caret);
-    });
+    if (editorRef.current) editorRef.current.insertText(chunk);
+    else setBody((b) => `${b}${chunk}`);
   }
 
   return (
@@ -140,7 +165,9 @@ export default function LetterEditor({
 
       {open ? (
         <div className="mt-5 space-y-5 border-t border-white/10 pt-5">
-          <div className="space-y-2">
+          {/* The wording on the left, the letter on the right (on a phone, underneath). */}
+          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="min-w-0 space-y-2">
             {hasSubject ? (
               <div>
                 <label htmlFor={`${letter.key}-subject`} className="form-label">
@@ -160,23 +187,24 @@ export default function LetterEditor({
             ) : null}
 
             <div>
-              <label htmlFor={`${letter.key}-body`} className="form-label">
-                Wording
-              </label>
-              <textarea
-                id={`${letter.key}-body`}
-                ref={bodyRef}
-                value={body}
-                rows={9}
-                disabled={pending}
-                onChange={(e) => {
-                  setBody(e.target.value);
-                  resetFlash();
-                  setError(null);
-                }}
-              />
+              <span className="form-label">Wording</span>
+              {/* The letter editor (Phil, 2026-10-12, Job 2 Part B): formatting set here carries into
+                  every letter made from this wording. */}
+              <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
+                <RichLetterEditor
+                  ref={editorRef}
+                  label="Wording"
+                  value={body}
+                  disabled={pending}
+                  onChange={(html) => {
+                    setBody(html);
+                    resetFlash();
+                    setError(null);
+                  }}
+                />
+              </div>
               <p className="form-hint">
-                Leave a blank line between paragraphs. Write plain wording, not HTML.
+                Use the bar above the wording for headings, text size, bold, italic, underline and lists.
               </p>
             </div>
 
@@ -215,29 +243,37 @@ export default function LetterEditor({
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
-              Preview with example details
-            </p>
+          <div className="min-w-0 rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
+                {isPdf ? "The letter as a PDF, with example details" : "Preview with example details"}
+              </p>
+              {isPdf && drawing ? <span className="text-xs text-white/50">Updating…</span> : null}
+            </div>
             {hasSubject ? (
               <p className="mt-2 text-sm font-semibold text-white">{previewSubject}</p>
             ) : null}
-            <div className="mt-2 space-y-2">
-              {preview.length > 0 ? (
-                preview.map((para, i) => (
-                  <p key={i} className="text-sm text-white/75">
-                    {para}
-                  </p>
-                ))
+            {isPdf ? (
+              pdf ? (
+                <div className="mt-2 h-[70vh] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                  <PolicyReader url="" data={pdf} onRendered={() => {}} onFailed={() => setPdfError("The letter could not be shown.")} />
+                </div>
               ) : (
-                <p className="text-sm text-white/40">Nothing to preview yet.</p>
-              )}
-            </div>
+                <p className="mt-2 text-sm text-white/50">{pdfError ?? "Preparing the letter…"}</p>
+              )
+            ) : preview ? (
+              // eslint-disable-next-line react/no-danger
+              <div className="mt-2 text-sm text-white/80" dangerouslySetInnerHTML={{ __html: preview }} />
+            ) : (
+              <p className="mt-2 text-sm text-white/40">Nothing to preview yet.</p>
+            )}
+            {isPdf && pdf && pdfError ? <p className="form-error mt-2">{pdfError}</p> : null}
             {def.systemNote ? (
               <p className="mt-3 border-t border-white/10 pt-3 text-xs text-white/45">
                 {def.systemNote}
               </p>
             ) : null}
+          </div>
           </div>
 
           {letter.customised ? (
