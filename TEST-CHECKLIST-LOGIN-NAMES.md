@@ -10,7 +10,7 @@ unticked (invite followed, record did not), and themselves; the same name twice 
 the Founder login, a Thistle login and a blank name were refused; a direct update by the Admin and
 by the Supervisor, and the Supervisor calling the function, were all refused; the "Conducted by"
 dropdown held the new name and not the old; Evidence kept the old name; audit rows read "Changed
-the name X to Y". Afterwards nothing remained.
+the name X to Y". Afterwards nothing remained. Applied live 12 Oct; security advisor 0 errors, signed out visitors cannot run it.
 
 | # | Check | Result |
 |---|-------|--------|
@@ -23,7 +23,7 @@ the name X to Y". Afterwards nothing remained.
 | N7 | Evidence filed before the rename still shows the old name | Not tested |
 | N8 | Signed in as the renamed login: the circle top right and its panel show the new name | Not tested |
 | N9 | Phone width: the name box, tick box and Save name fit in the popup | Not tested |
-| N10 | After applying: a Supervisor cannot rename anyone, themselves included, even directly in the database | Not tested |
+| N10 | After applying: a Supervisor cannot rename anyone, themselves included, even directly in the database | PASS (12 Oct, live function, rolled back: ZZ Test Supervisor refused renaming themselves and the Admin through the function, and a direct update was refused) |
 | N11 | Every test name put back as it was | Not tested |
 
 Known and left alone: a form someone already has open in their browser before a rename still holds
