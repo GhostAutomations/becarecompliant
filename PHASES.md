@@ -4250,6 +4250,17 @@ the Founder address, care plan versions). Found while testing and fixed the same
 date, or a saved check setting, blanked a pending Supervision due date (older than step 7); Thistle
 unaffected. Parked: THE LIST 53 (an appraisal can be completed early by its address).
 
+### 2026-10-12 — Company name and the profile button (Phase 13)
+
+The company's name now shows for every company, not only in the old navy layout. Top right is a
+round gold circle with the initials (first name and surname); pressing it opens a panel with the
+full name, job title, company and Sign out. A stacked name, role and company was built first and
+Phil rejected it. The Dashboard shows the company in a small line above "Welcome", left out in a
+support session, whose heading names the company. Tested and passed 12 Oct: Bevan Supervisor on
+desktop (Claude in Phil's Chrome) and on Phil's iPhone; the Founder outside support mode (no
+company line) and in support mode on Bevan (Bevan Care Ltd in the panel). Decision:
+docs/decisions/top-bar-profile.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
