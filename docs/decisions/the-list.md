@@ -268,6 +268,18 @@ The next five were found by the step 7 check of the October audit fixes and park
     held) still shows Book meeting, and it opens with an empty Stage list and an empty letter. To
     do: hide the button (or say why) when no stage is left to book.
 
+56. **Thistle ticket: Gladys G "verbal warning not recognised"** (Phil, 2026-10-13, PARKED while Phil
+    speaks to Thistle). Investigated read only, nothing changed. Her card (Newport) shows Stage 2 due,
+    1 occasion, last meeting 1: correct by our rules (rolling 6 months from 13 Apr 2026; 27 Mar and
+    10 Apr aged out; the Stage 1 verbal warning of 5 Jun 2026 counts; the 25 Sep absence after it
+    makes Stage 2 due, the 7 Oct rule). Cause of the confusion: the 6 Oct monday import left out the
+    24 Apr 2026 absence her meeting record names ("handed back ... had to work at her other job"), so
+    she shows 1 occasion. Adding it would show 2 occasions, still Stage 2 due. The monday export file
+    itself is not on this computer. Five other Thistle staff have imported meetings naming absences
+    missing from BCC: E. Powell-Lawrence (17, 20, 21 Apr), C. Ufondu (27 Apr), S. Didwell (12 Apr,
+    disallowed), S. Wainwright (8 and 29 May), C. Coutts (8 May, disallowed). Open questions for
+    Thistle: add the 24 Apr absence? is their window 6 or 12 months? fix the other five?
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
