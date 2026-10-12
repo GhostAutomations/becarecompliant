@@ -257,6 +257,12 @@ The next five were found by the step 7 check of the October audit fixes and park
     as done and the appraisal due 28 Dec 2026, while the stored dates were right). To fix: the
     Complete page and the database refuse an appraisal before Supervision 3 in appraisal mode.
 
+54. **Complaint responses as PDF letters with a signature** (Phil, popup 2026-10-12, Job 2 Part A).
+    The complaint Initial Response and Complaint Response are AI drafted text, emailed or copied onto
+    headed paper, with no PDF, no letterhead and no signature; the drafted wording leaves a blank
+    line for a hand signature. To do: render them on the same PDF letterhead as the absence letters,
+    with the same signing choices (saved upload, saved drawing, sign now, no signature).
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.

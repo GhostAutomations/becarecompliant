@@ -26,6 +26,7 @@ import {
 } from "@/lib/absence/actions";
 import type { LetterPreview } from "@/lib/absence/letter-preview";
 import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
+import SignatureChoice from "@/components/letters/signature-choice";
 import type { ConductorLite, OpenBookingRow, MeetingOffice } from "@/lib/absence/data";
 
 function minNoticeDate(): string {
@@ -290,6 +291,8 @@ function CancelRearrangeForm({
               <option value="teams">Teams</option>
             </select>
           </div>
+          {/* How the new letter is signed (Phil, 2026-10-12): posted with the rest of this form. */}
+          <SignatureChoice disabled={busy} />
           <button type="submit" className="btn-primary text-xs" disabled={busy}>
             {previewing ? "Preparing letters…" : "Rearrange: check the letters"}
           </button>

@@ -21,6 +21,7 @@ import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { discussedAbsences, stageThresholds } from "@/lib/absence/meeting-questions";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
 import { COPIES_KEPT_FROM, keepMeetingLetter, REBUILT_NOTICE } from "@/lib/absence/meeting-letter-copy";
+import type { LetterSignature } from "@/lib/letters/signature";
 
 export type MeetingLetterArgs = {
   supabase: { from: (t: string) => any };
@@ -46,6 +47,9 @@ export type MeetingLetterArgs = {
   /** The whole letter between the RE line and Yours sincerely as edited for this one booking (Phil,
    *  2026-10-08: "match in full"). When not given, the standard letter is used. */
   bodyOverride?: string;
+  /** Whoever signs the employee's letter, and their signature (Phil, 2026-10-12): their name and
+   *  job title go under it. None, and the person holding the meeting stays in the sign off. */
+  signature?: LetterSignature | null;
 };
 
 export type MeetingLetter = {
@@ -158,6 +162,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     absences: stageAbsences,
     windowWords: extras.windowWords,
     bodyOverride: args.bodyOverride ?? null,
+    signer: args.signature ? { name: args.signature.signerName, role: args.signature.signerRole } : null,
   });
 
   const teamsNote =
@@ -219,7 +224,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
 }
 
 /** The attached letter as simple HTML, for the approval preview only. */
-export function invitationPreviewHtml(l: InvitationLetter): string {
+export function invitationPreviewHtml(l: InvitationLetter, signatureDataUrl?: string | null): string {
   const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const p = (t: string, extra = "") => `<p style="margin:0 0 8px 0;${extra}">${esc(t)}</p>`;
   return `
@@ -235,7 +240,11 @@ export function invitationPreviewHtml(l: InvitationLetter): string {
       ${p(l.absenceIntro)}
       <ul style="margin:0 0 8px 18px;padding:0;">${l.absenceLines.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       ${l.closing.map((t) => p(t)).join("")}
-      ${p([l.signOff.closing, "", l.signOff.name, l.signOff.role ?? ""].join("\n")).replace(/\n/g, "<br/>")}
+      ${
+        signatureDataUrl && /^data:image\/(png|jpeg);base64,/.test(signatureDataUrl)
+          ? `${p(l.signOff.closing)}<img src="${signatureDataUrl}" alt="" style="display:block;height:46px;max-width:200px;object-fit:contain;margin:0 0 4px 0;"/>${p([l.signOff.name, l.signOff.role ?? ""].filter(Boolean).join("\n")).replace(/\n/g, "<br/>")}`
+          : p([l.signOff.closing, "", l.signOff.name, l.signOff.role ?? ""].join("\n")).replace(/\n/g, "<br/>")
+      }
     </div>`;
 }
 

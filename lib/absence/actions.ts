@@ -37,6 +37,7 @@ import { canDiscountAbsences, discountReasonProblem, windowStartIso } from "@/li
 import type { StageThreshold } from "@/lib/absence/logic";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
+import { auditSignatureUse, resolveLetterSignature } from "@/lib/letters/signature";
 import { stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
 import { keepMeetingLetter } from "@/lib/absence/meeting-letter-copy";
 import { buildMeetingLetters, invitationPreviewHtml, type MeetingLetterArgs } from "@/lib/absence/meeting-letters";
@@ -813,6 +814,8 @@ export async function previewBookingLetterPdf(
   if (!profile.company_id) return { error: "No company context." };
   const plan = await planBooking(formData);
   if ("error" in plan) return { error: plan.error };
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   try {
     const { invitation, logoDataUrl, standardBody } = await buildMeetingLetters({
       ...letterArgsFrom(plan),
@@ -820,8 +823,9 @@ export async function previewBookingLetterPdf(
       responseToken: "preview",
       rearranged: false,
       bodyOverride: bodyFromForm(formData),
+      signature: signed.signature,
     });
-    const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
+    const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl, signatureDataUrl: signed.signature?.dataUrl });
     return { pdf: pdf.toString("base64"), to: plan.employee.email, standard: standardBody };
   } catch (e) {
     return { error: `The letter could not be drawn: ${(e as Error).message}` };
@@ -884,6 +888,9 @@ export async function bookAbsenceMeeting(
 
   const plan = await planBooking(formData);
   if ("error" in plan) return { error: plan.error };
+  // Before anything is booked: a signature that was asked for and cannot be used stops it here.
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   const { supabase, personId, stage, meetingDate, rawTime, duration, location, conductor } = plan;
 
   const { data: meeting, error: insErr } = await supabase
@@ -920,8 +927,9 @@ export async function bookAbsenceMeeting(
       responseToken: meeting.response_token as string,
       rearranged: false,
       bodyOverride: bodyFromForm(formData),
+      signature: signed.signature,
     },
-    { id: user.id, name: profile.full_name || profile.email },
+    { id: user.id, name: profile.full_name || profile.email, email: profile.email, role: profile.role },
     { printEmployee, employeeOutcome: delivery === "history" ? "kept_not_sent" : "printed" },
   );
   const inviteOutcomes = sent.outcomes;
@@ -1018,7 +1026,7 @@ async function resolveMeetingLocation(
 /** The approval preview of the pair: full branded emails, nothing sent or logged. */
 async function previewMeetingLetters(args: MeetingLetterArgs): Promise<LetterPreview[]> {
   const { letters, invitation } = await buildMeetingLetters(args);
-  const letterHtml = invitationPreviewHtml(invitation);
+  const letterHtml = invitationPreviewHtml(invitation, args.signature?.dataUrl);
   return letters.map((l) => {
     const { subject, html } = renderCalendarInvite({
       companyName: args.companyName,
@@ -1064,7 +1072,7 @@ function letterAsHtml(text: string): string {
 
 async function sendMeetingLetters(
   args: MeetingLetterArgs,
-  sentBy: { id: string; name: string | null },
+  sentBy: { id: string; name: string | null; email?: string | null; role?: string | null },
   /* Save and print (Phil, 2026-10-08): the employee's letter is printed and posted or handed over
      instead of emailed. The person holding the meeting is still emailed their calendar invite. */
   opts: { printEmployee?: boolean; employeeOutcome?: string } = {},
@@ -1076,7 +1084,7 @@ async function sendMeetingLetters(
   let pdf: Buffer | null = null;
   let pdfError: string | null = null;
   try {
-    pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
+    pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl, signatureDataUrl: args.signature?.dataUrl });
   } catch (e) {
     pdfError = (e as Error).message;
     console.error("[absence] invitation letter PDF failed", { meetingId: args.meetingId, error: pdfError });
@@ -1130,6 +1138,18 @@ async function sendMeetingLetters(
         : `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.`,
     };
   }
+  // Every use of a signature is in the audit log (Phil, 2026-10-12): a signed letter went or was kept.
+  if (args.signature && (outcomes.employee === "sent" || opts.printEmployee)) {
+    await auditSignatureUse({
+      signature: args.signature,
+      companyId: args.companyId,
+      actorEmail: sentBy.email ?? null,
+      actorRole: sentBy.role ?? null,
+      personId: args.personId,
+      letter: args.rearranged ? "rearranged absence meeting invitation" : "absence meeting invitation",
+      meetingId: args.meetingId,
+    });
+  }
   /* A deduped send (this slot's email already went) needs no new copy only when the latest copy is
      already for this slot. Moving a meeting A to B and back to A dedupes A's email, but the latest
      copy is B's, so A's copy is kept again (review, 2026-10-07). */
@@ -1159,7 +1179,7 @@ async function sendMeetingLetters(
     pdf,
     emailedTo: outcomes.employee === "sent" ? args.employee.email : null,
     sendOutcome: outcomes.employee ?? "skipped_no_email",
-    sentBy,
+    sentBy: { id: sentBy.id, name: sentBy.name },
   });
   return {
     outcomes,
@@ -1261,12 +1281,15 @@ export async function previewRearrangeAbsenceMeeting(formData: FormData): Promis
   if (!profile.company_id) return { error: "No company context." };
   const plan = await planRearrange(formData, profile.company_id);
   if ("error" in plan) return { error: plan.error };
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   return {
     letters: await previewMeetingLetters({
       ...letterArgsFrom(plan),
       meetingId: plan.meetingId,
       responseToken: plan.responseToken,
       rearranged: true,
+      signature: signed.signature,
     }),
   };
 }
@@ -1284,6 +1307,9 @@ export async function rearrangeAbsenceMeeting(
 
   const plan = await planRearrange(formData, profile.company_id);
   if ("error" in plan) return { error: plan.error };
+  // Before anything moves: a signature that was asked for and cannot be used stops it here.
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   const { supabase, meetingId, meetingDate, rawTime, duration, location, conductor } = plan;
 
   const { error: updErr } = await supabase
@@ -1308,8 +1334,9 @@ export async function rearrangeAbsenceMeeting(
       meetingId,
       responseToken: plan.responseToken,
       rearranged: true,
+      signature: signed.signature,
     },
-    { id: user.id, name: profile.full_name || profile.email },
+    { id: user.id, name: profile.full_name || profile.email, email: profile.email, role: profile.role },
   );
   const inviteOutcomes = sent.outcomes;
 

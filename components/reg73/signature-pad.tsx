@@ -11,7 +11,16 @@ import { useEffect, useRef, useState } from "react";
 const W = 960;
 const H = 280;
 
-export default function SignaturePad({ name, defaultValue }: { name: string; defaultValue?: string }) {
+export default function SignaturePad({
+  name,
+  defaultValue,
+  onChange,
+}: {
+  name: string;
+  defaultValue?: string;
+  /** Told the PNG data URL after each stroke, and "" when cleared (letters, 2026-10-12). */
+  onChange?: (dataUrl: string) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -69,11 +78,14 @@ export default function SignaturePad({ name, defaultValue }: { name: string; def
     if (!drawing.current) return;
     drawing.current = false;
     last.current = null;
-    setValue(canvasRef.current!.toDataURL("image/png"));
+    const url = canvasRef.current!.toDataURL("image/png");
+    setValue(url);
+    onChange?.(url);
   }
   function clear() {
     reset();
     setValue("");
+    onChange?.("");
   }
 
   return (

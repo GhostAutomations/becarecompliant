@@ -54,6 +54,9 @@ export type InvitationLetterInput = {
   /** The whole letter between the RE line and Yours sincerely, as edited in Book meeting (Phil,
    *  2026-10-08: "match in full"). When given, the letter prints exactly this. */
   bodyOverride?: string | null;
+  /** Whoever signs the letter (Phil, 2026-10-12): their name and job title go under the signature.
+   *  None, and the person holding the meeting stays in the sign off. */
+  signer?: { name: string; role: string | null } | null;
 };
 
 export type InvitationLetter = {
@@ -139,6 +142,18 @@ export function absenceLine(a: InvitationAbsence): string {
   return `${when}: ${reason}, ${daysWords(dayCount(a))}`;
 }
 
+/** THE SIGN OFF FOLLOWS THE SIGNER (Phil, 2026-10-12, docs/decisions/letter-signatures.md): whoever
+ *  signs has their own name and job title under their signature; unsigned, the person holding the
+ *  meeting stays, as before. */
+export function letterSignOff(
+  holderName: string,
+  holderRole: string | null,
+  signer?: { name: string; role: string | null } | null,
+): { closing: string; name: string; role: string | null } {
+  const who = signer && signer.name.trim() ? signer : { name: holderName, role: holderRole };
+  return { closing: "Yours sincerely", name: who.name, role: who.role };
+}
+
 export function buildInvitationLetter(i: InvitationLetterInput): InvitationLetter {
   const firstName = i.recipientName.trim().split(/\s+/)[0] || i.recipientName.trim();
   const [first, ...rest] = i.wordingParagraphs;
@@ -160,7 +175,7 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
       : `The ${i.stageLabel} is about the following ${n === 1 ? "absence" : `${n} absences`}, ${daysWords(total)} in all, recorded in the last ${i.windowWords}:`;
   const absenceLines = i.absences.map(absenceLine);
 
-  const signOff = { closing: "Yours sincerely", name: i.conductorName, role: i.conductorRole };
+  const signOff = letterSignOff(i.conductorName, i.conductorRole, i.signer);
   const letterheadLines = addressLines(i.letterheadAddress);
   const phoneLines = String(i.letterheadPhone ?? "")
     .split(",")
@@ -354,6 +369,8 @@ export type OutcomeLetterInput = {
   conductorRole: string | null;
   /** The company's outcome wording, merged, split into paragraphs. */
   wordingParagraphs: string[];
+  /** Whoever signs the letter: their name and job title go under the signature (letterSignOff). */
+  signer?: { name: string; role: string | null } | null;
 };
 
 export type OutcomeLetterDoc = {
@@ -405,7 +422,7 @@ export function buildOutcomeLetterDoc(i: OutcomeLetterInput): OutcomeLetterDoc {
   const date = letterDate(i.letterDateIso);
   const salutation = `Dear ${firstName}`;
   const paragraphs = letterBodyParagraphs(i.wordingParagraphs, i.recipientName);
-  const signOff = { closing: "Yours sincerely", name: i.conductorName, role: i.conductorRole };
+  const signOff = letterSignOff(i.conductorName, i.conductorRole, i.signer);
   const plainText = [
     [i.companyName, ...letterheadLines, ...phoneLines].join("\n"),
     date,

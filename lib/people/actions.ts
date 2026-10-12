@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
+import { removeSignatureFiles } from "@/lib/letters/signature";
 import { forgetCloudRecord, queueCloudCopy } from "@/lib/cloud/queue";
 import { inviteStaffForPerson, followPersonEmailChange } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
@@ -528,6 +529,8 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
       else {
         const { error } = await admin.auth.admin.deleteUser(person.profile_id as string);
         loginRemoved = !error;
+        // Their saved signatures go too (0446): the rows cascaded, the files are removed here.
+        if (!error) await removeSignatureFiles(companyId, person.profile_id as string);
         if (error) console.error("[deletePerson] login not removed:", error.message);
       }
     } catch (e) {

@@ -21,6 +21,7 @@ import {
 } from "@/lib/absence/outcome-letter-actions";
 import { AiIcon } from "@/components/ai-icon";
 import PolicyReader from "@/components/staff/policy-reader";
+import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
 
 function toBytes(base64: string): Uint8Array {
   const bin = atob(base64);
@@ -70,6 +71,10 @@ export default function OutcomeLetterDialog({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [body, setBody] = useState(initialBody ?? "");
+  /* How the letter is signed (Phil, 2026-10-12): the signer's own saved or drawn signature, or none.
+     Shown on both steps; changing it on the final look redraws the PDF. */
+  const [signature, setSignature] = useState<SignatureValue>({ choice: "none", now: "" });
+  const signatureKey = `${signature.choice}:${signature.now.length}`;
   /* THE FINAL LOOK (Phil, 2026-10-07): the real PDF, then Approve and send, Save to file, or Return
      and edit. A letter already written and checked in the meeting form opens straight on it. */
   const [finalLook, setFinalLook] = useState<FinalLook | null>(null);
@@ -105,6 +110,8 @@ export default function OutcomeLetterDialog({
     const f = new FormData();
     f.set("meeting_id", meetingId);
     f.set("body", body);
+    f.set("signature_choice", signature.choice);
+    if (signature.choice === "now" && signature.now) f.set("signature_now", signature.now);
     return f;
   };
 
@@ -132,6 +139,23 @@ export default function OutcomeLetterDialog({
       } else setPreviewError(result.error ?? "The letter could not be prepared.");
     });
   }
+
+  // A different signature on the final look: the PDF is drawn again, so what is approved is what goes.
+  const lastSignature = useRef(signatureKey);
+  useEffect(() => {
+    if (lastSignature.current === signatureKey) return;
+    if (!finalLook) {
+      lastSignature.current = signatureKey;
+      return;
+    }
+    // A moment after the last stroke, not after every one.
+    const t = setTimeout(() => {
+      lastSignature.current = signatureKey;
+      check();
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signatureKey]);
 
   // Opened on a letter written in the meeting form: straight to the final look.
   const openedOnFinal = useRef(false);
@@ -186,6 +210,12 @@ export default function OutcomeLetterDialog({
             </a>
           </div>
         ) : null}
+
+        <SignatureChoice
+          onChange={setSignature}
+          disabled={busy || !!sendState.ok}
+          className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3"
+        />
 
         {finalLook ? (
           <div className="mt-3 space-y-3">

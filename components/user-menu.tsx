@@ -20,11 +20,14 @@ export default function UserMenu({
   name,
   role,
   company,
+  showSignature = false,
 }: {
   initials: string;
   name: string;
   role: string | null;
   company: string;
+  /** The six office roles get a link to My signature (Phil, 2026-10-12, letter signatures). */
+  showSignature?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -69,6 +72,11 @@ export default function UserMenu({
           {role ? <p className="mt-0.5 text-xs text-white/60">{role}</p> : null}
           {company ? <p className="mt-0.5 break-words text-xs text-white/60">{company}</p> : null}
           <div className="my-3 border-t border-white/10" />
+          {showSignature ? (
+            <a href="/my-signature" className="mb-2 block rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
+              My signature
+            </a>
+          ) : null}
           <form action="/auth/signout" method="post">
             <button type="submit" className="btn-ghost w-full justify-center px-3 py-2 text-xs">
               Sign out

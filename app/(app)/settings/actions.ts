@@ -41,6 +41,7 @@ import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { isSendableAddress } from "@/lib/email/resend";
 import { cleanLoginName } from "@/lib/users/login-name";
+import { removeSignatureFiles } from "@/lib/letters/signature";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -799,6 +800,8 @@ export async function deleteUser(
     console.error("[deleteUser] failed:", error.message);
     return { error: `The user could not be deleted: ${error.message}` };
   }
+  // Their saved signatures go too (0446): the rows cascaded, the files are removed here.
+  await removeSignatureFiles(ctx.companyId, userId);
 
   /*
    * Their invitation goes with them. It used to be left pending, and a pending invite whose

@@ -32,6 +32,7 @@ import { sendEmail } from "@/lib/email/resend";
 import { claimNotification, releaseNotification, settleNotification } from "@/lib/notifications/log";
 import { outcomeLetterPath, sha256Hex, uploadOutcomeLetter } from "@/lib/evidence/storage";
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
+import { auditSignatureUse, resolveLetterSignature, type LetterSignature } from "@/lib/letters/signature";
 import { companyMeetingName, loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
 import {
@@ -330,7 +331,7 @@ async function fullLetterText(
 }
 
 /** Build the whole letter from the text the manager approved: subject, email and the PDF's layout. */
-async function compose(ctx: LetterCtx, letterText: string) {
+async function compose(ctx: LetterCtx, letterText: string, signature?: LetterSignature | null) {
   const { wording, extras, values, stageLabel, todayIso } = await letterSetup(ctx);
   const subject = renderLetterSubject(wording.subject, values) || `Outcome of your ${stageLabel}`;
   // Laid out like the invitation letter (Phil, 2026-10-07).
@@ -346,6 +347,8 @@ async function compose(ctx: LetterCtx, letterText: string) {
     conductorName: ctx.conductorName,
     conductorRole: extras.conductorRole,
     wordingParagraphs: letterParagraphs(letterText, {}),
+    // The sign off follows the signer (Phil, 2026-10-12): their name and job title under it.
+    signer: signature ? { name: signature.signerName, role: signature.signerRole } : null,
   });
   const html = noticeEmailHtml({
     preheader: subject,
@@ -353,7 +356,7 @@ async function compose(ctx: LetterCtx, letterText: string) {
     bodyHtml: letterDocHtml(doc),
     footerNote: `This letter is attached as a PDF for you to keep. It is sent on behalf of ${ctx.companyName}.`,
   });
-  return { subject, html, doc, logoDataUrl: extras.logoDataUrl };
+  return { subject, html, doc, logoDataUrl: extras.logoDataUrl, signatureDataUrl: signature?.dataUrl ?? null };
 }
 
 /** An id no profile has, for a letter whose manager has no login: no role is found for them. */
@@ -497,6 +500,9 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
   if (ctx.letter && FINAL.has(ctx.letter.status)) return { error: "This meeting's outcome letter has already gone." };
   const body = normaliseApprovedBody(formData.get("body"));
   if (!body) return { error: "Write the outcome, or draft it, before sending the letter." };
+  // Before anything is saved: a signature that was asked for and cannot be used stops it here.
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
 
   // A letter written by hand with no draft behind it still needs its row.
   let letterId = ctx.letter?.id ?? null;
@@ -516,13 +522,13 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
     letterId = data.id as string;
   }
 
-  const letter = await compose(ctx, body);
+  const letter = await compose(ctx, body, signed.signature);
   const letterText = letter.doc.plainText;
 
   // The PDF first: it is the copy kept on the meeting whatever happens to the email.
   let pdf: Buffer;
   try {
-    pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
+    pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl, signatureDataUrl: letter.signatureDataUrl });
   } catch (e) {
     return { error: `The letter's PDF could not be made: ${(e as Error).message}` };
   }
@@ -632,6 +638,19 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
     .eq("id", letterId);
   if (updErr) return { error: `The letter went out but could not be recorded: ${updErr.message}` };
   await queueCloudCopy({ companyId: ctx.companyId, kind: "outcome_letter", sourceId: letterId, dedupeKey: `outcome_letter:${letterId}:${path}` });
+  // Every use of a signature is in the audit log (Phil, 2026-10-12).
+  if (signed.signature && status !== "send_failed") {
+    await auditSignatureUse({
+      signature: signed.signature,
+      companyId: ctx.companyId,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      personId: ctx.meeting.person_id,
+      letter: "absence meeting outcome letter",
+      meetingId: ctx.meeting.id,
+      letterId,
+    });
+  }
 
   await writeAudit({
     companyId: ctx.companyId,
@@ -819,9 +838,11 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
   if ("error" in loaded) return { error: loaded.error };
   const body = normaliseApprovedBody(formData.get("body"));
   if (!body) return { error: "Write the outcome, or generate it, to see the letter." };
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   try {
-    const letter = await compose(loaded.ctx, body);
-    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
+    const letter = await compose(loaded.ctx, body, signed.signature);
+    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl, signatureDataUrl: letter.signatureDataUrl });
     return { pdf: pdf.toString("base64") };
   } catch (e) {
     return { error: `The preview could not be made: ${(e as Error).message}` };
@@ -843,9 +864,11 @@ export async function outcomeLetterPdfPreview(
   if ("error" in ctx) return { error: ctx.error };
   const body = normaliseApprovedBody(formData.get("body"));
   if (!body) return { error: "Write the letter, or generate it, first." };
+  const signed = await resolveLetterSignature(formData, profile);
+  if ("error" in signed) return { error: signed.error };
   try {
-    const letter = await compose(ctx, body);
-    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl });
+    const letter = await compose(ctx, body, signed.signature);
+    const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl, signatureDataUrl: letter.signatureDataUrl });
     if (String(formData.get("download") ?? "") === "1") {
       await writeAudit({
         companyId: ctx.companyId,
@@ -858,6 +881,17 @@ export async function outcomeLetterPdfPreview(
         summary: "Saved the absence meeting outcome letter to file (not sent)",
         metadata: { meeting_id: ctx.meeting.id },
       });
+      if (signed.signature) {
+        await auditSignatureUse({
+          signature: signed.signature,
+          companyId: ctx.companyId,
+          actorEmail: profile.email,
+          actorRole: profile.role,
+          personId: ctx.meeting.person_id,
+          letter: "absence meeting outcome letter saved to file",
+          meetingId: ctx.meeting.id,
+        });
+      }
     }
     return {
       pdf: pdf.toString("base64"),

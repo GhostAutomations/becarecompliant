@@ -38,11 +38,12 @@ import {
 
 /**
  * Every bucket that holds tenant files, keyed by company id as the first path segment.
- * Checked against storage.buckets on 2026-08-18; record-updates added with 0324, subject-access with 0326 (2026-09-24). A new
+ * Checked against storage.buckets on 2026-08-18; record-updates added with 0324, subject-access with 0326 (2026-09-24),
+ * signatures with 0446 (2026-10-12). A new
  * bucket added later MUST be added here, or a purge will leave its files behind — which is
  * why the purge counts what remains rather than trusting this list.
  */
-export const COMPANY_BUCKETS = ["evidence", "absence-policies", "record-updates", "record-documents", "subject-access"] as const;
+export const COMPANY_BUCKETS = ["evidence", "absence-policies", "record-updates", "record-documents", "subject-access", "signatures"] as const;
 
 export type Actor = { id: string; email: string | null };
 

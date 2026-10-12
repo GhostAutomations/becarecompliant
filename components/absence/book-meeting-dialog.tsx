@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { bookAbsenceMeeting, previewBookingLetterPdf } from "@/lib/absence/actions";
 import PolicyReader from "@/components/staff/policy-reader";
+import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
 import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
@@ -153,6 +154,8 @@ function BookMeetingForm({
   const [details, setDetails] = useState("");
   const [body, setBody] = useState("");
   const [edited, setEdited] = useState(false);
+  /* How the letter is signed (Phil, 2026-10-12): the signer's own saved or drawn signature, or none. */
+  const [signature, setSignature] = useState<SignatureValue>({ choice: "none", now: "" });
   const [drawnSig, setDrawnSig] = useState<string | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -178,7 +181,7 @@ function BookMeetingForm({
     const [, who, date, , , place] = details.split("|");
     return Boolean(who && date && place);
   })();
-  const sig = `${details}#${edited ? body : ""}`;
+  const sig = `${details}#${edited ? body : ""}#${signature.choice}:${signature.now.length}`;
 
   /** The details, plus the words when they have been edited. */
   function bookingData(): FormData | null {
@@ -186,6 +189,8 @@ function BookMeetingForm({
     if (!f) return null;
     const fd = new FormData(f);
     if (edited && body.trim()) fd.set("letter_body", body);
+    fd.set("signature_choice", signature.choice);
+    if (signature.choice === "now" && signature.now) fd.set("signature_now", signature.now);
     return fd;
   }
 
@@ -398,6 +403,9 @@ function BookMeetingForm({
                   meeting details.
                   {edited ? " Once you change the letter, check it again if you change the details above." : null}
                 </p>
+                <div className="mt-4">
+                  <SignatureChoice onChange={setSignature} disabled={busy} />
+                </div>
               </>
             ) : (
               <div className="flex h-[68vh] min-h-72 items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">

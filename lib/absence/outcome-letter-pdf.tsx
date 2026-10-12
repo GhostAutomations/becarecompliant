@@ -34,6 +34,10 @@ const styles = StyleSheet.create({
   re: { fontWeight: 700, marginBottom: 8 },
   signOff: { marginTop: 4 },
   signName: { marginTop: 16, fontWeight: 700 },
+  // The signer's signature, above their name (Phil, 2026-10-12, docs/decisions/letter-signatures.md).
+  signImageBox: { marginTop: 6, marginBottom: 2, alignItems: "flex-start" },
+  signImage: { height: 46, maxWidth: 200, objectFit: "contain" },
+  signNameUnder: { fontWeight: 700 },
   // Placed from the TOP of the A4 page (841.89pt), not with bottom: 26. With a lineHeight on the
   // page, react-pdf 4 silently drops a fixed footer placed with bottom (found 2026-10-08).
   footer: { position: "absolute", top: 806, left: 56, right: 56, flexDirection: "row", justifyContent: "space-between" },
@@ -44,6 +48,8 @@ export async function renderOutcomeLetterPdf(opts: {
   letter: OutcomeLetterDoc;
   /** data: URL of the company logo, or null to print the company name instead. */
   logoDataUrl: string | null;
+  /** data: URL of the signer's signature, drawn above their name; none prints the sign off as before. */
+  signatureDataUrl?: string | null;
 }): Promise<Buffer> {
   const l = opts.letter;
   return renderToBuffer(
@@ -87,7 +93,12 @@ export async function renderOutcomeLetterPdf(opts: {
 
         <View style={styles.signOff} wrap={false}>
           <Text>{l.signOff.closing}</Text>
-          <Text style={styles.signName}>{l.signOff.name}</Text>
+          {opts.signatureDataUrl ? (
+            <View style={styles.signImageBox}>
+              <Image src={opts.signatureDataUrl} style={styles.signImage} />
+            </View>
+          ) : null}
+          <Text style={opts.signatureDataUrl ? styles.signNameUnder : styles.signName}>{l.signOff.name}</Text>
           {l.signOff.role ? <Text>{l.signOff.role}</Text> : null}
         </View>
 

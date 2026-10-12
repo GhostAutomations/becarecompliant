@@ -11,6 +11,7 @@ import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
 import UserMenu from "@/components/user-menu";
 import { avatarInitials } from "@/lib/ui/avatar-initials";
+import { mayKeepLetterSignature } from "@/lib/letters/signature-rules";
 import ToastHost from "@/components/toast-host";
 import SessionWatch from "@/components/session-watch";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
@@ -267,6 +268,11 @@ export default async function AppLayout({
                     )
               }
               company={userBlockCompany}
+              showSignature={mayKeepLetterSignature({
+                role: profile.role,
+                status: profile.status,
+                actingAsCompanyId: actingCompanyId,
+              })}
             />
           </div>
         </header>

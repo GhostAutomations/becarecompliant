@@ -61,6 +61,7 @@ right file (or a new file listed here) in the same session.
 - [invoicing](invoicing.md): BCC Invoicing department (Private Client invoicing) — agreed scope, schema, and build progress
 - [launch-form-set](launch-form-set.md): The exact 19 forms a new BCC company launches with, the seed alignment, and the standing rule that default forms stay at v1 while they are being built
 - [leavers](leavers.md): Making a Person a leaver (2026-09-23) — leaving date rules, login on leaving/rejoining, and the leaver questions Phil wants; read before touching People status/leaver code.
+- [letter-signatures](letter-signatures.md): Signatures on letters: who has My signature, the four choices on a letter, the sign off follows the signer, privacy (Phil, 2026-10-12). Read before touching letter sign offs.
 - [letters-rtw](letters-rtw.md): Editable company letter templates, the absence meeting Outcome section, and AI Return to Work — built and DEPLOYED GREEN 2026-07-27, migrations 0139-0143; live testing still outstanding
 - [marketing-4b-in-progress](marketing-4b-in-progress.md): Item 4b marketing pass — COMPLETE 2026-07-29 except one thing needing Phil (a real testimonial quote). What was changed, and the two review findings that turned out to be wrong.
 - [mentoring-check](mentoring-check.md): Mentoring ad-hoc People check (Acme only), copied from Phil's monday Mentoring Support Record; non-recurring schedule_mode='ad_hoc', shows in Checks section not the matrix, migration 0122; VERIFIED LIVE 2026-07-25, all pass

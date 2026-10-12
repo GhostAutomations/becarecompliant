@@ -9,6 +9,7 @@ import {
   letterBodyParagraphs,
   letterDate,
   letterDay,
+  letterSignOff,
 } from "./invitation-letter.ts";
 
 test("dates read the way Thistle's letters write them", () => {
@@ -167,4 +168,18 @@ test("an edited letter loses its own Dear line and sign off, and an empty one fa
   assert.equal(cleanLetterBody("   \n  ", "Jo Bloggs"), "");
   const l = buildInvitationLetter({ ...BASE, bodyOverride: "  " });
   assert.equal(l.body, l.standardBody);
+});
+
+test("the sign off follows the signer, else stays with the person holding the meeting", () => {
+  assert.deepEqual(letterSignOff("Jo Bloggs", "Registered Manager", null), {
+    closing: "Yours sincerely",
+    name: "Jo Bloggs",
+    role: "Registered Manager",
+  });
+  assert.deepEqual(letterSignOff("Jo Bloggs", "Registered Manager", { name: "Sam Smith", role: "Supervisor" }), {
+    closing: "Yours sincerely",
+    name: "Sam Smith",
+    role: "Supervisor",
+  });
+  assert.equal(letterSignOff("Jo Bloggs", null, { name: "  ", role: null }).name, "Jo Bloggs");
 });
