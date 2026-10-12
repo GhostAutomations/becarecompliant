@@ -30,3 +30,6 @@ Phil, 2026-10-12, standing:
   words or signature change, Approve and send, Save to file and Not now underneath. The separate
   "Check the letter" step is gone: the PDF beside the words is the final look.
 - [stated] A discount reason's dates print in full ("12th October 2026"), like the rest of the letter.
+- [stated] The AI outcome letter is a letter from the manager, never a summary of a form: it never
+  mentions the record, notes, questions or answers, never writes "the record does not note" or "was
+  not recorded", and leaves out entirely anything that was not recorded (Phil, 2026-10-12).

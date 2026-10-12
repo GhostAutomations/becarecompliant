@@ -50,6 +50,9 @@ test("the instructions forbid inventing, appeals and sign offs", () => {
   assert.match(OUTCOME_SYSTEM, /Never add a fact/);
   assert.match(OUTCOME_SYSTEM, /right of appeal/);
   assert.match(OUTCOME_SYSTEM, /No dashes/);
+  // A letter to the employee, never a summary of a form (Phil, 2026-10-12).
+  assert.match(OUTCOME_SYSTEM, /Never\s+mention the record/);
+  assert.match(OUTCOME_SYSTEM, /never one saying it was not recorded/);
 });
 
 test("cleanOutcomeBody strips markdown, bullets and dashes and keeps paragraphs", () => {
