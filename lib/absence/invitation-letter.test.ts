@@ -218,3 +218,10 @@ test("dates in a draft are written as the letter writes them; small numbers in w
   assert.equal(numberWord(4), "four");
   assert.equal(numberWord(11), "11");
 });
+
+test("'the 26th of September 2026' is written like the rest of the letter", () => {
+  assert.equal(
+    normaliseLetterDates("regarding the late call on the 26th of September 2026, and by the 18th of October 2026."),
+    "regarding the late call on 26th September 2026, and by 18th October 2026.",
+  );
+});

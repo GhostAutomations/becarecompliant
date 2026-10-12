@@ -58,7 +58,7 @@ export default async function ComplaintResponsePage({
           <p className="text-sm text-white/85">{response.author_name ?? "Unknown"}</p>
         </div>
         <div>
-          <p className="text-[11px] uppercase text-white/40">{response.method === "email" ? "Sent" : "Recorded"}</p>
+          <p className="text-[11px] uppercase text-white/40">{response.method === "email" ? (response.sent_at ? "Sent" : "Kept, not emailed") : "Recorded"}</p>
           <p className="text-sm text-white/85">{fmtDateTime(response.sent_at ?? response.created_at)}</p>
         </div>
         <div>

@@ -173,6 +173,8 @@ function ComplaintLetterDialog({
         return;
       }
     }
+    // Kept but not emailed (a test company): left open, so the reason can be read.
+    if (sendingAs === "email" && !/^Sent/.test(sendState.ok)) return;
     const t = setTimeout(() => closeRef.current(), 1800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps

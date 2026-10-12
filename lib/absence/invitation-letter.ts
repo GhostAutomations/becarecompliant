@@ -155,6 +155,10 @@ export function normaliseLetterDates(text: string): string {
     })
     .replace(new RegExp(`\\b(\\d{1,2})\\s+(${MONTH_NAMES})\\s+(\\d{4})\\b`, "g"), (whole, d: string, m: string, y: string) =>
       Number(d) >= 1 && Number(d) <= 31 ? `${ordinal(Number(d))} ${m} ${y}` : whole,
+    )
+    // "the 26th of September 2026" as "26th September 2026" (Phil, 2026-10-12): the letters' one style.
+    .replace(new RegExp(`\\b(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)\\s+of\\s+(${MONTH_NAMES})\\s+(\\d{4})\\b`, "gi"), (whole, d: string, m: string, y: string) =>
+      Number(d) >= 1 && Number(d) <= 31 ? `${ordinal(Number(d))} ${m[0].toUpperCase()}${m.slice(1).toLowerCase()} ${y}` : whole,
     );
 }
 
