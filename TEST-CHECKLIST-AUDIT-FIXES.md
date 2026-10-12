@@ -1,3 +1,39 @@
+# Where we are (12 Oct 2026): audit fix list PAUSED by Phil
+
+Nothing more is built until Phil says "resume the audit list".
+
+- **Step 7 (role limits) is done.** Migration 0444 is applied live; the code is committed, pushed
+  and deployed (last production deploy 9296ed3f, READY).
+- **Phil's tests.** Role limits (below): tests 1 to 8 all PASS (12 Oct). Records stay in their own
+  company: checks 1 to 10 PASS; **check 11 still to run on Monday 26 October 2026, after 08:15
+  London** (morning reports after the clocks go back). Cloud drive check 58 (the Microsoft sign in
+  address) is Not tested and moves to step 9.
+- **The four review points, checked live on 12 Oct** (rolled back proofs on Bevan, nothing
+  changed):
+  1. Recruiter Planner reads: **DONE**. A Recruiter reads only her own branches' bookings, plus
+     the ones she conducts or created. Noted for later, from before 0444: her Whiteboard's
+     "still to book" strip covers every branch, so a check booked in another branch can show as
+     still to book.
+  2. Holiday change by the booker: **STILL TO DO**. A Supervisor or Recruiter who booked someone
+     else's holiday can still, by calling the database directly (no screen offers it), move that
+     approved future holiday back to pending with new dates, put it up for cancellation, and then
+     take it back. Fix: only the holiday's own person may ask for a change or a cancellation;
+     the booker keeps Withdraw on a pending booking.
+  3. Own holiday rule: **PARTLY DONE**. Approving, declining and amending your own holiday are
+     refused, and cancelling your own approved one works. Gap: someone can unlink their own login
+     from their own People record, decide their own holiday, then link it back. Fix: refuse a
+     change to the login on your own record (a new limit, so it needs Phil's popup first). The
+     same gap may weaken the "nobody completes a check on their own record" rule.
+  4. seed_migrated_completion with newer Evidence: **PARTLY DONE**. History never replaces an
+     Evidence backed or newer completion, and future dates are refused. Gap: the "person you added
+     in the last hour" rule lets anyone through when the person's created_by is empty. Fix: make
+     that check fail closed.
+  Fixes 2 to 4 would go in one new migration (0445).
+- **Next: step 8** (F17, F57, F61, F69, F72, F73, F75 to F83). The three open review fixes wait
+  too; neither starts until Phil says "resume the audit list".
+
+---
+
 # Test checklist: records stay in their own company (migration 0443, 11 Oct 2026)
 
 From the security and bug audit of 10 October 2026 (report in BCC Documents,
