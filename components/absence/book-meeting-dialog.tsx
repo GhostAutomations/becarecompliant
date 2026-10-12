@@ -379,8 +379,11 @@ function BookMeetingForm({
         </form>
 
         {/* The words on the left, the letter on the right (on a phone, the letter underneath). */}
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <div className="flex flex-col">
+        {/* One grid for both columns, title rows first, so the two titles always share a row and the
+            two pages start level however the formatting bar wraps (Phil, 2026-10-12). On a phone: the
+            letter's title and words, then the PDF's title and the PDF. */}
+        <div className="mt-5 grid gap-x-5 gap-y-1 lg:grid-cols-2">
+          <div className="order-1 lg:order-none">
             <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
               <span className="form-label mb-0">The letter</span>
               <div ref={setToolbarEl} className="min-w-0 flex-1" />
@@ -395,6 +398,20 @@ function BookMeetingForm({
                 </button>
               ) : null}
             </div>
+          </div>
+          <div className="order-3 mt-4 lg:order-none lg:mt-0">
+            <div className="mb-1 flex min-h-9 items-center justify-between">
+              <span className="form-label mb-0">The invitation letter</span>
+              <span className="text-xs text-white/50">
+                {drawing ? "Updating…" : pdfUrl && current ? (
+                  <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">
+                    Open full size
+                  </a>
+                ) : null}
+              </span>
+            </div>
+          </div>
+          <div className="order-2 flex flex-col lg:order-none">
             {ready ? (
               <>
                 {/* A sheet of A4 the same width as the PDF page beside it, with the letter's own margins
@@ -430,18 +447,7 @@ function BookMeetingForm({
               </div>
             )}
           </div>
-
-          <div className="flex flex-col">
-            <div className="mb-1 flex min-h-9 items-center justify-between">
-              <span className="form-label mb-0">The invitation letter</span>
-              <span className="text-xs text-white/50">
-                {drawing ? "Updating…" : pdfUrl && current ? (
-                  <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">
-                    Open full size
-                  </a>
-                ) : null}
-              </span>
-            </div>
+          <div className="order-4 flex flex-col lg:order-none">
             {pdfUrl && ready ? (
               /* Drawn page by page with pdf.js, the same reader the outcome letter uses: a PDF in a
                  frame is blocked by the site's no framing rule, and an iPhone shows only page one. */

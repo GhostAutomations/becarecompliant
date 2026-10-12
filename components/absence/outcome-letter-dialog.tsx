@@ -296,12 +296,29 @@ export default function OutcomeLetterDialog({
         ) : null}
 
         {/* The words on the left, the letter on the right (on a phone, the letter underneath). */}
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <div className="flex flex-col">
+        {/* One grid for both columns, title rows first, so the two titles always share a row and the
+            two pages start level however the formatting bar wraps (Phil, 2026-10-12). On a phone: the
+            letter's title and words, then the PDF's title and the PDF. */}
+        <div className="mt-5 grid gap-x-5 gap-y-1 lg:grid-cols-2">
+          <div className="order-1 lg:order-none">
             <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
               <span className="form-label mb-0">The letter</span>
               <div ref={setToolbarEl} className="min-w-0 flex-1" />
             </div>
+          </div>
+          <div className="order-3 mt-4 lg:order-none lg:mt-0">
+            <div className="mb-1 flex min-h-9 items-center justify-between">
+              <span className="form-label mb-0">The outcome letter</span>
+              <span className="text-xs text-white/50">
+                {drawing ? "Updating…" : drawn && current ? (
+                  <a href={drawn.url} target="_blank" rel="noreferrer" className="underline">
+                    Open full size
+                  </a>
+                ) : null}
+              </span>
+            </div>
+          </div>
+          <div className="order-2 flex flex-col lg:order-none">
             <div className="h-[68vh] min-h-72 overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
               <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">
                 {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
@@ -323,18 +340,7 @@ export default function OutcomeLetterDialog({
               underline and lists.
             </p>
           </div>
-
-          <div className="flex flex-col">
-            <div className="mb-1 flex min-h-9 items-center justify-between">
-              <span className="form-label mb-0">The outcome letter</span>
-              <span className="text-xs text-white/50">
-                {drawing ? "Updating…" : drawn && current ? (
-                  <a href={drawn.url} target="_blank" rel="noreferrer" className="underline">
-                    Open full size
-                  </a>
-                ) : null}
-              </span>
-            </div>
+          <div className="order-4 flex flex-col lg:order-none">
             {drawn && hasWords ? (
               /* Drawn page by page with pdf.js: a PDF in a frame is blocked by the site's no framing
                  rule, and an iPhone shows only page one. */

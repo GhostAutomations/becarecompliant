@@ -181,12 +181,25 @@ export default function OutcomeInForm({
             PDF shows. Use the bar above it for headings, text size, bold, italic, underline and lists. If
             you change who hears an appeal or the days allowed, change them here too, or generate again.
           </p>
-          <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            <div>
-              <div className="mb-1 flex min-h-9 flex-wrap items-center gap-2">
-                <span className="form-label mb-0">The letter</span>
-                <div ref={setToolbarEl} className="min-w-0 flex-1" />
-              </div>
+          {/* One grid for both columns, title rows first, so the two titles always share a row
+              and the two pages start level however the formatting bar wraps (Phil, 2026-10-12).
+              On a phone: the letter's title and words, then the PDF's title and the PDF. */}
+          <div className="mt-3 grid gap-x-4 gap-y-1 lg:grid-cols-2">
+            <div className="order-1 flex min-h-9 flex-wrap items-center gap-2 lg:order-none">
+              <span className="form-label mb-0">The letter</span>
+              <div ref={setToolbarEl} className="min-w-0 flex-1" />
+            </div>
+            <div className="order-3 mt-3 flex min-h-9 items-center justify-between lg:order-none lg:mt-0">
+              <span className="form-label mb-0">The letter as a PDF</span>
+              <span className="text-xs text-white/50">
+                {drawing ? "Updating…" : pdfUrl ? (
+                  <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">
+                    Open full size
+                  </a>
+                ) : null}
+              </span>
+            </div>
+            <div className="order-2 lg:order-none">
               {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
               <div className="h-[560px] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
                 <RichLetterEditor label="The letter" toolbarTarget={toolbarEl} frame={frame} value={body} disabled={busy} onChange={setBody} />
@@ -196,17 +209,7 @@ export default function OutcomeInForm({
                 <span className="text-xs text-white/40">Generating again uses another AI credit and replaces the words.</span>
               </div>
             </div>
-            <div>
-              <div className="mb-1 flex min-h-9 items-center justify-between">
-                <span className="form-label mb-0">The letter as a PDF</span>
-                <span className="text-xs text-white/50">
-                  {drawing ? "Updating…" : pdfUrl ? (
-                    <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">
-                      Open full size
-                    </a>
-                  ) : null}
-                </span>
-              </div>
+            <div className="order-4 lg:order-none">
               {pdfUrl ? (
                 /* Drawn page by page with pdf.js, the same reader policies use: a PDF in a frame is
                    blocked by the site's no framing rule, and an iPhone only shows its first page. */
