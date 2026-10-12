@@ -291,6 +291,22 @@ export default async function UsersPage() {
      email_sent_at is the only thing that means sent, the same rule as the Person record and
      Pending invites. */
   const inviteByEmail = new Map(pending.map((i) => [String(i.email).toLowerCase(), i]));
+
+  /* The People record each login is linked to (people.profile_id), so renaming a login can offer
+     to change that record's name too (Phil, 2026-10-12). */
+  const userIds = (users ?? []).map((u) => u.id as string);
+  const { data: linkedPeople } = userIds.length
+    ? await supabase
+        .from("people")
+        .select("profile_id, full_name, created_at")
+        .eq("company_id", companyId)
+        .in("profile_id", userIds)
+        .order("created_at", { ascending: true })
+    : { data: [] as Array<{ profile_id: string; full_name: string }> };
+  const personNameByProfile = new Map<string, string>();
+  for (const p of (linkedPeople as Array<{ profile_id: string; full_name: string }> | null) ?? []) {
+    if (!personNameByProfile.has(p.profile_id)) personNameByProfile.set(p.profile_id, p.full_name);
+  }
   function statusWords(u: { email: string; status: string }): Pick<UserListItem, "statusLabel" | "statusTone"> {
     if (u.status === "active") return { statusLabel: "Active", statusTone: "green" };
     if (u.status === "disabled") return { statusLabel: "Disabled", statusTone: "red" };
@@ -324,6 +340,7 @@ export default async function UsersPage() {
       id: u.id,
       fullName: u.full_name,
       email: u.email,
+      personName: personNameByProfile.get(u.id) ?? null,
       /* The value the role picker posts: their company's own role travels as "custom:<id>", so
          one field carries either kind and the two can never disagree (lib/auth/custom-roles). */
       role: roleChoiceValue(u.role, u.company_role_id ?? null),

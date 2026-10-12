@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import TeamMemberControls, { type RoleOption } from "@/components/settings/team-member-controls";
+import LoginNameForm from "@/components/settings/login-name-form";
 
 export type BranchOption = { id: string; name: string };
 
@@ -34,6 +35,8 @@ export type UserListItem = {
   primaryBranchId: string | null;
   additionalBranchIds: string[];
   branchSummary: string;
+  /** The linked People record's name, or null when this login has none (people.profile_id). */
+  personName: string | null;
 };
 
 export default function UserPopup({
@@ -90,6 +93,12 @@ export default function UserPopup({
           <span className="text-xs text-white/45">{user.branchSummary}</span>
         </div>
 
+        {/* The name can be corrected for every login, other Admins and your own included
+            (Phil, 2026-10-12): it is not a permission, so it sits outside the role lock below. */}
+        <div className="mb-5 border-b border-white/10 pb-5">
+          <LoginNameForm key={user.id} userId={user.id} fullName={user.fullName} personName={user.personName} />
+        </div>
+
         {user.canManage ? (
           <TeamMemberControls
             roleOptions={roleOptions}
@@ -104,8 +113,8 @@ export default function UserPopup({
         ) : (
           <p className="text-sm text-white/60">
             {user.isSelf
-              ? "This is your own login, so it cannot be changed here. Another Admin can change it for you."
-              : "Admins are not editable from this screen. Contact support if an Admin needs changing."}
+              ? "Your role and status cannot be changed here. Another Admin can change them for you."
+              : "An Admin's role and status are not editable from this screen. Contact support if they need changing."}
           </p>
         )}
       </div>

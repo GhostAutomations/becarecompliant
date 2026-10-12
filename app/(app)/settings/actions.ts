@@ -40,6 +40,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { isSendableAddress } from "@/lib/email/resend";
+import { cleanLoginName } from "@/lib/users/login-name";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -649,6 +650,48 @@ export async function setUserStatus(
   await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
   return { ok: status === "disabled" ? "User disabled." : "User enabled." };
+}
+
+/**
+ * Correct or change a login's name (Phil, 2026-10-12, docs/decisions/login-names.md).
+ *
+ * The database decides: rename_login (0445) checks the caller is an Admin of the login's company
+ * or the Founder, refuses the Founder's own login, and in one transaction changes the login, its
+ * pending invite, the linked People record when the box is ticked, the open copies later emails
+ * read, the "Conducted by" form dropdowns, and writes the audit row with the old and new name.
+ * Evidence and anything already sent keep the name as it was.
+ *
+ * Unlike role and status, an Admin may rename another Admin and themselves.
+ */
+export async function renameLogin(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext({ logins: true });
+  if (!ctx.ok) return { error: ctx.error };
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Missing user." };
+  const name = cleanLoginName(formData.get("full_name"));
+  if (!name.ok) return { error: name.error };
+  const alsoPerson = formData.get("also_person") === "on";
+
+  const supabase = await createClient();
+  // The Founder may rename in any company, so hold them to the one they are managing.
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+
+  const { data, error } = await supabase.rpc("rename_login", {
+    p_profile_id: userId,
+    p_full_name: name.value,
+    p_also_person: alsoPerson,
+  });
+  if (error) return { error: error.message };
+  const result = (data ?? {}) as { changed?: boolean; person_renamed?: boolean };
+
+  revalidatePath("/settings/users");
+  if (result.person_renamed) revalidatePath("/people");
+  return { ok: result.changed ? "Saved" : "That is already the name." };
 }
 
 /** Save a team member's role, Primary Branch and Additional Branch Views in one go.
