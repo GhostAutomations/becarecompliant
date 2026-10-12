@@ -143,7 +143,7 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
     defaultBody: [
       "Thank you for attending the {{stage_label}} on {{meeting_date}}, held by {{conductor_name}}. This letter confirms what was discussed and the outcome.",
       "{{outcome_body}}",
-      "If you disagree with this outcome, you have the right to appeal. Please write to us within {{appeal_days}} working days of receiving this letter, setting out why you are appealing. Your appeal will be heard by {{appeal_manager}}, who was not involved in this meeting.",
+      "If you disagree with this outcome, you have the right to appeal. Please write to us within {{appeal_days}} working days of receiving this letter, setting out why you are appealing. Your appeal will be heard by {{appeal_manager}}.",
     ].join("\n\n"),
     systemNote:
       "The meeting's own outcome is written into {{outcome_body}} each time, drafted from the meeting record and approved by the manager. Who hears an appeal and the days allowed are chosen in the meeting's Outcome section. The letter adds Dear, the RE line and the sign off with the manager's name and role itself, and the PDF copy is attached automatically.",

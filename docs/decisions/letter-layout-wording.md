@@ -11,8 +11,9 @@ Phil, 2026-10-12, standing (from the list of what was wrong with real Bevan lett
   every date in an AI draft written "21st July 2026"; the AI's next stage line made grammatical; AI
   paragraphs about each absence varied.
 - [stated] "Private and confidential" goes in bold at the top, above the employee's address.
-- [stated] The person hearing an appeal may be the person who held the meeting; when they are, the
-  letter leaves out "who was not involved in this meeting".
+- [stated] Who hears an appeal is still chosen in the meeting's drop down. The letter never says
+  "who was not involved in this meeting", whoever is chosen (Phil, 12 Oct, after the first Part C
+  push; this replaces "leave it out only when it is the same person").
 - Text sizes scale with the new Normal: Small 10, Normal 11, Large 13, Subheading 12.5, Heading 15.
 - No company had its own templates on 12 Oct 2026, so the better standard wording reaches every
   company's next letters. Letters already sent never change.

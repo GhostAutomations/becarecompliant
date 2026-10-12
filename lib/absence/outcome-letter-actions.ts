@@ -333,13 +333,10 @@ async function fullLetterText(
   /* AS LETTER HTML (Phil, 2026-10-12, Job 2 Part B): the company's wording, formatted or plain, with
      the drafted middle put in whole where {{outcome_body}} stands, so the editor shows it formatted
      and the PDF prints what the editor shows. */
-  /* The person hearing an appeal may be the one who held the meeting (Phil, 2026-10-12, Part C):
-     then the letter cannot say they were not involved, so that clause goes. */
-  const sameAsHolder =
-    !!values.appeal_manager && values.appeal_manager.trim().toLowerCase() === values.conductor_name.trim().toLowerCase();
-  const wordingHtml = sameAsHolder
-    ? toLetterHtml(wording.body).replace(/,?\s*who was not involved in this meeting/gi, "")
-    : toLetterHtml(wording.body);
+  /* The appeal is heard by whoever is picked in the drop down; the letter does not add "who was
+     not involved in this meeting" (Phil, 2026-10-12, Part C), so the clause goes from any wording
+     that still carries it. */
+  const wordingHtml = toLetterHtml(wording.body).replace(/,?\s*who was not involved in this meeting/gi, "");
   const merged = mergeLetterHtml(wordingHtml, values, {
     outcome_body: toLetterHtml(withList.slice(0, OUTCOME_BODY_LIMIT)),
   });

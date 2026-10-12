@@ -4304,6 +4304,22 @@ TEST-CHECKLIST-LETTER-EDITOR.md passes or is covered (E4 by E3 and E8, Phil's ch
 in testing (the editor opened empty in Book meeting) fixed and retested. Decision:
 docs/decisions/letter-editor.md. Part C (spacing and wording) to follow on Phil's "next part".
 
+### 2026-10-12 — Letters, Part C: clearer layout and tidier wording (Phil's task list, Job 2, Phase 13)
+
+Real Bevan letters drawn and read; the list of faults shown to Phil first and all fixed (his choice):
+11pt text with a full gap between paragraphs, 2cm side margins, Private and confidential in bold
+above the address, room to sign by hand, normal size bullets, a job title only from the People
+record (never the system role), and the sign off kept on the same page as the last paragraph. Standard
+wording tidied (no repeat of the details, "on Microsoft Teams", the rearranged note's comma splice,
+"and by whom"), small numbers in words, every date "21st July 2026", the AI's next stage line made
+grammatical and its absence paragraphs varied. The editor and Settings, Letters match the new sizes.
+After the first push Phil ruled that the appeal is still picked in the drop down but the letter never
+says "who was not involved in this meeting". No migration; no company had its own templates, so every
+company's next letters get the new wording, and letters already kept never change. Tested 12 Oct on
+Bevan (live, Bev Admin in the app's browser, nothing saved or sent): C1 to C5, C7 and C8 in
+TEST-CHECKLIST-LETTER-LAYOUT.md pass; C6 (the appeal line) goes live with the next push. Decision:
+docs/decisions/letter-layout-wording.md. Part C is the last part of Job 2.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
