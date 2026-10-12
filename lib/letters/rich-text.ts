@@ -411,12 +411,54 @@ export function letterPlainText(raw: string | null | undefined): string {
  */
 export function pdfBlocks(raw: string | null | undefined): RichBlock[] {
   return letterBlocksOf(raw).map((b) => {
-    if (b.kind !== "para" || b.lines.length < 2) return b;
-    const plain = b.lines.every((l) => l.every((r) => !r.b && !r.i && !r.u && !r.size));
-    const rows = b.lines.map((l) => lineText(l).trim().match(DETAIL_LINE));
-    if (!plain || rows.some((r) => !r)) return b;
-    return { kind: "details", rows: rows.map((r) => ({ label: r![1], value: r![2] })) };
+    const rows = detailsRowsOf(b);
+    return rows ? { kind: "details", rows } : b;
   });
+}
+
+/** The meeting details rows a block prints as: a paragraph made only of two or more "Label: value"
+ *  lines with no formatting. Null for any other block. */
+export function detailsRowsOf(b: RichBlock): Array<{ label: string; value: string }> | null {
+  if (b.kind === "details") return b.rows;
+  if (b.kind !== "para" || b.lines.length < 2) return null;
+  const plain = b.lines.every((l) => l.every((r) => !r.b && !r.i && !r.u && !r.size));
+  const rows = b.lines.map((l) => lineText(l).trim().match(DETAIL_LINE));
+  if (!plain || rows.some((r) => !r)) return null;
+  return rows.map((r) => ({ label: r![1], value: r![2] }));
+}
+
+/**
+ * The letter with its meeting details taken from `standard` (Phil, 2026-10-12: the details are
+ * locked in the editor and follow the booking fields, so the letter can never disagree with the
+ * booking). The edited letter's details block is replaced; one that has lost it gets it back after
+ * its first block, where the standard letter has it.
+ */
+export function withDetailsOf(body: string | null | undefined, standard: string | null | undefined): string {
+  const fresh = letterBlocksOf(standard).find((b) => detailsRowsOf(b));
+  const blocks = letterBlocksOf(body);
+  if (!fresh) return blocksToLetterHtml(blocks);
+  const at = blocks.findIndex((b) => detailsRowsOf(b));
+  if (at >= 0) blocks[at] = fresh;
+  else blocks.splice(Math.min(1, blocks.length), 0, fresh);
+  return blocksToLetterHtml(blocks);
+}
+
+/** Letter HTML as the editor's sheet shows it, read only: the meeting details drawn as the PDF
+ *  draws them (bold labels, lined up, no colons). Every word escaped. */
+export function letterDisplayHtml(raw: string | null | undefined): string {
+  return pdfBlocks(raw)
+    .map((b) => (b.kind === "details" ? detailsDisplayHtml(b.rows) : blocksToLetterHtml([b])))
+    .join("");
+}
+
+/** The meeting details table as the editor shows it. */
+export function detailsDisplayHtml(rows: Array<{ label: string; value: string }>): string {
+  return `<div class="letter-details">${rows
+    .map(
+      (r) =>
+        `<div class="letter-details-row"><span class="letter-details-label">${escapeHtml(r.label)}</span><span class="letter-details-value">${escapeHtml(r.value)}</span></div>`,
+    )
+    .join("")}</div>`;
 }
 
 /* ---------------------------------------------------------------------------- for email */

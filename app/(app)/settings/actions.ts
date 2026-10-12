@@ -40,7 +40,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { isSendableAddress } from "@/lib/email/resend";
-import { cleanLoginName } from "@/lib/users/login-name";
+import { cleanJobTitle, cleanLoginName } from "@/lib/users/login-name";
 import { removeSignatureFiles } from "@/lib/letters/signature";
 
 const INVITABLE_ROLES: InviteRole[] = [
@@ -693,6 +693,27 @@ export async function renameLogin(_prev: ActionState, formData: FormData): Promi
   revalidatePath("/settings/users");
   if (result.person_renamed) revalidatePath("/people");
   return { ok: result.changed ? "Saved" : "That is already the name." };
+}
+
+/** A login's job title for the sign off of its letters (Phil, 2026-10-12, 0447): set by an Admin,
+ *  or the Founder in support mode, for any login in the company, their own included. */
+export async function setLoginJobTitle(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext({ logins: true });
+  if (!ctx.ok) return { error: ctx.error };
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Missing user." };
+  const title = cleanJobTitle(formData.get("job_title"));
+  if (!title.ok) return { error: title.error };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase.from("profiles").select("id, company_id").eq("id", userId).maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+
+  const { data, error } = await supabase.rpc("set_login_job_title", { p_profile_id: userId, p_job_title: title.value ?? "" });
+  if (error) return { error: error.message };
+  const result = (data ?? {}) as { changed?: boolean };
+  revalidatePath("/settings/users");
+  return { ok: result.changed ? "Saved" : "That is already the job title." };
 }
 
 /** Save a team member's role, Primary Branch and Additional Branch Views in one go.

@@ -161,15 +161,25 @@ test("an old plain text edit still prints as typed, extra blank lines as space",
   const typed = "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n\u2022 one\n\u2022 two";
   const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
   const blocks = pdfBlocks(l.body);
-  assert.deepEqual(blocks.map((b) => b.kind), ["para", "space", "para", "list"]);
-  assert.equal(letterPlainText(l.body), "First paragraph.\n\n\nAfter extra space.\nSame paragraph, new line.\n\n\u2022 one\n\u2022 two");
+  // The meeting details are locked (Phil, 2026-10-12): a letter that lost them gets them back.
+  assert.deepEqual(blocks.map((b) => b.kind), ["para", "details", "space", "para", "list"]);
+  assert.ok(letterPlainText(l.body).startsWith("First paragraph.\n\nDate: "));
+  assert.ok(letterPlainText(l.body).endsWith("\n\n\nAfter extra space.\nSame paragraph, new line.\n\n\u2022 one\n\u2022 two"));
 });
 
 test("a formatted edit prints with its formatting", () => {
   const typed = "<h2>Notice</h2><p>Please <strong>attend</strong> <em>on time</em>.</p><ol><li><p>Bring ID</p></li></ol>";
   const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
-  assert.equal(l.body, typed);
-  assert.deepEqual(pdfBlocks(l.body).map((b) => b.kind), ["heading", "para", "list"]);
+  assert.ok(l.body.startsWith("<h2>Notice</h2><p>Date: "));
+  assert.ok(l.body.endsWith("<p>Please <strong>attend</strong> <em>on time</em>.</p><ol><li><p>Bring ID</p></li></ol>"));
+  assert.deepEqual(pdfBlocks(l.body).map((b) => b.kind), ["heading", "details", "para", "list"]);
+});
+
+test("an edited letter's meeting details are always the booking's", () => {
+  const typed = "<p>Hello.</p><p>Date: Some other day<br>Time: 23:00</p><p>Bye.</p>";
+  const l = buildInvitationLetter({ ...BASE, bodyOverride: typed });
+  const details = pdfBlocks(l.body).find((b) => b.kind === "details");
+  assert.ok(details && details.kind === "details" && details.rows[1].value === BASE.meetingTime);
 });
 
 test("formatted company wording carries into the standard letter", () => {

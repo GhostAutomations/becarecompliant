@@ -17,3 +17,17 @@ export function cleanLoginName(raw: unknown): { ok: true; value: string } | { ok
   }
   return { ok: true, value };
 }
+
+/** A login's job title for its letters (Phil, 2026-10-12, 0447): tidied the same way, at most 80
+ *  characters, and blank means none (the letter then prints the name alone). set_login_job_title
+ *  applies the same rule. */
+export const JOB_TITLE_MAX = 80;
+
+export function cleanJobTitle(raw: unknown): { ok: true; value: string | null } | { ok: false; error: string } {
+  const value = String(raw ?? "").trim().replace(/\s+/g, " ");
+  if (!value) return { ok: true, value: null };
+  if (value.length > JOB_TITLE_MAX) {
+    return { ok: false, error: `Keep the job title to ${JOB_TITLE_MAX} characters or fewer.` };
+  }
+  return { ok: true, value };
+}

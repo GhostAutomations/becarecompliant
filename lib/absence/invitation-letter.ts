@@ -26,6 +26,7 @@ import {
   letterBlocksOf,
   letterPlainText,
   toLetterHtml,
+  withDetailsOf,
   type RichBlock,
 } from "../letters/rich-text.ts";
 
@@ -249,7 +250,10 @@ export function buildInvitationLetter(i: InvitationLetterInput): InvitationLette
   const salutation = `Dear ${firstName}`;
 
   const standardBody = invitationBodyHtml({ opening, details, absenceIntro, absenceLines, closing: rest });
-  const body = cleanLetterBody(i.bodyOverride, i.recipientName) || standardBody;
+  /* The meeting details are locked (Phil, 2026-10-12): an edited letter always carries the details
+     of the booking it goes with, whatever was posted. */
+  const edited = cleanLetterBody(i.bodyOverride, i.recipientName);
+  const body = edited ? withDetailsOf(edited, standardBody) : standardBody;
 
   const plainText = [
     [i.companyName, ...letterheadLines, ...phoneLines].join("\n"),

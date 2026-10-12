@@ -28,6 +28,8 @@ import { bookAbsenceMeeting, previewBookingLetterPdf } from "@/lib/absence/actio
 import PolicyReader from "@/components/staff/policy-reader";
 import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
 import RichLetterEditor from "@/components/letters/rich-letter-editor";
+import type { LetterFrame } from "@/lib/letters/letter-frame";
+import { toLetterHtml, withDetailsOf } from "@/lib/letters/rich-text";
 import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
@@ -162,6 +164,9 @@ function BookMeetingForm({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [emailTo, setEmailTo] = useState<string | null>(null);
+  /* Everything the PDF prints around the words, so the editor shows the whole letter (Phil,
+     2026-10-12). */
+  const [frame, setFrame] = useState<LetterFrame | null>(null);
   const [drawing, setDrawing] = useState(false);
   const urlRef = useRef<string | null>(null);
 
@@ -214,7 +219,14 @@ function BookMeetingForm({
         setPdfUrl(url);
         setPdfError(null);
         setEmailTo(res.to ?? null);
+        setFrame(res.frame ?? null);
         if (!edited && res.standard !== undefined) setBody(res.standard);
+        /* The meeting details are locked (Phil, 2026-10-12): an edited letter takes the details of
+           the booking as it now stands, so the words never disagree with the fields above. */
+        else if (edited && res.standard) {
+          const fresh = withDetailsOf(body, res.standard);
+          if (fresh !== toLetterHtml(body)) setBody(fresh);
+        }
         setDrawnSig(sig);
       } else {
         setPdfError(res.error ?? "The letter could not be drawn.");
@@ -388,6 +400,8 @@ function BookMeetingForm({
                         width of the PDF page, so it wraps and looks as the PDF prints. */}
                     <RichLetterEditor
                       label="The letter"
+                      frame={frame}
+                      lockDetails
                       value={body}
                       disabled={busy || (!edited && !body)}
                       onChange={(html) => {
@@ -398,15 +412,11 @@ function BookMeetingForm({
                   </div>
                 </div>
                 <p className={hint}>
-                  The whole letter between the RE line and Yours sincerely, exactly as the PDF prints it, for
-                  this letter only. Use the bar above it for headings, text size, bold, italic, underline and
-                  lists. Press Enter on an empty line for more space. Lines like &quot;Date: ...&quot; together print
-                  as the meeting details.
-                  {edited ? " Once you change the letter, check it again if you change the details above." : null}
+                  The whole letter as it will print. Type in the words between the RE line and Yours sincerely,
+                  for this letter only; the rest is set for you. The meeting details follow the fields above.
+                  Use the bar above it for headings, text size, bold, italic, underline and lists. Press Enter on
+                  an empty line for more space.
                 </p>
-                <div className="mt-4">
-                  <SignatureChoice onChange={setSignature} disabled={busy} />
-                </div>
               </>
             ) : (
               <div className="flex h-[68vh] min-h-72 items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
@@ -443,39 +453,54 @@ function BookMeetingForm({
           </div>
         </div>
 
-        {/* Centred under both. */}
-        <div className="mt-5 flex flex-col items-center gap-2 text-center">
-          {current ? (
-            <p className="text-xs text-white/60">
-              {emailTo
-                ? `Save and send emails this letter to ${personName} (${emailTo}).`
-                : `${personName} has no email address, so print this letter and post it or hand it over.`}
-            </p>
-          ) : null}
-          {result.error ? <p className="form-error">{result.error}</p> : null}
-          {result.ok ? <p className="text-sm text-emerald-300">{result.ok}</p> : null}
-          {blockedLetter ? (
-            <a href={blockedLetter} target="_blank" rel="noreferrer" className="btn-primary text-xs" onClick={() => setTimeout(onClose, 300)}>
-              Open the letter to print
-            </a>
-          ) : null}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {emailTo || !current ? (
-              <button type="button" className="btn-primary text-xs" disabled={!current || busy} onClick={() => save("send")}>
-                {saving && savingAs === "send" ? "Sending…" : "Save and send"}
-              </button>
+        {/* Under the words, how it is signed; beside it, under the letter, what each save does and
+            the buttons, centred in a box the same height (Phil, 2026-10-12: "nice and central and
+            tidy"). The signature box is wrapped so the other stays on the right without it. */}
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          <div>
+            {ready ? (
+              <SignatureChoice
+                onChange={setSignature}
+                disabled={busy}
+                className="h-full rounded-xl border border-white/10 bg-white/[0.03] p-3"
+              />
             ) : null}
-            <button
-              type="button"
-              className={emailTo || !current ? "btn-outline text-xs" : "btn-primary text-xs"}
-              disabled={!current || busy}
-              onClick={() => save("print")}
-            >
-              {saving && savingAs === "print" ? "Saving…" : "Save and print"}
-            </button>
-            <button type="button" className="btn-outline text-xs" disabled={!current || busy} onClick={() => save("history")}>
-              {saving && savingAs === "history" ? "Saving…" : "Save to history"}
-            </button>
+          </div>
+          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+            <p className="max-w-md text-xs text-white/60">
+              {current
+                ? emailTo
+                  ? `Save and send emails this letter to ${personName} (${emailTo}). Save and print opens it to print and post or hand over. Save to history keeps it on their record without sending it.`
+                  : `${personName} has no email address, so print this letter and post it or hand it over. Save to history keeps it on their record without sending it.`
+                : ready
+                  ? "Updating the letter…"
+                  : "Fill in the meeting above, then save the letter here. Nothing is booked until you choose."}
+            </p>
+            {result.error ? <p className="form-error">{result.error}</p> : null}
+            {result.ok ? <p className="text-sm text-emerald-300">{result.ok}</p> : null}
+            {blockedLetter ? (
+              <a href={blockedLetter} target="_blank" rel="noreferrer" className="btn-primary text-xs" onClick={() => setTimeout(onClose, 300)}>
+                Open the letter to print
+              </a>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {emailTo || !current ? (
+                <button type="button" className="btn-primary text-xs" disabled={!current || busy} onClick={() => save("send")}>
+                  {saving && savingAs === "send" ? "Sending…" : "Save and send"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={emailTo || !current ? "btn-outline text-xs" : "btn-primary text-xs"}
+                disabled={!current || busy}
+                onClick={() => save("print")}
+              >
+                {saving && savingAs === "print" ? "Saving…" : "Save and print"}
+              </button>
+              <button type="button" className="btn-outline text-xs" disabled={!current || busy} onClick={() => save("history")}>
+                {saving && savingAs === "history" ? "Saving…" : "Save to history"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

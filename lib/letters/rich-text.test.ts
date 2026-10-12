@@ -11,6 +11,8 @@ import {
   plainTextBlocks,
   splitLetterHtml,
   toLetterHtml,
+  withDetailsOf,
+  letterDisplayHtml,
 } from "./rich-text.ts";
 
 test("old plain text letters read as they always did", () => {
@@ -108,4 +110,26 @@ test("a block token is filled even when its value is listed as empty (the lost o
     { outcome_body: "<p>What was discussed.</p><p>The outcome.</p>" },
   );
   assert.equal(out, "<p>Thank you for attending.</p><p>What was discussed.</p><p>The outcome.</p><p>Appeal wording.</p>");
+});
+
+test("the meeting details follow the booking: swapped in an edited letter, put back if lost", () => {
+  const standard = "<p>Intro</p><p>Date: Thursday 29th October 2026<br>Time: 10:00</p><p>Rest</p>";
+  const edited = "<p>Intro, edited</p><p>Date: Monday 1st June 2026<br>Time: 09:00</p><p>Rest, edited</p>";
+  assert.equal(
+    withDetailsOf(edited, standard),
+    "<p>Intro, edited</p><p>Date: Thursday 29th October 2026<br>Time: 10:00</p><p>Rest, edited</p>",
+  );
+  assert.equal(
+    withDetailsOf("<p>Intro, edited</p><p>Rest</p>", standard),
+    "<p>Intro, edited</p><p>Date: Thursday 29th October 2026<br>Time: 10:00</p><p>Rest</p>",
+  );
+  assert.equal(withDetailsOf(edited, "<p>No details here</p>"), edited);
+});
+
+test("the editor shows the meeting details as the PDF draws them", () => {
+  const out = letterDisplayHtml("<p>Hello</p><p>Date: Today<br>Held by: Sam &amp; Jo</p>");
+  assert.equal(
+    out,
+    '<p>Hello</p><div class="letter-details"><div class="letter-details-row"><span class="letter-details-label">Date</span><span class="letter-details-value">Today</span></div><div class="letter-details-row"><span class="letter-details-label">Held by</span><span class="letter-details-value">Sam &amp; Jo</span></div></div>',
+  );
 });

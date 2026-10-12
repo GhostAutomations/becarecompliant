@@ -259,10 +259,13 @@ export default async function AppLayout({
             <UserMenu
               initials={initials}
               name={displayName}
+              /* The job title an Admin set on Settings, Users (Phil, 2026-10-12, 0447), else the role. */
               role={
                 isStaff
                   ? null
-                  : displayRoleLabel(
+                  : profile.job_title?.trim() && !actingCompanyId
+                    ? profile.job_title.trim()
+                    : displayRoleLabel(
                       (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
                       myCustomRole?.name ?? null,
                     )

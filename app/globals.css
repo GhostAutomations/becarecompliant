@@ -1728,6 +1728,80 @@ details.setup-card-gold:not([open]) .setup-card-count {
   color: #9ca3af;
   pointer-events: none;
 }
+/* THE WHOLE LETTER ON THE SHEET (Phil, 2026-10-12: "the one on the left must match exactly"):
+   the frame the PDF prints around the words, at the PDF's own measurements (pt as 100cqw / 595),
+   so the editor and the PDF beside it look the same. Only the words can be typed in; the rest is
+   fixed and fades a little under the pointer to say so. */
+.letter-paper .letter-sheet {
+  position: relative;
+  width: 100%;
+  min-height: calc(100cqw * 842 / 595);
+  background: #ffffff;
+  color: #111827;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.25);
+  padding: calc(100cqw * 44 / 595) calc(100cqw * 56 / 595);
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: calc(100cqw * 11 / 595);
+  line-height: 1.4;
+}
+.letter-paper .letter-sheet:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 45%, transparent);
+}
+.letter-paper .letter-sheet .letter-editor-body {
+  min-height: calc(100cqw * 60 / 595);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.letter-paper .letter-sheet .letter-editor-body:focus { box-shadow: none; }
+.letter-fixed { cursor: default; user-select: none; transition: opacity 120ms; }
+.letter-fixed:hover { opacity: 0.55; }
+.letter-paper .letter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: calc(100cqw * 8 / 595);
+}
+.letter-paper .letter-logo {
+  max-width: calc(100cqw * 170 / 595);
+  max-height: calc(100cqw * 70 / 595);
+  object-fit: contain;
+}
+.letter-paper .letter-company { font-size: calc(100cqw * 17 / 595); font-weight: 700; }
+.letter-paper .letter-head-right {
+  max-width: calc(100cqw * 220 / 595);
+  text-align: right;
+  font-size: calc(100cqw * 10 / 595);
+  line-height: 1.25;
+}
+.letter-paper .letter-head-gap { height: calc(100cqw * 4 / 595); }
+.letter-paper .letter-head-phone { font-weight: 700; }
+.letter-paper .letter-date { text-align: right; margin-bottom: calc(100cqw * 12 / 595); }
+.letter-paper .letter-confidential { font-weight: 700; margin-bottom: calc(100cqw * 4 / 595); }
+.letter-paper .letter-recipient,
+.letter-paper .letter-salutation { margin-bottom: calc(100cqw * 12 / 595); }
+.letter-paper .letter-re { font-weight: 700; margin-bottom: calc(100cqw * 12 / 595); }
+.letter-paper .letter-signoff { margin-top: calc(100cqw * 4 / 595); }
+.letter-paper .letter-sign-image { margin: calc(100cqw * 6 / 595) 0 calc(100cqw * 2 / 595) 0; }
+.letter-paper .letter-sign-image img {
+  height: calc(100cqw * 46 / 595);
+  max-width: calc(100cqw * 200 / 595);
+  object-fit: contain;
+}
+.letter-paper .letter-sign-name { font-weight: 700; }
+.letter-paper .letter-sign-room { margin-top: calc(100cqw * 32 / 595); }
+/* The meeting details as the PDF draws them: bold labels lined up, no colons. */
+.letter-paper .letter-details {
+  margin: 0 0 calc(100cqw * 12 / 595) 0;
+  padding-left: calc(100cqw * 12 / 595);
+}
+.letter-paper .letter-details-row { display: flex; margin-bottom: calc(100cqw * 1 / 595); }
+.letter-paper .letter-details-label { width: calc(100cqw * 66 / 595); flex: none; font-weight: 700; }
+.letter-paper .letter-details-value { flex: 1; }
+.letter-paper .letter-insert { color: #374151; }
+
 .letter-toolbar {
   display: flex;
   flex-wrap: wrap;

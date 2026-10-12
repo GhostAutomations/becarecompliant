@@ -28,6 +28,7 @@ import {
 } from "@/lib/letters/letters";
 import type { ActionState } from "@/lib/forms";
 import RichLetterEditor, { type RichLetterEditorHandle } from "@/components/letters/rich-letter-editor";
+import type { LetterFrame } from "@/lib/letters/letter-frame";
 import PolicyReader from "@/components/staff/policy-reader";
 import { previewLetterTemplatePdf } from "@/lib/letters/actions";
 
@@ -101,6 +102,10 @@ export default function LetterEditor({
   const [pdf, setPdf] = useState<Uint8Array | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
+  /* The whole letter on the editor's sheet (Phil, 2026-10-12): the frame the PDF prints around the
+     wording, and the details and absences the letter adds after its first paragraph. */
+  const [frame, setFrame] = useState<LetterFrame | null>(null);
+  const [inserted, setInserted] = useState<string | null>(null);
   useEffect(() => {
     if (!open || !isPdf) return;
     let cancelled = false;
@@ -115,6 +120,8 @@ export default function LetterEditor({
       if (res.pdf) {
         setPdf(toBytes(res.pdf));
         setPdfError(null);
+        setFrame(res.frame ?? null);
+        setInserted(res.insert ?? null);
       } else setPdfError(res.error ?? "The letter could not be drawn.");
     }, 1000);
     return () => {
@@ -194,6 +201,8 @@ export default function LetterEditor({
                 <RichLetterEditor
                   ref={editorRef}
                   label="Wording"
+                  frame={isPdf ? frame : null}
+                  insertAfterFirst={isPdf ? inserted : null}
                   value={body}
                   disabled={pending}
                   onChange={(html) => {

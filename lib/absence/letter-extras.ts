@@ -11,6 +11,7 @@ import "server-only";
  */
 
 import { createServiceClient } from "@/lib/supabase/admin";
+import { letterJobTitle } from "@/lib/letters/signature";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { countedAbsences, windowStartIso } from "@/lib/absence/discount";
@@ -60,11 +61,11 @@ export async function loadLetterExtras(opts: {
   countDiscountedFrom?: string;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
-  const [{ data: person }, { data: branches }, { data: conductorPerson }, { data: events }, meetingName, logoDataUrl, config] =
+  const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config] =
     await Promise.all([
       admin.from("people").select("branch_id, home_address").eq("id", opts.personId).eq("company_id", opts.companyId).maybeSingle(),
       admin.from("branches").select("id, name, kind, address, phone, uses_office_address").eq("company_id", opts.companyId),
-      admin.from("people").select("job_title").eq("company_id", opts.companyId).eq("profile_id", opts.conductorId).limit(1).maybeSingle(),
+      letterJobTitle(opts.companyId, opts.conductorId),
       admin
         .from("absence_events")
         .select("start_date, end_date, days, reason, discounted_at, discount_reason")
@@ -95,15 +96,14 @@ export async function loadLetterExtras(opts: {
     { windowStart },
   );
 
-  const jobTitle = ((conductorPerson?.job_title as string | null) ?? "").trim();
   return {
     meetingName,
     homeAddress: ((person?.home_address as string | null) ?? null) || null,
     letterheadAddress: headAddress,
     letterheadPhone: (head?.phone ?? null) || null,
     logoDataUrl,
-    /* Their job title from their People record, or nothing (Phil, 2026-10-12, Part C): the system
-       role ("Admin") read as odd on a letter. */
+    /* The job title set on their login, else their People record, or nothing (Phil, 2026-10-12,
+       Part C and 0447): the system role ("Admin") read as odd on a letter. */
     conductorRole: jobTitle || null,
     absences: counted.map((e) => ({ start_date: e.start_date, end_date: e.end_date, days: e.days, reason: e.reason })),
     discountedHere: here

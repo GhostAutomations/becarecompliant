@@ -128,7 +128,7 @@ export default async function UsersPage() {
         .order("kind", { ascending: true }),
       supabase
         .from("profiles")
-        .select("id, full_name, email, role, status, company_role_id")
+        .select("id, full_name, email, role, status, company_role_id, job_title")
         .eq("company_id", companyId)
         .neq("role", "platform_admin"),
       supabase
@@ -330,6 +330,7 @@ export default async function UsersPage() {
     role: string;
     status: string;
     company_role_id?: string | null;
+    job_title?: string | null;
   }): UserListItem {
     const isSelf = u.id === user.id;
     const isAdmin = u.role === "company_admin";
@@ -341,6 +342,7 @@ export default async function UsersPage() {
       fullName: u.full_name,
       email: u.email,
       personName: personNameByProfile.get(u.id) ?? null,
+      jobTitle: u.job_title ?? null,
       /* The value the role picker posts: their company's own role travels as "custom:<id>", so
          one field carries either kind and the two can never disagree (lib/auth/custom-roles). */
       role: roleChoiceValue(u.role, u.company_role_id ?? null),

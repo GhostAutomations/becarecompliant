@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { giveBackAiCredits, runAi } from "@/lib/ai/anthropic";
+import { letterFrameOf, type LetterFrame } from "@/lib/letters/letter-frame";
 import { writeAudit } from "@/lib/audit";
 import { queueCloudCopy } from "@/lib/cloud/queue";
 import type { ActionState } from "@/lib/forms";
@@ -875,7 +876,7 @@ export async function draftOutcomeFromForm(formData: FormData): Promise<{ body?:
 }
 
 /** The real PDF of the whole letter, for the preview beside the words. Saves and sends nothing. */
-export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ pdf?: string; error?: string }> {
+export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ pdf?: string; frame?: LetterFrame; error?: string }> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const loaded = await loadFromForm(formData, profile.company_id);
@@ -887,7 +888,7 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
   try {
     const letter = await compose(loaded.ctx, body, signed.signature);
     const pdf = await renderOutcomeLetterPdf({ letter: letter.doc, logoDataUrl: letter.logoDataUrl, signatureDataUrl: letter.signatureDataUrl });
-    return { pdf: pdf.toString("base64") };
+    return { pdf: pdf.toString("base64"), frame: letterFrameOf(letter.doc, letter.logoDataUrl, letter.signatureDataUrl) };
   } catch (e) {
     return { error: `The preview could not be made: ${(e as Error).message}` };
   }
@@ -901,7 +902,7 @@ export async function previewOutcomePdfFromForm(formData: FormData): Promise<{ p
  */
 export async function outcomeLetterPdfPreview(
   formData: FormData,
-): Promise<{ pdf?: string; to?: string | null; name?: string; fileName?: string; missingOutcome?: boolean; error?: string }> {
+): Promise<{ pdf?: string; to?: string | null; name?: string; fileName?: string; missingOutcome?: boolean; frame?: LetterFrame; error?: string }> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const ctx = await load(String(formData.get("meeting_id") ?? ""), profile.company_id);
@@ -940,6 +941,7 @@ export async function outcomeLetterPdfPreview(
     return {
       pdf: pdf.toString("base64"),
       missingOutcome: await lacksOutcome(ctx, body, await heldDiscount(ctx)),
+      frame: letterFrameOf(letter.doc, letter.logoDataUrl, letter.signatureDataUrl),
       to: ctx.employee.email,
       name: ctx.employee.name,
       fileName: `Outcome letter ${ctx.employee.name}${ctx.meeting.meeting_date ? ` ${ctx.meeting.meeting_date}` : ""}.pdf`.replace(/[\\/:*?"<>|]/g, ""),

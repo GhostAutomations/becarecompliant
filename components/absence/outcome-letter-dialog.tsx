@@ -23,6 +23,7 @@ import { AiIcon } from "@/components/ai-icon";
 import PolicyReader from "@/components/staff/policy-reader";
 import SignatureChoice, { type SignatureValue } from "@/components/letters/signature-choice";
 import RichLetterEditor from "@/components/letters/rich-letter-editor";
+import type { LetterFrame } from "@/lib/letters/letter-frame";
 
 function toBytes(base64: string): Uint8Array {
   const bin = atob(base64);
@@ -90,6 +91,9 @@ export default function OutcomeLetterDialog({
      saved holding only its opening sentence): told plainly, never sent, and Regenerate redoes it
      at no cost. */
   const [missingOutcome, setMissingOutcome] = useState(false);
+  /* Everything the PDF prints around the words, so the editor shows the whole letter (Phil,
+     2026-10-12). */
+  const [frame, setFrame] = useState<LetterFrame | null>(null);
   const [draftState, draftAction, drafting] = useActionState(draftOutcomeLetter, IDLE_STATE);
   const [sendState, sendAction, sending] = useActionState(sendOutcomeLetter, IDLE_STATE);
   const [draftPressed, setDraftPressed] = useState(false);
@@ -163,6 +167,7 @@ export default function OutcomeLetterDialog({
         setPdfFailed(false);
         setPreviewError(null);
         setMissingOutcome(Boolean(result.missingOutcome));
+        setFrame(result.frame ?? null);
         setDrawn({
           bytes,
           url,
@@ -295,6 +300,7 @@ export default function OutcomeLetterDialog({
                 {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
                 <RichLetterEditor
                   label="The letter"
+                  frame={hasWords ? frame : null}
                   value={body}
                   disabled={busy || !!sendState.ok}
                   onChange={setBody}
@@ -303,15 +309,11 @@ export default function OutcomeLetterDialog({
               </div>
             </div>
             <p className={hint}>
-              The whole letter between Dear and Yours sincerely: your company&apos;s opening and right of appeal
-              (Settings, Letters) with what the meeting covered and decided in the middle. Use the bar above it for
-              headings, text size, bold, italic, underline and lists.
+              The whole letter as it will print. Type in the words between the RE line and Yours sincerely: your
+              company&apos;s opening and right of appeal (Settings, Letters) with what the meeting covered and decided in
+              the middle. The rest is set for you. Use the bar above it for headings, text size, bold, italic,
+              underline and lists.
             </p>
-            <SignatureChoice
-              onChange={setSignature}
-              disabled={busy || !!sendState.ok}
-              className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3"
-            />
           </div>
 
           <div className="flex flex-col">
@@ -349,36 +351,49 @@ export default function OutcomeLetterDialog({
           </div>
         </div>
 
-        {/* Centred under both. */}
-        <div className="mt-5 flex flex-col items-center gap-2 text-center">
-          {current && drawn ? (
-            <p className="text-xs text-white/60">
-              {drawn.to
-                ? `Approve and send emails this letter to ${drawn.to} with the PDF attached, and keeps the PDF on the meeting. Once sent it cannot be changed.`
-                : `${drawn.name} has no email address, so this letter will not be emailed. Approving keeps it as a PDF on the meeting, marked not emailed, for you to print and hand over.`}
+        {/* Under the words, how it is signed; beside it, under the letter, what Approve does and the
+            buttons, centred in a box the same height (Phil, 2026-10-12: "nice and central and tidy"). */}
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          {/* Wrapped, so the box beside it stays on the right for someone with no signature choice. */}
+          <div>
+            <SignatureChoice
+              onChange={setSignature}
+              disabled={busy || !!sendState.ok}
+              className="h-full rounded-xl border border-white/10 bg-white/[0.03] p-3"
+            />
+          </div>
+          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+            <p className="max-w-md text-xs text-white/60">
+              {current && drawn
+                ? drawn.to
+                  ? `Approve and send emails this letter to ${drawn.to} with the PDF attached, and keeps the PDF on the meeting. Once sent it cannot be changed.`
+                  : `${drawn.name} has no email address, so this letter will not be emailed. Approving keeps it as a PDF on the meeting, marked not emailed, for you to print and hand over.`
+                : hasWords
+                  ? "Updating the letter…"
+                  : "Draft or write the letter, then approve it here."}
             </p>
-          ) : null}
-          {sendState.error ? <p className="form-error">{sendState.error}</p> : null}
-          {sendState.ok ? <p className="text-sm text-emerald-300">{sendState.ok}</p> : null}
-          {savedNote ? <p className="text-sm text-emerald-300">{savedNote}</p> : null}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              className="btn-primary text-xs"
-              disabled={busy || !current || missingOutcome || !!sendState.ok}
-              onClick={() => {
-                const f = fd();
-                startTransition(() => sendAction(f));
-              }}
-            >
-              {sending ? "Sending…" : drawn?.to === null && current ? "Approve and keep" : "Approve and send"}
-            </button>
-            <button type="button" className="btn-outline text-xs" disabled={busy || !current || !!sendState.ok} onClick={saveToFile}>
-              {saving ? "Saving…" : "Save to file"}
-            </button>
-            <button type="button" className="btn-ghost text-xs" disabled={sending} onClick={onClose}>
-              {sendState.ok ? "Close" : "Not now"}
-            </button>
+            {sendState.error ? <p className="form-error">{sendState.error}</p> : null}
+            {sendState.ok ? <p className="text-sm text-emerald-300">{sendState.ok}</p> : null}
+            {savedNote ? <p className="text-sm text-emerald-300">{savedNote}</p> : null}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                className="btn-primary text-xs"
+                disabled={busy || !current || missingOutcome || !!sendState.ok}
+                onClick={() => {
+                  const f = fd();
+                  startTransition(() => sendAction(f));
+                }}
+              >
+                {sending ? "Sending…" : drawn?.to === null && current ? "Approve and keep" : "Approve and send"}
+              </button>
+              <button type="button" className="btn-outline text-xs" disabled={busy || !current || !!sendState.ok} onClick={saveToFile}>
+                {saving ? "Saving…" : "Save to file"}
+              </button>
+              <button type="button" className="btn-ghost text-xs" disabled={sending} onClick={onClose}>
+                {sendState.ok ? "Close" : "Not now"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

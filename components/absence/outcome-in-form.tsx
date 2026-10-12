@@ -19,6 +19,7 @@ import { draftOutcomeFromForm, previewOutcomePdfFromForm } from "@/lib/absence/o
 import { AiIcon } from "@/components/ai-icon";
 import PolicyReader from "@/components/staff/policy-reader";
 import RichLetterEditor from "@/components/letters/rich-letter-editor";
+import type { LetterFrame } from "@/lib/letters/letter-frame";
 
 type Ctx = {
   answers: Answers;
@@ -56,6 +57,8 @@ export default function OutcomeInForm({
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
+  // Everything the PDF prints around the words, so the editor shows the whole letter (Phil, 2026-10-12).
+  const [frame, setFrame] = useState<LetterFrame | null>(null);
   const urlRef = useRef<string | null>(null);
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -109,6 +112,7 @@ export default function OutcomeInForm({
         urlRef.current = url;
         setPdfUrl(url);
         setPdfError(null);
+        setFrame(res.frame ?? null);
       } else {
         setPdfError(res.error ?? "The preview could not be made.");
       }
@@ -178,7 +182,7 @@ export default function OutcomeInForm({
               <span className="form-label">The letter</span>
               {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
               <div className="h-[560px] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
-                <RichLetterEditor label="The letter" value={body} disabled={busy} onChange={setBody} />
+                <RichLetterEditor label="The letter" frame={frame} value={body} disabled={busy} onChange={setBody} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {generateButton("Generate again")}

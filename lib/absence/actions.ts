@@ -38,6 +38,7 @@ import type { StageThreshold } from "@/lib/absence/logic";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { letterDate } from "@/lib/absence/invitation-letter";
+import { letterFrameOf, type LetterFrame } from "@/lib/letters/letter-frame";
 import { auditSignatureUse, resolveLetterSignature } from "@/lib/letters/signature";
 import { stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
 import { keepMeetingLetter } from "@/lib/absence/meeting-letter-copy";
@@ -810,7 +811,7 @@ export async function previewBookAbsenceMeeting(formData: FormData): Promise<Let
  */
 export async function previewBookingLetterPdf(
   formData: FormData,
-): Promise<{ pdf?: string; to?: string | null; standard?: string; error?: string }> {
+): Promise<{ pdf?: string; to?: string | null; standard?: string; frame?: LetterFrame; error?: string }> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const plan = await planBooking(formData);
@@ -827,7 +828,13 @@ export async function previewBookingLetterPdf(
       signature: signed.signature,
     });
     const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl, signatureDataUrl: signed.signature?.dataUrl });
-    return { pdf: pdf.toString("base64"), to: plan.employee.email, standard: standardBody };
+    return {
+      pdf: pdf.toString("base64"),
+      to: plan.employee.email,
+      standard: standardBody,
+      // Everything around the words, so the editor shows the whole letter (Phil, 2026-10-12).
+      frame: letterFrameOf(invitation, logoDataUrl, signed.signature?.dataUrl),
+    };
   } catch (e) {
     return { error: `The letter could not be drawn: ${(e as Error).message}` };
   }

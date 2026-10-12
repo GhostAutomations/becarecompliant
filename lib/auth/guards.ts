@@ -50,6 +50,8 @@ export type Profile = {
    * departments they are shown, and gives the role the name their company chose.
    */
   company_role_id?: string | null;
+  /** The job title an Admin set on this login for its letters (0447), or null. */
+  job_title?: string | null;
   /** Set when a platform admin is operating inside a tenant via manage-as. The
    *  profile is shadowed to that company with a company_admin role for scoping;
    *  this flag lets callers know the real user is the founder impersonating. */
@@ -184,7 +186,7 @@ async function requireProfileUncached(): Promise<{
     "guard.profile",
     supabase
       .from("profiles")
-      .select("id, company_id, full_name, email, role, status, company_role_id")
+      .select("id, company_id, full_name, email, role, status, company_role_id, job_title")
       .eq("id", user.id)
       .maybeSingle()
       .then((r) => r),

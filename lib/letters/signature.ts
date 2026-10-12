@@ -40,18 +40,18 @@ type SignerProfile = {
   actingAsCompanyId?: string | null;
 };
 
-/** Their job title on their People record, or nothing: the same rule as the person holding the
- *  meeting (letter-extras.ts). Never the system role (Phil, 2026-10-12, Part C). */
-export async function letterJobTitle(companyId: string, profileId: string): Promise<string | null> {
+/** The job title under a name on a letter, for the signer and the person holding the meeting alike
+ *  (letter-extras.ts). Never the system role (Phil, 2026-10-12, Part C). */
+export async function letterJobTitle(companyId: string, profileId: string | null | undefined): Promise<string | null> {
+  if (!profileId) return null;
   const admin = createServiceClient();
-  const { data } = await admin
-    .from("people")
-    .select("job_title")
-    .eq("company_id", companyId)
-    .eq("profile_id", profileId)
-    .limit(1)
-    .maybeSingle();
-  const title = ((data?.job_title as string | null) ?? "").trim();
+  /* The job title an Admin set on the login (Settings, Users; Phil, 2026-10-12, 0447), else the one
+     on their People record, else none: never the system role (Part C). */
+  const [{ data: login }, { data: person }] = await Promise.all([
+    admin.from("profiles").select("job_title").eq("id", profileId).eq("company_id", companyId).maybeSingle(),
+    admin.from("people").select("job_title").eq("company_id", companyId).eq("profile_id", profileId).limit(1).maybeSingle(),
+  ]);
+  const title = ((login?.job_title as string | null) ?? "").trim() || ((person?.job_title as string | null) ?? "").trim();
   return title || null;
 }
 

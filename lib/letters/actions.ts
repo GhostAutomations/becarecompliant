@@ -13,11 +13,12 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import { letterDefinition, missingRequiredTokens, placeholdersFor } from "./letters";
-import { letterPlainText, mergeLetterHtml, splitLetterHtml, toLetterHtml } from "./rich-text";
+import { letterDisplayHtml, letterPlainText, mergeLetterHtml, splitLetterHtml, toLetterHtml } from "./rich-text";
+import { letterFrameOf, type LetterFrame } from "./letter-frame";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
-import { buildInvitationLetter, buildOutcomeLetterDoc } from "@/lib/absence/invitation-letter";
+import { buildInvitationLetter, buildOutcomeLetterDoc, invitationBodyHtml } from "@/lib/absence/invitation-letter";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -165,7 +166,9 @@ const PDF_TEMPLATES = new Set(["absence_meeting_invite_employee", "absence_meeti
  * them"). The wording being edited, merged with example details, laid out exactly as a real letter
  * from this company: its name, logo and office address. Nothing is saved or sent.
  */
-export async function previewLetterTemplatePdf(formData: FormData): Promise<{ pdf?: string; error?: string }> {
+export async function previewLetterTemplatePdf(
+  formData: FormData,
+): Promise<{ pdf?: string; frame?: LetterFrame; insert?: string; error?: string }> {
   const { profile } = await requireCompanyAdmin();
   const companyId = profile.company_id;
   if (!companyId) return { error: "No company context." };
@@ -207,7 +210,7 @@ export async function previewLetterTemplatePdf(formData: FormData): Promise<{ pd
         bodyHtml: mergeLetterHtml(body, rest, { outcome_body: toLetterHtml(middle) }),
       });
       const pdf = await renderOutcomeLetterPdf({ letter: doc, logoDataUrl });
-      return { pdf: pdf.toString("base64") };
+      return { pdf: pdf.toString("base64"), frame: letterFrameOf(doc, logoDataUrl, null) };
     }
     const letter = buildInvitationLetter({
       ...shared,
@@ -230,7 +233,15 @@ export async function previewLetterTemplatePdf(formData: FormData): Promise<{ pd
       windowWords: "6 months",
     });
     const pdf = await renderInvitationLetterPdf({ letter, logoDataUrl });
-    return { pdf: pdf.toString("base64") };
+    return {
+      pdf: pdf.toString("base64"),
+      frame: letterFrameOf(letter, logoDataUrl, null),
+      /* What the letter adds after the wording's first paragraph, shown in place in the editor so it
+         looks as the PDF does (Phil, 2026-10-12): the meeting details and the absences. */
+      insert: letterDisplayHtml(
+        invitationBodyHtml({ opening: [], details: letter.details, absenceIntro: letter.absenceIntro, absenceLines: letter.absenceLines, closing: [] }),
+      ),
+    };
   } catch (e) {
     return { error: `The letter could not be drawn: ${(e as Error).message}` };
   }
