@@ -14,6 +14,8 @@ Phil, 2026-10-12, standing (from the list of what was wrong with real Bevan lett
 - [stated] Who hears an appeal is still chosen in the meeting's drop down. The letter never says
   "who was not involved in this meeting", whoever is chosen (Phil, 12 Oct, after the first Part C
   push; this replaces "leave it out only when it is the same person").
+- [stated] The meeting emails (invitation, rearranged, chairing copy, cancellation) write the date
+  "21st October 2026" like the letters, never 21/10/2026 (popup, 12 Oct).
 - Text sizes scale with the new Normal: Small 10, Normal 11, Large 13, Subheading 12.5, Heading 15.
 - No company had its own templates on 12 Oct 2026, so the better standard wording reaches every
   company's next letters. Letters already sent never change.

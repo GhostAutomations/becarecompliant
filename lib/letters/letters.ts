@@ -44,9 +44,9 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholder[] = [
     example: "This is a Stage 2 meeting and its outcome could be up to and including a written warning.",
   },
   { token: "conductor_name", label: "Who is conducting the meeting", example: "Sam Idris" },
-  { token: "meeting_date", label: "Date of the meeting", example: "14/08/2026" },
+  { token: "meeting_date", label: "Date of the meeting", example: "14th August 2026" },
   { token: "meeting_time", label: "Time of the meeting", example: "10:30" },
-  { token: "meeting_when", label: "Date and time together", example: "14/08/2026 at 10:30" },
+  { token: "meeting_when", label: "Date and time together", example: "14th August 2026 at 10:30" },
   { token: "location", label: "Where it is held", example: "Microsoft Teams" },
   /* "at 1 High Street, Cardiff" or "on Microsoft Teams", so a sentence reads right either way
      (Phil, 2026-10-12, Part C: "held at Microsoft Teams"). */

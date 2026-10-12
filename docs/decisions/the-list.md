@@ -263,6 +263,11 @@ The next five were found by the step 7 check of the October audit fixes and park
     line for a hand signature. To do: render them on the same PDF letterhead as the absence letters,
     with the same signing choices (saved upload, saved drawing, sign now, no signature).
 
+55. **Book meeting offered when no stage is left to book** (Phil, popup 2026-10-12, Job 2 Part C).
+    On the Absence page a person who has already had every stage (Bevan's ZZ Stage One B, Stage 4
+    held) still shows Book meeting, and it opens with an empty Stage list and an empty letter. To
+    do: hide the button (or say why) when no stage is left to book.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.

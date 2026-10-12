@@ -16,7 +16,7 @@ import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor, stageActionSentence } from "@/lib/absence/stage-actions";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { siteUrl } from "@/lib/site";
-import { buildInvitationLetter, type InvitationLetter } from "@/lib/absence/invitation-letter";
+import { buildInvitationLetter, letterDate, type InvitationLetter } from "@/lib/absence/invitation-letter";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { discussedAbsences, stageThresholds } from "@/lib/absence/meeting-questions";
@@ -99,9 +99,8 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
   // their version and fall back to the packaged default, so a letter can never fail to
   // send because wording is missing. Everything functional (the response buttons, the
   // calendar attachment, the Teams note) is still added by us, around their words.
-  const displayDate = /^\d{4}-\d{2}-\d{2}$/.test(args.meetingDate)
-    ? args.meetingDate.split("-").reverse().join("/")
-    : args.meetingDate;
+  // "21st October 2026", as the letters write it, never 21/10/2026 (Phil, 2026-10-12, Part C).
+  const displayDate = /^\d{4}-\d{2}-\d{2}$/.test(args.meetingDate) ? letterDate(args.meetingDate) : args.meetingDate;
   const values: Record<string, string> = {
     recipient_name: args.employee.name,
     employee_name: args.employee.name,

@@ -37,6 +37,7 @@ import { canDiscountAbsences, discountReasonProblem, windowStartIso } from "@/li
 import type { StageThreshold } from "@/lib/absence/logic";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
+import { letterDate } from "@/lib/absence/invitation-letter";
 import { auditSignatureUse, resolveLetterSignature } from "@/lib/letters/signature";
 import { stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
 import { keepMeetingLetter } from "@/lib/absence/meeting-letter-copy";
@@ -1427,7 +1428,11 @@ async function planCancel(formData: FormData, companyId: string): Promise<Cancel
   const stageLabel = named.charAt(0).toUpperCase() + named.slice(1);
   // Reaches the carer's cancellation LETTER via {{meeting_when}}, the email preheader and the
   // audit summary. It printed "2026-08-19" while their invitation a week earlier said 19/08/2026.
-  const when = `${ukDate(meeting.meeting_date as string | null)}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
+  // "21st October 2026", as the letters write it (Phil, 2026-10-12, Part C).
+  const cancelDate = /^\d{4}-\d{2}-\d{2}$/.test(String(meeting.meeting_date ?? ""))
+    ? letterDate(String(meeting.meeting_date))
+    : ukDate(meeting.meeting_date as string | null);
+  const when = `${cancelDate}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
 
   const recipients: Omit<CancelNotice, "subject" | "html" | "preheader">[] = [];
   if (person) {
@@ -1470,7 +1475,7 @@ async function planCancel(formData: FormData, companyId: string): Promise<Cancel
     stage: meeting.stage ? String(meeting.stage) : "",
     stage_label: stageLabel,
     conductor_name: "",
-    meeting_date: String(meeting.meeting_date ?? ""),
+    meeting_date: cancelDate,
     meeting_time: meeting.meeting_time ? String(meeting.meeting_time).slice(0, 5) : "",
     meeting_when: when,
     location: "",
