@@ -184,7 +184,7 @@ export default function OutcomeInForm({
           {/* One grid for both columns, title rows first, so the two titles always share a row
               and the two pages start level however the formatting bar wraps (Phil, 2026-10-12).
               On a phone: the letter's title and words, then the PDF's title and the PDF. */}
-          <div className="mt-3 grid gap-x-4 gap-y-1 lg:grid-cols-2">
+          <div className="mt-3 grid gap-x-5 gap-y-1 lg:grid-cols-2">
             <div className="order-1 flex min-h-9 flex-wrap items-center gap-2 lg:order-none">
               <span className="form-label mb-0">The letter</span>
               <div ref={setToolbarEl} className="min-w-0 flex-1" />
@@ -201,8 +201,12 @@ export default function OutcomeInForm({
             </div>
             <div className="order-2 lg:order-none">
               {/* The letter editor (Phil, 2026-10-12, Job 2 Part B), on a sheet the width of the page. */}
-              <div className="h-[560px] overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40 p-3">
-                <RichLetterEditor label="The letter" toolbarTarget={toolbarEl} frame={frame} value={body} disabled={busy} onChange={setBody} />
+              {/* The same box as Book meeting and the outcome letter (Phil, 2026-10-12: "they should all be
+                  the standard size"). */}
+              <div className="h-[68vh] min-h-72 overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                <div className="mx-auto w-full max-w-3xl px-3 pb-4 pt-3 sm:px-4">
+                  <RichLetterEditor label="The letter" toolbarTarget={toolbarEl} frame={frame} value={body} disabled={busy} onChange={setBody} />
+                </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {generateButton("Generate again")}
@@ -213,7 +217,7 @@ export default function OutcomeInForm({
               {pdfUrl ? (
                 /* Drawn page by page with pdf.js, the same reader policies use: a PDF in a frame is
                    blocked by the site's no framing rule, and an iPhone only shows its first page. */
-                <div className="h-[560px] w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
+                <div className="h-[68vh] min-h-72 w-full overflow-y-auto rounded-lg border border-white/10 bg-navy-950/40">
                   <PolicyReader
                     key={pdfUrl}
                     url={pdfUrl}
@@ -223,7 +227,7 @@ export default function OutcomeInForm({
                   />
                 </div>
               ) : (
-                <div className="flex h-[560px] w-full items-center justify-center rounded-lg border border-white/10 text-sm text-white/50">
+                <div className="flex h-[68vh] min-h-72 w-full items-center justify-center rounded-lg border border-white/10 p-6 text-center text-sm text-white/50">
                   {pdfError ?? "Preparing the letter…"}
                 </div>
               )}

@@ -440,7 +440,8 @@ export default function FormEvidenceDialog({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div
             className={`flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl ${
-              wide ? "max-w-5xl" : "max-w-2xl"
+              // Widened for the outcome letter: two A4 pages side by side, like Book meeting (Phil, 2026-10-12).
+              wide ? "max-w-[min(95vw,1604px)]" : "max-w-2xl"
             }`}
           >
             <div className="mb-4 flex items-center justify-between">
