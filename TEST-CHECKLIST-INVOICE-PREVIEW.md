@@ -36,9 +36,9 @@ Run one at a time.
 | # | Check | Result |
 |---|-------|--------|
 | L0 | Unit tests: day and date apart, the PDF's fixed day slot, DD/MM/YYYY on page and PDF, the four bank labels as Phil wrote them, only those filled in, none means the old text | PASS (lib/invoicing/invoice-table.test.ts, 10) |
-| L1 | Thistle's two drafts: Due reads 20/10/2026 on the page and the PDF; still drafts, no number | Not tested |
-| L2 | Page and PDF: Issued, Due and Service period read DD/MM/YYYY (13/10/2026, 20/10/2026, 28/09/2026 to 04/10/2026) | Not tested |
-| L3 | The Date column: Mon, Tue, Wed and so on in a fixed slot, every date starting at the same place, on the page and the PDF | Not tested |
-| L4 | Thistle's PDF: Payment details reads Account Name:, Bank:, Account No:, Sort Code:, with the values lined up | Not tested |
+| L1 | Thistle's two drafts: Due reads 20/10/2026 on the page and the PDF; still drafts, no number | PASS (both drafts due 20/10/2026 in the database; first draft checked on the page and the PDF; still drafts, no number) |
+| L2 | Page and PDF: Issued, Due and Service period read DD/MM/YYYY (13/10/2026, 20/10/2026, 28/09/2026 to 04/10/2026) | PASS (page and PDF: Issued 13/10/2026, Due 20/10/2026, Service period 28/09/2026 to 04/10/2026) |
+| L3 | The Date column: Mon, Tue, Wed and so on in a fixed slot, every date starting at the same place, on the page and the PDF | PASS (page and PDF: Mon to Sun in a fixed slot, every date starting at the same place) |
+| L4 | Thistle's PDF: Payment details reads Account Name:, Bank:, Account No:, Sort Code:, with the values lined up | PASS (PDF and page: Account Name:, Bank:, Account No:, Sort Code:, values lined up; Thistle Settings shows the four fields filled, old box gone; nothing saved) |
 | L5 | Settings, Invoicing (Bevan): four fields Account Name, Bank, Account No, Sort Code; save, the invoice prints them lined up; empty a field and it drops off | Not tested |
 | L6 | A company with only the old text (none of the four filled) still prints its old text | Not tested |
