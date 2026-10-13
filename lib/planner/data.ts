@@ -155,7 +155,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     } else if (raw.record_type === "service_user") {
       const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);
       if (!su || su.service_status !== "active" || su.archived_at) continue;
-      // Back from hospital (0461): the resumed date counts, never the one that fell while away.
+      // Back from hospital or respite (0461, 0462): the resumed date counts, never the one that fell while away.
       const suDue = effectiveDue(dueDate, (raw as { resume_due_date?: string | null }).resume_due_date ?? null) ?? dueDate;
       toBook.push({
         instanceId: raw.id as string,

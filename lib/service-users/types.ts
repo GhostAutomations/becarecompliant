@@ -93,13 +93,15 @@ export type SuCheckStatus = {
   expiry_date: string | null;
   last_evidence_id: string | null;
   effective_amber: number;
-  /** "paused" while the service user is in hospital (0461). */
+  /** "paused" while the service user is in hospital or on respite (0461, 0462). */
   rag: Rag | "none" | "paused";
-  /** The check's own scheduled date, when due_date is the resumed one after a hospital stay. */
+  /** The check's own scheduled date, when due_date is the resumed one after a stay away. */
   scheduled_due_date?: string | null;
   paused?: boolean;
-  /** When they went into hospital this time, if known. */
+  /** When they went into hospital or onto respite this time, if known. */
   hospital_since?: string | null;
+  /** Their service status, so a paused pill can say where they are (0462). */
+  service_status?: ServiceStatus;
 };
 
 /** Record-level rollup (worst RAG across a Record's checks). */
@@ -111,7 +113,7 @@ export type ServiceUserRollup = {
   red_count: number;
   amber_count: number;
   green_count: number;
-  /** "paused" when every check still to do is paused (in hospital, 0461). */
+  /** "paused" when every check still to do is paused (in hospital or on respite, 0461, 0462). */
   rag: Rag | "none" | "paused";
   paused_count?: number;
 };

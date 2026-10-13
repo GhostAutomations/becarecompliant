@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ServiceStatusFields from "@/components/service-users/service-status-fields";
-import { pausedLabel } from "@/lib/service-users/hospital-pause";
+import { isAway, pausedLabel } from "@/lib/service-users/hospital-pause";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import Link from "next/link";
 import { NoFormLinked } from "@/components/forms/no-form-linked";
@@ -61,15 +61,15 @@ import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Service User" };
 
-/* Paused (in hospital, 0461) sits between amber and green: a record whose outstanding checks are all
+/* Paused (in hospital or on respite, 0461, 0462) sits between amber and green: a record whose outstanding checks are all
    paused reads Paused, never Compliant. */
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, paused: 1.5, green: 2, none: 3 };
 
-function ragPill(rag: string, size = "", hospitalSince: string | null = null) {
+function ragPill(rag: string, size = "", since: string | null = null, status: string | null = null) {
   if (rag === "red") return <span className={`pill-red ${size}`}><span className="pill-dot" /> Overdue</span>;
   if (rag === "amber") return <span className={`pill-amber ${size}`}><span className="pill-dot" /> Due soon</span>;
   if (rag === "green") return <span className={`pill-green ${size}`}><span className="pill-dot" /> Compliant</span>;
-  if (rag === "paused") return <span className={`pill-neutral ${size}`}>{pausedLabel(hospitalSince)}</span>;
+  if (rag === "paused") return <span className={`pill-neutral ${size}`}>{pausedLabel(since, status)}</span>;
   return <span className={`pill-neutral ${size}`}>Not scheduled</span>;
 }
 
@@ -242,7 +242,7 @@ export default async function ServiceUserPage({
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className={`page-title ${NAME_SIZE}`}>{serviceUser.full_name}</h1>
-            {ragPill(worstRag, PILL_SIZE, serviceUser.hospital_since ?? null)}
+            {ragPill(worstRag, PILL_SIZE, serviceUser.hospital_since ?? null, serviceUser.service_status)}
             {serviceUser.service_status !== "active" ? (
               <span className="pill-neutral">{SERVICE_STATUS_LABELS[serviceUser.service_status]}</span>
             ) : null}
@@ -355,8 +355,8 @@ export default async function ServiceUserPage({
                     the days; the Complete button inside it has gone with it. */}
                 {slots.map((s) => {
                   const slotCls =
-                    // The review still to do is paused while they are in hospital (0461).
-                    serviceUser.service_status === "hospital" && !s.comp && s.due
+                    // The review still to do is paused while they are in hospital or on respite (0461, 0462).
+                    isAway(serviceUser.service_status) && !s.comp && s.due
                       ? "rag-cell-paused"
                       : s.rag === "red"
                       ? "rag-cell-red"
@@ -430,7 +430,7 @@ export default async function ServiceUserPage({
                         <h3 className="text-[15px] font-semibold text-white">{def.name}</h3>
                         <p className="text-[12px] text-white/45">{recurrenceLabel(def)}</p>
                       </div>
-                      {s ? ragPill(s.rag, "", s.hospital_since ?? null) : <span className="pill-neutral">Not applied</span>}
+                      {s ? ragPill(s.rag, "", s.hospital_since ?? null, serviceUser.service_status) : <span className="pill-neutral">Not applied</span>}
                     </div>
                     <dl className="mt-3 space-y-1 text-[13px] text-white/60">
                       {/* A finished one-off has no next due, so the row goes rather than
@@ -526,7 +526,7 @@ export default async function ServiceUserPage({
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
               <ActionForm action={setServiceStatus} hidden={{ service_user_id: serviceUser.id }} inline label="Save status">
-                {/* Coming out of hospital asks for the date (0461). */}
+                {/* Coming back to Active from hospital or respite asks for the date (0461, 0462). */}
                 <ServiceStatusFields
                   current={serviceUser.service_status}
                   hospitalSince={serviceUser.hospital_since ?? null}

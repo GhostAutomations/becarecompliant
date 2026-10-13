@@ -96,7 +96,7 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
       rag: r.rag,
       branchId: branchOf.get(`person:${r.person_id}`) ?? null,
     })),
-    // In hospital (0461): a paused check is neither overdue nor due, so it is in no tile or report.
+    // In hospital or on respite (0461, 0462): a paused check is neither overdue nor due, so it is in no tile or report.
     ...((sc.data as S[] | null) ?? []).filter((r) => r.rag !== "paused").map((r) => ({
       kind: "service_user" as const,
       recordId: r.service_user_id,
@@ -698,7 +698,7 @@ export async function getPlannerWeek(userId: string): Promise<PlannerDay[]> {
  */
 export async function getAuditsCompleted(companyId: string): Promise<number | null> {
   const rows = await bothRegisters(companyId);
-  // A paused audit (service user in hospital, 0461) is left out rather than counted as not done.
+  // A paused audit (service user in hospital or on respite, 0461, 0462) is left out rather than counted as not done.
   const audits = rows.filter((r) => (r.check_name ?? "").toLowerCase().includes("audit") && r.rag !== "paused");
   if (audits.length === 0) return null;
   const green = audits.filter((r) => r.rag === "green").length;

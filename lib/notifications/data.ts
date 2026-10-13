@@ -543,7 +543,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
         .select("service_user_id, branch_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
-        // In hospital (0461): paused checks are not reported or chased.
+        // In hospital or on respite (0461, 0462): paused checks are not reported or chased.
         .neq("rag", "paused")
         .lte("due_date", horizon),
       supabase.from("people").select("id, full_name").eq("company_id", companyId),

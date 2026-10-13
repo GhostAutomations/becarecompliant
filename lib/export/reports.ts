@@ -35,10 +35,10 @@ import { getBranchTerms } from "@/lib/branches/company-word";
 
 const EXCLUSION_NOTE =
   "Active records only. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
-/* Service users in hospital are included (Phil, 2026-10-13): their checks are paused, and shown as
-   paused, never hidden and never counted as compliant. */
+/* Service users in hospital or on respite are included (Phil, 2026-10-13; 0462): their checks are
+   paused, and shown as paused, never hidden and never counted as compliant. */
 const SU_EXCLUSION_NOTE =
-  "Active service users, and service users in hospital whose checks are paused until they come back and are shown as paused, not as compliant. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
+  "Active service users, and service users in hospital or on respite whose checks are paused until they come back and are shown as paused, not as compliant. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
 
 type Overdue = { record: string; check: string; due: string | null };
 type Paused = { record: string; check: string; label: string };
@@ -99,9 +99,10 @@ function splitChecks(
        Visit) was listed as Overdue on every export, for every company. The same rule the Dashboard
        and the daily report use. */
     if (!reportableCheck({ recurring: c.recurring, dueDate: due, lastCompletedOn: c.last_completed_on })) continue;
-    // In hospital (0461): listed as paused, never as overdue or due.
+    // In hospital or on respite (0461, 0462): listed as paused, never as overdue or due.
     if ((c as SuCheckStatus).rag === "paused") {
-      paused?.push({ record: recordName, check: c.check_name, label: pausedLabel((c as SuCheckStatus).hospital_since) });
+      const su = c as SuCheckStatus;
+      paused?.push({ record: recordName, check: c.check_name, label: pausedLabel(su.hospital_since, su.service_status) });
       continue;
     }
     if (win.from && due < win.from) continue;
@@ -112,25 +113,25 @@ function splitChecks(
   return { overdue, dueSoon };
 }
 
-function ragCell(rag: Rag | "none" | "paused", hospitalSince?: string | null) {
+function ragCell(rag: Rag | "none" | "paused", since?: string | null, status?: string | null) {
   if (rag === "none") return { text: "No checks", rag: "neutral" as const };
-  if (rag === "paused") return { text: pausedLabel(hospitalSince), rag: "neutral" as const };
+  if (rag === "paused") return { text: pausedLabel(since, status), rag: "neutral" as const };
   return { text: ragLabel(rag), rag: ragTone(rag) };
 }
 
 /** The words for a record's compliance in a CSV: paused service users say so, never Compliant. */
-function ragWords(rag: Rag | "none" | "paused", hospitalSince?: string | null): string {
+function ragWords(rag: Rag | "none" | "paused", since?: string | null, status?: string | null): string {
   if (rag === "none") return "No checks";
-  if (rag === "paused") return pausedLabel(hospitalSince);
+  if (rag === "paused") return pausedLabel(since, status);
   return ragLabel(rag);
 }
 
-/** Every paused check (service users in hospital), so the report shows them rather than hiding
- *  them. */
+/** Every paused check (service users in hospital or on respite), so the report shows them rather
+ *  than hiding them. */
 function pausedBlocks(paused: Paused[]): ReportBlock[] {
   if (paused.length === 0) return [];
   return [
-    { kind: "heading", text: "Paused: in hospital" },
+    { kind: "heading", text: "Paused: in hospital or on respite" },
     {
       kind: "table",
       columns: [
@@ -387,7 +388,7 @@ export async function buildServiceUserRegisterReport(
       { text: r.service_user.full_name, strong: true },
       { text: r.service_user.branch_name ?? input.branchName ?? "" },
       { text: SERVICE_STATUS_LABELS[r.service_user.service_status] },
-      ragCell(r.rollup?.rag ?? "none", r.service_user.hospital_since),
+      ragCell(r.rollup?.rag ?? "none", r.service_user.hospital_since, r.service_user.service_status),
       { text: String(overdue.length) },
       { text: String(dueSoon.length) },
     ];
@@ -412,7 +413,7 @@ export async function buildServiceUserRegisterReport(
           { header: "Compliant" },
           { header: "Due soon" },
           { header: "Overdue" },
-          { header: "Paused: in hospital" },
+          { header: "Paused: hospital or respite" },
           { header: "No checks" },
           { header: "Total service users" },
         ],
@@ -467,7 +468,7 @@ export async function buildServiceUserRegisterReport(
       r.service_user.full_name,
       r.service_user.branch_name ?? input.branchName ?? "",
       SERVICE_STATUS_LABELS[r.service_user.service_status],
-      r.rollup ? ragWords(r.rollup.rag, r.service_user.hospital_since) : "No checks",
+      r.rollup ? ragWords(r.rollup.rag, r.service_user.hospital_since, r.service_user.service_status) : "No checks",
       overdue.length,
       dueSoon.length,
     ];
@@ -554,7 +555,7 @@ export async function buildComplianceReport(
           { header: "Compliant" },
           { header: "Due soon" },
           { header: "Overdue" },
-          { header: "Paused: in hospital" },
+          { header: "Paused: hospital or respite" },
           { header: "No checks" },
           { header: "Total" },
         ],

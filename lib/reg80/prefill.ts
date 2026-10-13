@@ -99,7 +99,7 @@ export type Reg80Prefill = {
    *  Empty when nobody has rated yet. */
   selfRatings: Array<{ title: string; rating: string; setByName: string; on: string; note: string | null }>;
   /** Overdue checks today and why they are late, as the Readiness page shows them (0375, snag S5). */
-  /** paused: a service user in hospital (0461), shown as paused, not late. */
+  /** paused: a service user in hospital or on respite (0461, 0462), shown as paused, not late. */
   lateChecks: Array<{ theme: string; recordName: string; checkName: string; dueDate: string; label: string | null; action: string | null; paused?: boolean }>;
   pqs: {
     mandatoryTraining: number | null;
@@ -153,7 +153,7 @@ async function readLateChecks(
         action: actionText(i.action, ukDate),
       });
     }
-    /* Service users in hospital (0461): their checks are paused, not late, and the report says so
+    /* Service users in hospital or on respite (0461, 0462): their checks are paused, not late, and the report says so
        rather than leaving them out. */
     for (const i of items.get(q.code)?.paused ?? []) {
       out.push({
@@ -161,7 +161,7 @@ async function readLateChecks(
         recordName: i.recordName,
         checkName: i.checkName,
         dueDate: i.dueDate,
-        label: pausedLabel(i.pausedSince),
+        label: pausedLabel(i.pausedSince, i.pausedWhere),
         action: null,
         paused: true,
       });

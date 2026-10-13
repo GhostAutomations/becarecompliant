@@ -93,8 +93,10 @@ export type FrameworkItem = {
   safety: boolean;
   action: GapAction;
   risk: GapRisk | null;
-  /** In hospital since (0461), for a paused service user check; null when not known. */
+  /** In hospital or on respite since (0461, 0462), for a paused service user check; null when not known. */
   pausedSince?: string | null;
+  /** Where they are: "hospital" or "respite" (0462). */
+  pausedWhere?: string | null;
 };
 
 export type FrameworkReadiness = {
@@ -498,8 +500,8 @@ async function getFrameworkItemsUncached(
     if (fr && fr.regulator === regulator && m.check_definition_id) defToCode.set(m.check_definition_id, fr.code);
   }
   const defIds = [...defToCode.keys()];
-  /* paused: checks of service users in hospital (0461). Left out of the scores, overdue and due soon;
-     kept here so an inspector report can show them as paused rather than hide them. */
+  /* paused: checks of service users in hospital or on respite (0461, 0462). Left out of the scores,
+     overdue and due soon; kept here so an inspector report can show them as paused rather than hide them. */
   const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[]; paused?: FrameworkItem[] }>();
   // No check mapped still leaves DBS and Right to Work to look at, so this does not return early.
   if (defIds.length > 0) {
@@ -526,7 +528,7 @@ async function getFrameworkItemsUncached(
       service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null }[] | null;
     };
     const def = relOne(r.check_definitions);
-    // After a hospital stay the resumed date counts (0461); the stored due date is unchanged.
+    // After a stay away the resumed date counts (0461, 0462); the stored due date is unchanged.
     r.due_date = effectiveDue(r.due_date, r.resume_due_date) ?? r.due_date;
     /* DONE IS DONE (Phil, 2026-09-19): twelve completed Setup Visits were listed here as overdue.
        The same rule as the daily report and the readiness roll-up (0305). */
@@ -536,6 +538,7 @@ async function getFrameworkItemsUncached(
     let population: "people" | "service_users";
     let paused = false;
     let pausedSince: string | null = null;
+    let pausedWhere: string | null = null;
     if (r.record_type === "person") {
       const p = relOne(r.people);
       if (!p || p.employment_status === "leaver" || p.archived_at) continue;
@@ -548,6 +551,7 @@ async function getFrameworkItemsUncached(
       recordName = su.full_name; recordId = r.service_user_id; population = "service_users";
       paused = isPausedCheck({ serviceStatus: su.service_status, recurring: def?.recurring ?? true, lastCompletedOn: r.last_completed_on, dueDate: r.due_date });
       pausedSince = su.hospital_since ?? null;
+      pausedWhere = su.service_status;
     }
     if (!recordId) continue;
     const code = defToCode.get(r.definition_id);
@@ -572,7 +576,7 @@ async function getFrameworkItemsUncached(
     const bucket: { overdue: FrameworkItem[]; dueSoon: FrameworkItem[]; paused?: FrameworkItem[] } =
       byCode.get(code) ?? { overdue: [], dueSoon: [] };
     if (paused) {
-      (bucket.paused ??= []).push({ ...item, pausedSince });
+      (bucket.paused ??= []).push({ ...item, pausedSince, pausedWhere });
       byCode.set(code, bucket);
       continue;
     }

@@ -12,7 +12,7 @@
  * logged in the pages that render them (writeAudit), not just writes here.
  */
 
-import { returnDateProblem, longDate as ukDateLong } from "@/lib/service-users/hospital-pause";
+import { awayWords, isAway, returnDateProblem, longDate as ukDateLong } from "@/lib/service-users/hospital-pause";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -600,19 +600,21 @@ export async function setServiceStatus(
 
   const discharge_date = status === "cancelled" ? todayIso() : null;
 
-  /* COMING OUT OF HOSPITAL (0461, Phil 2026-10-13): the date they came out is asked for, and their
-     paused checks fall due 7 days after it. The database records the dates and moves the checks
-     (service_users_hospital_dates / _resume), whatever changes the status; this says it plainly
-     first. */
+  /* COMING BACK TO ACTIVE from hospital or respite (0461, 0462, Phil 2026-10-13): the date they
+     came back is asked for, and their paused checks fall due 7 days after it. A move straight
+     between hospital and respite keeps the pause and asks nothing. The database records the dates
+     and moves the checks (service_users_hospital_dates / _resume), whatever changes the status;
+     this says it plainly first. */
   const { data: before } = await supabase
     .from("service_users")
     .select("service_status, hospital_since")
     .eq("id", id)
     .maybeSingle();
-  const leavingHospital = before?.service_status === "hospital" && (status === "active" || status === "respite");
-  const returnedOn = leavingHospital ? String(formData.get("hospital_returned_on") ?? "").trim() : "";
-  if (leavingHospital) {
-    const problem = returnDateProblem(returnedOn, todayIso(), (before?.hospital_since as string | null) ?? null);
+  const previous = (before?.service_status as string | null) ?? null;
+  const comingBack = isAway(previous) && status === "active";
+  const returnedOn = comingBack ? String(formData.get("hospital_returned_on") ?? "").trim() : "";
+  if (comingBack) {
+    const problem = returnDateProblem(returnedOn, todayIso(), (before?.hospital_since as string | null) ?? null, previous);
     if (problem) return { error: problem };
   }
 
@@ -624,7 +626,7 @@ export async function setServiceStatus(
       service_status: status,
       discharge_date,
       archived_at: null,
-      ...(leavingHospital ? { hospital_returned_on: returnedOn } : {}),
+      ...(comingBack ? { hospital_returned_on: returnedOn } : {}),
     })
     .eq("id", id)
     .select("id");
@@ -648,13 +650,13 @@ export async function setServiceStatus(
     action: "service_user.status_changed",
     entityType: "service_user",
     entityId: id,
-    summary: leavingHospital
-      ? `Set service status to ${status}, out of hospital on ${ukDateLong(returnedOn)}`
+    summary: comingBack
+      ? `Set service status to ${status}, back from ${awayWords(previous).replace(/^in /, "")} on ${ukDateLong(returnedOn)}`
       : `Set service status to ${status}`,
     metadata: {
       status,
       previous_status: before?.service_status ?? null,
-      ...(leavingHospital ? { hospital_returned_on: returnedOn } : {}),
+      ...(comingBack ? { hospital_returned_on: returnedOn } : {}),
       retention_rows_updated: retention.updated,
       ...(retention.error ? { retention_error: retention.error } : {}),
     },

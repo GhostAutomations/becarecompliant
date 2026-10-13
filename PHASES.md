@@ -4483,6 +4483,14 @@ Thistle's two hospital dates left blank until Phil supplies them. Tests: TEST-CH
 P0 to P9 pass; also fixed: exports listed completed one offs as Overdue. DONE, signed off by Phil 2026-10-13;
 Thistle's two hospital dates still to come from Phil.
 
+### 2026-10-13 — Service users on respite: checks paused the same way (Phase 13)
+
+Phil: "Let's do the same for respite." Every hospital pause rule now applies to respite ("Paused: in
+respite since [date]"; the date asked for on coming back to Active). Popup: moving straight between
+hospital and respite stays paused, the "since" date restarts, nothing moves until Active. 0462
+(su_check_paused, the dates and resume triggers, service_status on the status views). Nobody on
+respite at any company today. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md R0 to R6.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

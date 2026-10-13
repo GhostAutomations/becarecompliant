@@ -1,13 +1,16 @@
 "use client";
 
 /**
- * The Service status choice, and, when someone comes OUT of hospital, the date they did (Phil,
- * 2026-10-13: "When it is moved from the hospital view into the main compliance view ask for a date
- * they came out of hospital"). Their paused checks fall due 7 days after that date (0461).
+ * The Service status choice, and, when someone comes back to Active from hospital or respite, the
+ * date they did (Phil, 2026-10-13: "When it is moved from the hospital view into the main compliance
+ * view ask for a date they came out of hospital"; 0462 the same for respite). Their paused checks
+ * fall due 7 days after that date. A move straight between hospital and respite asks nothing: the
+ * pause carries on.
  */
 
 import { useState } from "react";
 import { SERVICE_STATUS_LABELS, type ServiceStatus } from "@/lib/service-users/types";
+import { isAway, returnQuestion } from "@/lib/service-users/hospital-pause";
 
 export default function ServiceStatusFields({
   current,
@@ -19,7 +22,7 @@ export default function ServiceStatusFields({
   todayIso: string;
 }) {
   const [status, setStatus] = useState<ServiceStatus>(current);
-  const leavingHospital = current === "hospital" && (status === "active" || status === "respite");
+  const comingBack = isAway(current) && status === "active";
   return (
     <>
       <div>
@@ -35,9 +38,9 @@ export default function ServiceStatusFields({
           ))}
         </select>
       </div>
-      {leavingHospital ? (
+      {comingBack ? (
         <div>
-          <label htmlFor="hospital_returned_on" className="form-label">Date they came out of hospital</label>
+          <label htmlFor="hospital_returned_on" className="form-label">{returnQuestion(current)}</label>
           <input
             id="hospital_returned_on"
             name="hospital_returned_on"

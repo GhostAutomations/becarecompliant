@@ -530,8 +530,8 @@ export async function getServiceUser(id: string, client?: SupabaseClient): Promi
 
 /** active = Main; hospital / respite / cancelled = the status views; all = every
  *  status (loaded once so the client can switch views instantly). */
-/** "in_care": active and in hospital, for the inspector facing exports (0461: hospital checks are
- *  shown as paused, never hidden). */
+/** "in_care": active, in hospital or on respite, for the inspector facing exports (0461, 0462: their
+ *  checks are shown as paused, never hidden). */
 export type SuRegisterScope = "active" | "hospital" | "respite" | "cancelled" | "all" | "in_care";
 
 /** The register: Records for a branch (or all visible) in the given scope, plus
@@ -560,7 +560,7 @@ export async function listRegister(
   } else if (scope === "respite") {
     query = query.eq("service_status", "respite").is("archived_at", null);
   } else if (scope === "in_care") {
-    query = query.in("service_status", ["active", "hospital"]).is("archived_at", null);
+    query = query.in("service_status", ["active", "hospital", "respite"]).is("archived_at", null);
   } else {
     query = query.eq("service_status", "active").is("archived_at", null);
   }

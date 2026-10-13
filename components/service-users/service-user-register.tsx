@@ -27,6 +27,7 @@ import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar"
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import ColumnsPanel from "@/components/register/columns-panel";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
+import { isAway, pausedLabel } from "@/lib/service-users/hospital-pause";
 import { cellText, MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import { formatDisplayDate, reviewSlots } from "@/lib/service-users/logic";
 import { type ServiceUserRow, SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
@@ -61,11 +62,12 @@ function ragClass(rag: string): string {
           : "rag-cell-none";
 }
 
-function RagDate({ date, rag }: { date: string | null; rag: string }) {
-  // In hospital (0461): the check is paused, so the cell says so instead of a due date.
+function RagDate({ date, rag, status = null }: { date: string | null; rag: string; status?: string | null }) {
+  // In hospital or on respite (0461, 0462): the check is paused, so the cell says so instead of a due date.
   if (rag === "paused") {
+    const label = pausedLabel(null, status);
     return (
-      <span className="rag-cell rag-cell-paused" title="Paused: in hospital" aria-label="Paused: in hospital">
+      <span className="rag-cell rag-cell-paused" title={label} aria-label={label}>
         Paused
       </span>
     );
@@ -405,7 +407,7 @@ export default function ServiceUserRegister({
                           {setupComp ? (
                             <span>{formatDisplayDate(setupDue) || "—"}</span>
                           ) : (
-                            <RagDate date={setupDue} rag={setup?.rag ?? "none"} />
+                            <RagDate date={setupDue} rag={setup?.rag ?? "none"} status={su.service_status} />
                           )}
                         </td>
                         <td>
@@ -444,8 +446,8 @@ export default function ServiceUserRegister({
                                       {s.comp ? (
                                         <CycleDate date={s.due} />
                                       ) : (
-                                        // The review still to do is paused while they are in hospital (0461).
-                                        <RagDate date={s.due} rag={su.service_status === "hospital" && s.due ? "paused" : s.rag} />
+                                        // The review still to do is paused while they are in hospital or on respite (0461, 0462).
+                                        <RagDate date={s.due} rag={isAway(su.service_status) && s.due ? "paused" : s.rag} status={su.service_status} />
                                       )}
                                     </td>
                                     <td>{s.comp ? <DoneDate date={s.comp} late={s.rag === "red"} /> : <CycleDate date={null} />}</td>
@@ -459,7 +461,7 @@ export default function ServiceUserRegister({
                             {/* Simple mode's pair of review columns follows the same rule
                                 as Complex's four: white, bold, no pill. */}
                             <td><CycleDate date={review?.last_completed_on ?? null} /></td>
-                            <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
+                            <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} status={su.service_status} /></td>
                           </>
                         )}
                         {hasAudit ? (
@@ -545,7 +547,7 @@ function ServiceUserCards({
               ) : rag === "green" ? (
                 <span className="pill-green">Up to date</span>
               ) : rag === "paused" ? (
-                <span className="pill-neutral">Paused: in hospital</span>
+                <span className="pill-neutral">{pausedLabel(null, su.service_status)}</span>
               ) : (
                 <span className="pill-neutral">No reviews due</span>
               )}

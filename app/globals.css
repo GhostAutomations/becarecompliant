@@ -679,7 +679,7 @@
     @apply bg-white/5 text-white/45;
   }
 
-  /* Paused: the service user is in hospital (0461). Grey, but readable, unlike an empty cell. */
+  /* Paused: the service user is in hospital or on respite (0461, 0462). Grey, but readable, unlike an empty cell. */
   .rag-cell-paused {
     background: rgba(148, 163, 184, 0.18);
     color: #cbd5e1;

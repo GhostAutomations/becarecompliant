@@ -1,16 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { effectiveDue, isPausedCheck, pausedLabel, resumeDueFor, returnDateProblem } from "./hospital-pause.ts";
+import { effectiveDue, isAway, isPausedCheck, pausedLabel, resumeDueFor, returnDateProblem, returnQuestion } from "./hospital-pause.ts";
 
 test("in hospital, a check still to do is paused", () => {
   assert.equal(isPausedCheck({ serviceStatus: "hospital", recurring: true, lastCompletedOn: "2026-07-05", dueDate: "2026-10-05" }), true);
   assert.equal(isPausedCheck({ serviceStatus: "hospital", recurring: true, lastCompletedOn: null, dueDate: "2026-12-06" }), true);
 });
 
-test("not paused: active, respite, a one off already done, or no due date yet", () => {
+test("on respite, the same: a check still to do is paused (0462)", () => {
+  assert.equal(isPausedCheck({ serviceStatus: "respite", recurring: true, lastCompletedOn: null, dueDate: "2026-10-05" }), true);
+  assert.equal(isPausedCheck({ serviceStatus: "respite", recurring: false, lastCompletedOn: "2024-06-21", dueDate: "2024-06-19" }), false);
+  assert.equal(isPausedCheck({ serviceStatus: "respite", recurring: true, lastCompletedOn: null, dueDate: null }), false);
+  assert.equal(isAway("hospital"), true);
+  assert.equal(isAway("respite"), true);
+  assert.equal(isAway("active"), false);
+  assert.equal(isAway("cancelled"), false);
+  assert.equal(isAway(null), false);
+});
+
+test("not paused: active, cancelled, a one off already done, or no due date yet", () => {
   assert.equal(isPausedCheck({ serviceStatus: "active", recurring: true, lastCompletedOn: null, dueDate: "2026-10-05" }), false);
-  assert.equal(isPausedCheck({ serviceStatus: "respite", recurring: true, lastCompletedOn: null, dueDate: "2026-10-05" }), false);
+  assert.equal(isPausedCheck({ serviceStatus: "cancelled", recurring: true, lastCompletedOn: null, dueDate: "2026-10-05" }), false);
   assert.equal(isPausedCheck({ serviceStatus: "hospital", recurring: false, lastCompletedOn: "2024-06-21", dueDate: "2024-06-19" }), false);
   assert.equal(isPausedCheck({ serviceStatus: "hospital", recurring: true, lastCompletedOn: null, dueDate: null }), false);
 });
@@ -59,7 +70,9 @@ test("the due date that counts: the resumed one only when it is later", () => {
 test("the paused words: with the date when known, never Compliant", () => {
   assert.equal(pausedLabel("2026-10-05"), "Paused: in hospital since 5 October 2026");
   assert.equal(pausedLabel(null), "Paused: in hospital");
-  assert.equal(pausedLabel("2026-10-05", false), "Paused: in hospital");
+  assert.equal(pausedLabel("2026-10-05", "hospital", false), "Paused: in hospital");
+  assert.equal(pausedLabel("2026-10-05", "respite"), "Paused: in respite since 5 October 2026");
+  assert.equal(pausedLabel(null, "respite"), "Paused: in respite");
 });
 
 test("the return date: required, not in the future, not before they went in", () => {
@@ -71,4 +84,15 @@ test("the return date: required, not in the future, not before they went in", ()
   );
   assert.equal(returnDateProblem("2026-10-13", "2026-10-13", "2026-10-05"), null);
   assert.equal(returnDateProblem("2026-10-10", "2026-10-13", null), null);
+});
+
+test("coming back from respite: the same checks, worded for respite", () => {
+  assert.equal(returnQuestion("respite"), "Date they came back from respite");
+  assert.equal(returnQuestion("hospital"), "Date they came out of hospital");
+  assert.equal(returnDateProblem("", "2026-10-13", null, "respite"), "Enter the date they came back from respite.");
+  assert.equal(returnDateProblem("2026-10-14", "2026-10-13", null, "respite"), "The date they came back from respite cannot be in the future.");
+  assert.equal(
+    returnDateProblem("2026-10-01", "2026-10-13", "2026-10-05", "respite"),
+    "The date they came back from respite is before the date they went in (5 October 2026).",
+  );
 });
