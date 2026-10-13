@@ -4550,6 +4550,12 @@ Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md P1 to P4. Then: the Date column shows o
 (popup "Always show it"), test P5. P0 to P3 and P5 pass; P4 (a recurring care plan draft) waits for
 the first one. DONE, signed off by Phil 2026-10-13.
 
+### 2026-10-13 — Recurring fixed lines dated one per day, and the period on recurring drafts (Phase 13)
+
+Thistle's weekly invoice repeats 7 Sleep lines: each draft now dates them Mon to Sun, only when the
+lines are exactly one per day; every recurring draft carries its service period. No migration.
+Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md R1 to R3.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

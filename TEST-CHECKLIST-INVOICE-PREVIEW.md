@@ -80,3 +80,12 @@ Run one at a time.
 | P3 | A future date paid is refused with "The date paid cannot be in the future.", nothing typed lost | PASS (20/10/2026 refused by the date box, "Value must be 13/10/2026 or earlier.", the date and method typed kept; the server refuses it too) |
 | P4 | A recurring care plan invoice drafts with dated lines (when one next runs) | Not tested (no care plan billed recurring invoice exists yet) |
 | P5 | An invoice with no dated lines (Bevan INV-00001): the page and the PDF show the Date column next to Service, blank | PASS (Bevan: page headings Date, Service, Unit, Handed, Qty, Unit price, Amount; the PDF has Date next to Service, blank on the undated line) |
+
+## Recurring fixed lines dated, period on drafts (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| R0 | Unit tests: seven lines in a seven day week dated in order; anything else undated; month ends, leap day, clock change, the year end | PASS (lib/invoicing/recurring-dates.test.ts, 3) |
+| R1 | Bevan: a weekly recurring invoice with 7 lines, Draft it now: the draft's lines read Mon to Sun of the period, and its service period shows on the page, PDF and list | Not tested |
+| R2 | A recurring invoice whose lines are not one per day: the draft's lines stay undated, the period still shows | Not tested |
+| R3 | Thistle's weekly draft on 19/10/2026: 7 Sleep lines dated Mon 12/10/2026 to Sun 18/10/2026, period 12/10/2026 to 18/10/2026 | Not tested (runs on 19/10/2026) |

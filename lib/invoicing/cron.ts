@@ -18,6 +18,7 @@ import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { getRecipients } from "@/lib/notifications/data";
 import { siteUrl } from "@/lib/site";
 import { formatMoney, billingPeriodFor } from "./types";
+import { onePerDayDates } from "./recurring-dates";
 import { londonToday } from "./data";
 import { overdueForRecipient, type OverdueRow } from "./overdue-scope";
 import { ukDate } from "@/lib/dates";
@@ -211,7 +212,9 @@ export async function draftFromSchedule(
    */
   if (draftLines.length === 0) {
     if (scheduleLines.length === 0) return { error: "the schedule has no lines" };
-    draftLines = scheduleLines.map((l) => {
+    // One date per line, in order, when the lines are one per day of the period (Phil, 2026-10-13).
+    const lineDates = onePerDayDates(scheduleLines.length, from, to);
+    draftLines = scheduleLines.map((l, idx) => {
       const handed = l.handed === "double" ? "double" : "single";
       const rate = l.service ? rateFor(l.service) : undefined;
       /*
@@ -241,7 +244,7 @@ export async function draftFromSchedule(
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
         period_start: null,
         period_end: null,
-        service_date: null,
+        service_date: lineDates[idx] ?? null,
       };
     });
   }
@@ -268,6 +271,9 @@ export async function draftFromSchedule(
       status: "draft",
       issue_date: issued,
       due_date: addDaysIso(issued, terms),
+      // The period this draft bills, so the invoice, PDF and list show it (Phil, 2026-10-13).
+      supply_period_start: from,
+      supply_period_end: to,
       subtotal_pence: subtotal,
       vat_pence: vat,
       total_pence: total,

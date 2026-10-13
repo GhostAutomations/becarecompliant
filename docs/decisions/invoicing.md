@@ -62,4 +62,6 @@ CARE PLAN LINES DATED, AND PAYMENT EDITABLE (Phil, 2026-10-13): "Fill lines from
 
 DATE COLUMN ALWAYS (Phil, 2026-10-13, "The date should be on the PDF next to service", popup "Always show it"): every invoice page and PDF shows the Date column next to Service, blank on a line with no date. This replaces "Optional, column shows when used"; an invoice already sent shows the (blank) column if downloaded again.
 
+RECURRING FIXED LINES DATED, AND THE PERIOD (Phil, 2026-10-13): a recurring invoice that repeats fixed lines dates them one per day in order from the first day of the period, ONLY when the number of lines equals the number of days (Thistle's 7 Sleep lines in a 7 day week: Mon to Sun); any other pattern stays undated rather than guessed (popup "One per day, only when it fits exactly"; lib/invoicing/recurring-dates.ts). Every recurring draft now carries its service period (popup "Yes"), so the invoice, PDF and list show it.
+
 Related: [permission-boundaries](permission-boundaries.md) [phase8-decisions](phase8-decisions.md) (export helper) [phase6-built](phase6-built.md) (notification sender + Resend proven) [project-state](project-state.md)
