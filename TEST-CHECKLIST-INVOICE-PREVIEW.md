@@ -42,3 +42,13 @@ Run one at a time.
 | L4 | Thistle's PDF: Payment details reads Account Name:, Bank:, Account No:, Sort Code:, with the values lined up | PASS (PDF and page: Account Name:, Bank:, Account No:, Sort Code:, values lined up; Thistle Settings shows the four fields filled, old box gone; nothing saved) |
 | L5 | Settings, Invoicing (Bevan): four fields Account Name, Bank, Account No, Sort Code; save, the invoice prints them lined up; empty a field and it drops off | PASS (Bevan admin: four fields filled and saved, the PDF prints Account Name:, Bank:, Account No:, Sort Code: lined up and the old text drops away; Bank emptied and saved, it drops off the PDF) |
 | L6 | A company with only the old text (none of the four filled) still prints its old text | PASS (Bevan with only old text and the four fields empty: the page and the PDF print the old text) |
+
+## Copy and company sender, 0465 (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| C0 | Unit tests: the company name on our sending address, nothing in a name can break the header, no name keeps the original sender | PASS (lib/email/from-name.test.ts, 4) |
+| C1 | Settings, Invoicing (Bevan): the tick box under Reply to email reads "Tick if you would like a copy of each invoice email sent to this address."; ticked and saved, it stays ticked | Not tested |
+| C2 | Ticked with Reply to email empty: refused with "Enter a reply to email address to get a copy of each invoice email, or untick the box.", nothing typed lost | Not tested |
+| C3 | A real company (Thistle, emails on): Send or Resend an invoice by email with the box ticked; the client's inbox shows Thistle Care Ltd as the sender and the reply to inbox gets a copy | Not tested (needs a real send; Bevan sends nothing) |
+| C4 | Every other email (staff alerts, invites, digests) still shows Be Care Compliant as the sender | Not tested |

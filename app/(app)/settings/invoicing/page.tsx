@@ -159,7 +159,12 @@ export default async function InvoicingSettingsPage() {
                 defaultValue={config.reply_to_email ?? ""}
                 placeholder="e.g. accounts@yourcompany.co.uk"
               />
-              <p className="form-hint">Invoice emails are sent by Be Care Compliant, but when a client hits Reply it goes to this address, your own inbox. Without it, replies go to an unmonitored address.</p>
+              <p className="form-hint">Invoice emails go out in your company&apos;s name. When a client presses Reply it goes to this address, your own inbox. Without it, replies go to an unmonitored address.</p>
+              {/* A copy of each invoice email to this address (Phil, 2026-10-13; 0465). */}
+              <label className="mt-2 flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" name="cc_reply_to" defaultChecked={config.cc_reply_to} />
+                Tick if you would like a copy of each invoice email sent to this address.
+              </label>
             </div>
 
             <div>

@@ -34,6 +34,8 @@ export type InvoicingConfig = {
   reply_to_email: string | null;
   from_address: string | null;
   overdue_reminders_enabled: boolean;
+  /** Copy (CC) every invoice email to reply_to_email (Phil, 2026-10-13; 0465). */
+  cc_reply_to: boolean;
   rate_care_pence: number;
   rate_sit_pence: number;
   rate_overnight_pence: number;
@@ -64,6 +66,7 @@ export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
   reply_to_email: null,
   from_address: null,
   overdue_reminders_enabled: false,
+  cc_reply_to: false,
   rate_care_pence: 0,
   rate_sit_pence: 0,
   rate_overnight_pence: 0,

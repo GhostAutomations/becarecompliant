@@ -518,11 +518,16 @@ async function emailInvoiceOnSend(
       replyable: Boolean(config.reply_to_email),
     });
 
+    // A copy to the company's own reply to inbox when they ticked it (Phil, 2026-10-13; 0465).
+    const copyTo = config.cc_reply_to && config.reply_to_email ? config.reply_to_email : null;
     const result = await sendEmail({ companyId: inv.company_id,
       to: inv.bill_to_email,
       subject: `${companyName} invoice ${inv.number}`,
       html,
       attachments,
+      // The inbox shows the care company as the sender, not Be Care Compliant (Phil, 2026-10-13).
+      fromName: companyName,
+      ...(copyTo ? { cc: [copyTo] } : {}),
       // Client replies go to the company's own inbox, not the no-reply sender.
       ...(config.reply_to_email ? { replyTo: config.reply_to_email } : {}),
     });
@@ -536,7 +541,7 @@ async function emailInvoiceOnSend(
         action: "invoicing.invoice_emailed",
         entityType: "invoice",
         entityId: invoiceId,
-        summary: `Emailed invoice ${inv.number} to ${inv.bill_to_email}`,
+        summary: `Emailed invoice ${inv.number} to ${inv.bill_to_email}${copyTo ? `, copy to ${copyTo}` : ""}`,
       });
       return `Emailed to ${inv.bill_to_email}.`;
     }

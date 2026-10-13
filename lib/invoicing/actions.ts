@@ -72,6 +72,11 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
     return { error: "Enter a valid reply to email address, or leave it blank." };
   }
   const overdue_reminders_enabled = formData.get("overdue_reminders_enabled") === "on";
+  /* A copy of each invoice email to the reply to address (Phil, 2026-10-13; 0465). */
+  const cc_reply_to = formData.get("cc_reply_to") === "on";
+  if (cc_reply_to && !reply_to_email) {
+    return { error: "Enter a reply to email address to get a copy of each invoice email, or untick the box." };
+  }
 
   const supabase = await createClient();
   // Preserve the existing (or default) number_start unless the founder edits it.
@@ -102,6 +107,7 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
       from_address,
       reply_to_email,
       overdue_reminders_enabled,
+      cc_reply_to,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     },

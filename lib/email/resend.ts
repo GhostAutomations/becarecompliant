@@ -1,5 +1,6 @@
 import "server-only";
 import { TEST_COMPANY_NO_MESSAGES, isMessagingMuted } from "@/lib/email/muted";
+import { fromWithName } from "@/lib/email/from-name";
 
 export type SendResult = {
   sent: boolean;
@@ -135,6 +136,11 @@ export async function sendEmail(opts: {
   attachments?: EmailAttachment[];
   /** Override the From address. Console replies go out as hello@, not as the no-reply sender. */
   fromOverride?: string;
+  /** The name the inbox shows, on our sending address: invoice emails come from the care company
+   *  (Phil, 2026-10-13). Only callers that pass it change. */
+  fromName?: string | null;
+  /** Copies (CC). Only real addresses, never the To address again. */
+  cc?: string[];
   /** Raw headers. In-Reply-To and References are what make a reply thread properly. */
   headers?: Record<string, string>;
   /** Plain text alternative. Set on console replies so the text part is what the founder typed. */
@@ -147,13 +153,17 @@ export async function sendEmail(opts: {
     return { sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES };
   }
   const apiKey = process.env.RESEND_API_KEY;
-  const from = opts.fromOverride || process.env.RESEND_FROM;
-  if (!apiKey || !from) {
+  const baseFrom = opts.fromOverride || process.env.RESEND_FROM;
+  if (!apiKey || !baseFrom) {
     return {
       sent: false,
       skippedReason: "RESEND_API_KEY / RESEND_FROM not configured",
     };
   }
+  const from = opts.fromName ? fromWithName(opts.fromName, baseFrom) : baseFrom;
+  const cc = (opts.cc ?? []).filter(
+    (a) => isSendableAddress(a) && a.trim().toLowerCase() !== opts.to.trim().toLowerCase(),
+  );
   /* Never to a reserved or sample address (the demo's made up people are @demo.invalid, 0356).
      The batch sender already filtered these; the single sender now does too, so a bounce can
      never come from a made up person. */
@@ -171,6 +181,7 @@ export async function sendEmail(opts: {
       body: JSON.stringify({
         from,
         to: [opts.to],
+        ...(cc.length > 0 ? { cc } : {}),
         subject: opts.subject,
         html: opts.html,
         ...(opts.text ? { text: opts.text } : {}),

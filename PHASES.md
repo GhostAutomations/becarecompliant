@@ -4526,6 +4526,11 @@ keepSaved (off by default), on for the Settings, Invoicing form. Other pages unc
 (docs/decisions/save-button-behaviour.md). Test: Save on Settings, Invoicing stays green until edited:
 PASS on Bevan (green "Saved" still showing after 7 seconds; typing in a field turned it back to Save).
 
+### 2026-10-13 — Invoice emails: a copy to the company, and the company as the sender (Phase 13)
+
+Tick box under Reply to email for a copy (CC) of every invoice email (0465). Invoice emails show the
+care company's name as the sender. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md C0 to C4.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
