@@ -4498,14 +4498,16 @@ Standing rule added to CLAUDE.md (Standing rules: no collateral damage, a baseli
 and a "Nothing else changed" section in every report). Preview on a draft invoice opens the real
 invoice PDF in a new tab, "Draft" where the number goes, saving unsaved edits first on the Edit page.
 No number, no status change, nothing sent or stored. No migration. Decision: docs/decisions/invoicing.md.
-Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md.
+Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md, V0 to V9 all pass (Chrome, Edge, phone, Thistle's two drafts).
+DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-13 — Invoice line Date column (Phase 13)
 
 Phil, after previewing a Thistle draft: a Date column left of Service, on the invoice as well. Popups:
 build now, optional with the column shown only when a line has a date (sent invoices unchanged),
 care plan fill left as it is, "Mon 05/10/2026". 0463 adds invoice_lines.service_date. Decision:
-docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md D0 to D6.
+docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md D0 to D6, all pass (Thistle's two
+drafts dated on Phil's go). DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

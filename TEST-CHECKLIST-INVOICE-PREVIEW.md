@@ -16,7 +16,7 @@ Run one at a time.
 | V5 | After several previews: the invoice has no number, is still a draft, has no sent date, and Bevan's numbering has not moved; one audit line per preview | PASS (6 previews: no number, number_seq empty, still draft, no sent date; one audit line each, "Previewed draft invoice for ZZ TEST Service User Two as PDF") |
 | V6 | Send the Bevan draft: it gets the next number as before; its Download PDF matches the last preview except the number and the status line | PASS (sent as INV-00001, Bevan's first number as before; its PDF matches the last preview except "INV-00001" and "Sent" where the preview said "Draft"; the preview address of a sent invoice hands over to its real PDF) |
 | V7 | Another company's invoice preview address, typed in: "Invoice not found" | PASS (a Thistle invoice id, a made up id and a junk id all "Invoice not found", 404; nothing written to Thistle) |
-| V8 | Opens in a new tab, not blocked, in Chrome and Edge; on a phone | Chrome PASS (new tab every time, never blocked). Edge PASS (Phil, new tab). Phone: Not tested (Phil) |
+| V8 | Opens in a new tab, not blocked, in Chrome and Edge; on a phone | Chrome PASS (new tab every time, never blocked). Edge PASS (Phil, new tab). Phone PASS (Phil) |
 | V9 | Phil: Thistle, Invoicing, open each of the two drafts and press Preview. Each opens in a new tab with "Draft" at the top; check the figures, the bill to and the dates. Nothing is sent | PASS (Claude in Phil's Chrome, Thistle signed in by Phil: both drafts preview in a new tab, "Draft" at the top, Thistle logo, bill to, issued 13 Oct, due 27 Oct, 7 Sleep lines at £165.00, £1,155.00; still drafts, no number, nothing sent) |
 
 ## Line Date column, 0463 (Phil, 2026-10-13)
