@@ -4535,6 +4535,8 @@ care company's name as the sender. Decision: docs/decisions/invoicing.md. Tests:
 
 Period (service period) after the branch column; Mark paid on each sent or overdue row, asking first,
 paid today with no method. No migration. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md M1 to M3.
+Then: list dates all DD/MM/YYYY; the invoice email reworded (Dear, due, contact the reply to address,
+Kind regards) and shown light only for the logo. Tests E1 to E3.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

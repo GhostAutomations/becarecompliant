@@ -57,6 +57,15 @@ Run one at a time.
 
 | # | Check | Result |
 |---|-------|--------|
-| M1 | Invoicing list: columns Number, Client, branch, Period, Issued, Due, Total, Status; Period reads "28/09/2026 to 04/10/2026", a dash when none | Not tested |
-| M2 | A sent or overdue row has Mark paid; drafts and paid rows do not; it asks "Mark INV... as paid today?" and No changes nothing | Not tested |
-| M3 | Yes: the invoice moves to the Paid section, paid today, no method; Paid this month goes up | Not tested |
+| M1 | Invoicing list: columns Number, Client, branch, Period, Issued, Due, Total, Status; Period reads "28/09/2026 to 04/10/2026", a dash when none | PASS (Bevan: Number, Client, Branch, Period, Issued, Due, Total, Status; Bevan has no periods, so Period shows a dash; dates then moved to DD/MM/YYYY, see E1) |
+| M2 | A sent or overdue row has Mark paid; drafts and paid rows do not; it asks "Mark INV... as paid today?" and No changes nothing | PASS (Bevan: Mark paid on the sent INV-00001 only, not the draft; "Mark INV-00001 as paid today?"; No, go back changed nothing) |
+| M3 | Yes: the invoice moves to the Paid section, paid today, no method; Paid this month goes up | PASS (Yes: INV-00001 moved to Paid (1), Outstanding £0.00, Paid this month £127.50; paid 13/10/2026, no method) |
+
+## Email wording, light only, list dates (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| E0 | Source test: Dear, Payment is due by, please contact us at, Kind regards, light only, never "please reply to this email"; the list has no long dates | PASS (lib/invoicing/invoice-table.test.ts) |
+| E1 | Invoicing list: Period, Issued and Due read DD/MM/YYYY (Thistle: 28/09/2026 to 04/10/2026, 13/10/2026, 20/10/2026) | Not tested |
+| E2 | Thistle's next real invoice email reads Dear [name], due by DD/MM/YYYY, please contact us at [their accounts address], Kind regards, Thistle Care Ltd | Not tested |
+| E3 | The same email on Phil's phone in dark mode: the email shows light, the logo sits on white, no white block | Not tested |

@@ -142,3 +142,19 @@ test("bank details: the four labels as Phil wrote them, only those filled in, no
   assert.equal(bankDetailRows({}), null);
   assert.equal(bankDetailRows({ bank_account_name: null, bank_name: "", bank_account_number: null, bank_sort_code: null }), null);
 });
+
+test("the invoice email: Dear, due as DD/MM/YYYY, contact the reply to address, kind regards, shown light", () => {
+  const tpl = readFileSync(new URL("../email/templates.ts", import.meta.url), "utf8");
+  const start = tpl.indexOf("export function companyInvoiceEmailHtml");
+  const body = tpl.slice(start, tpl.indexOf("export { escapeHtml", start));
+  assert.ok(body.includes("Dear ${"));
+  assert.ok(body.includes("Payment is due by"));
+  assert.ok(body.includes("If you have any questions, please contact us at"));
+  assert.ok(body.includes("Kind regards,"));
+  assert.ok(body.includes('content="light only"'));
+  assert.ok(!body.includes("please reply to this email"), "never \"please reply to this email\": it goes to the no reply address");
+  // The list shows every date as DD/MM/YYYY.
+  const list = readFileSync(new URL("../../app/(app)/invoicing/page.tsx", import.meta.url), "utf8");
+  assert.ok(!list.includes("ukDate("));
+  assert.ok(list.includes("listDate(inv.issue_date)") && list.includes("listDate(inv.due_date)"));
+});

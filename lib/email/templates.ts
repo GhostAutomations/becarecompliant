@@ -612,14 +612,20 @@ export function companyInvoiceEmailHtml(opts: {
   dueDateIso?: string | null;
   /** content-id of the inline logo attachment, or null to show the name only. */
   logoCid?: string | null;
-  /** True when a reply-to inbox is configured, so "reply to this email" is honest. */
-  replyable?: boolean;
+  /** Who the invoice is addressed to ("Dear ..."); left out when not known. */
+  recipientName?: string | null;
+  /** The company's reply to address from Settings, Invoicing, given as the contact. */
+  contactEmail?: string | null;
 }): string {
-  const due = opts.dueDateIso ? ` It is due by ${escapeHtml(formatDateUk(opts.dueDateIso))}.` : "";
+  /* THE WORDING (Phil, 2026-10-13, popup): Dear, attached, due, contact, regards; dates as
+     DD/MM/YYYY; the contact is the reply to address from Settings, never "reply to this email". */
+  const ddmmyyyy = (iso: string) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso);
+  const due = opts.dueDateIso ? ` Payment is due by ${escapeHtml(ddmmyyyy(opts.dueDateIso))}.` : "";
   const name = escapeHtml(opts.companyName);
-  const closing = opts.replyable
-    ? "The invoice is attached as a PDF. If you have any questions, please reply to this email."
-    : "The invoice is attached as a PDF.";
+  const greeting = opts.recipientName?.trim() ? `<p style="margin:0 0 12px 0;">Dear ${escapeHtml(opts.recipientName.trim())},</p>` : "";
+  const contact = opts.contactEmail?.trim()
+    ? `If you have any questions, please contact us at <a href="mailto:${escapeHtml(opts.contactEmail.trim())}" style="color:#0d1d4b;">${escapeHtml(opts.contactEmail.trim())}</a>.`
+    : `If you have any questions, please contact ${name}.`;
   const header = opts.logoCid
     ? `<img src="cid:${escapeHtml(opts.logoCid)}" alt="${name}" style="max-height:56px;max-width:220px;margin:0 0 6px 0;" />`
     : `<div style="font-size:18px;font-weight:700;color:#0d1d4b;">${name}</div>`;
@@ -628,6 +634,11 @@ export function companyInvoiceEmailHtml(opts: {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Shown light in every mail app, like a printed letter, so the company's logo sits on white and
+     dark mode cannot turn it into a white block (Phil, 2026-10-13). -->
+<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light" />
+<style>:root { color-scheme: light only; supported-color-schemes: light; }</style>
 <title>${escapeHtml(opts.invoiceNumber)}</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f6fb;color:#0d1d4b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -639,8 +650,10 @@ export function companyInvoiceEmailHtml(opts: {
       <tr><td style="padding:6px 32px 0 32px;">
         <h1 style="margin:10px 0 8px 0;font-size:20px;line-height:1.3;color:#0d1d4b;font-weight:700;">Invoice ${escapeHtml(opts.invoiceNumber)}</h1>
         <div style="font-size:14px;line-height:1.6;color:#243459;">
+          ${greeting}
           <p style="margin:0 0 12px 0;">Please find attached invoice <strong>${escapeHtml(opts.invoiceNumber)}</strong> from <strong>${name}</strong>.${due}</p>
-          <p style="margin:0;">${closing}</p>
+          <p style="margin:0 0 12px 0;">${contact}</p>
+          <p style="margin:0;">Kind regards,<br />${name}</p>
         </div>
       </td></tr>
       <tr><td style="padding:20px 32px 28px 32px;">

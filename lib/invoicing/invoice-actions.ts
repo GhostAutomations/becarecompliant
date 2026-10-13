@@ -515,7 +515,8 @@ async function emailInvoiceOnSend(
       invoiceNumber: inv.number ?? "Invoice",
       dueDateIso: inv.due_date,
       logoCid,
-      replyable: Boolean(config.reply_to_email),
+      recipientName: inv.bill_to_name ?? inv.client_name,
+      contactEmail: config.reply_to_email,
     });
 
     // A copy to the company's own reply to inbox when they ticked it (Phil, 2026-10-13; 0465).
