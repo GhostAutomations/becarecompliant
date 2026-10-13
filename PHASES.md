@@ -4518,6 +4518,13 @@ Sort Code, 0464) printed lined up, the old text only while the fields are empty,
 over on his go. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md L0 to L6,
 all pass. DONE, signed off by Phil 2026-10-13.
 
+### 2026-10-13 — Settings, Invoicing: Saved stays green (Phase 13)
+
+Found while testing: the shared save button (ActionForm) has flashed Saved for 2 seconds since
+2026-07-25, against the 2026-07-21 rule. Phil chose "Invoicing settings only": ActionForm gained
+keepSaved (off by default), on for the Settings, Invoicing form. Other pages unchanged by his choice
+(docs/decisions/save-button-behaviour.md). Test: Save on Settings, Invoicing stays green until edited.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

@@ -40,6 +40,7 @@ export default function ActionForm({
   disabled = false,
   showOk = false,
   secondary,
+  keepSaved = false,
 }: {
   action: ServerAction;
   hidden?: Record<string, string>;
@@ -84,6 +85,10 @@ export default function ActionForm({
   /** A second submit button for the same form, sent with name=value so the action can tell
    *  which was pressed (Edit dates: "Save and approve", 2026-10-09). Opt in. */
   secondary?: { label: string; name: string; value: string; className?: string };
+  /** Green "Saved" stays until the section is edited again, with no 2 second timer (Phil's
+   *  2026-07-21 rule). Off by default, so every other form keeps its flash; on for Settings,
+   *  Invoicing only (Phil, 2026-10-13, popup "Invoicing settings only"). */
+  keepSaved?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
@@ -110,11 +115,11 @@ export default function ActionForm({
   useEffect(() => {
     if (state.ok && !pending) {
       setSaved(true);
-      const t = setTimeout(() => setSaved(false), 2000);
+      const t = keepSaved ? undefined : setTimeout(() => setSaved(false), 2000);
       // Long enough to read the confirmation, short enough not to feel stuck.
       const done = onDone ? setTimeout(() => onDone(), onDoneDelayMs) : undefined;
       return () => {
-        clearTimeout(t);
+        if (t) clearTimeout(t);
         if (done) clearTimeout(done);
       };
     }

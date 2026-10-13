@@ -35,7 +35,7 @@ export default async function InvoicingSettingsPage() {
 
       {/* Configuration */}
       <section className="glass-card p-5">
-        <ActionForm action={saveInvoicingConfig} label="Save">
+        <ActionForm action={saveInvoicingConfig} label="Save" keepSaved>
           <div className="space-y-4">
             <div>
               <label className="flex items-center gap-2 text-sm text-white/80">

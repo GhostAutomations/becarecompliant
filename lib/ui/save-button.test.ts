@@ -41,3 +41,13 @@ test(".btn-saved has a solid fill (a proper button, not a faint tag)", () => {
     "`.btn-saved` must have a background fill (bg-*) so the saved state reads as a solid green button.",
   );
 });
+
+test("Settings, Invoicing keeps Saved green until edited; every other form keeps its flash", () => {
+  const actionForm = readFileSync(new URL("../../components/action-form.tsx", import.meta.url), "utf8");
+  const invoicing = readFileSync(new URL("../../app/(app)/settings/invoicing/page.tsx", import.meta.url), "utf8");
+  // Off by default, so no other form changes.
+  assert.ok(actionForm.includes("keepSaved = false,"));
+  assert.ok(actionForm.includes("keepSaved ? undefined : setTimeout(() => setSaved(false), 2000)"));
+  // On for the invoicing settings form only (Phil, 2026-10-13).
+  assert.ok(invoicing.includes("<ActionForm action={saveInvoicingConfig} label=\"Save\" keepSaved>"));
+});
