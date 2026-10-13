@@ -148,7 +148,16 @@ function AddOutcome({ serviceUserId, ctx }: { serviceUserId: string; ctx: EntryC
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="btn-primary text-sm">
+      <button
+        type="button"
+        onClick={() => {
+          // Starts unticked every time, so a normal outcome is never added as a past one by
+          // accident after a run of past entries (found testing, 2026-10-13).
+          setPastTicked(false);
+          setOpen(true);
+        }}
+        className="btn-primary text-sm"
+      >
         Add an outcome
       </button>
     );

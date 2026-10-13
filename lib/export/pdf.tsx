@@ -81,6 +81,18 @@ export type ReportDoc = {
   kicker?: string;
 };
 
+/**
+ * Room at the foot of every page for the footer note (2026-10-13). The footer is fixed to the page
+ * bottom and the page kept only 56 points clear, so a note longer than a line or two was printed
+ * over the last rows of the table above it (seen on the PQS report). The space now grows with the
+ * note: about 120 characters to a line at 7.5 points, 10 points a line, measured generously.
+ */
+function footerRoom(doc: { footerNote?: string; landscape?: boolean }): { paddingBottom: number } | Record<string, never> {
+  if (!doc.footerNote) return {};
+  const perLine = doc.landscape ? 180 : 120;
+  return { paddingBottom: 56 + Math.ceil(doc.footerNote.length / perLine) * 10 };
+}
+
 const styles = StyleSheet.create({
   page: { paddingTop: 46, paddingBottom: 56, paddingHorizontal: 40, fontSize: 9.5, color: INK },
   brandBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 2, borderBottomColor: GOLD, paddingBottom: 10, marginBottom: 14 },
@@ -97,7 +109,7 @@ const styles = StyleSheet.create({
   paragraph: { fontSize: 9.5, color: INK, marginBottom: 8, lineHeight: 1.4 },
   caption: { fontSize: 8, color: MUTED, marginBottom: 4 },
   tableHeadRow: { flexDirection: "row", backgroundColor: NAVY, paddingVertical: 5, paddingHorizontal: 6 },
-  tableHeadCell: { fontSize: 8, fontWeight: 700, color: "#ffffff" },
+  tableHeadCell: { fontSize: 8, fontWeight: 700, color: "#ffffff", paddingRight: 6 },
   tableRow: { flexDirection: "row", paddingVertical: 4, paddingHorizontal: 6, borderBottomWidth: 0.5, borderBottomColor: "#dfe4f0" },
   tableRowAlt: { backgroundColor: "#f7f9fd" },
   tableCell: { fontSize: 8.5, color: INK, paddingRight: 6 },
@@ -175,7 +187,7 @@ function TableBlock({ columns, rows, caption, emptyText }: Extract<ReportBlock, 
 function ReportDocument({ doc }: { doc: ReportDoc }) {
   return (
     <Document title={doc.title} author="Be Care Compliant">
-      <Page size="A4" orientation={doc.landscape ? "landscape" : "portrait"} style={styles.page}>
+      <Page size="A4" orientation={doc.landscape ? "landscape" : "portrait"} style={[styles.page, footerRoom(doc)]}>
         <View style={styles.brandBar}>
           <View>
             <Text style={styles.brand}>Be Care Compliant</Text>

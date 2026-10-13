@@ -4377,7 +4377,11 @@ discharged service user counts in a past period they were receiving a service in
 question's own bands (over 85 = 10, over 70 = 7, over 50 = 5, 1 to 50 = 2). Also fixed: F83 (the
 status check refused No change and Regressing, and the error was ignored), editing an outcome's title
 erased its target date, a back dated Individual Plan Review dated its outcome updates today. Decision:
-docs/decisions/historic-outcomes.md. Tests: TEST-CHECKLIST-HISTORIC-OUTCOMES.md.
+docs/decisions/historic-outcomes.md. Tests: TEST-CHECKLIST-HISTORIC-OUTCOMES.md, H1 to H15
+pass live on Bevan. Found testing and fixed: every report PDF with a long footnote printed it over
+the last table rows (the footer now makes room for its note), table headings had no gap so "On time"
+ran into "On time rate", the add form remembered the past tick, and a past Achieved showed a made up
+time in the data request export.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

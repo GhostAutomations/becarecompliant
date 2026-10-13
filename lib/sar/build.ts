@@ -466,7 +466,11 @@ export async function buildSubjectAccessExport(input: {
         outcomeName.set(String(o.id), t(o.title) || t(o.statement));
         return [
           t(o.title), t(o.statement), t(o.detail), t(o.status), fmtDate(o.start_date as string), fmtDate(o.target_date as string),
-          fmtDateTime(o.achieved_at as string), fmtDate(o.last_reviewed as string), t(o.review_note), fmtDateTime(o.archived_at as string),
+          // A past Achieved is stored at midday (middayOf); its time means nothing, so the date alone.
+          o.entered_later || /T12:00:00(\.0+)?\+00(:00)?$/.test(String(o.achieved_at ?? ""))
+            ? fmtDate(o.achieved_at as string)
+            : fmtDateTime(o.achieved_at as string),
+          fmtDate(o.last_reviewed as string), t(o.review_note), fmtDateTime(o.archived_at as string),
           fmtDateTime(o.created_at as string),
           // A past outcome says so (0449): when it was added, by whom, and the date it speaks for.
           o.entered_later && o.start_date
