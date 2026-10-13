@@ -42,3 +42,32 @@ alongside them. Recommendation: replace them, keeping only the core four above, 
 form gets long and repetitive.
 
 Related: [rtw-form-v2-spec](rtw-form-v2-spec.md) [the-list](the-list.md) [letters-rtw](letters-rtw.md)
+
+## THIS absence only, and the fit note and work rules (Phil, 2026-10-13, all companies)
+
+After a Thistle draft for a three day cold asked for a fit note, whether work caused it, and about
+the person's April and June absences:
+
+- [stated] A Return to Work is about the ONE absence it was raised for. Patterns and earlier
+  absences belong in stage meetings (their AI questions are untouched). The AI is given only this
+  absence: its dates, calendar days and reason in the employee's words, with their name taken out
+  (UK GDPR data minimisation). No other absence, stage, Bradford score, count or name.
+- [stated] Questions come from the reason and what the employee said (a cold: symptoms, fully
+  recovered, anything that would stop them working safely such as still being infectious).
+- [stated] Fit note, GOV.UK: none needed for 7 days or less, counting non working days. CALENDAR
+  days, first to last inclusive. 7 or fewer: no fit note question; instead "Can you confirm you were
+  unfit for work due to [reason] from [start] to [end]?". More than 7: the fit note question, with
+  the existing upload step.
+- [stated] Work as a cause only when the reason points to work (stress, anxiety, low mood or mental
+  health, an injury, back or muscle pain, an accident, or the employee's own words mention work).
+  Never for colds, flu, sickness bugs, infections.
+- [stated] Always asked: fully fit to return, and "Is there anything else you would like to raise?"
+  (Yes, then what). The support question stays out (Phil popup 2026-10-13: "Keep it out, as decided
+  8 Oct").
+- [stated] Belt and braces: a code check (lib/absence/rtw-draft-rules.ts checkRtwDraft) runs on
+  every reply before it is saved or shown: drops questions about other dates, months, earlier or
+  previous absences, patterns, occasions, stages or triggers; drops a fit note question at 7 days or
+  fewer and adds the self certification question; drops the work cause question where rule D says
+  no (and adds it where it says yes); keeps fully fit first and anything else last; strips dashes.
+  The summary loses any sentence about another absence. What it removed is logged as codes only.
+  A reply that cannot be read still gives the required questions, never unchecked text.

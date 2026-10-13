@@ -157,12 +157,10 @@ export type RtwContext = {
   done: boolean;
   /** Cancelled by a Manager or above (0459): no longer outstanding. */
   cancelled: boolean;
-  /** Their other absences in the last year, so the interview can be informed by the
-   *  pattern rather than this one occasion in isolation. */
-  recent: Array<{ start_date: string; end_date: string | null; days: number | null; reason: string | null }>;
 };
 
-/** One absence and the context a Return to Work needs. */
+/** One absence: all a Return to Work needs. Its other absences are NOT read (Phil, 2026-10-13: a
+ *  Return to Work is about this absence only; patterns belong in stage meetings). */
 export async function getRtwContext(absenceEventId: string): Promise<RtwContext | null> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -185,14 +183,6 @@ export async function getRtwContext(absenceEventId: string): Promise<RtwContext 
     people: { full_name: string } | null;
   };
 
-  const { data: recent } = await supabase
-    .from("absence_events")
-    .select("start_date, end_date, days, reason")
-    .eq("person_id", row.person_id)
-    .neq("id", absenceEventId)
-    .order("start_date", { ascending: false })
-    .limit(6);
-
   return {
     absenceEventId: row.id,
     personId: row.person_id,
@@ -205,11 +195,5 @@ export async function getRtwContext(absenceEventId: string): Promise<RtwContext 
     dueDate: row.rtw_due_date,
     done: Boolean(row.rtw_evidence_id),
     cancelled: Boolean(row.rtw_cancelled_at),
-    recent: ((recent as Array<{
-      start_date: string;
-      end_date: string | null;
-      days: number | null;
-      reason: string | null;
-    }> | null) ?? []),
   };
 }

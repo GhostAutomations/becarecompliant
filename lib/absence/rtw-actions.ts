@@ -37,73 +37,21 @@ import { getRtwContext } from "./rtw";
 import type { Answers } from "@/lib/form-schema";
 import { AI_QUESTION_LIMIT, stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getRtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
-import { withRequiredFollowUps } from "@/lib/ai-follow-ups";
+import { redactName } from "@/lib/absence/meeting-questions";
+import {
+  RTW_SYSTEM,
+  checkRtwDraft,
+  checkRtwSummary,
+  rtwDraftPrompt,
+  type RtwAbsence,
+} from "@/lib/absence/rtw-draft-rules";
 import { changedAnswerNumbers, rtwProvenanceNote } from "@/lib/absence/rtw-questions";
 import { RTW_ROLE_REFUSAL, canRecordReturnToWork } from "./rtw-roles";
 
-// v4: the model writes ALL of the questions. The guardrails below are unchanged from
-// v1, v2 and v3 and must stay that way: never diagnose, never speculate about a medical
-// cause, never suggest an outcome or disciplinary action.
-//
-// What changed in v4 (migration 0148) is the SCOPE. v3 told the model that fitness to
-// return, work relatedness, adjustments and support were fixed fields and to never ask
-// about them. Phil: "'The conversation' tile ... needs to also be ai and relevent to the
-// absence." Those fields are gone, so the instruction is inverted: the drafted set MUST
-// now cover that ground, in words written for this particular absence, and the cap rises
-// to 8 (AI_QUESTION_LIMIT). Everything else, the strict JSON output and the prose
-// fallback below, is untouched.
-const RTW_SYSTEM = [
-  "You are helping a UK care sector manager prepare for a Return to Work interview.",
-  "Return to Work interviews are held after every absence. Your job is to prepare, not to decide.",
-  "Write in plain British English. No dashes. Never diagnose, never speculate about a medical cause,",
-  "and never suggest disciplinary action or an outcome: that is the manager's judgement after talking",
-  "to the person. Be warm and practical. Assume the employee may be anxious about returning.",
-  "Reply with STRICT JSON and nothing else: no markdown, no code fence, no words before or after it.",
-  "The JSON is one object with exactly two keys.",
-  '"summary": two or three sentences of factual context taken from the record.',
-  '"questions": an array of 5 to 8 objects, each with "question" (one short question the manager',
-  'should ask, written to be read aloud), "type" (exactly one of "text", "yes_no" or "choice") and,',
-  'only when the type is "choice", "options" (an array of 2 to 4 short answers to choose from).',
-  "The questions are the whole conversation, so the set MUST cover both of these, each in at",
-  "least one question and worded for this particular absence: whether they feel fit to return to",
-  "their normal duties, and whether anything at work caused the absence or made it worse.",
-  // NO ADJUSTMENTS (Phil, 2026-10-08, all companies). "Would you like any adjustments?" drew
-  // "Change my availability", and asked of everyone it invites a flexible working request after
-  // every absence. Anything the employee wants to say goes in Employee comments instead.
-  "NEVER ask about adjustments, support, help, changes to their hours, shifts, rota, availability or",
-  "working pattern, flexible working, reduced hours or a phased return, in any wording.",
-  "Then use the remaining questions on what THIS absence calls for: the reason given, how long it",
-  "lasted, and the pattern of their other absences on record. A back injury, a stomach bug and a run",
-  "of single days do not deserve the same questions. Ask about a fit note, medication, appointments",
-  "or a pattern of absence only where this record makes it relevant.",
-  "Ask one thing per question and never ask the same thing twice in different words.",
-  // Follow ups (Phil, 2026-09-29, migration 0344). Marked on the question so the employee's
-  // portal can ask the next thing on a Yes: upload the fit note, say what they need, say what
-  // they want to raise.
-  'A yes_no question may carry "followUp". When you ask whether they have a fit note, make it a',
-  'yes_no question with "followUp": "fit_note". The LAST question MUST be the yes_no question',
-  '"Is there anything else you would like to raise?" with "followUp": "raise". These count towards',
-  'the 5 to 8 questions.',
-].join(" ");
-
-// KEPT AS THE FALLBACK. If the model ignores the JSON instruction (or returns JSON we
-// cannot make sense of) we read its reply as the old two heading prose instead of
-// failing: the manager still gets a draft to edit, which is the whole point of the
-// button, and the questions land in the tailored_questions box as plain text.
-const ALSO_ASK_RE = /^\s*ALSO[ _]?ASK\s*:?\s*$/im;
-const SUMMARY_RE = /^\s*SUMMARY\s*:?\s*$/im;
-
-function splitDraft(text: string): { summary: string; alsoAsk: string } {
-  const qIndex = text.search(ALSO_ASK_RE);
-  const sIndex = text.search(SUMMARY_RE);
-  if (qIndex === -1) return { summary: text.trim(), alsoAsk: "" };
-  const summary = text
-    .slice(sIndex === -1 ? 0 : sIndex, qIndex)
-    .replace(SUMMARY_RE, "")
-    .trim();
-  const alsoAsk = text.slice(qIndex).replace(ALSO_ASK_RE, "").trim();
-  return { summary, alsoAsk };
-}
+// v5 (Phil, 2026-10-13): the instructions, the input and the check after the reply live in
+// lib/absence/rtw-draft-rules.ts. A Return to Work is about THIS absence only; the fit note follows
+// GOV.UK's 7 calendar days; work as a cause only when the reason points to work. The v1 guardrails
+// stand: never diagnose, never speculate about a medical cause, never suggest an outcome.
 
 /**
  * Read the model's reply as { summary, questions }. Defensive on purpose: strip any
@@ -154,21 +102,14 @@ export async function draftReturnToWork(
   const ctx = await getRtwContext(absenceId);
   if (!ctx) return { error: "That absence could not be found." };
 
-  const history = ctx.recent.length
-    ? ctx.recent
-        .map((r) => `- ${r.start_date} to ${r.end_date ?? "open"}, ${r.days ?? "unknown"} days, reason: ${r.reason ?? "not given"}`)
-        .join("\n")
-    : "- none recorded";
-
-  const prompt = [
-    `Employee: ${ctx.personName}`,
-    `This absence: ${ctx.startDate} to ${ctx.endDate ?? "not ended"}${ctx.returnDate ? `, returned ${ctx.returnDate}` : ""}`,
-    `Working days lost: ${ctx.days ?? "not recorded"}`,
-    `Reason given: ${ctx.reason ?? "not recorded"}`,
-    "",
-    "Their other absences on record:",
-    history,
-  ].join("\n");
+  /* ONLY THIS ABSENCE (rule A, and UK GDPR data minimisation): its dates and its reason, with the
+     employee's name taken out. No other absence, stage, score, count or name goes to the AI. */
+  const absence: RtwAbsence = {
+    startDate: ctx.startDate,
+    endDate: ctx.endDate,
+    reason: ctx.reason ? redactName(ctx.reason, ctx.personName) : null,
+  };
+  const prompt = rtwDraftPrompt(absence);
 
   const result = await runAi({
     companyId: profile.company_id,
@@ -180,11 +121,20 @@ export async function draftReturnToWork(
   if ("error" in result) return { error: result.error };
 
   const drafted = readDraft(result.ok);
-  const summary = drafted.summary;
-  // The support and anything else questions are always asked, even if the AI left one out.
-  const questions = drafted.questions.length > 0
-    ? withRequiredFollowUps(drafted.questions, (question, followUp): AiQuestion => ({ question, type: "yes_no", followUp }), AI_QUESTION_LIMIT)
-    : drafted.questions;
+  /* THE CHECK (rules A, C, D, E), in code, before anything is saved or shown: whatever the AI wrote,
+     a question about another absence, a fit note under 8 days or work as a cause for a cold never
+     reaches the employee, and the required questions are always there. Logged as codes only. */
+  const checked = checkRtwDraft(drafted.questions, absence, AI_QUESTION_LIMIT);
+  const summaryCheck = checkRtwSummary(drafted.summary, absence);
+  const summary = summaryCheck.summary;
+  const questions = checked.questions as AiQuestion[];
+  if (checked.removed.length > 0 || checked.added.length > 0 || summaryCheck.removed > 0) {
+    console.info("[rtw-draft] check", {
+      removed: checked.removed,
+      added: checked.added,
+      summarySentencesRemoved: summaryCheck.removed,
+    });
+  }
   if (questions.length > 0) {
     // Save it to this Return to Work straight away, so the next press reads it back for free
     // and the questions can be checked and texted to the employee (migration 0331).
@@ -224,19 +174,9 @@ export async function draftReturnToWork(
       data: { absence_summary: summary, ai_questions: JSON.stringify(questions) },
     } as ActionState;
   }
-  // Nothing usable came back as JSON. Fall back to the prose reading rather than
-  // erroring: a draft the manager has to tidy up beats no draft at all, and both keys
-  // below are real fields of the schema (0147, still there in v4 / 0148).
-  const prose = splitDraft(result.ok);
-  return {
-    ok: "Drafted",
-    data: {
-      // A summary we PARSED beats one we guessed at: the model may have returned a
-      // perfectly good summary alongside questions we could not use.
-      absence_summary: summary || prose.summary,
-      tailored_questions: prose.alsoAsk,
-    },
-  } as ActionState;
+  /* Unreachable in practice: the check always returns at least the required questions, so even a
+     reply that could not be read gives a set that follows the rules, never unchecked text. */
+  return { error: "The draft could not be read. Please try again." };
 }
 
 /** Record the completed interview as Evidence and close the Return to Work off. */

@@ -4463,6 +4463,15 @@ closes any questions link, and leaves every outstanding count; a recorded one ca
 Thistle's backlog of 12 overdue Return to Works cancelled on Phil's go. Tests:
 TEST-CHECKLIST-ABSENCE-AND-RTW.md.
 
+### 2026-10-13 — Return to Work AI questions: this absence only (Phase 13, Thistle ticket)
+
+The Return to Work draft is about the one absence it was raised for: the AI gets only its dates,
+calendar days and reason (no other absences, no name); no fit note question at 7 calendar days or
+fewer (a self certification question instead), a fit note question above that; work as a cause only
+when the reason points to work; fully fit first, anything else last, no support question. A code
+check enforces it on every draft (lib/absence/rtw-draft-rules.ts). Stage meeting questions
+untouched. No migration. Tests: TEST-CHECKLIST-RTW-QUESTIONS.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
