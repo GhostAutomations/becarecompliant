@@ -284,6 +284,11 @@ The next five were found by the step 7 check of the October audit fixes and park
     the 25 Sep absence reached Stage 1. Phil's popup: her 5 Jun meeting marked as dealing with it
     (0458, audit logged); she shows Stage 1 Dealt with, nothing due. The other five people's missing
     absences were not raised by Thistle and are left as they are.
+    CORRECTED the same day (Thistle had given the wrong dates): her absences are 27 Mar, 10 Apr and
+    24 Apr 2026 (as her 5 Jun meeting record says). 24 Apr added with its Absence form, no Return to
+    Work; the 25 Sep absence and its Absence form deleted as entered in error; the 0458 mark taken off
+    (the meeting now comes after Stage 1 was reached). All audit logged. She shows Stage 1 Dealt with,
+    nothing due; her next absence before 5 Dec 2026 makes Stage 2 due.
 57. **Apply 0419: take the 18 tables out of the old Realtime row change stream (audit F155)**
     (Phil, popup 2026-10-13, parked from the live Tickets job as its own piece). 0419 was never
     applied, so profiles, invites, people, check_instances, service_users, complaints, incidents and

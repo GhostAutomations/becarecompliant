@@ -102,3 +102,8 @@
   back from that absence, reaches Stage N+1 even if the count has not. A meeting with no warning (no
   further action) leaves it to the count. Checked on Thistle's data: only that carer changes (Stage 1
   Dealt with, Stage 2 Due from 25 Sep).
+
+- Corrected later the same day: Thistle had given the wrong dates. Her absences are 27 Mar, 10 Apr and
+  24 Apr 2026; the 25 Sep one was entered in error and deleted (Phil's go). Her meeting now comes
+  after Stage 1 was reached, so the mark was taken off. No meeting is marked at present; the column
+  stays for the next case like it.
