@@ -86,6 +86,6 @@ Run one at a time.
 | # | Check | Result |
 |---|-------|--------|
 | R0 | Unit tests: seven lines in a seven day week dated in order; anything else undated; month ends, leap day, clock change, the year end | PASS (lib/invoicing/recurring-dates.test.ts, 3) |
-| R1 | Bevan: a weekly recurring invoice with 7 lines, Draft it now: the draft's lines read Mon to Sun of the period, and its service period shows on the page, PDF and list | Not tested |
-| R2 | A recurring invoice whose lines are not one per day: the draft's lines stay undated, the period still shows | Not tested |
+| R1 | Bevan: a weekly recurring invoice with 7 lines, Draft it now: the draft's lines read Mon to Sun of the period, and its service period shows on the page, PDF and list | PASS (Bevan admin: Draft it now on 13/10/2026 billed 06/10/2026 to 12/10/2026; 7 lines dated Tue 06/10 to Mon 12/10 in order; Service period shown on the invoice) |
+| R2 | A recurring invoice whose lines are not one per day: the draft's lines stay undated, the period still shows | PASS on the unit tests (1 or 8 lines in a 7 day week stay undated); not run live |
 | R3 | Thistle's weekly draft on 19/10/2026: 7 Sleep lines dated Mon 12/10/2026 to Sun 18/10/2026, period 12/10/2026 to 18/10/2026 | Not tested (runs on 19/10/2026) |
