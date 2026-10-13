@@ -79,4 +79,4 @@ Run one at a time.
 | P2 | A paid invoice shows Payment with Date paid and Method; change both and save: they show on the page and the PDF, the log has the before and after | PASS (INV-00001 paid: changed to 12/10/2026, Bank transfer; the page and the PDF read "Paid 12/10/2026 (Bank transfer)"; the log holds before 13/10/2026 no method and after) |
 | P3 | A future date paid is refused with "The date paid cannot be in the future.", nothing typed lost | PASS (20/10/2026 refused by the date box, "Value must be 13/10/2026 or earlier.", the date and method typed kept; the server refuses it too) |
 | P4 | A recurring care plan invoice drafts with dated lines (when one next runs) | Not tested (no care plan billed recurring invoice exists yet) |
-| P5 | An invoice with no dated lines (Bevan INV-00001): the page and the PDF show the Date column next to Service, blank | Not tested |
+| P5 | An invoice with no dated lines (Bevan INV-00001): the page and the PDF show the Date column next to Service, blank | PASS (Bevan: page headings Date, Service, Unit, Handed, Qty, Unit price, Amount; the PDF has Date next to Service, blank on the undated line) |
