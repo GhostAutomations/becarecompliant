@@ -82,9 +82,12 @@ export default function OutcomesManager({
             No active outcomes yet. Add what matters to this person above.
           </div>
         ) : (
-          active.map((o) => (
-            <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
-          ))
+          // Two across on a wide screen, one on a phone (Phil, 2026-10-14: "such wasted space").
+          <div className="grid items-start gap-3 lg:grid-cols-2">
+            {active.map((o) => (
+              <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
+            ))}
+          </div>
         )}
       </div>
 
@@ -97,11 +100,13 @@ export default function OutcomesManager({
           >
             {showAchieved ? "▾" : "▸"} Achieved outcomes ({achieved.length})
           </button>
-          {showAchieved
-            ? achieved.map((o) => (
+          {showAchieved ? (
+            <div className="grid items-start gap-3 lg:grid-cols-2">
+              {achieved.map((o) => (
                 <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
-              ))
-            : null}
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -114,11 +119,13 @@ export default function OutcomesManager({
           >
             {showNotAchieved ? "▾" : "▸"} Not achieved outcomes ({notAchieved.length})
           </button>
-          {showNotAchieved
-            ? notAchieved.map((o) => (
+          {showNotAchieved ? (
+            <div className="grid items-start gap-3 lg:grid-cols-2">
+              {notAchieved.map((o) => (
                 <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
-              ))
-            : null}
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

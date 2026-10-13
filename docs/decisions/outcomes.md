@@ -24,4 +24,4 @@ REBUILT FULLY 2026-07-21 (Phil: "i dont like our outcome section, look at birdie
 - [stated] Popup "Smallest change": status `not_achieved`, update kind `not_achieved` (its note is the reason), no new columns; `achieved_at` keeps meaning "when it closed" for both. The SAR export's Achieved column shows a date only for an Achieved outcome.
 - [stated] Popup "A Mark not achieved button beside Mark achieved": Mark achieved is unchanged apart from the past box; closed Not achieved outcomes collect in their own "Not achieved outcomes (n)" section. Reopen works the same for both.
 - Valerie's outcome at Thistle is not changed by this job; Thistle reopen it and close it as Not achieved themselves.
-
+- [stated] Popup "Do it now": the outcome cards (Active, Achieved, Not achieved) sit two per row on a laptop or wider screen and one per row on a phone (Phil, 2026-10-14: "such wasted space in the middle"). The cards themselves are unchanged.
