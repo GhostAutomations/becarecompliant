@@ -4480,6 +4480,8 @@ report; exports and the Reg 80 list show them as paused, never compliant. Coming
 date they came out; checks due before it + 7 days fall due then (amber), stored beside the due date
 and cleared by the next completion. One place: 0461 (su_check_paused, check_effective_due, triggers).
 Thistle's two hospital dates left blank until Phil supplies them. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md.
+P0 to P9 pass; also fixed: exports listed completed one offs as Overdue. DONE, signed off by Phil 2026-10-13;
+Thistle's two hospital dates still to come from Phil.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
