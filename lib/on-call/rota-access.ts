@@ -31,6 +31,21 @@ export const ON_CALL_ROLES: readonly string[] = [
   "on_call",
 ];
 
+/**
+ * Who can BE the person on call on a shift (Phil, 2026-10-13: "only on call and above"; popup
+ * "On Call, Supervisors and above"). Never a carer, a Senior or a Viewer. The database refuses
+ * anybody else too (guard_on_call_person, 0451).
+ */
+export const ON_CALL_PERSON_ROLES: readonly string[] = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+  "recruiter",
+  "on_call",
+];
+
 /** Roles that see every branch's rota and Handover rather than their own branches. */
 export const ALL_BRANCH_ON_CALL_ROLES: readonly string[] = [
   "platform_admin",

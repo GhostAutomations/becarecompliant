@@ -4400,6 +4400,8 @@ and remove with before and after (F171 for the rota; scope changes and the tick 
 too). The grid now changes a cell in place and says when a save is refused. One On Call role list
 (lib/on-call/rota-access.ts). Every role probed before and after (scripts/on-call-rota-probe.sql).
 Decision: docs/decisions/on-call.md. Tests: TEST-CHECKLIST-ON-CALL-ROTA-SUPERVISORS.md.
+Then (Phil, testing): the person picker offered carers. Only On Call, Supervisors and above can be on
+call now, in the picker and in the database (0451, applied).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

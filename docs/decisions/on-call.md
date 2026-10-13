@@ -47,4 +47,9 @@ KNOWN LIMITATIONS to test/close (logged to Final Testing): (1) profiles_select o
   lib/on-call/rota-access.ts.
 - **Probe.** `scripts/on-call-rota-probe.sql` tries every rota and Handover action as each role,
   with the switch on and off, all rolled back.
+- **Who can be on call** (Phil, 2026-10-13: "only on call and above"; popups): only On Call,
+  Supervisors and above (Supervisor, Recruiter, Manager, Registered Manager, Registered Individual,
+  Admin), and only an active login. Never a carer, Senior or Viewer. The picker offers only these
+  (`ON_CALL_PERSON_ROLES`), and the database refuses anyone else when a shift's person is set or
+  changed (`guard_on_call_person`, 0451).
 

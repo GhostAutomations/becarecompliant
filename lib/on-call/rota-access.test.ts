@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ALL_BRANCH_ON_CALL_ROLES, ON_CALL_ROLES, canSetRota } from "./rota-access.ts";
+import { ALL_BRANCH_ON_CALL_ROLES, ON_CALL_PERSON_ROLES, ON_CALL_ROLES, canSetRota } from "./rota-access.ts";
 
 const ON = ["supervisor", "recruiter"];
 
@@ -50,4 +50,11 @@ test("Seniors, Viewers and carers never set the rota", () => {
     assert.equal(canSetRota({ role, scope: "branch", hasBranch: true, rotaRoles: ON }), false, role);
     assert.equal(canSetRota({ role, scope: "company", hasBranch: false, rotaRoles: [...ON, role] }), false, role);
   }
+});
+
+test("who can be on call: On Call, Supervisors and above, never a carer, Senior or Viewer", () => {
+  for (const r of ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "on_call"]) {
+    assert.ok(ON_CALL_PERSON_ROLES.includes(r), r);
+  }
+  for (const r of ["staff", "senior", "team_member", "platform_admin"]) assert.ok(!ON_CALL_PERSON_ROLES.includes(r), r);
 });

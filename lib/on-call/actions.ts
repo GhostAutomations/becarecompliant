@@ -205,6 +205,8 @@ export async function assignCell(
   if (scope === "branch" && !branch_id) return { error: "Choose a branch first." };
 
   const refused = "This rota could not be changed. You may not have permission to set it.";
+  // The database's own refusal (0451) is written for people: say it rather than the generic one.
+  const reason = (e: { code?: string; message: string } | null) => (e?.code === "23514" ? e.message : refused);
   const supabase = await createClient();
   let find = supabase.from("on_call_shifts").select("id")
     .eq("company_id", g.companyId).eq("shift_date", shiftDate).eq("slot", slot);
@@ -221,14 +223,14 @@ export async function assignCell(
       .update({ on_call_profile_id: profileId, on_call_name: null, updated_by: g.userId })
       .eq("id", existing.id)
       .select("id");
-    if (error || !moved?.length) return { error: refused };
+    if (error || !moved?.length) return { error: reason(error) };
   } else {
     const { startsAt, endsAt } = slotInstants(shiftDate, slot);
     const { error } = await supabase.from("on_call_shifts").insert({
       company_id: g.companyId, branch_id, shift_date: shiftDate, slot,
       starts_at: startsAt, ends_at: endsAt, on_call_profile_id: profileId, created_by: g.userId,
     });
-    if (error) return { error: refused };
+    if (error) return { error: reason(error) };
   }
   revalidatePath("/on-call");
   return { error: null };

@@ -11,7 +11,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import type { BranchOption, OnCallLog, OnCallShift, PersonOption, RotaCell, RotaScope } from "./types";
-import { ALL_BRANCH_ON_CALL_ROLES } from "./rota-access";
+import { ALL_BRANCH_ON_CALL_ROLES, ON_CALL_PERSON_ROLES } from "./rota-access";
 
 /** Normalise a Supabase to-one embedded relation (typed as an array) to one row. */
 function relOne<T>(v: T[] | T | null | undefined): T | null {
@@ -58,7 +58,8 @@ export async function getOnCallBranches(
  * roster nobody but herself onto a shift. Graceful is not the same as working.
  */
 export async function getCompanyPeopleOptions(companyId: string): Promise<PersonOption[]> {
-  const staff = await listStaff({ companyId });
+  // Only On Call, Supervisors and above can be on call (Phil, 2026-10-13); a carer was offered.
+  const staff = await listStaff({ companyId, roles: [...ON_CALL_PERSON_ROLES] });
   return staff.map((p) => ({ id: p.id, name: p.name }));
 }
 
