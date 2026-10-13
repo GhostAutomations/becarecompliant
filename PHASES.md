@@ -4547,7 +4547,8 @@ longer says "copy to" when the copy address is the client's own. DONE, signed of
 Fill lines from care plan and recurring care plan drafts give one dated line per visit day under the
 week heading. A paid invoice's Date paid and Method can be changed (logged). No migration.
 Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md P1 to P4. Then: the Date column shows on every invoice
-(popup "Always show it"), test P5.
+(popup "Always show it"), test P5. P0 to P3 and P5 pass; P4 (a recurring care plan draft) waits for
+the first one. DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
