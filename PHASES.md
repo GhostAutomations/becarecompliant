@@ -4424,6 +4424,14 @@ the founder and to a company ticket channel that ticket roles may join, never ca
 F141 for tickets, F142 on the ticket channel). F146 fixed: ticket tables read only for signed in
 users. F155 parked as THE LIST 57. L1 to L9 in TEST-CHECKLIST-TICKETS-LIVE.md pass, phone included.
 
+### 2026-10-13 — Service User Audit percentages up to 125 (Phase 13, Thistle ticket)
+
+The Service User Audit refused a 108% average call duration; the People Audit already took 125
+(0297). Both Service User Audit percentages now take 125: version 2 for every company (Phil popup,
+audit F128), version 1 and its Evidence untouched; the library template is version 2 so new companies
+get it (0455, 0456 for Thistle on Phil's go). PQS, Readiness and Reg 80 count audits only. A1 to A8
+in TEST-CHECKLIST-SU-AUDIT-125.md pass.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
