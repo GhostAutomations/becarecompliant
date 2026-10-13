@@ -59,6 +59,7 @@ export default function RoleAccessTile({
   companyRole = null,
   checksUnder,
   policyWrite,
+  rotaSet,
 }: {
   role: string;
   roleLabel: string;
@@ -70,6 +71,9 @@ export default function RoleAccessTile({
   /** Managers, Registered Managers and Registered Individuals only (0399): whether this role
    *  may write and approve policies like an Admin. Absent, the tile does not offer it. */
   policyWrite?: { on: boolean };
+  /** Supervisors and Recruiters only (0450): whether this role may set the On Call rota.
+   *  Absent, the tile does not offer it. */
+  rotaSet?: { on: boolean };
 }) {
   const offered = modules.filter((m) => m.allowed).length;
 
@@ -257,6 +261,18 @@ export default function RoleAccessTile({
             <label className="flex items-center gap-2 rounded-lg px-2 py-1 text-[13px] cursor-pointer text-white/80 hover:bg-white/5">
               <input type="checkbox" name="policy_write" value="1" defaultChecked={policyWrite.on} className="shrink-0" />
               <span className="min-w-0">Policies: can write and approve, like an Admin</span>
+            </label>
+          </div>
+        ) : null}
+        {/* ON CALL ROTA (Phil, 2026-10-13, 0450). Posted with a marker, like the policies tick, so
+            a tile that offers it always says on or off and one that does not cannot change it.
+            The database reads it: unticked, this role still reads the rota and keeps the Handover. */}
+        {rotaSet ? (
+          <div className="mt-2 border-t border-dashed border-white/20 pt-2">
+            <input type="hidden" name="rota_set_offered" value="1" />
+            <label className="flex items-center gap-2 rounded-lg px-2 py-1 text-[13px] cursor-pointer text-white/80 hover:bg-white/5">
+              <input type="checkbox" name="rota_set" value="1" defaultChecked={rotaSet.on} className="shrink-0" />
+              <span className="min-w-0">On Call: can set the rota</span>
             </label>
           </div>
         ) : null}

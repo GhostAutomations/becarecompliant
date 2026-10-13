@@ -6,6 +6,8 @@ import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import RotaGrid from "@/components/on-call/rota-grid";
 import { rotaWeekGrid } from "@/lib/on-call/format";
+import { ON_CALL_ROLES, canSetRota } from "@/lib/on-call/rota-access";
+import { getCompanyRow } from "@/lib/companies/row";
 import {
   getRotaScope,
   getRotaGrid,
@@ -20,19 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: await getOnCallLabel(profile.company_id) };
 }
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 const SCOPE_ADMIN_ROLES = ["company_admin", "registered_individual", "registered_manager", "platform_admin"];
-/*
- * Who may ROSTER, as opposed to read. A Manager or Supervisor runs a branch, so on a branch rota
- * they roster their own; on a company-wide rota there is no branch to be theirs, and rostering
- * the company's out of hours cover belongs to the people who own it (Phil, 2026-08-17). They can
- * still see it, which is the point of the screen: 0203 grants the read and withholds the write,
- * and this is the screen agreeing with the database rather than offering a + that gets refused.
- */
-const ROSTER_ROLES = ["company_admin", "registered_individual", "registered_manager", "on_call", "platform_admin"];
 
 export default async function OnCallPage({
   searchParams,
@@ -72,8 +63,20 @@ export default async function OnCallPage({
    * that drew a + in all forty two cells and saved none of them: assignCell returns silently
    * with no branch. That is the same defect as the company-wide one, one branch away.
    */
-  const canManage =
-    scope === "branch" ? selectedBranchId !== null : ROSTER_ROLES.includes(profile.role);
+  /*
+   * WHO MAY ROSTER, as opposed to read (Phil, 2026-10-13, 0450; lib/on-call/rota-access.ts). On a
+   * branch rota, the branch's Manager or Supervisor sets her own; on a company wide rota, a Manager
+   * or Supervisor in the company now sets it too (until then only the people who own the company's
+   * cover did, 2026-08-17). A Supervisor or Recruiter only while the company has their role ticked
+   * "On Call: can set the rota" in Settings, Role access. The database asks the same question
+   * (can_set_on_call_shift), so the screen never offers a + that gets refused.
+   */
+  const canManage = canSetRota({
+    role: profile.role,
+    scope,
+    hasBranch: selectedBranchId !== null,
+    rotaRoles: ((await getCompanyRow(companyId))?.on_call_rota_roles as string[] | null | undefined) ?? null,
+  });
 
   const [cells, people] = await Promise.all([
     getRotaGrid(companyId, scope, selectedBranchId, first, last),

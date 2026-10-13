@@ -5,11 +5,9 @@ import { fmtDateTime, shiftLabel } from "@/lib/on-call/format";
 import { csvResponse, exportError } from "@/lib/export/deliver";
 import { writeAudit } from "@/lib/audit";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 function cell(v: string | number | boolean | null | undefined): string {
   const s = v == null ? "" : String(v);

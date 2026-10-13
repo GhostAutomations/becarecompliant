@@ -6,13 +6,11 @@ import BackLink from "@/components/back-link";
 import LogForm from "@/components/on-call/log-form";
 import { getOnCallBranches, getRotaScope, getLogDraft } from "@/lib/on-call/data";
 import { shiftOptions } from "@/lib/on-call/format";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
 export const metadata: Metadata = { title: "New handover" };
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 export default async function NewCallPage() {
   const { user, profile } = await requireCompany();

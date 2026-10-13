@@ -17,3 +17,34 @@ LOG FORM = PER-SHIFT (migration 0117, 2026-07-23): the "Log a call" form is now 
 NAMING, 2026-09-18 (Phil: "when someone fills in a handover form, it keeps it for twelve hours"). What this file calls "Log a call" / "the call log" is the HANDOVER in the UI: nav is On Call -> Rota / Handover, at /on-call/log. A company can rename the whole department (companies.on_call_label, 0276), so "On Call" is itself not fixed. The 12h draft rule above is unchanged and still correct: on_call_log_drafts, one row per user, ignored on read past 12h (lib/on-call/data.ts getLogDraft), deleted on submit.
 
 KNOWN LIMITATIONS to test/close (logged to Final Testing): (1) profiles_select only returns SELF for non-admins, so the on-call-person / call-handler dropdowns show only the current user for managers/supervisors/on_call — they use the free-text name fallback for others. (2) on_call cannot read service_users (special-category), so the "related service user" link on a call is empty for them (they type caller details instead). (3) Absence forms that write person-type evidence: on_call can insert via submit_evidence but only SEES evidence they authored (person evidence read not opened to on_call). (4) Live per-role testing not yet done (needs a real on_call login; can't create accounts in-session — verify via RLS simulation + Chrome). Applied to becarecompliant only (bgrtcvyjuwopunpnudeu). See [permission-boundaries](permission-boundaries.md), [complaints-section](complaints-section.md), [holidays-absence](holidays-absence.md), [planner](planner.md).
+
+## Supervisors set the rota (Phil, 2026-10-13, popups; migration 0450)
+
+- **Before.** On a branch rota a Supervisor already set her own branch(es). A company wide rota
+  (Thistle's) could be set only by Admins, the Registered roles and On Call (decision of
+  2026-08-17); Managers and Supervisors could only read it. Recruiters could not open On Call at all
+  (the pages refused them, although Settings and the database offered it).
+- **Company wide rota.** Managers and Supervisors in the company now set it (popup: "Supervisors and
+  Managers"). This is the one change to Managers' access.
+- **Branch rota.** Unchanged: a Manager or Supervisor sets her own branch(es).
+- **Recruiters.** They open On Call like a Supervisor (popup: "Yes, rota and Handover"). That means
+  every branch's rota, the company wide rota, and the company wide Handover, which they could not
+  read before.
+- **Handover.** Unchanged for everybody else (popup: "Nothing, keep as today").
+- **The switch.** A separate tick on the Supervisor and Recruiter tiles in Settings, Role access:
+  "On Call: can set the rota" (popup: "A separate rota switch"). It is stored as
+  `companies.on_call_rota_roles` and is on for both roles by default. The database reads it
+  (`can_set_on_call_shift`), so unticked, that role reads the rota and keeps the Handover but cannot
+  change a shift. The department tick for On Call still hides On Call altogether, as before.
+- **Audit (F171 for the rota).** A trigger (`audit_on_call_shift`) logs every add, change and
+  remove. Each entry carries who, when, the cell, the person before and after, and the whole row
+  before and after; a save that changes nothing is not logged. Switching the rota scope and the
+  Settings tick are audit logged too. The Handover's edits are not part of this change.
+- **The grid.** Changing who is on a cell now changes it in place: one "changed from ... to ..."
+  entry instead of a remove and an add. A refused save puts the cell back and says why; before, it
+  stayed on screen as if saved.
+- **One list.** Every On Call page, the export, the actions and the menu read `ON_CALL_ROLES` in
+  lib/on-call/rota-access.ts.
+- **Probe.** `scripts/on-call-rota-probe.sql` tries every rota and Handover action as each role,
+  with the switch on and off, all rolled back.
+

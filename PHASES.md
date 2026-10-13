@@ -4387,6 +4387,20 @@ Then (Phil, popup): the outcomes figures now count service users in hospital or 
 removed record (they counted "active" only). Thistle and Bevan unchanged; Demo 97 to 100 in scope.
 The customer satisfaction figure had the same flaw and now uses the same rule (Thistle unchanged).
 
+### 2026-10-13 — Supervisors set the On Call rota (Phase 13)
+
+Supervisors could already set a branch rota for their own branch; Thistle's rota is company wide,
+which only Admins, the Registered roles and On Call could set. Phil (popups): Managers and
+Supervisors now set a company wide rota; Recruiters open On Call like Supervisors (rota and
+Handover); the Handover is otherwise unchanged; a per role tick "On Call: can set the rota" on the
+Supervisor and Recruiter tiles in Settings, Role access, read by the database. 0450 (applied,
+advisor clean): can_set_on_call_shift on the rota policies, the Recruiter added to the company wide
+rota read and Handover, companies.on_call_rota_roles, and a trigger logging every rota add, change
+and remove with before and after (F171 for the rota; scope changes and the tick are audit logged
+too). The grid now changes a cell in place and says when a save is refused. One On Call role list
+(lib/on-call/rota-access.ts). Every role probed before and after (scripts/on-call-rota-probe.sql).
+Decision: docs/decisions/on-call.md. Tests: TEST-CHECKLIST-ON-CALL-ROTA-SUPERVISORS.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

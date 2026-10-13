@@ -178,3 +178,11 @@ runs against production data safely. Two traps, both hit on 2026-08-14:
 billing control. Re-confirm any NEW permission edge with a popup before building that area.
 
 Related: [roles-overhaul](roles-overhaul.md), [project-state](project-state.md), [look-at-the-artefact](../process/look-at-the-artefact.md)
+
+- [stated] 13 Oct 2026 (popups, 0450): On Call rota. Branch rota: the branch's Manager or Supervisor
+  (a Recruiter for every branch) sets it. Company wide rota: any Manager or Supervisor (and
+  Recruiter) in the company now sets it as well as Admins, the Registered roles and On Call.
+  Supervisors and Recruiters only while their role is ticked "On Call: can set the rota" in Settings,
+  Role access, enforced in the database. Recruiters open On Call and the Handover like a Supervisor.
+  See on-call.md.
+

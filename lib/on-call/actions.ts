@@ -19,11 +19,9 @@ import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import { slotInstants } from "@/lib/on-call/format";
 import type { ActionState } from "@/lib/forms";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -81,13 +79,8 @@ export async function createShift(_prev: ActionState, formData: FormData): Promi
     })
     .select("id")
     .single();
-  if (error) return { error: error.message };
-
-  await writeAudit({
-    companyId: g.companyId, actorId: g.userId, actorEmail: g.email, actorRole: g.role,
-    action: "on_call.shift_created", entityType: "on_call_shift", entityId: data.id,
-    summary: "Added an on-call rota shift", metadata: { branch_id },
-  });
+  if (error || !data) return { error: error?.message ?? "Could not add the shift." };
+  // Audit logged by the database (audit_on_call_shift, 0450), as every rota change is.
   revalidatePath("/on-call");
   return { ok: "Shift added." };
 }
@@ -186,35 +179,59 @@ export async function assignSlot(_prev: ActionState, formData: FormData): Promis
   return { ok: "Saved." };
 }
 
-/** One-click rota assignment: pick a person for a cell (empty profileId clears it).
- *  Called directly from the grid dropdown's onChange, so it saves instantly. */
+/**
+ * One-click rota assignment: pick a person for a cell (empty profileId clears it).
+ * Called directly from the grid dropdown's onChange, so it saves instantly.
+ *
+ * A CHANGE IS AN UPDATE (2026-10-13). This used to delete the cell and insert a new one, which
+ * left the audit trail saying "removed" and "added" for what was one change of person, and lost
+ * the cell outright if the insert was then refused. Now an occupied cell is changed in place, an
+ * empty one is added to, and Clear removes it: one audit entry each (0450 logs every rota change).
+ *
+ * IT SAYS WHEN IT DID NOT SAVE. It returned nothing, so a change the database refused stayed on
+ * screen as if it had saved. The grid now puts the cell back and shows the reason.
+ */
 export async function assignCell(
   scope: "branch" | "company",
   branchId: string | null,
   shiftDate: string,
   slot: "am" | "pm",
   profileId: string,
-): Promise<void> {
+): Promise<{ error: string | null }> {
   const g = await gate();
-  if ("error" in g) return;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || (slot !== "am" && slot !== "pm")) return;
+  if ("error" in g) return { error: g.error };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || (slot !== "am" && slot !== "pm")) return { error: "That rota cell could not be read." };
   const branch_id = scope === "company" ? null : (branchId || null);
-  if (scope === "branch" && !branch_id) return;
+  if (scope === "branch" && !branch_id) return { error: "Choose a branch first." };
 
+  const refused = "This rota could not be changed. You may not have permission to set it.";
   const supabase = await createClient();
-  let del = supabase.from("on_call_shifts").delete()
+  let find = supabase.from("on_call_shifts").select("id")
     .eq("company_id", g.companyId).eq("shift_date", shiftDate).eq("slot", slot);
-  del = scope === "company" ? del.is("branch_id", null) : del.eq("branch_id", branch_id!);
-  await del;
+  find = scope === "company" ? find.is("branch_id", null) : find.eq("branch_id", branch_id!);
+  const { data: existing } = await find.maybeSingle<{ id: string }>();
 
-  if (profileId) {
+  if (!profileId) {
+    if (!existing) return { error: null };
+    const { data: gone, error } = await supabase.from("on_call_shifts").delete().eq("id", existing.id).select("id");
+    if (error || !gone?.length) return { error: refused };
+  } else if (existing) {
+    const { data: moved, error } = await supabase
+      .from("on_call_shifts")
+      .update({ on_call_profile_id: profileId, on_call_name: null, updated_by: g.userId })
+      .eq("id", existing.id)
+      .select("id");
+    if (error || !moved?.length) return { error: refused };
+  } else {
     const { startsAt, endsAt } = slotInstants(shiftDate, slot);
-    await supabase.from("on_call_shifts").insert({
+    const { error } = await supabase.from("on_call_shifts").insert({
       company_id: g.companyId, branch_id, shift_date: shiftDate, slot,
       starts_at: startsAt, ends_at: endsAt, on_call_profile_id: profileId, created_by: g.userId,
     });
+    if (error) return { error: refused };
   }
   revalidatePath("/on-call");
+  return { error: null };
 }
 
 /** Empty one rota cell. */
@@ -237,8 +254,17 @@ export async function setRotaScope(_prev: ActionState, formData: FormData): Prom
   if (!SCOPE_ADMIN_ROLES.includes(g.role)) return { error: "Only an Admin can change the rota scope." };
   const scope = String(formData.get("scope") ?? "") === "company" ? "company" : "branch";
   const supabase = await createClient();
-  const { error } = await supabase.from("companies").update({ on_call_rota_scope: scope }).eq("id", g.companyId);
+  const { data: before } = await supabase.from("companies").select("on_call_rota_scope").eq("id", g.companyId).maybeSingle<{ on_call_rota_scope: string | null }>();
+  const { data: saved, error } = await supabase.from("companies").update({ on_call_rota_scope: scope }).eq("id", g.companyId).select("id");
   if (error) return { error: error.message };
+  if (!saved?.length) return { error: "The rota scope could not be changed." };
+  // F171: the switch between one company rota and a rota per branch is audit logged.
+  await writeAudit({
+    companyId: g.companyId, actorId: g.userId, actorEmail: g.email, actorRole: g.role,
+    action: "on_call.rota_scope_set", entityType: "company", entityId: g.companyId,
+    summary: scope === "company" ? "Rota set to one rota for the whole company" : "Rota set to one rota per branch",
+    metadata: { before: before?.on_call_rota_scope ?? null, after: scope },
+  });
   revalidatePath("/on-call");
   return { ok: "Rota scope updated." };
 }

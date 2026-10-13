@@ -29,6 +29,8 @@ import { companyRoles, disabledModules } from "@/lib/auth/module-access";
 import { COPYABLE_ROLES, displayRoleLabel, roleChoiceValue } from "@/lib/auth/custom-roles";
 import { isCompanyWideRole } from "@/lib/people/roles";
 import RoleAccessTile from "@/components/settings/role-access-tile";
+import { ROTA_SWITCH_ROLES } from "@/lib/on-call/rota-access";
+import { featureEnabled } from "@/lib/billing/tier";
 import NewRoleForm from "@/components/settings/new-role-form";
 import PortalFormsTile from "@/components/settings/portal-forms-tile";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
@@ -102,6 +104,8 @@ export default async function UsersPage() {
   const disabled = await disabledModules(companyId);
   const ownRoles = await companyRoles(companyId);
   const accessRoles = ROLE_ORDER.filter((role) => MODULES.some((m) => m.roles.includes(role)));
+  // The rota tick is offered only where the company has On Call at all (Pro and above).
+  const onCallOn = await featureEnabled(companyId, "on_call");
   /* The Senior tile's Check boxes (0339): the company's active Checks under People and Service
      users, ticked unless switched off. */
   const [{ data: seniorDefs }, { data: seniorOffRows }] = await Promise.all([
@@ -139,7 +143,7 @@ export default async function UsersPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("companies")
-        .select("invite_email_domains, tier, policy_writer_roles")
+        .select("invite_email_domains, tier, policy_writer_roles, on_call_rota_roles")
         .eq("id", companyId)
         .maybeSingle(),
     ]);
@@ -769,6 +773,11 @@ export default async function UsersPage() {
               policyWrite={
                 POLICY_WRITER_ROLES.includes(role)
                   ? { on: ((company?.policy_writer_roles as string[] | null) ?? []).includes(role) }
+                  : undefined
+              }
+              rotaSet={
+                onCallOn && ROTA_SWITCH_ROLES.includes(role)
+                  ? { on: ((company?.on_call_rota_roles as string[] | null) ?? ROTA_SWITCH_ROLES).includes(role) }
                   : undefined
               }
               checksUnder={

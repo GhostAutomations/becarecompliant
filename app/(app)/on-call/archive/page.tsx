@@ -7,16 +7,14 @@ import BackLink from "@/components/back-link";
 import RotaArchive from "@/components/on-call/rota-archive";
 import { rotaWeekGrid } from "@/lib/on-call/format";
 import { getRotaScope, getOnCallBranches, getArchiveRota } from "@/lib/on-call/data";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { profile } = await requireCompany();
   return { title: `${await getOnCallLabel(profile.company_id)} · Archived rota` };
 }
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 export default async function ArchivedRotaPage({
   searchParams,

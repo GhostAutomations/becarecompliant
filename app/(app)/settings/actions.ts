@@ -42,6 +42,7 @@ import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { isSendableAddress } from "@/lib/email/resend";
 import { cleanJobTitle, cleanLoginName } from "@/lib/users/login-name";
 import { removeSignatureFiles } from "@/lib/letters/signature";
+import { ROTA_SWITCH_ROLES } from "@/lib/on-call/rota-access";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -1037,6 +1038,34 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
       p_on: formData.get("policy_write") === "1",
     });
     if (pwErr) return { error: pwErr.message };
+  }
+
+  /* ON CALL: CAN SET THE ROTA (0450, Phil 2026-10-13). Supervisor and Recruiter tiles only, and only
+     when the tile offered it, so a tile without it can never switch it off by omission. The database
+     reads the result (can_set_on_call_shift). Audit logged with before and after. */
+  if (formData.get("rota_set_offered") === "1" && ROTA_SWITCH_ROLES.includes(role)) {
+    const want = formData.get("rota_set") === "1";
+    const { data: co } = await supabase.from("companies").select("on_call_rota_roles").eq("id", companyId).maybeSingle<{ on_call_rota_roles: string[] | null }>();
+    const was = (co?.on_call_rota_roles ?? []).includes(role);
+    if (was !== want) {
+      const { error: rsErr } = await supabase.rpc("set_on_call_rota_role_for", {
+        p_company_id: companyId,
+        p_role: role,
+        p_on: want,
+      });
+      if (rsErr) return { error: rsErr.message };
+      await writeAudit({
+        companyId,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "company.on_call_rota_role_set",
+        entityType: "company",
+        entityId: companyId,
+        summary: `${ROLE_LABELS[role] ?? role}: ${want ? "can now set the On Call rota" : "can no longer set the On Call rota"}`,
+        metadata: { role, before: was, after: want },
+      });
+    }
   }
 
   const { error: delErr } = await supabase

@@ -7,16 +7,14 @@ import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import LogRegister from "@/components/on-call/log-register";
 import { listCallLog } from "@/lib/on-call/data";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { profile } = await requireCompany();
   return { title: `${await getOnCallLabel(profile.company_id)} · Handover` };
 }
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 export default async function CallLogPage() {
   const { profile } = await requireCompany();

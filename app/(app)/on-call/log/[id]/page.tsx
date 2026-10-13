@@ -9,13 +9,11 @@ import LogReadOnLoad from "@/components/on-call/log-read-on-load";
 import { getLog, getOnCallBranches, getRotaScope, getLogReads } from "@/lib/on-call/data";
 import { resolveFollowUp } from "@/lib/on-call/actions";
 import { shiftOptions, shiftLabel, completedByLine } from "@/lib/on-call/format";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
 export const metadata: Metadata = { title: "On-call shift" };
 
-const ONCALL_ROLES = [
-  "company_admin", "registered_individual", "registered_manager",
-  "manager", "supervisor", "on_call", "platform_admin",
-];
+const ONCALL_ROLES = ON_CALL_ROLES;
 
 export default async function CallPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

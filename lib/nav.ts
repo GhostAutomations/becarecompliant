@@ -2,6 +2,7 @@ import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { COMPLAINTS_ROLES, INCIDENTS_ROLES } from "@/lib/auth/module-roles";
 import { canUseModule } from "@/lib/auth/module-catalogue";
 import { moduleForPath } from "@/lib/auth/module-paths";
+import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
 
 export type Role =
   | "platform_admin"
@@ -195,10 +196,8 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "On Call",
     icon: "onCall",
     group: "Departments",
-    roles: [
-      "platform_admin", "company_admin", "registered_individual",
-      "registered_manager", "manager", "supervisor", "on_call",
-    ],
+    // The same list the On Call pages admit (lib/on-call/rota-access.ts), Recruiters included (0450).
+    roles: [...ON_CALL_ROLES] as Role[],
     activeMatch: ["^/on-call"],
     children: [
       { href: "/on-call", label: "Rota", icon: "onCall" },

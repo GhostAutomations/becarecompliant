@@ -744,7 +744,8 @@ export default async function DashboardPage() {
   // SUPERVISORS TOO (Phil, 2026-09-24: "also need to add the Out of Hours: urgent follow ups
   // tile to the supervisor dash"). RLS already lets a Supervisor read their branch's handovers and
   // the company wide ones, and the Handover page already admits them.
-  const onCallPlus = companyWide || profile.role === "on_call" || profile.role === "supervisor";
+  // A Recruiter uses the Handover as a Supervisor does (0450), so sees its urgent follow ups too.
+  const onCallPlus = companyWide || profile.role === "on_call" || profile.role === "supervisor" || profile.role === "recruiter";
   // One "now" for the whole render, so every urgent follow up is judged against the same clock.
   const renderedAt = Date.now();
   const dashTodayIso = formatCivilDate(todayInLondon());

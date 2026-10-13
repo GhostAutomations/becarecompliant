@@ -11,6 +11,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import type { BranchOption, OnCallLog, OnCallShift, PersonOption, RotaCell, RotaScope } from "./types";
+import { ALL_BRANCH_ON_CALL_ROLES } from "./rota-access";
 
 /** Normalise a Supabase to-one embedded relation (typed as an array) to one row. */
 function relOne<T>(v: T[] | T | null | undefined): T | null {
@@ -18,7 +19,8 @@ function relOne<T>(v: T[] | T | null | undefined): T | null {
   return v ?? null;
 }
 
-const ALL_BRANCH_ROLES = ["company_admin", "registered_individual", "registered_manager", "platform_admin", "on_call"];
+// A Recruiter reaches every branch, like the company wide roles (0450).
+const ALL_BRANCH_ROLES = ALL_BRANCH_ON_CALL_ROLES;
 
 /** Branches the user may book a shift / log a call against. Company-wide roles and
  *  the On Call role get every active branch; Managers/Supervisors get their own.

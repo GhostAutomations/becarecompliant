@@ -52,6 +52,8 @@ export default function RotaGrid({
   // Optimistic overrides so a picked name shows instantly and stays put through
   // the background refresh (no blank flash). A key mapped to null means cleared.
   const [overrides, setOverrides] = useState<Record<string, RotaCell | null>>({});
+  // A refused save is said, and the cell goes back to what is really saved (2026-10-13).
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const cellFor = (key: string): RotaCell | null => (key in overrides ? overrides[key] : cells[key] ?? null);
   const nowCell = cellFor(`${todayIso}|${currentSlot}`);
@@ -63,8 +65,17 @@ export default function RotaGrid({
       ...prev,
       [key]: profileId ? { id: "optimistic", name: person?.name ?? null, phone: null, profileId } : null,
     }));
+    setSaveError(null);
     startTransition(async () => {
-      await assignCell(scope, selectedBranchId, date, slot, profileId);
+      const res = await assignCell(scope, selectedBranchId, date, slot, profileId);
+      if (res.error) {
+        setOverrides((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        setSaveError(res.error);
+      }
       router.refresh();
     });
   }
@@ -104,6 +115,12 @@ export default function RotaGrid({
           <span className="text-sm text-white/50">{branches[0].name}</span>
         ) : null}
       </div>
+
+      {saveError ? (
+        <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          {saveError}
+        </p>
+      ) : null}
 
       {weeks.map((week) => (
         <section key={week.label}>
