@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { TicketMessage, TicketRow } from "@/lib/tickets/data";
 import { FEATURE_ACK, kindLabel, ragOf, statusOf, ticketRef, ticketWhen, whereLabel } from "@/lib/tickets/options";
 import TicketReplyForm from "@/components/tickets/reply-form";
+import { ScrollToLatest } from "@/components/tickets/tickets-live";
 
 /** One ticket: what was raised, the screenshots, and the replies (oldest at the top). */
 export default function TicketDetail({
@@ -88,6 +89,8 @@ export default function TicketDetail({
             ))}
           </ol>
         )}
+        {/* Oldest at the top, newest at the bottom, scrolled to the latest (live replies too). */}
+        <ScrollToLatest count={messages.length} />
         {answer ?? (
           <TicketReplyForm
             ticketId={ticket.id}

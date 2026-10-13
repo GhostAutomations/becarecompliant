@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { listTickets } from "@/lib/tickets/data";
 import { TICKET_RAISER_ROLES, TICKET_SEE_ALL_ROLES } from "@/lib/tickets/options";
 import TicketList from "@/components/tickets/ticket-list";
+import TicketsLive from "@/components/tickets/tickets-live";
 
 export const metadata: Metadata = { title: "Tickets" };
 
@@ -18,6 +19,8 @@ export default async function TicketsPage() {
 
   return (
     <div className="page-shell space-y-4">
+      {/* Live on the company's own ticket channel (0454): Supervisors and up only, never carers. */}
+      <TicketsLive topic={`tickets:${profile.company_id}`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Tickets</h1>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { listTickets } from "@/lib/tickets/data";
 import TicketList from "@/components/tickets/ticket-list";
+import TicketsLive, { NewTicketToast } from "@/components/tickets/tickets-live";
 
 export const metadata: Metadata = { title: "Tickets" };
 
@@ -13,6 +14,9 @@ export default async function FounderTicketsPage() {
   const resolved = rows.filter((t) => t.status === "resolved");
   return (
     <div className="page-shell space-y-4">
+      {/* Live (Phil, 2026-10-13): a new ticket, a status or a reply appears without a refresh. */}
+      <TicketsLive topic="founder" />
+      <NewTicketToast tickets={rows.map((t) => ({ id: t.id, company: t.company_name }))} />
       <Link href="/founder" className="text-sm text-white/60 hover:text-white">← Back to Founder console</Link>
       <div>
         <h1 className="page-title">Tickets</h1>

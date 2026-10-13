@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { getTicket } from "@/lib/tickets/data";
 import { TICKET_RAISER_ROLES } from "@/lib/tickets/options";
 import TicketDetail from "@/components/tickets/ticket-detail";
+import TicketsLive from "@/components/tickets/tickets-live";
 
 export const metadata: Metadata = { title: "Ticket" };
 
@@ -18,6 +19,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="page-form space-y-4">
+      <TicketsLive topic={`tickets:${profile.company_id}`} />
       <Link href="/tickets" className="text-sm text-white/60 hover:text-white">← Back to Tickets</Link>
       <TicketDetail ticket={found.ticket} messages={found.messages} founder={false} />
     </div>

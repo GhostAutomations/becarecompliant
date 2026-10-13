@@ -279,6 +279,13 @@ The next five were found by the step 7 check of the October audit fixes and park
     missing from BCC: E. Powell-Lawrence (17, 20, 21 Apr), C. Ufondu (27 Apr), S. Didwell (12 Apr,
     disallowed), S. Wainwright (8 and 29 May), C. Coutts (8 May, disallowed). Open questions for
     Thistle: add the 24 Apr absence? is their window 6 or 12 months? fix the other five?
+57. **Apply 0419: take the 18 tables out of the old Realtime row change stream (audit F155)**
+    (Phil, popup 2026-10-13, parked from the live Tickets job as its own piece). 0419 was never
+    applied, so profiles, invites, people, check_instances, service_users, complaints, incidents and
+    11 more still stream row changes; a signed in user could listen for DELETE events and see the
+    ids and times of rows deleted in other companies. Nothing in the app uses that stream (all live
+    screens use Broadcast, 0418). To do: apply 0419 on Phil's go, confirm the publication is empty,
+    and check the live screens still update.
 
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.

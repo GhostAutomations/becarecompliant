@@ -35,3 +35,20 @@
   wind the counter back: Bevan's test tickets 1 to 3 were removed and its next ticket is 4. Only a
   ticket that never saved (refused or rolled back) gives its number back.
 
+## Live updates (Phil, 2026-10-13; migration 0454)
+
+- **What updates live.** The Founder Tickets list, the Founder ticket page, and the company's own
+  Tickets list and ticket pages. A new ticket, a status change or a reply appears without a refresh.
+  The Founder list toasts "New ticket from [company]". Conversations stay oldest at the top, newest
+  at the bottom, scrolled to the latest.
+- **How.** The same Broadcast route as every live screen (0418, components/realtime-refresh.tsx),
+  with its poll fallback and its settling of bursts. The nudge carries no ticket content.
+- **Channels.** Ticket nudges go to "founder" (the founder only) and to "tickets:<company>". That
+  channel is joined only by an active login of that company in a Tickets role (Supervisor and up,
+  Recruiter, On Call), never a carer, Senior or Viewer. It is not the company channel every login
+  may join (audit F141). Its rule also checks each message's own channel (F142; Phil popup: the
+  ticket channel only, the shared rule unchanged).
+- **Rights (F146; Phil popup "Yes, as part of this").** Signed out users have nothing on the three
+  ticket tables; signed in users can only read. Every write goes through the ticket functions.
+- **F155** (0419 never applied) is parked as THE LIST 57 (Phil popup).
+
