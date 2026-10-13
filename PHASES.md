@@ -4405,6 +4405,16 @@ call now, in the picker and in the database (0451, applied).
 Then (popup "Do it now"): F171's Handover half. Every Handover change audit logged by a trigger (0452),
 notes text recorded as changed but never copied.
 
+### 2026-10-13 — Ticket numbers per company, one email per save (Phase 13)
+
+Ticket numbers came from one identity shared by every company, so Thistle's were 3, 4, 5, 6, 7, 14.
+Each company now has its own counter, taken in the same transaction as the insert, so a refused save
+or a rolled back test never uses a number (0453, applied). Thistle renumbered 1 to 6 in the order
+raised, next 7, on Phil's go, each ticket's old number in its audit history. The founder's reply box
+has the status beside it: one press saves both and sends one email (status only: one short email).
+A customer's reply on a Resolved ticket reopens it. Every customer email recorded (ticket.emailed).
+Decision: docs/decisions/tickets.md. Tests: TEST-CHECKLIST-TICKET-NUMBERS-ONE-EMAIL.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

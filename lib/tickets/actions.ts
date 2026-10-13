@@ -387,7 +387,7 @@ async function emailRaiser(
     const r = await sendEmail({ to: ticket.raised_by_email, subject, html, companyId: ticket.company_id });
     sent = r.sent;
     reason = r.sent ? null : (r.error ?? r.skippedReason ?? "unknown reason");
-    note = r.sent ? ` ${ticket.raised_by_name} has been emailed.` : ` The email to ${ticket.raised_by_name} did not go: ${reason}.`;
+    note = r.sent ? ` ${ticket.raised_by_name} has been emailed.` : ` The email to ${ticket.raised_by_name} did not go: ${String(reason).replace(/\.+$/, "")}.`;
   }
   await writeAudit({
     companyId: ticket.company_id,
