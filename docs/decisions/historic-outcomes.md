@@ -77,4 +77,8 @@ before they used the Outcomes page, so their PQS and Reg 80 evidence covers the 
 - **Discharged.** A discharged service user counts only in a past period that ended before their
   discharge.
 - **Effect on 13 Oct.** Thistle and Bevan unchanged; the Demo company 97 to 100 outcomes in scope.
-
+- **Customer satisfaction too** (Phil, popup "Fix it now"): the satisfaction figure (PQS User
+  Experience Q2) uses the same rule, so reviews from service users in hospital or on respite count
+  and a removed record's never do. Discharged service users stay out, as before. Effect on 13 Oct:
+  Thistle unchanged (9 reviews); Bevan one review from a removed record drops out; Demo 3 reviews
+  from service users in hospital added.

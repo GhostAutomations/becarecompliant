@@ -1,4 +1,5 @@
 import "server-only";
+import { RECEIVING_SERVICE } from "./outcome-history";
 
 /**
  * Be Care Compliant — Service User satisfaction.
@@ -122,7 +123,10 @@ export async function getSatisfaction(
     .from("service_users")
     .select("id, full_name, branch_id, branches(name)")
     .eq("company_id", companyId)
-    .eq("service_status", "active")
+    // Receiving a service: in hospital or on respite still counts, a removed record never does
+    // (Phil, 2026-10-13, as for outcomes). This was "active" only.
+    .in("service_status", [...RECEIVING_SERVICE])
+    .is("archived_at", null)
     .order("surname_key", { ascending: true });
   if (branchId) suQuery = suQuery.eq("branch_id", branchId);
   const { data: sus } = await suQuery;
@@ -148,7 +152,7 @@ export async function getSatisfaction(
       answers: Record<string, unknown>;
       schema_snapshot: unknown;
     }> | null) ?? []) {
-      if (!suById.has(e.record_id)) continue; // active service users only
+      if (!suById.has(e.record_id)) continue; // service users receiving a service only
 
       /*
        * SCORED ON ITS OWN SNAPSHOT, not on today's questions (Phil, 2026-09-12).

@@ -4385,6 +4385,7 @@ time in the data request export. H1 to H17 pass, including the Founder console c
 test (13 Oct). Done; Thistle and Bevan open until 27/10/2026.
 Then (Phil, popup): the outcomes figures now count service users in hospital or on respite and never a
 removed record (they counted "active" only). Thistle and Bevan unchanged; Demo 97 to 100 in scope.
+The customer satisfaction figure had the same flaw and now uses the same rule (Thistle unchanged).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
