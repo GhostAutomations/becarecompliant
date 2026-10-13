@@ -41,7 +41,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   // before 2026-08-01 does not. Such an invoice then renders exactly as it was sent. See
   // showsUnitPrice.
   const showPrice = showsUnitPrice(inv.lines);
-  // The Date column, only when a line has a date (Phil, 2026-10-13). See showsServiceDate.
+  // The Date column, on every invoice (Phil, 2026-10-13, "Always show it"). See showsServiceDate.
   const showDate = showsServiceDate(inv.lines);
   // Bank details as four fields, or the old free text until they are filled in (Phil, 2026-10-13).
   const bank = bankDetailRows(config);

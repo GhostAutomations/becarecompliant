@@ -93,9 +93,9 @@ test("both PDF column sets with the Date column add up to a full page width", ()
   assert.ok(withPrice.date >= 15 && withoutPrice.date >= 15);
 });
 
-test("the Date column shows only when a line has a date, so sent invoices print as before", () => {
-  assert.equal(showsServiceDate([{ service_date: null }, { service_date: null }]), false);
-  assert.equal(showsServiceDate([]), false);
+test("the Date column shows on every invoice, dated lines or not (Phil, 2026-10-13, Always show it)", () => {
+  assert.equal(showsServiceDate([{ service_date: null }, { service_date: null }]), true);
+  assert.equal(showsServiceDate([]), true);
   assert.equal(showsServiceDate([{ service_date: null }, { service_date: "2026-10-05" }]), true);
 });
 

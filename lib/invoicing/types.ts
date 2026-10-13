@@ -177,12 +177,13 @@ export function showsUnitPrice(
 
 /**
  * THE LINE DATE (Phil, 2026-10-13, all companies): an optional day per line, printed in a Date
- * column left of Service. Popup "Optional, column shows when used": the column appears only when at
- * least one line has a date, so every invoice already sent prints exactly as it was. ONE helper for
- * the page and the PDF.
+ * column left of Service on every invoice page and PDF (popup "Always show it", which replaced
+ * "only when a line has a date"). ONE helper for the page and the PDF.
  */
-export function showsServiceDate(lines: { service_date?: string | null }[]): boolean {
-  return lines.some((l) => Boolean(l.service_date));
+export function showsServiceDate(_lines: { service_date?: string | null }[]): boolean {
+  /* ALWAYS, since Phil's popup "Always show it" (2026-10-13, superseding "only when used"): every
+     invoice page and PDF has Date next to Service; a line without a date is blank there. */
+  return true;
 }
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
