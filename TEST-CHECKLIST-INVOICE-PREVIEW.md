@@ -67,5 +67,5 @@ Run one at a time.
 |---|-------|--------|
 | E0 | Source test: Dear, Payment is due by, please contact us at, Kind regards, light only, never "please reply to this email"; the list has no long dates | PASS (lib/invoicing/invoice-table.test.ts) |
 | E1 | Invoicing list: Period, Issued and Due read DD/MM/YYYY (Thistle: 28/09/2026 to 04/10/2026, 13/10/2026, 20/10/2026) | PASS (Bevan: Issued 13/10/2026, Due 27/10/2026; Phil confirmed the list, 2026-10-13) |
-| E2 | Thistle's next real invoice email reads Dear [name], due by DD/MM/YYYY, please contact us at [their accounts address], Kind regards, Thistle Care Ltd | Not tested |
-| E3 | The same email on Phil's phone in dark mode: the email shows light, the logo sits on white, no white block | Not tested |
+| E2 | Thistle's next real invoice email reads Dear [name], due by DD/MM/YYYY, please contact us at [their accounts address], Kind regards, Thistle Care Ltd | PASS (Phil, on a test invoice email from Bevan to his own inbox, 2026-10-13 23:23, Bevan's email block lifted for one minute on his go) |
+| E3 | The same email on Phil's phone in dark mode: the email shows light, the logo sits on white, no white block | PASS (Phil, same email, Thistle's logo copied to Bevan) |
