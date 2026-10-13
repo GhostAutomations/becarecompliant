@@ -512,7 +512,7 @@ export default function AbsenceView({
                 {s.meetingDue && s.history && (
                   <p className="text-xs font-medium text-amber-300">
                     {s.triggeredStages.length > 1
-                      ? `Meetings due: ${s.triggeredStages.map((n) => `Stage ${n}`).join(" and ")}.`
+                      ? `Meetings due: ${s.triggeredStages.slice(0, -1).map((n) => `Stage ${n}`).join(", ")} and Stage ${s.triggeredStages[s.triggeredStages.length - 1]}.`
                       : `A Stage ${s.triggeredStages[0]} meeting is due.`}
                   </p>
                 )}

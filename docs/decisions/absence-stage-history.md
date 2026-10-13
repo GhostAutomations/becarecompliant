@@ -77,3 +77,9 @@
   and strike through say it does not count). Do not break the bar.
 - [stated] With the switch on, Record meeting's "current absence level" is worded from the stage:
   "Stage 2 reached on 1 Oct 2026 with 4 absences in 6 months. Stage 2 covers absence 4."
+
+## Thistle switched on (Phil, 2026-10-13)
+
+- [stated] "Let's put that on Thistle now then. So they can see absence more clearly." Switched on the
+  same day after every check passed, with an audit entry (company.absence_stage_history_set).
+  Checked as Founder in support mode: every card matched the dry run.
