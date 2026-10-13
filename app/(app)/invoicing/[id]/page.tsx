@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
 import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
-import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, formatServiceDate, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
+import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, serviceDateParts, bankDetailRows, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
 import InvoicePreviewButton from "@/components/invoicing/preview-button";
@@ -43,6 +43,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const showPrice = showsUnitPrice(inv.lines);
   // The Date column, only when a line has a date (Phil, 2026-10-13). See showsServiceDate.
   const showDate = showsServiceDate(inv.lines);
+  // Bank details as four fields, or the old free text until they are filled in (Phil, 2026-10-13).
+  const bank = bankDetailRows(config);
 
   return (
     <div className="page-shell space-y-6">
@@ -125,16 +127,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             <p className="text-sm font-semibold text-white">{companyName}</p>
             {config.from_address ? <p className="whitespace-pre-line text-xs text-white/55">{config.from_address}</p> : null}
           </div>
-          <div className="flex justify-between"><span className="text-white/45">Issued</span><span>{inv.issue_date ?? "—"}</span></div>
-          <div className="flex justify-between"><span className="text-white/45">Due</span><span>{inv.due_date ?? "—"}</span></div>
+          <div className="flex justify-between"><span className="text-white/45">Issued</span><span>{fmtDate(inv.issue_date) || "—"}</span></div>
+          <div className="flex justify-between"><span className="text-white/45">Due</span><span>{fmtDate(inv.due_date) || "—"}</span></div>
           {inv.supply_period_start || inv.supply_period_end ? (
             <div className="flex justify-between">
               <span className="text-white/45">Service period</span>
-              <span>{inv.supply_period_start ?? "…"} to {inv.supply_period_end ?? "…"}</span>
+              <span>{fmtDate(inv.supply_period_start) || "…"} to {fmtDate(inv.supply_period_end) || "…"}</span>
             </div>
           ) : null}
           {inv.status === "paid" ? (
-            <div className="flex justify-between"><span className="text-white/45">Paid</span><span>{inv.paid_date}{inv.paid_method ? ` (${inv.paid_method})` : ""}</span></div>
+            <div className="flex justify-between"><span className="text-white/45">Paid</span><span>{fmtDate(inv.paid_date)}{inv.paid_method ? ` (${inv.paid_method})` : ""}</span></div>
           ) : null}
         </div>
       </section>
@@ -169,7 +171,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                     </tr>
                   ) : null}
                   <tr className="border-t border-white/10">
-                    {showDate ? <td className="py-2 pr-3 text-white/70">{formatServiceDate(l.service_date)}</td> : null}
+                    {showDate ? (
+                      <td className="py-2 pr-3 text-white/70">
+                        {/* The day in a fixed slot so every date lines up (Phil, 2026-10-13). */}
+                        {(() => {
+                          const p = serviceDateParts(l.service_date);
+                          return p ? <><span className="inline-block w-10">{p.day}</span>{p.date}</> : null;
+                        })()}
+                      </td>
+                    ) : null}
                     <td className="py-2 pr-3 text-white/85">{l.service ?? l.description}</td>
                     <td className="py-2 pr-3 text-white/70">{l.unit_label ?? "—"}</td>
                     <td className="py-2 pr-3 text-white/70">{l.handed === "double" ? "Double" : l.handed === "single" ? "Single" : "—"}</td>
@@ -198,10 +208,23 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
       </section>
 
-      {(inv.notes || config.payment_details || config.invoice_footer) ? (
+      {(inv.notes || bank || config.payment_details || config.invoice_footer) ? (
         <section className="glass-card space-y-3 p-5 text-sm text-white/70">
           {inv.notes ? <p className="whitespace-pre-line">{inv.notes}</p> : null}
-          {config.payment_details ? (
+          {bank ? (
+            <div>
+              <h3 className="text-xs uppercase tracking-wide text-white/45">Payment details</h3>
+              {/* Label, a gap, then the value, so the values line up (Phil, 2026-10-13). */}
+              <dl className="mt-1 grid grid-cols-[8rem_1fr] gap-x-3 gap-y-0.5">
+                {bank.map((r) => (
+                  <Fragment key={r.label}>
+                    <dt>{r.label}</dt>
+                    <dd>{r.value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </div>
+          ) : config.payment_details ? (
             <div>
               <h3 className="text-xs uppercase tracking-wide text-white/45">Payment details</h3>
               <p className="mt-1 whitespace-pre-line">{config.payment_details}</p>

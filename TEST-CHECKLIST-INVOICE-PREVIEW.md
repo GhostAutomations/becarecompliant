@@ -30,3 +30,15 @@ Run one at a time.
 | D4 | An invoice with no dates (INV-00001 on Bevan): no Date column on the page or the PDF; it prints exactly as before | PASS (INV-00001: no Date heading on the page; its PDF has no Date column and reads exactly as before) |
 | D5 | Fill lines from care plan: filled lines keep their week heading, with the Date box empty | PASS (care plan fill on a new, unsaved invoice: "Week: 09/10/2026 to 11/10/2026" heading, Date box empty, date not set) |
 | D6 | Phil: Thistle, edit each draft, give each Sleep line its night, save, Preview: the Date column reads each night | PASS (on Phil's go: first draft Mon 28/09/2026 to Sun 04/10/2026, second Mon 05/10/2026 to Sun 11/10/2026, one night per line; saved through Preview on the Edit page; totals unchanged at £1,155.00) |
+
+## Last things for invoicing, 0464 (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| L0 | Unit tests: day and date apart, the PDF's fixed day slot, DD/MM/YYYY on page and PDF, the four bank labels as Phil wrote them, only those filled in, none means the old text | PASS (lib/invoicing/invoice-table.test.ts, 10) |
+| L1 | Thistle's two drafts: Due reads 20/10/2026 on the page and the PDF; still drafts, no number | Not tested |
+| L2 | Page and PDF: Issued, Due and Service period read DD/MM/YYYY (13/10/2026, 20/10/2026, 28/09/2026 to 04/10/2026) | Not tested |
+| L3 | The Date column: Mon, Tue, Wed and so on in a fixed slot, every date starting at the same place, on the page and the PDF | Not tested |
+| L4 | Thistle's PDF: Payment details reads Account Name:, Bank:, Account No:, Sort Code:, with the values lined up | Not tested |
+| L5 | Settings, Invoicing (Bevan): four fields Account Name, Bank, Account No, Sort Code; save, the invoice prints them lined up; empty a field and it drops off | Not tested |
+| L6 | A company with only the old text (none of the four filled) still prints its old text | Not tested |

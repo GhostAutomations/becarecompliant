@@ -21,7 +21,7 @@ import {
    snag S9, Phil 2 Oct, and the no dashes rule for customer copy. */
 Font.registerHyphenationCallback((word) => [word]);
 
-import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, formatServiceDate, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
+import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, serviceDateParts, bankDetailRows, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
 import type { InvoiceDetail } from "./data";
 
 const INK = "#0d1d4b";
@@ -43,6 +43,18 @@ function fmtDate(iso: string | null): string {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/** A line's date: the day in a fixed slot, then the date, so every date lines up under the one
+ *  above (Phil, 2026-10-13). Empty for a line without a date. */
+function DateCell({ style, iso }: { style: { width: string }; iso: string | null }) {
+  const p = serviceDateParts(iso);
+  return (
+    <View style={[{ flexDirection: "row" }, style]}>
+      {p ? <Text style={[s.td, { width: 24 }]}>{p.day}</Text> : null}
+      {p ? <Text style={s.td}>{p.date}</Text> : null}
+    </View>
+  );
 }
 
 const s = StyleSheet.create({
@@ -135,16 +147,16 @@ function InvoiceDocument({
             {inv.bill_to_phone ? <Text style={s.small}>{inv.bill_to_phone}</Text> : null}
           </View>
           <View style={s.col}>
-            <View style={s.metaRow}><Text style={s.metaKey}>Issued</Text><Text style={s.metaVal}>{inv.issue_date ?? "Not set"}</Text></View>
-            <View style={s.metaRow}><Text style={s.metaKey}>Due</Text><Text style={s.metaVal}>{inv.due_date ?? "Not set"}</Text></View>
+            <View style={s.metaRow}><Text style={s.metaKey}>Issued</Text><Text style={s.metaVal}>{fmtDate(inv.issue_date) || "Not set"}</Text></View>
+            <View style={s.metaRow}><Text style={s.metaKey}>Due</Text><Text style={s.metaVal}>{fmtDate(inv.due_date) || "Not set"}</Text></View>
             {inv.supply_period_start || inv.supply_period_end ? (
-              <View style={s.metaRow}><Text style={s.metaKey}>Service period</Text><Text style={s.metaVal}>{inv.supply_period_start ?? "…"} to {inv.supply_period_end ?? "…"}</Text></View>
+              <View style={s.metaRow}><Text style={s.metaKey}>Service period</Text><Text style={s.metaVal}>{fmtDate(inv.supply_period_start) || "…"} to {fmtDate(inv.supply_period_end) || "…"}</Text></View>
             ) : null}
             {config.vat_enabled && inv.vat_number_snapshot ? (
               <View style={s.metaRow}><Text style={s.metaKey}>VAT number</Text><Text style={s.metaVal}>{inv.vat_number_snapshot}</Text></View>
             ) : null}
             {inv.status === "paid" ? (
-              <View style={s.metaRow}><Text style={s.metaKey}>Paid</Text><Text style={s.metaVal}>{inv.paid_date}{inv.paid_method ? ` (${inv.paid_method})` : ""}</Text></View>
+              <View style={s.metaRow}><Text style={s.metaKey}>Paid</Text><Text style={s.metaVal}>{fmtDate(inv.paid_date)}{inv.paid_method ? ` (${inv.paid_method})` : ""}</Text></View>
             ) : null}
           </View>
         </View>
@@ -173,7 +185,7 @@ function InvoiceDocument({
                 </Text>
               ) : null}
               <View style={s.tRow}>
-                {showDate ? <Text style={[s.td, { width: w.date }]}>{formatServiceDate(l.service_date)}</Text> : null}
+                {showDate ? <DateCell style={{ width: w.date }} iso={l.service_date} /> : null}
                 <Text style={[s.td, { width: w.service }]}>{l.service ?? l.description}</Text>
                 <Text style={[s.td, { width: w.unit }]}>{l.unit_label ?? "—"}</Text>
                 <Text style={[s.td, { width: w.handed }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
@@ -198,7 +210,19 @@ function InvoiceDocument({
         {inv.notes ? (
           <View style={s.section}><Text style={s.heading}>Notes</Text><Text style={s.para}>{inv.notes}</Text></View>
         ) : null}
-        {config.payment_details ? (
+        {/* Bank details as four fields, label then value lined up (Phil, 2026-10-13); the old free
+            text only while all four are empty. */}
+        {bankDetailRows(config) ? (
+          <View style={s.section}>
+            <Text style={s.heading}>Payment details</Text>
+            {bankDetailRows(config)!.map((r) => (
+              <View key={r.label} style={{ flexDirection: "row" }}>
+                <Text style={[s.para, { width: 80 }]}>{r.label}</Text>
+                <Text style={s.para}>{r.value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : config.payment_details ? (
           <View style={s.section}><Text style={s.heading}>Payment details</Text><Text style={s.para}>{config.payment_details}</Text></View>
         ) : null}
 

@@ -22,7 +22,13 @@ export type InvoicingConfig = {
   number_prefix: string;
   number_start: number;
   default_payment_terms_days: number;
+  /** The old free text bank details. Printed only while the four fields below are all empty. */
   payment_details: string | null;
+  /** Bank details as four fields (Phil, 2026-10-13; 0464). */
+  bank_account_name: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_sort_code: string | null;
   invoice_footer: string | null;
   company_number: string | null;
   reply_to_email: string | null;
@@ -49,6 +55,10 @@ export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
   number_start: 1,
   default_payment_terms_days: 14,
   payment_details: null,
+  bank_account_name: null,
+  bank_name: null,
+  bank_account_number: null,
+  bank_sort_code: null,
   invoice_footer: null,
   company_number: null,
   reply_to_email: null,
@@ -174,12 +184,43 @@ export function showsServiceDate(lines: { service_date?: string | null }[]): boo
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "Mon 05/10/2026" (popup: day name and UK date); "" for a line without a date. */
-export function formatServiceDate(iso: string | null | undefined): string {
-  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+/** The day and the date apart, so the page and the PDF can set the day in a fixed slot and every
+ *  date lines up under the one above (Phil, 2026-10-13: "Day then tab space then the date so all
+ *  dates go down in a line"). Null for a line without a date. */
+export function serviceDateParts(iso: string | null | undefined): { day: string; date: string } | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
   const [y, m, d] = iso.split("-");
   const day = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))).getUTCDay();
-  return `${WEEKDAY_SHORT[day]} ${d}/${m}/${y}`;
+  return { day: WEEKDAY_SHORT[day], date: `${d}/${m}/${y}` };
+}
+
+/** "Mon 05/10/2026" (popup: day name and UK date); "" for a line without a date. */
+export function formatServiceDate(iso: string | null | undefined): string {
+  const p = serviceDateParts(iso);
+  return p ? `${p.day} ${p.date}` : "";
+}
+
+/**
+ * THE BANK DETAILS (Phil, 2026-10-13): four fields, printed as a label, a gap, then the value, so
+ * the values line up. Labels exactly as Phil wrote them, with a colon (popup). Only the fields
+ * filled in are printed. Null when all four are empty: the invoice then prints the old free text,
+ * so no company's invoice goes blank before it fills the fields in.
+ */
+export const BANK_FIELDS = [
+  { key: "bank_account_name", label: "Account Name" },
+  { key: "bank_name", label: "Bank" },
+  { key: "bank_account_number", label: "Account No" },
+  { key: "bank_sort_code", label: "Sort Code" },
+] as const;
+
+export function bankDetailRows(cfg: {
+  bank_account_name?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_sort_code?: string | null;
+}): { label: string; value: string }[] | null {
+  const rows = BANK_FIELDS.map((f) => ({ label: `${f.label}:`, value: String(cfg[f.key] ?? "").trim() })).filter((r) => r.value);
+  return rows.length ? rows : null;
 }
 
 /** A unit price, or an em dash when this line's figures would not stand being multiplied out.

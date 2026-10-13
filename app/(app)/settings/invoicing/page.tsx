@@ -103,15 +103,27 @@ export default async function InvoicingSettingsPage() {
               <p className="form-hint">Days until an invoice is due, from its issue date.</p>
             </div>
 
+            {/* Bank details as four fields (Phil, 2026-10-13; 0464), printed lined up on every invoice. */}
             <div>
-              <label htmlFor="payment_details" className="form-label">Bank / payment details</label>
-              <textarea
-                id="payment_details"
-                name="payment_details"
-                rows={3}
-                defaultValue={config.payment_details ?? ""}
-                placeholder={"Account name: Your Company Ltd\nSort code: 00-00-00\nAccount number: 12345678"}
-              />
+              <p className="form-label">Payment details</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="bank_account_name" className="form-label">Account Name</label>
+                  <input id="bank_account_name" name="bank_account_name" maxLength={120} defaultValue={config.bank_account_name ?? ""} />
+                </div>
+                <div>
+                  <label htmlFor="bank_name" className="form-label">Bank</label>
+                  <input id="bank_name" name="bank_name" maxLength={120} defaultValue={config.bank_name ?? ""} />
+                </div>
+                <div>
+                  <label htmlFor="bank_account_number" className="form-label">Account No</label>
+                  <input id="bank_account_number" name="bank_account_number" maxLength={40} inputMode="numeric" defaultValue={config.bank_account_number ?? ""} />
+                </div>
+                <div>
+                  <label htmlFor="bank_sort_code" className="form-label">Sort Code</label>
+                  <input id="bank_sort_code" name="bank_sort_code" maxLength={20} inputMode="numeric" defaultValue={config.bank_sort_code ?? ""} />
+                </div>
+              </div>
               <p className="form-hint">Shown on every invoice so clients can pay by bank transfer.</p>
             </div>
 

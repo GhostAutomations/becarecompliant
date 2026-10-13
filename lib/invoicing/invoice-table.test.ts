@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { formatServiceDate, showsServiceDate, showsUnitPrice } from "./types.ts";
+import { bankDetailRows, formatServiceDate, serviceDateParts, showsServiceDate, showsUnitPrice } from "./types.ts";
 
 /**
  * The invoice line table, asserted against the SOURCE.
@@ -107,4 +107,38 @@ test("a line date reads as the day and the UK date", () => {
   assert.equal(formatServiceDate(null), "");
   assert.equal(formatServiceDate(""), "");
   assert.equal(formatServiceDate("not a date"), "");
+});
+
+test("the day and the date come apart so the dates line up", () => {
+  assert.deepEqual(serviceDateParts("2026-09-28"), { day: "Mon", date: "28/09/2026" });
+  assert.deepEqual(serviceDateParts("2026-10-07"), { day: "Wed", date: "07/10/2026" });
+  assert.equal(serviceDateParts(null), null);
+  assert.equal(serviceDateParts("2026/10/07"), null);
+  // The PDF sets the day in a fixed slot, so every row's date starts at the same place.
+  assert.ok(pdf.includes("<DateCell style={{ width: w.date }} iso={l.service_date} />"));
+  assert.ok(/<Text style=\{\[s\.td, \{ width: 24 \}\]\}>\{p\.day\}<\/Text>/.test(pdf));
+});
+
+test("issued, due, service period and paid print as DD/MM/YYYY on the page and the PDF", () => {
+  for (const src of [pdf, page]) {
+    assert.ok(src.includes("fmtDate(inv.issue_date)"));
+    assert.ok(src.includes("fmtDate(inv.due_date)"));
+    assert.ok(src.includes("fmtDate(inv.supply_period_start)"));
+    assert.ok(src.includes("fmtDate(inv.paid_date)"));
+  }
+});
+
+test("bank details: the four labels as Phil wrote them, only those filled in, none means the old text", () => {
+  assert.deepEqual(
+    bankDetailRows({ bank_account_name: "Example Care Ltd", bank_name: "Example Bank", bank_account_number: "12345678", bank_sort_code: "000000" }),
+    [
+      { label: "Account Name:", value: "Example Care Ltd" },
+      { label: "Bank:", value: "Example Bank" },
+      { label: "Account No:", value: "12345678" },
+      { label: "Sort Code:", value: "000000" },
+    ],
+  );
+  assert.deepEqual(bankDetailRows({ bank_account_name: " Example Care Ltd ", bank_name: "  " }), [{ label: "Account Name:", value: "Example Care Ltd" }]);
+  assert.equal(bankDetailRows({}), null);
+  assert.equal(bankDetailRows({ bank_account_name: null, bank_name: "", bank_account_number: null, bank_sort_code: null }), null);
 });

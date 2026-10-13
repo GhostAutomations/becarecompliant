@@ -58,7 +58,12 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
   }
   const number_prefix = (trimOrNull(formData.get("number_prefix")) ?? "INV-").slice(0, 12);
   const default_payment_terms_days = Math.max(0, intOrNull(formData.get("default_payment_terms_days")) ?? 14);
-  const payment_details = trimOrNull(formData.get("payment_details"));
+  /* Bank details as four fields (Phil, 2026-10-13; 0464). The old free text (payment_details) is
+     no longer on the form and is left exactly as it is: it prints only while all four are empty. */
+  const bank_account_name = trimOrNull(formData.get("bank_account_name"))?.slice(0, 120) ?? null;
+  const bank_name = trimOrNull(formData.get("bank_name"))?.slice(0, 120) ?? null;
+  const bank_account_number = trimOrNull(formData.get("bank_account_number"))?.slice(0, 40) ?? null;
+  const bank_sort_code = trimOrNull(formData.get("bank_sort_code"))?.slice(0, 20) ?? null;
   const invoice_footer = trimOrNull(formData.get("invoice_footer"));
   const company_number = trimOrNull(formData.get("company_number"));
   const from_address = trimOrNull(formData.get("from_address"));
@@ -88,7 +93,10 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
       number_prefix,
       number_start,
       default_payment_terms_days,
-      payment_details,
+      bank_account_name,
+      bank_name,
+      bank_account_number,
+      bank_sort_code,
       invoice_footer,
       company_number,
       from_address,

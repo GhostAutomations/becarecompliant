@@ -4509,6 +4509,14 @@ care plan fill left as it is, "Mon 05/10/2026". 0463 adds invoice_lines.service_
 docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md D0 to D6, all pass (Thistle's two
 drafts dated on Phil's go). DONE, signed off by Phil 2026-10-13.
 
+### 2026-10-13 — Last things for invoicing (Phase 13)
+
+Phil's four: Thistle's two drafts were due on 14 day terms made before the change to 7 (corrected to
+20/10 on his go); Issued, Due, Service period and Paid as DD/MM/YYYY on the page and PDF; the line
+date set as day then date, lined up; bank details as four fields (Account Name, Bank, Account No,
+Sort Code, 0464) printed lined up, the old text only while the fields are empty, Thistle's copied
+over on his go. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md L0 to L6.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
