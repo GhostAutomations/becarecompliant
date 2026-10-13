@@ -50,7 +50,8 @@ export function rtwSmsBody(opts: { firstName: string; companyName: string; link:
   return `Hi ${first}, ${opts.companyName} would like you to answer a few questions before your Return to Work meeting. Please sign in to answer them: ${opts.link}`;
 }
 
-export type RtwQuestionnaireStatus = "drafted" | "sent" | "answered" | "recorded";
+/** cancelled: the Return to Work was cancelled (0459), so the link is closed. */
+export type RtwQuestionnaireStatus = "drafted" | "sent" | "answered" | "recorded" | "cancelled";
 
 /** Whether a sent link has run out. A link with no expiry never does. */
 export function rtwLinkExpired(expiresAtIso: string | null, nowMs: number): boolean {

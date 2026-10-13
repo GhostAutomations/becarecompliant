@@ -249,7 +249,7 @@ export function openStagesLine(history: StageHistory): string {
 }
 
 /**
- * The absences a stage's meeting is about, with the switch on: the ones inside the window when
+ * The absences a stage's meeting is about, with the stage history: the ones inside the window when
  * that stage was last reached, oldest first, so the meeting form, the invitation and the outcome
  * letter can take that stage's own slice of them (meeting-questions.ts discussedAbsences). Null
  * when the stage has not been reached (a meeting held early), and the caller keeps today's list.

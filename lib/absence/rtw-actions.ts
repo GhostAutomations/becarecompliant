@@ -262,12 +262,15 @@ export async function recordReturnToWork(
   const supabase = await createClient();
   const { data: absence } = await supabase
     .from("absence_events")
-    .select("id, person_id, branch_id, rtw_evidence_id")
+    .select("id, person_id, branch_id, rtw_evidence_id, rtw_cancelled_at")
     .eq("id", absenceId)
     .maybeSingle();
   if (!absence) return { error: "That absence could not be found." };
   if (absence.rtw_evidence_id) {
     return { error: "A Return to Work has already been recorded for this absence." };
+  }
+  if (absence.rtw_cancelled_at) {
+    return { error: "This Return to Work was cancelled. A Manager can reinstate it from View absence first." };
   }
 
   const form = await getCompanyFormByKey(profile.company_id, "return_to_work");

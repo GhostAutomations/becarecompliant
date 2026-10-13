@@ -11,10 +11,10 @@
  * struck through, with who, when and why, and stops counting) and count it again. Supervisors see
  * it and can still edit the last date.
  *
- * Stage history (0457, Phil 2026-10-13), only when the company's switch is on: about twice as wide
+ * Stage history (Phil 2026-10-13, every company on the stages method since 0459): about twice as wide
  * (full width on a phone), one line per stage reached with its status at the top, one bracket down
  * the left joining every absence that counts towards a Due or Pending stage, and each absence on
- * two lines (dates, days and a status pill; then its controls side by side). Switch off: as before.
+ * two lines (dates, days and a status pill; then its controls side by side). Bradford: as before.
  */
 
 import { useEffect, useState } from "react";
@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { updateAbsenceEndDate } from "@/lib/absence/actions";
 import { discountAbsences, restoreAbsence } from "@/lib/absence/discount-actions";
+import { reinstateReturnToWork } from "@/lib/absence/rtw-cancel-actions";
 import { absenceCountState } from "@/lib/absence/discount";
 import { absenceCardStatus, type AbsenceCardStatus, type ReachedStage, type StageHistory } from "@/lib/absence/stage-history";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -116,14 +117,17 @@ function RowEditor({
   canDiscount,
   windowStart,
   history,
+  canCancelRtw = false,
 }: {
   ev: AbsenceEventRow;
   n: number;
   canEdit: boolean;
   canDiscount: boolean;
   windowStart: string;
-  /** Switch on (0457): the two line card with the stage history's pill. */
+  /** The stage history: the two line card with its pill. */
   history?: StageHistory;
+  /** Managers and above: reinstate a cancelled Return to Work (0459). */
+  canCancelRtw?: boolean;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(updateAbsenceEndDate, IDLE_STATE);
@@ -132,6 +136,7 @@ function RowEditor({
   const [saved, flash, reset] = useSavedFlash();
   const discount = useRun(discountAbsences);
   const restore = useRun(restoreAbsence);
+  const reinstate = useRun(reinstateReturnToWork);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -193,8 +198,28 @@ function RowEditor({
       </div>
     </div>
   );
+  /* A cancelled Return to Work (0459): kept on the absence with who, when and why. */
+  const rtwCancelled = ev.rtw_cancelled_at ? (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="pill pill-neutral">Return to Work cancelled</span>
+      <span className="text-xs text-white/70">
+        by {ev.rtw_cancelled_by_name ?? "a manager"} on {fmt(ev.rtw_cancelled_at)}: {ev.rtw_cancel_reason}
+      </span>
+      {canCancelRtw ? (
+        <button
+          type="button"
+          className="btn-outline ml-auto px-3 py-1.5 text-xs"
+          disabled={reinstate.busy}
+          onClick={() => reinstate.go({ absence_id: ev.id })}
+        >
+          {reinstate.busy ? "Saving…" : "Reinstate"}
+        </button>
+      ) : null}
+    </div>
+  ) : null;
   const errors = (
     <>
+      {reinstate.state.error && <p className="form-error mt-1 text-xs">{reinstate.state.error}</p>}
       {state.error && <p className="form-error mt-1 text-xs">{state.error}</p>}
       {discount.state.error && <p className="form-error mt-1 text-xs">{discount.state.error}</p>}
       {restore.state.error && <p className="form-error mt-1 text-xs">{restore.state.error}</p>}
@@ -270,6 +295,7 @@ function RowEditor({
             Discounted by {ev.discounted_by_name ?? "a manager"} on {fmt(ev.discounted_at)}: {ev.discount_reason}
           </p>
         )}
+        {rtwCancelled}
         {discountBox}
         {errors}
       </div>
@@ -338,6 +364,7 @@ function RowEditor({
           )}
         </div>
       </div>
+      {rtwCancelled}
       {discountBox}
       {errors}
     </div>
@@ -354,12 +381,14 @@ function HistoryBody({
   canEdit,
   canDiscount,
   windowStart,
+  canCancelRtw,
 }: {
   events: AbsenceEventRow[];
   history: StageHistory;
   canEdit: boolean;
   canDiscount: boolean;
   windowStart: string;
+  canCancelRtw: boolean;
 }) {
   const sorted = [...events].sort((a, b) => a.start_date.localeCompare(b.start_date));
   const inBracket = sorted.map((e) => history.bracketed.includes(e.id));
@@ -374,6 +403,7 @@ function HistoryBody({
       canDiscount={canDiscount}
       windowStart={windowStart}
       history={history}
+      canCancelRtw={canCancelRtw}
     />
   );
   const openStages = history.open.map((r) => `Stage ${r.stage}`);
@@ -424,6 +454,7 @@ export default function AbsenceDetailDialog({
   triggerLabel = "View absence",
   triggerClassName = "btn-outline px-3 py-1.5 text-xs",
   history,
+  canCancelRtw = false,
 }: {
   personName: string;
   events: AbsenceEventRow[];
@@ -436,8 +467,10 @@ export default function AbsenceDetailDialog({
   openOnMount?: boolean;
   triggerLabel?: string;
   triggerClassName?: string;
-  /** Only when the company's stage history switch is on (0457). */
+  /** The stage history (stages method); absent for a Bradford company. */
   history?: StageHistory;
+  /** Managers and above: reinstate a cancelled Return to Work (0459). */
+  canCancelRtw?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -481,6 +514,7 @@ export default function AbsenceDetailDialog({
                 canEdit={canEdit}
                 canDiscount={canDiscount}
                 windowStart={windowStart}
+                canCancelRtw={canCancelRtw}
               />
             ) : events.length === 0 ? (
               <p className="text-sm text-white/60">No absences recorded.</p>
@@ -496,6 +530,7 @@ export default function AbsenceDetailDialog({
                       canEdit={canEdit}
                       canDiscount={canDiscount}
                       windowStart={windowStart}
+                      canCancelRtw={canCancelRtw}
                     />
                   ))}
               </div>

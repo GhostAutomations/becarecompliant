@@ -5,7 +5,9 @@ import "server-only";
  * happens after EVERY absence at EVERY stage, not just the first one or two, so the
  * system raises it rather than relying on a manager remembering: migration 0142 puts
  * rtw_due_date on absence_events through a trigger the moment an absence has a return
- * or end date, and outstanding means that date is set and rtw_evidence_id is not.
+ * or end date, and outstanding means that date is set, rtw_evidence_id is not, and it has not been
+ * cancelled (0459, Phil 2026-10-13). listOutstandingRtw is the ONE rule: the Absence page and the
+ * Dashboard both read it.
  *
  * Reads only. The completing action lives in lib/absence/rtw-actions.ts.
  */
@@ -51,6 +53,7 @@ export async function listOutstandingRtw(companyId: string): Promise<Outstanding
     .eq("people.employment_status", "active")
     .is("people.archived_at", null)
     .is("rtw_evidence_id", null)
+    .is("rtw_cancelled_at", null)
     .not("rtw_due_date", "is", null)
     .order("rtw_due_date", { ascending: true })
     .limit(200);
@@ -152,6 +155,8 @@ export type RtwContext = {
   reason: string | null;
   dueDate: string | null;
   done: boolean;
+  /** Cancelled by a Manager or above (0459): no longer outstanding. */
+  cancelled: boolean;
   /** Their other absences in the last year, so the interview can be informed by the
    *  pattern rather than this one occasion in isolation. */
   recent: Array<{ start_date: string; end_date: string | null; days: number | null; reason: string | null }>;
@@ -162,7 +167,7 @@ export async function getRtwContext(absenceEventId: string): Promise<RtwContext 
   const supabase = await createClient();
   const { data } = await supabase
     .from("absence_events")
-    .select("id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, rtw_evidence_id, people(full_name)")
+    .select("id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, rtw_evidence_id, rtw_cancelled_at, people(full_name)")
     .eq("id", absenceEventId)
     .maybeSingle();
   if (!data) return null;
@@ -176,6 +181,7 @@ export async function getRtwContext(absenceEventId: string): Promise<RtwContext 
     reason: string | null;
     rtw_due_date: string | null;
     rtw_evidence_id: string | null;
+    rtw_cancelled_at: string | null;
     people: { full_name: string } | null;
   };
 
@@ -198,6 +204,7 @@ export async function getRtwContext(absenceEventId: string): Promise<RtwContext 
     reason: row.reason,
     dueDate: row.rtw_due_date,
     done: Boolean(row.rtw_evidence_id),
+    cancelled: Boolean(row.rtw_cancelled_at),
     recent: ((recent as Array<{
       start_date: string;
       end_date: string | null;

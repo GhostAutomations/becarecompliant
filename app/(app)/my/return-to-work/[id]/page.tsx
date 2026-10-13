@@ -65,6 +65,12 @@ export default async function MyReturnToWorkPage({
             manager may have finished your Return to Work already. If you think this is wrong,
             please ask your manager.
           </p>
+        ) : q.status === "cancelled" ? (
+          /* Cancelled by a Manager (0459): the link is closed, said plainly rather than as an error. */
+          <p className="text-sm text-white/70">
+            Your manager has cancelled this Return to Work, so there is nothing to answer here. If
+            you think this is wrong, please ask your manager.
+          </p>
         ) : q.status !== "sent" ? (
           <p className="text-sm text-white/70">
             Thank you{q.first_name ? `, ${q.first_name}` : ""}. Your answers were sent

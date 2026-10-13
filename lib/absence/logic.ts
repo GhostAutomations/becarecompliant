@@ -123,10 +123,10 @@ export type AbsenceStatus = {
   /** Every stage triggered and not yet held, lowest first (Phil, 2026-10-08: "show all the stages
    *  that have been triggered"). Empty when no meeting is due. */
   triggeredStages: number[];
-  /** Only with the stage history switch on (companies.absence_stage_history): every stage reached
+  /** The stage history (stages method, every company since 0459): every stage reached
    *  at the date of the absence that reached it, with its own status (stage-history.ts). */
   history?: StageHistory;
-  /** Only with the switch on: the stages a meeting can be booked or recorded at, lowest Due first. */
+  /** With the stage history: the stages a meeting can be booked or recorded at, lowest Due first. */
   offered?: number[];
 };
 
@@ -307,8 +307,8 @@ export type StageHistoryInputs = {
  * letter goes through this, by way of lib/absence/stage-switch.ts, which reads the company's switch
  * (companies.absence_stage_history) and passes the inputs only when it is on.
  *
- * Switch off (inputs null), or a Bradford company: exactly the old count, deriveAbsenceStatus.
- * Switch on: the stages reached at the date of each absence (stage-history.ts), mapped onto the
+ * No inputs, or a Bradford company: exactly the old count, deriveAbsenceStatus.
+ * With inputs: the stages reached at the date of each absence (stage-history.ts), mapped onto the
  * same shape so every caller keeps working.
  */
 export function resolveAbsenceStatus(

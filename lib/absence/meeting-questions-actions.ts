@@ -19,7 +19,7 @@ import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor } from "@/lib/absence/stage-actions";
 import { SUMMARY_STAGE_COLUMNS, offeredStages } from "@/lib/absence/logic";
-import { absenceStageHistoryOn, absenceStatusForPerson } from "@/lib/absence/stage-switch";
+import { absenceStatusForPerson } from "@/lib/absence/stage-switch";
 import { stageAbsenceIds, stageHistory } from "@/lib/absence/stage-history";
 import { absenceCountState, countedAbsences, windowStartIso } from "@/lib/absence/discount";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -109,9 +109,9 @@ export async function draftMeetingQuestions(
     ...e,
     days: e.days === null ? null : Number(e.days),
   }));
-  /* With the stage history switch on (0457), a stage's meeting is about the absences that reached
-     it, even when some have since left today's window. */
-  const history = (await absenceStageHistoryOn(person.company_id as string)) && config.method === "stages"
+  /* A stage's meeting is about the absences that reached it, even when some have since left
+     today's window (the stage history, 0457/0459). */
+  const history = config.method === "stages"
     ? stageHistory({
         events,
         meetings: [],

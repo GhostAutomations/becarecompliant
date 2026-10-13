@@ -4452,6 +4452,17 @@ after it (0458, inside that stage's window only); one carer's 5 Jun Stage 1 meet
 Then (Phil): the 7 October rule back with the switch on, after a warning only: a new counted absence
 within the window of a held Stage N meeting that gave a warning reaches Stage N+1.
 
+### 2026-10-13 — Absence section: stages for every company, Return to Work folded and cancellable (Phase 13)
+
+Part A: the absence stage history (worked out at each absence's date, every stage kept until its
+meeting is held) for every company on the stages method, no switch (0459 retires it; only Demo
+changes). Part B: the Return to Work section starts folded with its counts in the heading; Managers
+and above can cancel one or several with a reason, and reinstate, enforced by the database
+(can_cancel_rtw, cancel_rtw, reinstate_rtw, a guard trigger); a cancel is kept with who, when and why,
+closes any questions link, and leaves every outstanding count; a recorded one cannot be cancelled.
+Thistle's backlog of 12 overdue Return to Works cancelled on Phil's go. Tests:
+TEST-CHECKLIST-ABSENCE-AND-RTW.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

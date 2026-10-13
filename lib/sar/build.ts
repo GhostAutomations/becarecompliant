@@ -267,17 +267,19 @@ export async function buildSubjectAccessExport(input: {
     // ---- Absence and meetings
     const { data: abs } = await db
       .from("absence_events")
-      .select("start_date, end_date, return_date, days, reason, rtw_due_date, created_at, discounted_at, discounted_by_name, discount_reason")
+      .select("start_date, end_date, return_date, days, reason, rtw_due_date, created_at, discounted_at, discounted_by_name, discount_reason, rtw_cancelled_at, rtw_cancelled_by_name, rtw_cancel_reason")
       .eq("person_id", recordId)
       .order("start_date", { ascending: true });
     sections.push({
       title: "Absence",
       file: "absence.csv",
-      headers: ["From", "To", "Returned", "Days", "Reason", "Return to work due", "Recorded", "Discounted", "Discounted by", "Why discounted"],
+      headers: ["From", "To", "Returned", "Days", "Reason", "Return to work due", "Recorded", "Discounted", "Discounted by", "Why discounted", "Return to work cancelled", "Cancelled by", "Why cancelled"],
       rows: ((abs ?? []) as Array<Record<string, unknown>>).map((a) => [
         fmtDate(a.start_date as string), fmtDate(a.end_date as string), fmtDate(a.return_date as string), t(a.days), t(a.reason),
         fmtDate(a.rtw_due_date as string), fmtDateTime(a.created_at as string),
         fmtDateTime(a.discounted_at as string), t(a.discounted_by_name), t(a.discount_reason),
+        // A cancelled Return to Work (0459) stays on the record with who and why.
+        fmtDateTime(a.rtw_cancelled_at as string), t(a.rtw_cancelled_by_name), t(a.rtw_cancel_reason),
       ]),
       empty: "No absences recorded.",
     });

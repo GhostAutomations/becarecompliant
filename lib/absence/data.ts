@@ -18,7 +18,7 @@ import {
   type AbsenceConfig,
   type AbsenceStatus,
 } from "./logic";
-import { absenceStageHistoryOn, absenceStatusForPerson, absenceStatusesFor, loadStageInputs } from "./stage-switch";
+import { absenceStatusForPerson, absenceStatusesFor, loadStageInputs } from "./stage-switch";
 import { openStagesLine } from "./stage-history";
 import { SUMMARY_STAGE_COLUMNS } from "./logic";
 
@@ -100,10 +100,10 @@ export async function listAbsenceRegister(
   const { data } = await query;
   let summary = (data as SummaryRow[] | null) ?? [];
 
-  /* The stage history switch (0457): every stage reached stays until its meeting is held, so a
-     person whose absences have all left today's window can still have one open. They are added
-     here, with nothing counting today. Switch off: only the view's rows, as before. */
-  const on = config.method === "stages" && (await absenceStageHistoryOn(companyId));
+  /* The stage history (every company since 0459): every stage reached stays until its meeting is
+     held, so a person whose absences have all left today's window can still have one open. They
+     are added here, with nothing counting today. Bradford: only the view's rows. */
+  const on = config.method === "stages";
   const inputs = on ? await loadStageInputs(supabase, { companyId, branchId }) : undefined;
   if (inputs) {
     const have = new Set(summary.map((r) => r.person_id));
@@ -231,6 +231,12 @@ export type AbsenceEventRow = {
   discounted_at: string | null;
   discounted_by_name: string | null;
   discount_reason: string | null;
+  /** Return to Work (0142): due date, the recorded interview, and a cancel (0459). */
+  rtw_due_date?: string | null;
+  rtw_evidence_id?: string | null;
+  rtw_cancelled_at?: string | null;
+  rtw_cancelled_by_name?: string | null;
+  rtw_cancel_reason?: string | null;
 };
 
 /** All absence events for the company's people (RLS-scoped), for the Absence
@@ -243,7 +249,7 @@ export async function listAbsenceEvents(
   let query = supabase
     .from("absence_events")
     .select(
-      "id, person_id, start_date, end_date, return_date, days, reason, evidence_id, created_at, discounted_at, discounted_by_name, discount_reason",
+      "id, person_id, start_date, end_date, return_date, days, reason, evidence_id, created_at, discounted_at, discounted_by_name, discount_reason, rtw_due_date, rtw_evidence_id, rtw_cancelled_at, rtw_cancelled_by_name, rtw_cancel_reason",
     )
     .eq("company_id", companyId)
     .order("start_date", { ascending: false });
@@ -345,11 +351,10 @@ export async function listPersonMeetings(
 }
 
 /**
- * "Stage 1 Pending · Stage 2 Due" for the person's record, only with the stage history switch on
- * (0457). Null when it is off, for a Bradford company, or when no stage is open.
+ * "Stage 1 Pending · Stage 2 Due" for the person's record. Null for a Bradford company, or when no
+ * stage is open.
  */
 export async function getPersonOpenStagesLine(companyId: string, personId: string): Promise<string | null> {
-  if (!(await absenceStageHistoryOn(companyId))) return null;
   const config = await getAbsenceConfig(companyId);
   if (config.method !== "stages") return null;
   const supabase = await createClient();

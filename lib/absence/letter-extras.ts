@@ -20,7 +20,6 @@ import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
 import { meetingNameInSentence } from "@/lib/absence/meeting-name";
 import type { InvitationAbsence } from "@/lib/absence/invitation-letter";
-import { absenceStageHistoryOn } from "@/lib/absence/stage-switch";
 import { stageAbsenceIds, stageHistory } from "@/lib/absence/stage-history";
 import { stageThresholds } from "@/lib/absence/meeting-questions";
 
@@ -65,12 +64,12 @@ export async function loadLetterExtras(opts: {
   /** The person's next meeting day, if any: a discount made from then on is that meeting's, not
    *  this one's (Phil, 2026-10-12). */
   countDiscountedBefore?: string | null;
-  /** The meeting's stage. With the stage history switch on (0457) the letter lists the absences
+  /** The meeting's stage. With the stage history (0457, every company since 0459) the letter lists the absences
    *  that reached that stage, even those that have since left today's window. */
   stage?: number | null;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
-  const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config, historyOn] =
+  const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config] =
     await Promise.all([
       admin.from("people").select("branch_id, home_address").eq("id", opts.personId).eq("company_id", opts.companyId).maybeSingle(),
       admin.from("branches").select("id, name, kind, address, phone, uses_office_address").eq("company_id", opts.companyId),
@@ -83,7 +82,6 @@ export async function loadLetterExtras(opts: {
       companyMeetingName(opts.companyId),
       getCompanyLogoDataUrl(opts.companyId).catch(() => null),
       getAbsenceConfig(opts.companyId),
-      absenceStageHistoryOn(opts.companyId),
     ]);
 
   // Letterhead: the employee's branch office when it has premises of its own, else the main office.
@@ -102,10 +100,10 @@ export async function loadLetterExtras(opts: {
   const here = discountedAtMeeting(raw, from, opts.countDiscountedBefore);
   const hereDates = new Set(here.map((e) => e.start_date));
   const asHeld = raw.map((e) => (hereDates.has(e.start_date) ? { ...e, discounted_at: null } : e));
-  /* Switch on (0457): the absences that reached this stage, as they stood on the day. A stage not
+  /* The stage history (0459): the absences that reached this stage, as they stood on the day. A stage not
      reached (a meeting held early) keeps today's list, as before. */
   const stageIds =
-    historyOn && config.method === "stages" && opts.stage
+    config.method === "stages" && opts.stage
       ? stageAbsenceIds(
           stageHistory({
             events: asHeld,

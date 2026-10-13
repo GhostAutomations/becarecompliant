@@ -38,6 +38,8 @@ import type { OutstandingRtw } from "@/lib/absence/rtw";
 import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
 import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import RtwSendPanel from "@/components/absence/rtw-send-panel";
+import RtwCancelPanel from "@/components/absence/rtw-cancel-panel";
+import { rtwCounts } from "@/lib/absence/rtw-roles";
 import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
 import { absenceRank, rankAbsenceRows, type RankInput } from "@/lib/absence/rank";
 import { useBranchWord } from "@/components/branches/branch-word";
@@ -90,6 +92,7 @@ export default function AbsenceView({
   canDiscount,
   windowStart,
   windowWords = "",
+  canCancelRtw = false,
 }: {
   method: AbsenceMethod;
   /** Stage occasions thresholds (stages method), for scoping which absences a
@@ -128,6 +131,8 @@ export default function AbsenceView({
   windowStart: string;
   /** "6 months": the rolling window in the policy's words, for the stage history wording. */
   windowWords?: string;
+  /** Managers and above: cancel and reinstate Return to Works (0459). */
+  canCancelRtw?: boolean;
 }) {
   const bw = useBranchWord();
   const [branch, setBranch] = useState("");
@@ -232,7 +237,7 @@ export default function AbsenceView({
        are that stage's (Phil, 2026-10-08: when several stages are triggered the manager picks, the
        higher one chosen by default). */
     const triggered = r.status.triggeredStages ?? [];
-    /* With the stage history switch on (0457) the LOWEST Due stage is chosen to start with (Phil,
+    /* With the stage history (0457/0459) the LOWEST Due stage is chosen to start with (Phil,
        2026-10-13), and the manager can change it. */
     const defaultUnbooked =
       nothingBooked && triggered.length > 0 ? (r.status.history ? Math.min(...triggered) : Math.max(...triggered)) : null;
@@ -270,7 +275,7 @@ export default function AbsenceView({
     // (2026-09-29: this list used every absence ever recorded, which would have put a Stage 1 onto
     // absences from years ago). The same rule the drafted questions use: discussedAbsences.
     const bookedStage = earliest?.stage ?? defaultUnbooked;
-    /* Switch on (0457): the absences that reached the stage, even those that have since left
+    /* The stage history (0457/0459): the absences that reached the stage, even those that have since left
        today's window. A stage not reached keeps today's list. */
     const stageIds = r.status.history ? stageAbsenceIds(r.status.history, bookedStage) : null;
     const chronological = stageIds
@@ -278,7 +283,7 @@ export default function AbsenceView({
           .filter((e) => stageIds.includes(e.id))
           .sort((a, b) => a.start_date.localeCompare(b.start_date))
       : countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
-    /* Switch on (0457, Phil 2026-10-13): the level is worded from the stage, "Stage 2 reached on
+    /* The stage history (Phil, 2026-10-13): the level is worded from the stage, "Stage 2 reached on
        1 Oct 2026 with 4 absences in 6 months.", not today's window, which can say 2. */
     const reachedStage =
       r.status.history && bookedStage
@@ -368,7 +373,7 @@ export default function AbsenceView({
     derivedLabel: r.status.derivedLabel,
     meetingDue: r.status.meetingDue,
     bradfordScore: r.status.bradfordScore,
-    /* Switch on (0457): a booking for one stage does not cover another that is Due, so a Due stage
+    /* The stage history: a booking for one stage does not cover another that is Due, so a Due stage
        keeps them in Action required. */
     booking: r.status.history && r.status.meetingDue ? null : bookingByPerson[r.personId] ?? null,
   });
@@ -414,6 +419,15 @@ export default function AbsenceView({
     );
   }, [outstandingRtw, branch, branches]);
 
+  /* Cancelling Return to Works (0459, Phil 2026-10-13): ticks for several, or Cancel on one row.
+     Only the ones on screen can be ticked, so a branch filter never cancels what is hidden. */
+  const [rtwTicked, setRtwTicked] = useState<string[]>([]);
+  const [rtwCancelIds, setRtwCancelIds] = useState<string[] | null>(null);
+  const [rtwDone, setRtwDone] = useState("");
+  const visibleRtwIds = useMemo(() => new Set(visibleRtw.map((r) => r.absenceEventId)), [visibleRtw]);
+  const tickedVisible = rtwTicked.filter((id) => visibleRtwIds.has(id));
+  const rtwTally = rtwCounts(visibleRtw);
+
   /** Preset "Interview conducted by" with whoever is filling it in, but ONLY when they
    *  are actually one of the baked options. The bake (migration 0144) excludes platform
    *  admins, so a founder or a manage-as session is not in the list, and presetting a
@@ -454,7 +468,7 @@ export default function AbsenceView({
                have been triggered"). */
             const triggeredList = (s.triggeredStages ?? []).map((n) => `Stage ${n}`);
             const several = triggeredList.length > 1;
-            /* Switch on (0457): every open stage, compactly: "Stage 1 Pending · Stage 2 Due". */
+            /* The stage history: every open stage, compactly: "Stage 1 Pending · Stage 2 Due". */
             const historyLine = s.history ? openStagesLine(s.history) : "";
             const pillLabel = historyLine || (several ? triggeredList.join(", ") : s.derivedLabel);
             const severalLine = several
@@ -525,7 +539,7 @@ export default function AbsenceView({
                       : `A ${s.derivedLabel ?? "stage"} meeting is due.`}
                   </p>
                 )}
-                {/* One line per booked meeting with the stage history switch on (0457, Phil 2026-10-13),
+                {/* One line per booked meeting with the stage history (Phil, 2026-10-13),
                     so each open stage's booking shows beside its pill; off, only the earliest, as before. */}
                 {(s.history
                   ? [...(allBookingsByPerson[r.personId] ?? [])].sort((a, b) => (a.stage ?? 9) - (b.stage ?? 9))
@@ -575,6 +589,7 @@ export default function AbsenceView({
                     windowStart={windowStart}
                     openOnMount={openViewPersonId === r.personId}
                     history={s.history}
+                    canCancelRtw={canCancelRtw}
                   />
                   {/* Nothing left to book once every stage has been held (Phil, 2026-10-12, THE LIST 55):
                       said on the card instead of a Book meeting that opens empty. */}
@@ -722,21 +737,84 @@ export default function AbsenceView({
           to Work happens after EVERY absence at every stage, so it must not depend on
           anyone remembering. Overdue ones sort to the top and read red. Not offered to On Call,
           who records absences and meetings but holds no Return to Work interviews. */}
-      {canManage && canRecordRtw && rtwSchema && visibleRtw.length > 0 ? (
-        <div className="glass-card p-4">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-base font-semibold text-white">Return to Work</h2>
-            <span className="text-xs text-white/50">
-              {visibleRtw.filter((r) => r.overdue).length} overdue of {visibleRtw.length}
+      {/* Folded, closed to start (Phil, 2026-10-13: it took all the space at the top), with the
+          counts always in the heading so overdue is still seen at a glance. The same fold as the
+          Action required and Tracking sections below. A dashboard Return to Work link opens it. */}
+      {canManage && canRecordRtw && rtwSchema ? (
+        <details className="fold glass-card group overflow-hidden" open={openRtwId ? true : undefined}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]">
+            <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white/80">
+              Return to Work
+              <span aria-hidden className="text-white/40">·</span>
+              {visibleRtw.length === 0 ? (
+                <span className="font-normal text-white/50">none outstanding</span>
+              ) : (
+                <>
+                  {rtwTally.overdue > 0 ? <span className="pill-red">{rtwTally.overdue} overdue</span> : null}
+                  {rtwTally.due > 0 ? <span className="pill-amber">{rtwTally.due} due</span> : null}
+                </>
+              )}
             </span>
-          </div>
+            <span aria-hidden className="fold-chevron shrink-0 text-lg text-white/40 transition-transform">
+              ›
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-white/10 p-4">
+          {rtwDone ? <p className="text-xs font-medium text-emerald-300">{rtwDone}</p> : null}
+          {visibleRtw.length === 0 ? (
+            <p className="text-sm text-white/50">No Return to Works outstanding.</p>
+          ) : null}
+          {canCancelRtw && rtwCancelIds ? (
+            <RtwCancelPanel
+              ids={rtwCancelIds}
+              onBack={() => setRtwCancelIds(null)}
+              onDone={(message) => {
+                setRtwDone(message);
+                setRtwCancelIds(null);
+                setRtwTicked([]);
+              }}
+            />
+          ) : canCancelRtw && tickedVisible.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
+              <span className="text-xs text-white/70">{tickedVisible.length} ticked</span>
+              <div className="flex gap-2">
+                <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setRtwTicked([])}>
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline px-3 py-1.5 text-xs"
+                  onClick={() => {
+                    setRtwDone("");
+                    setRtwCancelIds(tickedVisible);
+                  }}
+                >
+                  Cancel ticked
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="space-y-2">
             {visibleRtw.map((r) => (
               <div
                 key={r.absenceEventId}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
               >
-                <div className="min-w-0">
+                <div className="flex min-w-0 items-start gap-3">
+                  {canCancelRtw ? (
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      aria-label={`Tick the Return to Work for ${r.personName}, off ${fmtDay(r.startDate)}`}
+                      checked={rtwTicked.includes(r.absenceEventId)}
+                      onChange={(e) =>
+                        setRtwTicked((t) =>
+                          e.target.checked ? [...t, r.absenceEventId] : t.filter((id) => id !== r.absenceEventId),
+                        )
+                      }
+                    />
+                  ) : null}
+                  <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">{r.personName}</p>
                   <p className="text-xs text-white/50">
                     Off {fmtDay(r.startDate)}
@@ -744,6 +822,7 @@ export default function AbsenceView({
                     {r.days !== null ? ` · ${r.days} day${r.days === 1 ? "" : "s"}` : ""}
                     {r.reason ? ` · ${r.reason}` : ""}
                   </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {(() => {
@@ -855,11 +934,24 @@ export default function AbsenceView({
                   />
                     );
                   })()}
+                  {canCancelRtw ? (
+                    <button
+                      type="button"
+                      className="btn-ghost px-3 py-1.5 text-xs"
+                      onClick={() => {
+                        setRtwDone("");
+                        setRtwCancelIds([r.absenceEventId]);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </details>
       ) : null}
 
       {/* Record a new absence (person picker, then the form). */}

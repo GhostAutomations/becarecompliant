@@ -42,7 +42,7 @@ const EVENTS = [
   { id: "d", start_date: "2026-10-01", end_date: "2026-10-01", discounted_at: null },
 ];
 
-test("SWITCH OFF: exactly the old count, whatever the aggregate", () => {
+test("NO INPUTS: exactly the old count, whatever the aggregate", () => {
   const cases: AbsenceAggregate[] = [
     AGG,
     { ...AGG, occasions: 0, latestMeetingStage: null },
@@ -58,13 +58,13 @@ test("SWITCH OFF: exactly the old count, whatever the aggregate", () => {
   }
 });
 
-test("SWITCH OFF: a Bradford company keeps the old count even with the inputs", () => {
+test("BRADFORD: a Bradford company keeps the old count even with the inputs", () => {
   const bradford: AbsenceConfig = { ...CONFIG, method: "bradford", thresholds: [{ threshold: 51, label: "Stage 1", action: "Talk" }] };
   const inputs = { events: EVENTS, meetings: [], todayIso: "2026-10-13" };
   assert.deepEqual(resolveAbsenceStatus(AGG, bradford, inputs), deriveAbsenceStatus(AGG, bradford));
 });
 
-test("SWITCH ON, the ticket: Stage 1 booked (Pending), Stage 2 Due, in Action required", () => {
+test("STAGE HISTORY, the ticket: Stage 1 booked (Pending), Stage 2 Due, in Action required", () => {
   const on = resolveAbsenceStatus(AGG, CONFIG, {
     events: EVENTS,
     meetings: [{ id: "m1", stage: 1, meeting_date: "2026-10-20", held: false }],
@@ -83,7 +83,7 @@ test("SWITCH ON, the ticket: Stage 1 booked (Pending), Stage 2 Due, in Action re
   assert.equal(on.occasions, 2);
 });
 
-test("SWITCH ON, the ticket: Stage 1 held, Stage 2 still Due", () => {
+test("STAGE HISTORY, the ticket: Stage 1 held, Stage 2 still Due", () => {
   const on = resolveAbsenceStatus(AGG, CONFIG, {
     events: EVENTS,
     meetings: [{ id: "m1", stage: 1, meeting_date: "2026-10-20", held: true }],
@@ -97,7 +97,7 @@ test("SWITCH ON, the ticket: Stage 1 held, Stage 2 still Due", () => {
   assert.deepEqual(on.offered, [2]);
 });
 
-test("SWITCH ON, no meetings: Stage 1 and Stage 2 Due, booking starts at Stage 1", () => {
+test("STAGE HISTORY, no meetings: Stage 1 and Stage 2 Due, booking starts at Stage 1", () => {
   const on = resolveAbsenceStatus(AGG, CONFIG, { events: EVENTS, meetings: [], todayIso: "2026-10-13" });
   assert.deepEqual(on.triggeredStages, [1, 2]);
   assert.deepEqual(on.offered, [1, 2]);

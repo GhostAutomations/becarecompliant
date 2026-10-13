@@ -107,3 +107,34 @@
   24 Apr 2026; the 25 Sep one was entered in error and deleted (Phil's go). Her meeting now comes
   after Stage 1 was reached, so the mark was taken off. No meeting is marked at present; the column
   stays for the next case like it.
+
+## Every company, no switch (Phil, 2026-10-13, the Absence section job)
+
+- [stated] "Everything goes live for ALL companies, Thistle included. No per-company switch." 0459
+  sets the retired companies.absence_stage_history on everywhere and the code no longer reads it.
+  Only Demo changed (Bevan and Thistle were already on). Bradford companies keep their own count.
+- [stated] The (a) and (b) answers stand: a higher stage meeting does not deal with a lower stage;
+  no closing a stage without a meeting. The warning rule stands.
+
+## Return to Work: folded, cancel and reinstate (Phil, 2026-10-13)
+
+- [stated] The Return to Work section starts folded, with the counts in its heading ("[12 overdue]
+  [7 due]", red and amber pills), or "none outstanding". The same fold as Action required and
+  Tracking. A dashboard Return to Work link opens it.
+- [stated] Cancel one, or tick several and cancel them together, with a required reason. Managers
+  and above: Company Admin, Responsible Individual, Registered Manager, a Branch Manager for their
+  own branch, the Founder. Enforced by the database (can_cancel_rtw inside cancel_rtw and
+  reinstate_rtw, and a trigger refusing direct edits). Supervisors are refused.
+- [stated] A cancelled Return to Work is never deleted: it stays on the absence (rtw_cancelled_at,
+  _by, _by_name, rtw_cancel_reason) with who, when and why, shown in View absence, in the audit log
+  (absence.rtw_cancelled, absence.rtw_reinstated, written by the database) and in the subject access
+  export. It leaves every outstanding list (lib/absence/rtw.ts listOutstandingRtw, the one rule).
+- [stated] Cancelling closes any questions drafted or sent for it: the employee's page says it was
+  cancelled, answers cannot be sent. Reinstate puts the questions back to drafted (nothing reaches
+  the employee until sent again).
+- [stated] A recorded Return to Work can never be cancelled. Cancelling one already cancelled does
+  nothing and says so. Cancelling never touches absence counts or stages.
+- [stated] Thistle's backlog: the Return to Works due before 13 Oct 2026 and not recorded (12, not
+  13: the 13th was a carer's 25 Sep absence deleted as entered in error earlier the same day),
+  cancelled once deployed with "Backlog cleared at Thistle's request, 13 Oct 2026" as the Founder.
+  The 7 due but not yet overdue are not touched.

@@ -58,6 +58,7 @@ export async function sendRtwQuestions(
   if (!q) return { error: "Draft the questions first, then send them." };
   if (q.status === "answered") return { error: "They have already sent their answers back." };
   if (q.status === "recorded") return { error: "This Return to Work has already been recorded." };
+  if (q.status === "cancelled") return { error: "This Return to Work was cancelled, so nothing can be sent." };
 
   // The questions as the manager left them on screen. Only a draft can still be changed: once
   // a text has gone, the employee may already be looking at the saved set.
@@ -224,7 +225,8 @@ export async function submitMyRtwAnswers(
   });
   if (error) return { error: error.message };
   revalidatePath("/my");
-  return { ok: data === "already" ? "already" : "answered" };
+  // Cancelled while they were answering (0459): said plainly, not as an error.
+  return { ok: data === "already" ? "already" : data === "cancelled" ? "cancelled" : "answered" };
 }
 
 const FIT_NOTE_MAX_BYTES = Math.floor(3.8 * 1024 * 1024);
@@ -257,6 +259,9 @@ export async function uploadMyFitNote(_prev: ActionState, formData: FormData): P
   const { data } = await supabase.rpc("my_rtw_questions", { p_id: id });
   const mine = data as { id?: string; status?: string; expired?: boolean } | null;
   if (!mine?.id) return { error: "These questions could not be found." };
+  if (mine.status === "cancelled") {
+    return { error: "Your manager has cancelled this Return to Work, so there is nothing to upload." };
+  }
   if (mine.status !== "sent" || mine.expired) return { error: "These questions can no longer be changed." };
 
   const admin = createServiceClient();

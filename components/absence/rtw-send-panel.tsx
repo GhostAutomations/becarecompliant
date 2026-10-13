@@ -54,7 +54,7 @@ export default function RtwSendPanel({
   }, [state]);
 
   // Answered or recorded: nothing to send. The note above the questions says who answered.
-  if (status === "answered" || status === "recorded") return null;
+  if (status === "answered" || status === "recorded" || status === "cancelled") return null;
 
   const sent = status === "sent" || justSent;
   const expired = !justSent && rtwLinkExpired(expiresAt, Date.now());

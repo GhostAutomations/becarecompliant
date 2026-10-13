@@ -1,20 +1,16 @@
 import "server-only";
 
 /**
- * Be Care Compliant — the absence stage history switch (Phil, 2026-10-13).
+ * Be Care Compliant — the one way a person's absence stage is read (Phil, 2026-10-13).
  *
- * companies.absence_stage_history (0457), on for Bevan only to start. Only the founder can change
- * it (companies_guard_founder_columns). With it off, every screen, check and letter works exactly
- * as before; with it on, a person's stages are worked out at the date of each absence
- * (lib/absence/stage-history.ts) and every stage reached stays until its meeting is held.
- *
- * Every place that works out a person's absence stage comes through absenceStatusesFor, which reads
- * the switch and hands lib/absence/logic.ts resolveAbsenceStatus its inputs only when it is on.
- * Before 0457 is applied the column is missing, the read fails and the switch reads as off.
+ * Every company on the trigger point method has its stages worked out at the date of each absence
+ * (lib/absence/stage-history.ts), every stage reached kept until its meeting is held. This began
+ * behind a per company switch (0457) and became every company in 0459 ("No per-company switch").
+ * Bradford companies keep the old count. Every place that works out a person's absence stage comes
+ * through absenceStatusesFor, which hands lib/absence/logic.ts resolveAbsenceStatus its inputs.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServiceClient } from "@/lib/supabase/admin";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   aggregateFromSummary,
@@ -24,22 +20,6 @@ import {
   type StageHistoryInputs,
 } from "./logic";
 import type { HistoryEvent, HistoryMeeting } from "./stage-history";
-
-/** Whether the company has the stage history switched on. Off on any doubt. */
-export async function absenceStageHistoryOn(companyId: string | null | undefined): Promise<boolean> {
-  if (!companyId) return false;
-  const { data, error } = await createServiceClient()
-    .from("companies")
-    .select("absence_stage_history")
-    .eq("id", companyId)
-    .maybeSingle();
-  if (error) {
-    // Before 0457 the column does not exist: off, exactly as before.
-    if (!/absence_stage_history/.test(error.message)) console.error("[absence] switch read failed:", error.message);
-    return false;
-  }
-  return (data as { absence_stage_history?: boolean } | null)?.absence_stage_history === true;
-}
 
 /**
  * Every absence and meeting of these people (or of the company, or one branch), through the
@@ -104,8 +84,8 @@ export async function loadStageInputs(
 
 /**
  * THE shared entry point: the absence status of each person, from their person_absence_summary
- * rows. Switch off: the old count, row by row, nothing else read. Switch on (stages method): the
- * stage history, from every absence and meeting they have.
+ * rows. Stages method: the stage history, from every absence and meeting they have. Bradford: the
+ * old count, row by row, nothing else read.
  */
 export async function absenceStatusesFor(
   supabase: SupabaseClient,
@@ -114,7 +94,7 @@ export async function absenceStatusesFor(
   rows: Array<Record<string, unknown> & { person_id: string }>,
   opts: { on?: boolean; inputs?: Map<string, StageHistoryInputs>; branchId?: string | null } = {},
 ): Promise<Map<string, AbsenceStatus>> {
-  const on = config.method === "stages" && (opts.on ?? (await absenceStageHistoryOn(companyId)));
+  const on = config.method === "stages" && opts.on !== false;
   const inputs = on
     ? opts.inputs ?? (await loadStageInputs(supabase, { companyId, personIds: rows.map((r) => r.person_id), branchId: opts.branchId }))
     : null;

@@ -232,7 +232,7 @@ export default async function PersonPage({
     listPersonAbsences(id),
     listPersonMeetings(id),
     getLatestDbsPending(id),
-    // Stage history switch only (0457): "Stage 1 Pending · Stage 2 Due", else null.
+    // The stage history: "Stage 1 Pending · Stage 2 Due", else null (Bradford, or nothing open).
     getPersonOpenStagesLine(companyId, id),
   ]);
 

@@ -40,6 +40,7 @@ export default async function TryAiPage() {
       .select("id, people:person_id(full_name)")
       .eq("company_id", companyId)
       .is("rtw_evidence_id", null)
+      .is("rtw_cancelled_at", null)
       .not("rtw_due_date", "is", null)
       .order("rtw_due_date", { ascending: true })
       .limit(1)

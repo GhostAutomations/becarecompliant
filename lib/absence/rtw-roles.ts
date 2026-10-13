@@ -27,3 +27,33 @@ export const RTW_ROLE_REFUSAL =
 export function canRecordReturnToWork(role: string | null | undefined): boolean {
   return RTW_ROLES.includes(role ?? "");
 }
+
+/**
+ * Who may CANCEL or REINSTATE a Return to Work (Phil, 2026-10-13): Managers and above, that is
+ * Company Admin, Responsible Individual, Registered Manager, a Branch Manager for their own branch
+ * (the database checks the branch), and the Founder. Not Supervisors, Recruiters or On Call. The
+ * database decides (can_cancel_rtw, 0459); this only keeps the buttons off screens that would be
+ * refused.
+ */
+export const RTW_CANCEL_ROLES: readonly string[] = [
+  "platform_admin",
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+];
+
+export function canCancelReturnToWork(role: string | null | undefined): boolean {
+  return RTW_CANCEL_ROLES.includes(role ?? "");
+}
+
+/** The reason a cancel needs, or null when it has one (the database asks for the same). */
+export function rtwCancelReasonProblem(reason: string | null | undefined): string | null {
+  return (reason ?? "").trim().length < 3 ? "Say why the Return to Work is being cancelled." : null;
+}
+
+/** The counts the folded Return to Work heading shows. */
+export function rtwCounts(list: ReadonlyArray<{ overdue: boolean }>): { overdue: number; due: number } {
+  const overdue = list.filter((r) => r.overdue).length;
+  return { overdue, due: list.length - overdue };
+}

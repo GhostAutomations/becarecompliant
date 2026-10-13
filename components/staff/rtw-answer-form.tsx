@@ -108,7 +108,9 @@ export default function RtwAnswerForm({
       <p className="text-sm text-white/80">
         {state.ok === "already"
           ? "Your answers had already been sent. Thank you."
-          : "Thank you. Your answers have gone to your manager, who will talk them through with you at your Return to Work meeting."}
+          : state.ok === "cancelled"
+            ? "Your manager has cancelled this Return to Work, so there is nothing to send. Thank you."
+            : "Thank you. Your answers have gone to your manager, who will talk them through with you at your Return to Work meeting."}
       </p>
     );
   }

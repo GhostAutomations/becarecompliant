@@ -71,7 +71,7 @@ export default function BookMeetingDialog({
   /** Only stages the person's absence level actually calls for are offered
    *  (Phil, 2026-07-12): nothing above their derived stage. */
   maxStage: number;
-  /** With the stage history switch on (0457): exactly the stages offered, lowest Due first.
+  /** With the stage history (0457/0459): exactly the stages offered, lowest Due first.
    *  Replaces minStage to maxStage, because the Due stages need not run in a row. */
   stages?: number[];
   /** Active Managers + Admins: the only people who can hold the meeting. */
