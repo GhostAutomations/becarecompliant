@@ -147,14 +147,25 @@ test("status as at a day: today is untouched, the past reads the timeline", () =
   assert.equal(statusAsAt(fresh, [], "2026-09-30", TODAY), null);
 });
 
-test("who counts on a day: active today; discharged only after that day", () => {
-  assert.equal(countsOn({ service_status: "active", discharge_date: null }, TODAY, TODAY), true);
-  assert.equal(countsOn({ service_status: "cancelled", discharge_date: "2026-08-01" }, TODAY, TODAY), false);
-  assert.equal(countsOn({ service_status: "cancelled", discharge_date: "2026-08-01" }, "2026-07-31", TODAY), true);
-  assert.equal(countsOn({ service_status: "cancelled", discharge_date: "2026-08-01" }, "2026-08-01", TODAY), false);
-  assert.equal(countsOn({ service_status: "cancelled", discharge_date: null }, "2026-07-31", TODAY), false);
-  // As the register counts them today (hospital and respite are not in it).
-  assert.equal(countsOn({ service_status: "hospital", discharge_date: null }, TODAY, TODAY), false);
+test("who counts on a day: receiving a service today; discharged only after that day; never a removed record", () => {
+  const su = (service_status: string, discharge_date: string | null = null, archived_at: string | null = null) => ({
+    service_status,
+    discharge_date,
+    archived_at,
+  });
+  assert.equal(countsOn(su("active"), TODAY, TODAY), true);
+  // In hospital or on respite still counts (Phil, 2026-10-13).
+  assert.equal(countsOn(su("hospital"), TODAY, TODAY), true);
+  assert.equal(countsOn(su("respite"), "2026-07-31", TODAY), true);
+  // A removed record never counts.
+  assert.equal(countsOn(su("active", null, "2026-09-01T10:00:00Z"), TODAY, TODAY), false);
+  assert.equal(countsOn(su("hospital", null, "2026-09-01T10:00:00Z"), "2026-07-31", TODAY), false);
+  // Discharged: out today; in a past period that ended before the discharge (the discharge archives it).
+  const left = su("cancelled", "2026-08-01", "2026-08-01T10:00:00Z");
+  assert.equal(countsOn(left, TODAY, TODAY), false);
+  assert.equal(countsOn(left, "2026-07-31", TODAY), true);
+  assert.equal(countsOn(left, "2026-08-01", TODAY), false);
+  assert.equal(countsOn(su("cancelled"), "2026-07-31", TODAY), false);
 });
 
 test("the outcomes PQS bands are the sheet's own, rounded down to two decimals", () => {

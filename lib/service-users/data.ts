@@ -1,5 +1,6 @@
 import "server-only";
 import { backOfficeGroup } from "@/lib/evidence/history-filter";
+import { RECEIVING_SERVICE } from "./outcome-history";
 
 /**
  * Be Care Compliant — Service Users (Phase 4) server data access. All reads go
@@ -347,7 +348,11 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
       .from("service_users")
       .select("id, full_name, branch_id, branches(name)")
       .eq("company_id", companyId)
-      .eq("service_status", "active")
+      // Receiving a service: in hospital or on respite still counts, a removed record never does
+      // (Phil, 2026-10-13). This list was "active" only, which left hospital out and let a removed
+      // record whose status was never changed stay in.
+      .in("service_status", [...RECEIVING_SERVICE])
+      .is("archived_at", null)
       // One branch for readiness per branch (0363); every branch when null, as before.
       .match(branchId ? { branch_id: branchId } : {})
       .order("surname_key", { ascending: true }),
@@ -458,10 +463,10 @@ export async function getOutcomesAsAt(
     }
   };
   const [sus, outcomes, updates] = await Promise.all([
-    all<{ id: string; service_status: string; discharge_date: string | null }>("service users", (a, b) =>
+    all<{ id: string; service_status: string; discharge_date: string | null; archived_at: string | null }>("service users", (a, b) =>
       supabase
         .from("service_users")
-        .select("id, service_status, discharge_date")
+        .select("id, service_status, discharge_date, archived_at")
         .eq("company_id", companyId)
         .match(branchId ? { branch_id: branchId } : {})
         .order("id")

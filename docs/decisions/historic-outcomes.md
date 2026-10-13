@@ -65,3 +65,16 @@ before they used the Outcomes page, so their PQS and Reg 80 evidence covers the 
 - **Target date.** Editing an outcome's title or detail no longer erases its target date.
 - **Review date.** An Individual Plan Review filed after the day it happened dates its outcome updates
   (and a new outcome's start) by the review's date, not the day it was typed in.
+
+## Who counts in the outcomes figures (Phil, 2026-10-13, popup "Fix it now")
+
+- **Receiving a service.** The register, the PQS outcomes row, the Dashboard and Readiness count service
+  users who are active, in hospital or on respite (`RECEIVING_SERVICE` in
+  lib/service-users/outcome-history.ts). Before this, only "active" counted, so someone in hospital
+  dropped out.
+- **Removed records.** A removed (archived) record never counts, whatever its status. Before this, a
+  removed record whose status was still active stayed in.
+- **Discharged.** A discharged service user counts only in a past period that ended before their
+  discharge.
+- **Effect on 13 Oct.** Thistle and Bevan unchanged; the Demo company 97 to 100 outcomes in scope.
+

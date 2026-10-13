@@ -189,16 +189,23 @@ export function statusAsAt(
 }
 
 /**
+ * The statuses of a service user still receiving a service (Phil, 2026-10-13): someone in hospital
+ * or on respite still counts in registers, rollups and reports; only a discharge (cancelled) ends it.
+ * A removed record (archived) never counts, whatever its status.
+ */
+export const RECEIVING_SERVICE = ["active", "hospital", "respite"] as const;
+
+/**
  * Whether a service user counts in the outcomes figure for a period ending `endIso`. Today and
  * later: receiving a service today, as the register counts them. A past day: also a service user
- * discharged after that day.
+ * discharged after that day (a discharge also archives the record, so that is allowed for them).
  */
 export function countsOn(
-  su: { service_status: string; discharge_date: string | null },
+  su: { service_status: string; discharge_date: string | null; archived_at: string | null },
   endIso: string,
   todayIso: string,
 ): boolean {
-  if (su.service_status === "active") return true;
+  if ((RECEIVING_SERVICE as readonly string[]).includes(su.service_status)) return su.archived_at === null;
   if (endIso >= todayIso) return false;
   return su.service_status === "cancelled" && !!su.discharge_date && su.discharge_date > endIso;
 }
