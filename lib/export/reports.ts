@@ -14,6 +14,7 @@ import "server-only";
  * overdue and due soon lists drill straight to the exact records that need action.
  */
 
+import { reportableCheck } from "@/lib/notifications/reportable";
 import { DEFAULT_AMBER_DAYS, type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { listRegister as listPeopleRegister, getSupervisionCycleMode } from "@/lib/people/data";
 import { supervisionSlots, appraisalSlot } from "@/lib/people/logic";
@@ -94,6 +95,10 @@ function splitChecks(
   for (const c of checks) {
     const due = c.due_date;
     if (!due) continue;
+    /* DONE IS DONE (Phil, 2026-10-13, popup "Fix it now"): a one off already completed (a Setup
+       Visit) was listed as Overdue on every export, for every company. The same rule the Dashboard
+       and the daily report use. */
+    if (!reportableCheck({ recurring: c.recurring, dueDate: due, lastCompletedOn: c.last_completed_on })) continue;
     // In hospital (0461): listed as paused, never as overdue or due.
     if ((c as SuCheckStatus).rag === "paused") {
       paused?.push({ record: recordName, check: c.check_name, label: pausedLabel((c as SuCheckStatus).hospital_since) });

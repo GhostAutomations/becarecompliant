@@ -38,3 +38,9 @@
   service_users record the dates and set resume_due_date whatever changes the status; a trigger on
   check_instances clears it on completion. lib/service-users/hospital-pause.ts mirrors the rules for
   the code that reads check_instances directly (readiness drill down, Planner) and words the pill.
+
+## Found while testing (Phil, 2026-10-13, popup "Fix it now")
+
+- [stated] The register and compliance exports listed completed one off checks (Setup Visits) as
+  Overdue for every company (18 on Bevan, 66 on Thistle). They now use the same done is done rule
+  as the Dashboard and the daily report (lib/notifications/reportable.ts reportableCheck).
