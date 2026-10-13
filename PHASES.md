@@ -4563,7 +4563,9 @@ same day as a second check and is cancelled after (Phil's popup).
 Outcomes close Achieved or Not achieved (a reason required, grey pill, own section). Not achieved counts
 as closed and not met (one rule, outcome-consts). With the past box ticked, the close date is asked for
 (not in the future, not before the outcome began or its latest update). 0466 (constraints only).
-Decision: docs/decisions/outcomes.md. Tests: TEST-CHECKLIST-OUTCOMES-NOT-ACHIEVED.md.
+Decision: docs/decisions/outcomes.md. Tests: TEST-CHECKLIST-OUTCOMES-NOT-ACHIEVED.md, N1 to N8 and N10
+pass (cards two across on wide screens added in the same job). N9 (Valerie's outcome) is Thistle's,
+after Phil's reply on ticket 8. DONE, signed off by Phil 2026-10-14.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
