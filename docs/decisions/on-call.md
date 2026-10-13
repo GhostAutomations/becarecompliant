@@ -52,4 +52,9 @@ KNOWN LIMITATIONS to test/close (logged to Final Testing): (1) profiles_select o
   Admin), and only an active login. Never a carer, Senior or Viewer. The picker offers only these
   (`ON_CALL_PERSON_ROLES`), and the database refuses anyone else when a shift's person is set or
   changed (`guard_on_call_person`, 0451).
+- **Handover audit (F171, the Handover half; popup "Do it now", 0452).** A trigger
+  (`audit_on_call_log`) logs every Handover add, edit, finalise, follow up done or reopened, and
+  remove. Each entry has who, when, the shift, which fields changed, and before and after. The free
+  text (notes, follow up notes and action, caller details) is recorded as changed but never copied
+  (popup: "Notes: changed only"), so health details stay inside the Handover's own retention.
 

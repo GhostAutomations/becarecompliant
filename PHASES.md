@@ -4402,6 +4402,8 @@ too). The grid now changes a cell in place and says when a save is refused. One 
 Decision: docs/decisions/on-call.md. Tests: TEST-CHECKLIST-ON-CALL-ROTA-SUPERVISORS.md.
 Then (Phil, testing): the person picker offered carers. Only On Call, Supervisors and above can be on
 call now, in the picker and in the database (0451, applied).
+Then (popup "Do it now"): F171's Handover half. Every Handover change audit logged by a trigger (0452),
+notes text recorded as changed but never copied.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

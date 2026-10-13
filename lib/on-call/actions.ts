@@ -334,11 +334,7 @@ export async function createLog(_prev: ActionState, formData: FormData): Promise
   // The call is filed: discard the in-progress draft.
   await supabase.from("on_call_log_drafts").delete().eq("user_id", g.userId);
 
-  await writeAudit({
-    companyId: g.companyId, actorId: g.userId, actorEmail: g.email, actorRole: g.role,
-    action: "on_call.call_logged", entityType: "on_call_log", entityId: data.id,
-    summary: "Logged an on-call shift", metadata: { shift: `${fields.slot}:${fields.shift_date}` },
-  });
+  // Audit logged by the database (audit_on_call_log, 0452), as every Handover change is.
   // Navigate client-side (never redirect() from a Server Action here, per lib/forms).
   return { ok: "Shift logged.", redirectTo: `/on-call/log/${data.id}` };
 }
