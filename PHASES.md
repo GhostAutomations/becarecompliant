@@ -4381,7 +4381,8 @@ docs/decisions/historic-outcomes.md. Tests: TEST-CHECKLIST-HISTORIC-OUTCOMES.md,
 pass live on Bevan. Found testing and fixed: every report PDF with a long footnote printed it over
 the last table rows (the footer now makes room for its note), table headings had no gap so "On time"
 ran into "On time rate", the add form remembered the past tick, and a past Achieved showed a made up
-time in the data request export.
+time in the data request export. H1 to H17 pass, including the Founder console card and Phil's own
+test (13 Oct). Done; Thistle and Bevan open until 27/10/2026.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
