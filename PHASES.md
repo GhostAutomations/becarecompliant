@@ -4415,6 +4415,15 @@ has the status beside it: one press saves both and sends one email (status only:
 A customer's reply on a Resolved ticket reopens it. Every customer email recorded (ticket.emailed).
 Decision: docs/decisions/tickets.md. Tests: TEST-CHECKLIST-TICKET-NUMBERS-ONE-EMAIL.md.
 
+### 2026-10-13 — Tickets update live (Phase 13)
+
+The Founder Tickets list and ticket pages, and the company's own Tickets pages, update without a
+refresh: a new ticket appears at the top with a "New ticket from [company]" toast, statuses and
+replies appear in about a second, conversations stay scrolled to the newest. Ticket nudges go only to
+the founder and to a company ticket channel that ticket roles may join, never carers (0454, applied;
+F141 for tickets, F142 on the ticket channel). F146 fixed: ticket tables read only for signed in
+users. F155 parked as THE LIST 57. L1 to L9 in TEST-CHECKLIST-TICKETS-LIVE.md pass, phone included.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
