@@ -17,7 +17,7 @@ Run one at a time.
 | V6 | Send the Bevan draft: it gets the next number as before; its Download PDF matches the last preview except the number and the status line | PASS (sent as INV-00001, Bevan's first number as before; its PDF matches the last preview except "INV-00001" and "Sent" where the preview said "Draft"; the preview address of a sent invoice hands over to its real PDF) |
 | V7 | Another company's invoice preview address, typed in: "Invoice not found" | PASS (a Thistle invoice id, a made up id and a junk id all "Invoice not found", 404; nothing written to Thistle) |
 | V8 | Opens in a new tab, not blocked, in Chrome and Edge; on a phone | Chrome PASS (new tab every time, never blocked). Edge and a phone: Not tested (Phil) |
-| V9 | Phil: Thistle, Invoicing, open each of the two drafts and press Preview. Each opens in a new tab with "Draft" at the top; check the figures, the bill to and the dates. Nothing is sent | Not tested |
+| V9 | Phil: Thistle, Invoicing, open each of the two drafts and press Preview. Each opens in a new tab with "Draft" at the top; check the figures, the bill to and the dates. Nothing is sent | PASS (Claude in Phil's Chrome, Thistle signed in by Phil: both drafts preview in a new tab, "Draft" at the top, Thistle logo, bill to, issued 13 Oct, due 27 Oct, 7 Sleep lines at £165.00, £1,155.00; still drafts, no number, nothing sent) |
 
 ## Line Date column, 0463 (Phil, 2026-10-13)
 
@@ -29,4 +29,4 @@ Run one at a time.
 | D3 | Edit page: change a date, Preview: the PDF shows the new date and the draft is saved | PASS (third line set to 30/09/2026 unsaved, Preview: PDF reads "Wed 30/09/2026", the widest day, and fits; the draft saved it, still a draft) |
 | D4 | An invoice with no dates (INV-00001 on Bevan): no Date column on the page or the PDF; it prints exactly as before | PASS (INV-00001: no Date heading on the page; its PDF has no Date column and reads exactly as before) |
 | D5 | Fill lines from care plan: filled lines keep their week heading, with the Date box empty | PASS (care plan fill on a new, unsaved invoice: "Week: 09/10/2026 to 11/10/2026" heading, Date box empty, date not set) |
-| D6 | Phil: Thistle, edit each draft, give each Sleep line its night, save, Preview: the Date column reads each night | Not tested |
+| D6 | Phil: Thistle, edit each draft, give each Sleep line its night, save, Preview: the Date column reads each night | PASS (on Phil's go: first draft Mon 28/09/2026 to Sun 04/10/2026, second Mon 05/10/2026 to Sun 11/10/2026, one night per line; saved through Preview on the Edit page; totals unchanged at £1,155.00) |
