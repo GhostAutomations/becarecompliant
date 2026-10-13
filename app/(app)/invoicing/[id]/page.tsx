@@ -8,6 +8,7 @@ import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from 
 import { formatMoney, formatUnitPrice, showsUnitPrice, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
+import InvoicePreviewButton from "@/components/invoicing/preview-button";
 
 export const metadata: Metadata = { title: "Invoice" };
 
@@ -77,6 +78,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           {inv.status === "draft" ? (
             <>
               <Link href={`/invoicing/${inv.id}/edit`} className="btn-outline text-xs">Edit</Link>
+              {/* The draft's PDF in a new tab, "Draft" where the number goes (Phil, 2026-10-13). */}
+              <InvoicePreviewButton invoiceId={inv.id} />
               <ActionForm action={sendInvoice} hidden={{ invoice_id: inv.id }} label="Send" savingLabel="Sending…" savedLabel="Sent" buttonClassName="btn-primary text-xs" confirm="Send this invoice? It will be given its invoice number, and emailed to the client if they receive invoices by email." className="" />
             </>
           ) : null}

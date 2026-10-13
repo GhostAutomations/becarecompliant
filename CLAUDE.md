@@ -91,6 +91,15 @@ People (staff) and Service Users (clients) always stay distinct. "Founder" is Ph
   confirm the commit is on main and the production deploy is READY. "PT" means the same, then run
   the tests yourself in Phil's Chrome. "PC" means the same, then carry on with the next agreed work.
 
+## Standing rules
+
+### No collateral damage (every job, no exceptions)
+- Change ONLY what the job needs. Do not refactor, rename, restyle, reorder or tidy anything outside it. Do not change any other feature's behaviour, data, settings, permissions, emails, SMS, crons or reports.
+- If something outside the job's scope must be touched, stop and ask Phil first (popup, recommendation first).
+- Before starting, record a baseline: full unit test suite, typecheck, next build, git status, and row counts of the main tables for Thistle, Bevan and Demo Care Company. If there's a migration, also snapshot the RLS policies, SECURITY DEFINER functions and triggers it could affect.
+- After testing, re-run everything and compare with the baseline: full test suite, typecheck and build pass; every changed file listed with its reason, anything out of scope reverted or explained; row counts match except intended changes (shown before/after); policies, functions and triggers unchanged except intended ones.
+- Every job report ends with a "Nothing else changed" section giving that evidence. If anything fails, stop and tell Phil. Never fix it quietly.
+
 ## Testing
 
 - Test now, in the same piece of work. Final Testing (Phase 11) is passed, so nothing is logged

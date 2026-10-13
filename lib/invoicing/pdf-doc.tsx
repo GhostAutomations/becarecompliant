@@ -113,7 +113,8 @@ function InvoiceDocument({
             {config.from_address ? <Text style={s.fromAddress}>{config.from_address}</Text> : null}
             <Text style={s.invoiceWord}>INVOICE</Text>
             <Text style={s.invoiceNo}>{inv.number ?? "Draft"}</Text>
-            <Text style={s.invoiceNo}>{STATUS_LABEL[ds]}</Text>
+            {/* A draft (the Preview, Phil 2026-10-13) reads "Draft" once, not "Draft" twice. */}
+            {inv.status !== "draft" ? <Text style={s.invoiceNo}>{STATUS_LABEL[ds]}</Text> : null}
           </View>
         </View>
 

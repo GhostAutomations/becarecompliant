@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
 import { CARE_PLAN_UNITS, CARE_PLAN_DAYS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
+import InvoicePreviewButton from "@/components/invoicing/preview-button";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
@@ -92,6 +93,42 @@ export default function InvoiceBuilder({
     if (state.redirectTo) router.replace(state.redirectTo);
     else if (state.ok) flashSaved();
   }, [state, router, flashSaved]);
+
+  /* PREVIEW (edit mode, Phil 2026-10-13): unsaved changes are saved first with the same save as
+     the button beside it, then the PDF opens in the new tab. The form as last saved is kept here
+     to tell whether anything changed; a refused save resolves false and keeps what was typed. */
+  const formRef = useRef<HTMLFormElement>(null);
+  const savedForm = useRef<string | null>(null);
+  const previewWaiter = useRef<((ok: boolean) => void) | null>(null);
+  const formText = (fd: FormData) => new URLSearchParams(fd as unknown as Record<string, string>).toString();
+  useEffect(() => {
+    if (formRef.current) savedForm.current = formText(new FormData(formRef.current));
+  }, []);
+  useEffect(() => {
+    const done = previewWaiter.current;
+    if (!done) {
+      // Saved with the Save button: that is now the form as last saved.
+      if (state.ok && formRef.current) savedForm.current = formText(new FormData(formRef.current));
+      return;
+    }
+    previewWaiter.current = null;
+    done(Boolean(state.ok) && !state.error);
+  }, [state]);
+  function saveBeforePreview(): Promise<boolean> {
+    const form = formRef.current;
+    if (!form) return Promise.resolve(false);
+    if (!form.reportValidity()) return Promise.resolve(false);
+    const fd = new FormData(form);
+    const now = formText(fd);
+    if (now === savedForm.current) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      previewWaiter.current = (ok) => {
+        if (ok) savedForm.current = now;
+        resolve(ok);
+      };
+      startTransition(() => formAction(fd));
+    });
+  }
 
   const rateFor = (label: string): ServiceRate | undefined => services.find((s) => s.label === label);
 
@@ -187,7 +224,7 @@ export default function InvoiceBuilder({
   }
 
   return (
-    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6" onChange={resetSaved}>
+    <form ref={formRef} onSubmit={submitKeepingTyped(formAction)} className="space-y-6" onChange={resetSaved}>
       {mode === "edit" && initial ? <input type="hidden" name="invoice_id" value={initial.invoice_id} /> : null}
       <input type="hidden" name="service_user_id" value={clientId} />
       <input type="hidden" name="lines" value={linesJson} />
@@ -420,6 +457,9 @@ export default function InvoiceBuilder({
         <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} text-sm`}>
           {pending ? "Saving…" : saved ? "Saved" : mode === "create" ? "Save draft" : "Save changes"}
         </button>
+        {mode === "edit" && initial ? (
+          <InvoicePreviewButton invoiceId={initial.invoice_id} prepare={saveBeforePreview} className="btn-outline text-sm" />
+        ) : null}
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
     </form>

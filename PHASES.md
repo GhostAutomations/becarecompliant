@@ -4492,6 +4492,14 @@ hospital and respite stays paused, the "since" date restarts, nothing moves unti
 respite at any company today. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md R0 to R6, all pass.
 DONE, signed off by Phil 2026-10-13.
 
+### 2026-10-13 — Invoice Preview button, and the "no collateral damage" rule (Phase 13)
+
+Standing rule added to CLAUDE.md (Standing rules: no collateral damage, a baseline before every job
+and a "Nothing else changed" section in every report). Preview on a draft invoice opens the real
+invoice PDF in a new tab, "Draft" where the number goes, saving unsaved edits first on the Edit page.
+No number, no status change, nothing sent or stored. No migration. Decision: docs/decisions/invoicing.md.
+Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
