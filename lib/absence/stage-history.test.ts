@@ -27,13 +27,21 @@ const ev = (start: string, end: string | null = null, discounted = false): Histo
   end_date: end,
   discounted_at: discounted ? "2026-10-13T10:00:00Z" : null,
 });
-const mt = (stage: number, date: string, held: boolean, declined = false, dealsWithLater = false): HistoryMeeting => ({
+const mt = (
+  stage: number,
+  date: string,
+  held: boolean,
+  declined = false,
+  dealsWithLater = false,
+  warned = false,
+): HistoryMeeting => ({
   id: `m${++n}`,
   stage,
   meeting_date: date,
   held,
   declined,
   dealsWithLater,
+  warned,
 });
 
 /** The ticket's pattern: 1 to 7 April (7 days), 9 April, 29 August, 1 October 2026. */
@@ -140,10 +148,46 @@ test("with nothing Due, the next stage can still be booked early, never a booked
   assert.deepEqual(bookableStages(all, [1, 2, 3, 4]), []);
 });
 
-test("the count alone decides: a new absence after a meeting is not the next stage by itself", () => {
-  // Two old absences, a Stage 1 meeting, then one absence after the old ones aged out.
-  const h = run([ev("2025-01-05"), ev("2025-02-05"), ev("2026-09-25")], [mt(1, "2025-03-01", true)]);
+test("a new absence after a meeting with NO warning is not the next stage by itself", () => {
+  const h = run([ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25")], [mt(1, "2026-06-05", true)]);
+  assert.deepEqual(h.current.map((r) => r.stage), [1]);
+});
+
+test("THE 7 OCTOBER RULE: a new absence after a Stage 1 meeting that gave a warning reaches Stage 2", () => {
+  // The Thistle carer: Stage 1 meeting 5 Jun (verbal warning, marked), then 25 Sep.
+  const h = run(
+    [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25")],
+    [mt(1, "2026-06-05", true, false, true, true)],
+  );
+  assert.deepEqual(h.current.map((r) => [r.stage, r.reachedOn, r.state]), [
+    [1, "2026-09-25", "dealt_with"],
+    [2, "2026-09-25", "due"],
+  ]);
+});
+
+test("the warning rule needs the meeting inside the window of the new absence", () => {
+  // Meeting 1 Mar 2025 with a warning; next absence 25 Sep 2026: far outside six months.
+  const h = run([ev("2025-01-05"), ev("2025-02-05"), ev("2026-09-25")], [mt(1, "2025-03-01", true, false, false, true)]);
   assert.deepEqual(h.current, []);
+});
+
+test("the warning rule reaches the next stage once, at the first absence after the meeting", () => {
+  const events = [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25"), ev("2026-10-02")];
+  const h = run(events, [mt(1, "2026-06-05", true, false, true, true)]);
+  const twos = h.reached.filter((r) => r.stage === 2);
+  assert.equal(twos.length, 1);
+  assert.equal(twos[0].reachedOn, "2026-09-25");
+});
+
+test("the warning rule moves Stage 2 to Stage 3 the same way", () => {
+  const events = [ev("2026-05-01"), ev("2026-06-01"), ev("2026-07-01"), ev("2026-08-01"), ev("2026-09-20")];
+  const h = run(events, [mt(1, "2026-07-05", true, false, false, true), mt(2, "2026-08-10", true, false, false, true)], "2026-09-21");
+  assert.deepEqual(h.current.map((r) => [r.stage, r.state]), [
+    [1, "dealt_with"],
+    [2, "dealt_with"],
+    [3, "due"],
+  ]);
+  assert.equal(h.current[2].reachedOn, "2026-09-20");
 });
 
 test("a stage is reached again only after the count falls below its trigger", () => {

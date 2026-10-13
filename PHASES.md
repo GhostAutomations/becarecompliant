@@ -4449,6 +4449,8 @@ unchanged, checked as Founder in support mode). DONE, signed off by Phil 2026-10
 same day on Phil's go (audit logged); its cards matched the dry run.
 Then (THE LIST 56, Thistle's answer): a held meeting can be marked as dealing with a stage reached
 after it (0458, inside that stage's window only); one carer's 5 Jun Stage 1 meeting marked, audit logged.
+Then (Phil): the 7 October rule back with the switch on, after a warning only: a new counted absence
+within the window of a held Stage N meeting that gave a warning reaches Stage N+1.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

@@ -14,8 +14,11 @@
  *     the window (one starting before the window and ending inside it counts); one starting
  *     exactly on the window's first day counts.
  *   - A stage is reached on the date of the absence that brings the count inside the window
- *     (measured back from that absence) up to the stage's trigger. The count alone decides: the
- *     7 October "new absence after a meeting" rule does not apply here.
+ *     (measured back from that absence) up to the stage's trigger.
+ *   - Or (Phil, 2026-10-13, after the first day on Thistle, bringing back the 7 October rule): when
+ *     a held Stage N meeting gave a warning, the first absence that counts after it, inside the
+ *     rolling window of that meeting, reaches Stage N+1 even if the count has not. A meeting that
+ *     gave no warning (no further action) leaves it to the count.
  *   - Each stage has one status: Due (reached, no meeting booked), Pending (meeting booked, not
  *     held), Dealt with (a meeting at THAT stage held on or after the date it was reached). A
  *     higher stage meeting does not deal with a lower stage, and there is no closing a stage
@@ -51,6 +54,8 @@ export type HistoryMeeting = {
   declined?: boolean | null;
   /** Marked as dealing with the stage even though held before it was reached (0458). */
   dealsWithLater?: boolean | null;
+  /** A warning was given at it (warning_issued set and not "None"). */
+  warned?: boolean | null;
 };
 
 export type StageTrigger = { stage: number; occasions: number };
@@ -136,11 +141,22 @@ export function stageHistory(input: {
       ) ??
       null;
 
+    /* The 7 October rule: the first counted absence after each held Stage N-1 meeting that gave a
+       warning, inside the window measured back from that absence. */
+    const afterWarning = new Set<string>();
+    for (const m of meetings) {
+      if (m.stage !== t.stage - 1 || !m.held || !m.warned || !m.meeting_date) continue;
+      const next = steps.find((st) => st.event.start_date > (m.meeting_date as string));
+      if (next && (m.meeting_date as string) >= windowStartIso(next.event.start_date, input.window)) {
+        afterWarning.add(next.event.id);
+      }
+    }
+
     let above = false;
     let last: ReachedStage | null = null;
     for (const step of steps) {
       const nowAbove = step.inWindow.length >= t.occasions;
-      if (nowAbove && !above) {
+      if ((nowAbove && !above) || afterWarning.has(step.event.id)) {
         // Still open from last time: the same stage is not reached twice.
         const openStill =
           last &&

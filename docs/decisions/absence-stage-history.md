@@ -47,7 +47,7 @@
   needs its own meeting.
 - [stated] 2026-10-13 popup (b): a stage CANNOT be closed without a meeting.
 - [stated] 2026-10-13 popup: the count alone decides. The 7 October rule (a new absence after a
-  meeting makes the next stage due) does not apply with the switch on.
+  meeting makes the next stage due) does not apply with the switch on. REPLACED the same day, below.
 - [stated] 2026-10-13 popup: once Dealt with, the same stage is reached again only after the count
   has fallen below its trigger and climbs back to it.
 - A meeting dealing with a stage must be at that stage and held on or after the day it was reached.
@@ -93,3 +93,12 @@
   Compliant on a company's request, audit logged (absence.meeting_deals_with_later); no screen sets
   it. It counts only inside the rolling window that reached the stage; a meeting on or after the
   date is always preferred. Set for her one meeting only.
+
+## The 7 October rule comes back, after a warning (Phil, 2026-10-13)
+
+- [stated] "Gladys should still be on a stage two, though, because of her absence that she had in
+  September." Popup: "Yes, after a warning, within 6 months". With the switch on, when a held Stage N
+  meeting gave a warning, the first absence that counts after it, inside the rolling window measured
+  back from that absence, reaches Stage N+1 even if the count has not. A meeting with no warning (no
+  further action) leaves it to the count. Checked on Thistle's data: only that carer changes (Stage 1
+  Dealt with, Stage 2 Due from 25 Sep).
