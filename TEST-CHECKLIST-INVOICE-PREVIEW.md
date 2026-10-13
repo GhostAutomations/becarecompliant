@@ -75,7 +75,7 @@ Run one at a time.
 | # | Check | Result |
 |---|-------|--------|
 | P0 | Source tests: each care plan line carries its day, only that day's visits, the week heading stays, recurring drafts dated, the Fill button fills the box; the payment can be changed only on a paid invoice, not in the future | PASS (lib/invoicing/invoice-table.test.ts) |
-| P1 | Bevan, New invoice, Fill lines from care plan: one line per visit day with its date, under the week heading; same total as before | Not tested |
-| P2 | A paid invoice shows Payment with Date paid and Method; change both and save: they show on the page and the PDF, the log has the before and after | Not tested |
-| P3 | A future date paid is refused with "The date paid cannot be in the future.", nothing typed lost | Not tested |
+| P1 | Bevan, New invoice, Fill lines from care plan: one line per visit day with its date, under the week heading; same total as before | PASS (Bevan admin, new invoice not saved: week 12/10/2026 to 18/10/2026 filled as seven lines, Mon 12/10 to Sun 18/10, Care 30m x1 at £12.75 each, under "Week: 12/10/2026 to 18/10/2026", every Date box filled; total £89.25, the same as the old one weekly line) |
+| P2 | A paid invoice shows Payment with Date paid and Method; change both and save: they show on the page and the PDF, the log has the before and after | PASS (INV-00001 paid: changed to 12/10/2026, Bank transfer; the page and the PDF read "Paid 12/10/2026 (Bank transfer)"; the log holds before 13/10/2026 no method and after) |
+| P3 | A future date paid is refused with "The date paid cannot be in the future.", nothing typed lost | PASS (20/10/2026 refused by the date box, "Value must be 13/10/2026 or earlier.", the date and method typed kept; the server refuses it too) |
 | P4 | A recurring care plan invoice drafts with dated lines (when one next runs) | Not tested (no care plan billed recurring invoice exists yet) |
