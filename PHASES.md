@@ -4523,7 +4523,8 @@ all pass. DONE, signed off by Phil 2026-10-13.
 Found while testing: the shared save button (ActionForm) has flashed Saved for 2 seconds since
 2026-07-25, against the 2026-07-21 rule. Phil chose "Invoicing settings only": ActionForm gained
 keepSaved (off by default), on for the Settings, Invoicing form. Other pages unchanged by his choice
-(docs/decisions/save-button-behaviour.md). Test: Save on Settings, Invoicing stays green until edited.
+(docs/decisions/save-button-behaviour.md). Test: Save on Settings, Invoicing stays green until edited:
+PASS on Bevan (green "Saved" still showing after 7 seconds; typing in a field turned it back to Save).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
