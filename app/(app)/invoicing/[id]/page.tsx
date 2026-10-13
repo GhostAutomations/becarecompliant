@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
 import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
-import { formatMoney, formatUnitPrice, showsUnitPrice, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
+import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, formatServiceDate, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
 import InvoicePreviewButton from "@/components/invoicing/preview-button";
@@ -41,6 +41,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   // before 2026-08-01 does not. Such an invoice then renders exactly as it was sent. See
   // showsUnitPrice.
   const showPrice = showsUnitPrice(inv.lines);
+  // The Date column, only when a line has a date (Phil, 2026-10-13). See showsServiceDate.
+  const showDate = showsServiceDate(inv.lines);
 
   return (
     <div className="page-shell space-y-6">
@@ -142,6 +144,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-white/45">
+              {showDate ? <th className="py-2 pr-3">Date</th> : null}
               <th className="py-2 pr-3">Service</th>
               <th className="py-2 pr-3">Unit</th>
               <th className="py-2 pr-3">Handed</th>
@@ -160,12 +163,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                 <Fragment key={l.id}>
                   {showWeek ? (
                     <tr>
-                      <td colSpan={showPrice ? 6 : 5} className="border-t border-dashed border-gold-400/40 pt-3 pb-1 text-xs font-medium text-gold-300">
+                      <td colSpan={(showPrice ? 6 : 5) + (showDate ? 1 : 0)} className="border-t border-dashed border-gold-400/40 pt-3 pb-1 text-xs font-medium text-gold-300">
                         Week: {fmtDate(l.period_start)} to {fmtDate(l.period_end)}
                       </td>
                     </tr>
                   ) : null}
                   <tr className="border-t border-white/10">
+                    {showDate ? <td className="py-2 pr-3 text-white/70">{formatServiceDate(l.service_date)}</td> : null}
                     <td className="py-2 pr-3 text-white/85">{l.service ?? l.description}</td>
                     <td className="py-2 pr-3 text-white/70">{l.unit_label ?? "—"}</td>
                     <td className="py-2 pr-3 text-white/70">{l.handed === "double" ? "Double" : l.handed === "single" ? "Single" : "—"}</td>

@@ -162,6 +162,26 @@ export function showsUnitPrice(
   return lines.length > 0 && lines.every(lineAddsUp);
 }
 
+/**
+ * THE LINE DATE (Phil, 2026-10-13, all companies): an optional day per line, printed in a Date
+ * column left of Service. Popup "Optional, column shows when used": the column appears only when at
+ * least one line has a date, so every invoice already sent prints exactly as it was. ONE helper for
+ * the page and the PDF.
+ */
+export function showsServiceDate(lines: { service_date?: string | null }[]): boolean {
+  return lines.some((l) => Boolean(l.service_date));
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "Mon 05/10/2026" (popup: day name and UK date); "" for a line without a date. */
+export function formatServiceDate(iso: string | null | undefined): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  const day = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))).getUTCDay();
+  return `${WEEKDAY_SHORT[day]} ${d}/${m}/${y}`;
+}
+
 /** A unit price, or an em dash when this line's figures would not stand being multiplied out.
  *  With the every rule above the dash is unreachable from the invoice table, and it stays as the
  *  guard: nothing may print a price that argues with its own amount. */

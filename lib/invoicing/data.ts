@@ -202,6 +202,8 @@ export type InvoiceLine = {
   line_total_pence: number;
   period_start: string | null;
   period_end: string | null;
+  /** The day this line is for, optional (0463). */
+  service_date: string | null;
   vat_rate: number;
   position: number;
 };

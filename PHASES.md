@@ -4500,6 +4500,13 @@ invoice PDF in a new tab, "Draft" where the number goes, saving unsaved edits fi
 No number, no status change, nothing sent or stored. No migration. Decision: docs/decisions/invoicing.md.
 Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md.
 
+### 2026-10-13 — Invoice line Date column (Phase 13)
+
+Phil, after previewing a Thistle draft: a Date column left of Service, on the invoice as well. Popups:
+build now, optional with the column shown only when a line has a date (sent invoices unchanged),
+care plan fill left as it is, "Mon 05/10/2026". 0463 adds invoice_lines.service_date. Decision:
+docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md D0 to D6.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

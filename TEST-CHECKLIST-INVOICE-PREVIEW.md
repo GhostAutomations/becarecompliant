@@ -18,3 +18,15 @@ Run one at a time.
 | V7 | Another company's invoice preview address, typed in: "Invoice not found" | PASS (a Thistle invoice id, a made up id and a junk id all "Invoice not found", 404; nothing written to Thistle) |
 | V8 | Opens in a new tab, not blocked, in Chrome and Edge; on a phone | Chrome PASS (new tab every time, never blocked). Edge and a phone: Not tested (Phil) |
 | V9 | Phil: Thistle, Invoicing, open each of the two drafts and press Preview. Each opens in a new tab with "Draft" at the top; check the figures, the bill to and the dates. Nothing is sent | Not tested |
+
+## Line Date column, 0463 (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| D0 | Unit tests: the Date column only when a line has a date, "Mon 05/10/2026" (month end, leap day, clock change, blanks), both PDF width sets with a date total 100%, page headings and colSpan match | PASS (lib/invoicing/invoice-table.test.ts, 7) |
+| D1 | Bevan, New invoice: each line has a Date box first, then Service, Unit, Handed, Qty; a line can be saved with or without a date | Not tested |
+| D2 | A draft with dated lines: the invoice page shows a Date column left of Service reading "Mon 05/10/2026"; the Preview PDF shows the same | Not tested |
+| D3 | Edit page: change a date, Preview: the PDF shows the new date and the draft is saved | Not tested |
+| D4 | An invoice with no dates (INV-00001 on Bevan): no Date column on the page or the PDF; it prints exactly as before | Not tested |
+| D5 | Fill lines from care plan: filled lines keep their week heading, with the Date box empty | Not tested |
+| D6 | Phil: Thistle, edit each draft, give each Sleep line its night, save, Preview: the Date column reads each night | Not tested |

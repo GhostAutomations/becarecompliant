@@ -13,7 +13,7 @@ import InvoicePreviewButton from "@/components/invoicing/preview-button";
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
 type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
-type Row = { service: string; unit: string; handed: string; quantity: string; periodStart: string; periodEnd: string };
+type Row = { date: string; service: string; unit: string; handed: string; quantity: string; periodStart: string; periodEnd: string };
 
 const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
 
@@ -47,6 +47,7 @@ export type InvoiceBuilderInitial = {
     quantity: number;
     period_start: string | null;
     period_end: string | null;
+    service_date: string | null;
   }[];
 };
 
@@ -79,6 +80,7 @@ export default function InvoiceBuilder({
   const [rows, setRows] = useState<Row[]>(
     initial?.lines.length
       ? initial.lines.map((l) => ({
+          date: l.service_date ?? "",
           service: l.service ?? services[0]?.label ?? "Care",
           unit: l.unit_label ?? "1hr",
           handed: l.handed ?? "single",
@@ -86,7 +88,7 @@ export default function InvoiceBuilder({
           periodStart: l.period_start ?? "",
           periodEnd: l.period_end ?? "",
         }))
-      : [{ service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }],
+      : [{ date: "", service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }],
   );
 
   useEffect(() => {
@@ -164,6 +166,7 @@ export default function InvoiceBuilder({
           line_total_pence: lineAmountPence(rateFor(r.service), r.unit, r.handed, q),
           period_start: r.periodStart || null,
           period_end: r.periodEnd || null,
+          service_date: r.date || null,
           description: `${r.service} - ${r.unit} (${HANDED_SUFFIX[r.handed] ?? "Single Handed"})`,
         };
       }),
@@ -198,7 +201,7 @@ export default function InvoiceBuilder({
     );
   }
   function addRow() {
-    setRows((prev) => [...prev, { service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }]);
+    setRows((prev) => [...prev, { date: "", service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }]);
   }
   function removeRow(i: number) {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
@@ -211,6 +214,8 @@ export default function InvoiceBuilder({
       if (res.lines.length > 0) {
         setRows(
           res.lines.map((l) => ({
+            // Popup "Leave fill as it is": filled lines keep their week heading and no date.
+            date: "",
             service: l.service,
             unit: l.unit,
             handed: l.handed,
@@ -302,7 +307,8 @@ export default function InvoiceBuilder({
 
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold text-white/80">Lines</h2>
-        <div className="grid grid-cols-[1.2fr_1fr_1.3fr_0.8fr_5rem_1.5rem] items-center gap-2 text-center">
+        <div className="grid grid-cols-[minmax(8.5rem,1fr)_1.2fr_1fr_1.3fr_0.8fr_5rem_1.5rem] items-center gap-2 text-center">
+          <span className="text-xs uppercase tracking-wide text-white/45">Date</span>
           <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
           <span className="text-xs uppercase tracking-wide text-white/45">Unit</span>
           <span className="text-xs uppercase tracking-wide text-white/45">Handed</span>
@@ -321,6 +327,14 @@ export default function InvoiceBuilder({
                 const r = rows[i];
                 return (
                   <div key={i} className="contents">
+                    {/* The day this line is for, optional (Phil, 2026-10-13). */}
+                    <input
+                      type="date"
+                      aria-label="Date"
+                      value={r.date}
+                      onChange={(e) => updateRow(i, { date: e.target.value })}
+                      className="ctl-sm text-center"
+                    />
                     <select
                       aria-label="Service"
                       value={r.service}

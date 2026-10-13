@@ -36,6 +36,8 @@ type LineInput = {
   handed: string | null;
   period_start: string | null;
   period_end: string | null;
+  /** The day this line is for, optional (Phil, 2026-10-13; 0463). */
+  service_date: string | null;
 };
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
@@ -92,6 +94,7 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
         handed: o.handed ? String(o.handed) : null,
         period_start: isoOrNull(o.period_start),
         period_end: isoOrNull(o.period_end),
+        service_date: isoOrNull(o.service_date),
       };
     })
     .filter((l) => l.description !== "" && (l.quantity > 0 || l.unit_price_pence > 0));
@@ -269,6 +272,7 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,
+      service_date: l.service_date,
       vat_rate: l.vat_rate,
       position: i,
     })),
@@ -383,6 +387,7 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,
+      service_date: l.service_date,
       vat_rate: l.vat_rate,
       position: i,
     })),

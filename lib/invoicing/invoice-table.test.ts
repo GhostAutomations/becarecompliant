@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { showsUnitPrice } from "./types.ts";
+import { formatServiceDate, showsServiceDate, showsUnitPrice } from "./types.ts";
 
 /**
  * The invoice line table, asserted against the SOURCE.
@@ -51,16 +51,18 @@ test("the PDF header and its rows read the same widths in the same order", () =>
     [...block.matchAll(/width:\s*w\.(\w+)/g)].map((m) => m[1]);
   const head = pdf.slice(pdf.indexOf("<View style={s.tHead}>"), pdf.indexOf("</View>", pdf.indexOf("<View style={s.tHead}>")));
   const row = pdf.slice(pdf.indexOf("<View style={s.tRow}>"), pdf.indexOf("</View>", pdf.indexOf("<View style={s.tRow}>")));
-  assert.deepEqual(order(head), ["service", "unit", "handed", "qty", "price", "amount"]);
+  // The Date column (2026-10-13) leads, and is only drawn when a line has a date.
+  assert.deepEqual(order(head), ["date", "service", "unit", "handed", "qty", "price", "amount"]);
   assert.deepEqual(order(row), order(head));
 });
 
 test("the week separator spans exactly the number of headings there are", () => {
   const headings = [...page.matchAll(/<th[\s\S]*?>([^<]+)<\/th>/g)].map((m) => m[1].trim());
-  assert.deepEqual(headings, ["Service", "Unit", "Handed", "Qty", "Unit price", "Amount"]);
-  // Six headings with the price column, five without, and the colSpan must say so.
+  assert.deepEqual(headings, ["Date", "Service", "Unit", "Handed", "Qty", "Unit price", "Amount"]);
+  // Six headings with the price column, five without, one more with the Date column, and the
+  // colSpan must say so.
   assert.ok(
-    page.includes("colSpan={showPrice ? 6 : 5}"),
+    page.includes("colSpan={(showPrice ? 6 : 5) + (showDate ? 1 : 0)}"),
     "the week separator colSpan no longer matches the heading count",
   );
 });
@@ -69,4 +71,40 @@ test("an invoice of only pre 2026-08-01 lines shows no column at all", () => {
   // 7 x £6.38 is £44.66, and that line was stored at £44.63, so it does not stand being
   // multiplied out and the column goes with it.
   assert.equal(showsUnitPrice([{ quantity: 7, unit_price_pence: 638, line_total_pence: 4463 }]), false);
+});
+
+/** The two width sets WITH the Date column, as written in the source. */
+function dateWidthSets(): Record<string, number>[] {
+  const sets = [...pdf.matchAll(/\{\s*date:\s*"(\d+)%",\s*service:\s*"(\d+)%",\s*unit:\s*"(\d+)%",\s*handed:\s*"(\d+)%",\s*qty:\s*"(\d+)%",\s*price:\s*"(\d+)%",\s*amount:\s*"(\d+)%"\s*\}/g)];
+  return sets.map((m) => ({
+    date: Number(m[1]), service: Number(m[2]), unit: Number(m[3]), handed: Number(m[4]), qty: Number(m[5]), price: Number(m[6]), amount: Number(m[7]),
+  }));
+}
+
+test("both PDF column sets with the Date column add up to a full page width", () => {
+  const sets = dateWidthSets();
+  assert.equal(sets.length, 2, "expected exactly two width sets with a date in pdf-doc.tsx");
+  const [withPrice, withoutPrice] = sets;
+  const total = (o: Record<string, number>) => Object.values(o).reduce((t, v) => t + v, 0);
+  assert.equal(total(withPrice), 100);
+  assert.equal(total(withoutPrice), 100);
+  assert.equal(withoutPrice.price, 0);
+  // Room for "Wed 30/09/2026" at the row font size.
+  assert.ok(withPrice.date >= 15 && withoutPrice.date >= 15);
+});
+
+test("the Date column shows only when a line has a date, so sent invoices print as before", () => {
+  assert.equal(showsServiceDate([{ service_date: null }, { service_date: null }]), false);
+  assert.equal(showsServiceDate([]), false);
+  assert.equal(showsServiceDate([{ service_date: null }, { service_date: "2026-10-05" }]), true);
+});
+
+test("a line date reads as the day and the UK date", () => {
+  assert.equal(formatServiceDate("2026-10-05"), "Mon 05/10/2026");
+  assert.equal(formatServiceDate("2026-10-11"), "Sun 11/10/2026");
+  assert.equal(formatServiceDate("2028-02-29"), "Tue 29/02/2028");
+  assert.equal(formatServiceDate("2026-10-25"), "Sun 25/10/2026"); // the clock change
+  assert.equal(formatServiceDate(null), "");
+  assert.equal(formatServiceDate(""), "");
+  assert.equal(formatServiceDate("not a date"), "");
 });

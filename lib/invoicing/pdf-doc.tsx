@@ -21,7 +21,7 @@ import {
    snag S9, Phil 2 Oct, and the no dashes rule for customer copy. */
 Font.registerHyphenationCallback((word) => [word]);
 
-import { formatMoney, formatUnitPrice, showsUnitPrice, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
+import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, formatServiceDate, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
 import type { InvoiceDetail } from "./data";
 
 const INK = "#0d1d4b";
@@ -98,9 +98,16 @@ function InvoiceDocument({
    * total 100%.
    */
   const showPrice = showsUnitPrice(inv.lines);
-  const w = showPrice
+  /* THE DATE COLUMN (Phil, 2026-10-13): left of Service, only when a line has a date, so an
+     invoice without dates keeps exactly the widths above. Each set totals 100%. */
+  const showDate = showsServiceDate(inv.lines);
+  const noDate = showPrice
     ? { service: "28%", unit: "13%", handed: "18%", qty: "9%", price: "15%", amount: "17%" }
     : { service: "34%", unit: "16%", handed: "20%", qty: "12%", price: "0%", amount: "18%" };
+  const withDate = showPrice
+    ? { date: "15%", service: "20%", unit: "11%", handed: "16%", qty: "8%", price: "14%", amount: "16%" }
+    : { date: "16%", service: "26%", unit: "14%", handed: "18%", qty: "10%", price: "0%", amount: "16%" };
+  const w = showDate ? withDate : { date: "0%", ...noDate };
   return (
     <Document title={inv.number ? `Invoice ${inv.number}` : "Draft invoice"} author={companyName}>
       <Page size="A4" style={s.page}>
@@ -143,6 +150,7 @@ function InvoiceDocument({
         </View>
 
         <View style={s.tHead}>
+          {showDate ? <Text style={[s.th, { width: w.date }]}>Date</Text> : null}
           <Text style={[s.th, { width: w.service }]}>Service</Text>
           <Text style={[s.th, { width: w.unit }]}>Unit</Text>
           <Text style={[s.th, { width: w.handed }]}>Handed</Text>
@@ -165,6 +173,7 @@ function InvoiceDocument({
                 </Text>
               ) : null}
               <View style={s.tRow}>
+                {showDate ? <Text style={[s.td, { width: w.date }]}>{formatServiceDate(l.service_date)}</Text> : null}
                 <Text style={[s.td, { width: w.service }]}>{l.service ?? l.description}</Text>
                 <Text style={[s.td, { width: w.unit }]}>{l.unit_label ?? "—"}</Text>
                 <Text style={[s.td, { width: w.handed }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
