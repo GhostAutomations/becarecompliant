@@ -30,4 +30,8 @@
   one notice saying so; the customer is not emailed (they wrote it).
 - **Every email to the customer is recorded** (audit `ticket.emailed`): to whom, the subject,
   whether it went or why not.
+- **A number is never reused** (Phil, 2026-10-13: "the next ticket shouldn't be ticket one. It
+  should be counted in order of the tickets that are already there"). Removing tickets does not
+  wind the counter back: Bevan's test tickets 1 to 3 were removed and its next ticket is 4. Only a
+  ticket that never saved (refused or rolled back) gives its number back.
 
