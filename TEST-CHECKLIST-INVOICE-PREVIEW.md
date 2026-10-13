@@ -50,7 +50,7 @@ Run one at a time.
 | C0 | Unit tests: the company name on our sending address, nothing in a name can break the header, no name keeps the original sender | PASS (lib/email/from-name.test.ts, 4) |
 | C1 | Settings, Invoicing (Bevan): the tick box under Reply to email reads "Tick if you would like a copy of each invoice email sent to this address."; ticked and saved, it stays ticked | PASS (Bevan admin: tick box under Reply to email with that wording; with a reply to address, ticked and saved, still ticked after a reload; Save stays green "Saved") |
 | C2 | Ticked with Reply to email empty: refused with "Enter a reply to email address to get a copy of each invoice email, or untick the box.", nothing typed lost | PASS (Bevan: ticked with Reply to email empty, refused with that message; the tick and everything typed kept) |
-| C3 | A real company (Thistle, emails on): Send or Resend an invoice by email with the box ticked; the client's inbox shows Thistle Care Ltd as the sender and the reply to inbox gets a copy | Not tested: waits for Thistle's next real email invoice, with the copy box ticked by Thistle (Phil's popup) |
+| C3 | A real company (Thistle, emails on): Send or Resend an invoice by email with the box ticked; the client's inbox shows Thistle Care Ltd as the sender and the reply to inbox gets a copy | PASS (Thistle sent INV-00001 and INV-00002 by email at 21:02 and 21:03, each logged "copy to" their accounts inbox; Phil saw the email with Thistle Care Ltd as the sender name) |
 | C4 | Every other email (staff alerts, invites, digests) still shows Be Care Compliant as the sender | PASS (code: the invoice email is the only caller of sendEmail that passes a sender name or a copy; every other email is untouched) |
 
 ## Invoicing list: Period and Mark paid (Phil, 2026-10-13)
@@ -66,6 +66,6 @@ Run one at a time.
 | # | Check | Result |
 |---|-------|--------|
 | E0 | Source test: Dear, Payment is due by, please contact us at, Kind regards, light only, never "please reply to this email"; the list has no long dates | PASS (lib/invoicing/invoice-table.test.ts) |
-| E1 | Invoicing list: Period, Issued and Due read DD/MM/YYYY (Thistle: 28/09/2026 to 04/10/2026, 13/10/2026, 20/10/2026) | Not tested |
+| E1 | Invoicing list: Period, Issued and Due read DD/MM/YYYY (Thistle: 28/09/2026 to 04/10/2026, 13/10/2026, 20/10/2026) | Bevan PASS (Issued 13/10/2026, Due 27/10/2026, no periods so a dash); Thistle's periods to be seen |
 | E2 | Thistle's next real invoice email reads Dear [name], due by DD/MM/YYYY, please contact us at [their accounts address], Kind regards, Thistle Care Ltd | Not tested |
 | E3 | The same email on Phil's phone in dark mode: the email shows light, the logo sits on white, no white block | Not tested |
