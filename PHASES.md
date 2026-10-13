@@ -4489,7 +4489,8 @@ Phil: "Let's do the same for respite." Every hospital pause rule now applies to 
 respite since [date]"; the date asked for on coming back to Active). Popup: moving straight between
 hospital and respite stays paused, the "since" date restarts, nothing moves until Active. 0462
 (su_check_paused, the dates and resume triggers, service_status on the status views). Nobody on
-respite at any company today. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md R0 to R6.
+respite at any company today. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md R0 to R6, all pass.
+DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
