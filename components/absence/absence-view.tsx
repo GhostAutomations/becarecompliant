@@ -720,6 +720,8 @@ export default function AbsenceView({
               onChange={(e) => {
                 setBranch(e.target.value);
                 setPickPerson("");
+                // A cancel's confirmation belongs to the list it was made on.
+                setRtwDone("");
               }}
             >
               <option value="">{bw.all}</option>
