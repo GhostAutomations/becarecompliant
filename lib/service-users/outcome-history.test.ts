@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  closeDateError,
   countsOn,
   enteredLaterLine,
   historicWindowOpen,
@@ -181,4 +182,62 @@ test("the outcomes PQS bands are the sheet's own, rounded down to two decimals",
   assert.deepEqual(outcomesPqs(2, 3), { rate: 66.66, band: 5 }); // 66.666 rounds down
   assert.deepEqual(outcomesPqs(1, 200), { rate: 0.5, band: 0 });
   assert.deepEqual(outcomesPqs(0, 10), { rate: 0, band: 0 });
+});
+
+// ---- Not achieved (Phil, 2026-10-14)
+
+test("a not achieved update closes the outcome as not achieved; reopening brings it back", () => {
+  const o = { status: "working_towards" as const, start_date: "2026-01-30", created_at: "2026-10-13T12:46:00Z" };
+  const ups = [
+    { kind: "progress", progress: "regressing", dated_on: "2026-05-01", created_at: "2026-10-13T12:47:00Z" },
+    { kind: "not_achieved", progress: null, dated_on: "2026-07-07", created_at: "2026-10-13T12:48:00Z" },
+  ];
+  assert.equal(statusAsAt(o, ups, "2026-06-30", "2026-10-14"), "regressing");
+  assert.equal(statusAsAt(o, ups, "2026-07-31", "2026-10-14"), "not_achieved");
+  const reopened = [...ups, { kind: "reopened", progress: null, dated_on: null, created_at: "2026-10-14T09:00:00Z" }];
+  assert.equal(statusAsAt(o, reopened, "2026-10-13", "2026-10-15"), "not_achieved");
+  assert.equal(statusAsAt(o, reopened, "2026-10-14", "2026-10-15"), "working_towards");
+});
+
+test("the close date: not in the future, not before the outcome began, not before the latest update", () => {
+  const base = { todayIso: "2026-10-14", outcomeFromIso: "2026-01-30", dischargeDate: null, existing: [] as never[] };
+  assert.equal(closeDateError({ ...base, date: "" }), "Choose the date the outcome was closed.");
+  assert.equal(closeDateError({ ...base, date: "2026-10-15" }), "The date it was closed cannot be in the future.");
+  assert.equal(closeDateError({ ...base, date: "2026-01-29" }), "The outcome began on 30/01/2026, so it cannot be closed before then.");
+  assert.equal(
+    closeDateError({ ...base, date: "2026-04-30", existing: [{ kind: "progress", progress: "no_change", dated_on: "2026-05-01", created_at: "2026-10-13T12:00:00Z" }] }),
+    "The outcome has an update dated 01/05/2026, so it cannot be closed before then.",
+  );
+  assert.equal(closeDateError({ ...base, date: "2026-05-01", existing: [{ kind: "progress", progress: "no_change", dated_on: "2026-05-01", created_at: "2026-10-13T12:00:00Z" }] }), null);
+  assert.equal(closeDateError({ ...base, date: "2026-09-01", dischargeDate: "2026-08-31" }), "This person was discharged on 31/08/2026, so the outcome must be closed on or before then.");
+  assert.equal(closeDateError({ ...base, date: "2026-10-14" }), null);
+});
+
+test("a close date at a month end and over the clock change keeps its day", () => {
+  // Stored at midday UTC, the London date reads back the same in summer and winter.
+  for (const d of ["2026-08-31", "2026-02-28", "2028-02-29", "2026-10-24", "2026-10-25", "2026-10-26", "2026-03-29"]) {
+    assert.equal(londonDate(middayOf(d)), d);
+  }
+});
+
+test("a past update on a not achieved outcome is worded for it", () => {
+  const msg = pastUpdateError({
+    date: "2026-08-01", todayIso: "2026-10-14", outcomeFromIso: "2026-01-30", achievedOn: "2026-07-07",
+    dischargeDate: null, marksAchieved: false, existing: [], closedAs: "not_achieved",
+  });
+  assert.equal(msg, "This outcome was closed as not achieved on 07/07/2026, so a past update must be dated on or before then.");
+});
+
+test("the counting rule: Not achieved is closed, in scope and not met", async () => {
+  const { isOutcomeAchievingOrProgressing, isOutcomeClosed } = await import("./outcome-consts.ts");
+  assert.equal(isOutcomeAchievingOrProgressing("achieved"), true);
+  assert.equal(isOutcomeAchievingOrProgressing("progressing"), true);
+  assert.equal(isOutcomeAchievingOrProgressing("not_achieved"), false);
+  assert.equal(isOutcomeClosed("achieved"), true);
+  assert.equal(isOutcomeClosed("not_achieved"), true);
+  assert.equal(isOutcomeClosed("regressing"), false);
+  // One Achieved, one Not achieved, one Progressing, one No change: 4 in scope, 2 met, 50%.
+  const statuses = ["achieved", "not_achieved", "progressing", "no_change"] as const;
+  const met = statuses.filter((s) => isOutcomeAchievingOrProgressing(s)).length;
+  assert.deepEqual(outcomesPqs(met, statuses.length), { rate: 50, band: 2 });
 });

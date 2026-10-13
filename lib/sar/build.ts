@@ -469,9 +469,13 @@ export async function buildSubjectAccessExport(input: {
         return [
           t(o.title), t(o.statement), t(o.detail), t(o.status), fmtDate(o.start_date as string), fmtDate(o.target_date as string),
           // A past Achieved is stored at midday (middayOf); its time means nothing, so the date alone.
-          o.entered_later || /T12:00:00(\.0+)?\+00(:00)?$/.test(String(o.achieved_at ?? ""))
-            ? fmtDate(o.achieved_at as string)
-            : fmtDateTime(o.achieved_at as string),
+          // Only an Achieved outcome has an achieved date: a Not achieved one is closed, not achieved
+          // (its close shows in the outcome notes, with the reason) (Phil, 2026-10-14).
+          o.status !== "achieved"
+            ? ""
+            : o.entered_later || /T12:00:00(\.0+)?\+00(:00)?$/.test(String(o.achieved_at ?? ""))
+              ? fmtDate(o.achieved_at as string)
+              : fmtDateTime(o.achieved_at as string),
           fmtDate(o.last_reviewed as string), t(o.review_note), fmtDateTime(o.archived_at as string),
           fmtDateTime(o.created_at as string),
           // A past outcome says so (0449): when it was added, by whom, and the date it speaks for.

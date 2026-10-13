@@ -7,9 +7,11 @@
 //   no_change        - last update said no change
 //   regressing       - last update said regressing
 //   achieved         - marked complete (moves to the Achieved list)
-// archived_at soft-removes an outcome from all counts.
+//   not_achieved     - closed without being met, with a reason (Phil, 2026-10-14; 0466)
+// archived_at soft-removes an outcome from all counts ("Remove", which is what no longer relevant
+// became in 0103).
 
-export type OutcomeStatus = "working_towards" | "progressing" | "no_change" | "regressing" | "achieved";
+export type OutcomeStatus = "working_towards" | "progressing" | "no_change" | "regressing" | "achieved" | "not_achieved";
 
 export const OUTCOME_STATUSES: { value: OutcomeStatus; label: string; pill: string }[] = [
   { value: "working_towards", label: "Working towards", pill: "pill-neutral" },
@@ -17,6 +19,8 @@ export const OUTCOME_STATUSES: { value: OutcomeStatus; label: string; pill: stri
   { value: "no_change", label: "No change", pill: "pill-amber" },
   { value: "regressing", label: "Regressing", pill: "pill-red" },
   { value: "achieved", label: "Achieved", pill: "pill-green" },
+  // Grey: clearly not Achieved, and not alarming (an outcome can end unmet for good reasons).
+  { value: "not_achieved", label: "Not achieved", pill: "pill-neutral" },
 ];
 
 export const OUTCOME_STATUS_LABEL: Record<OutcomeStatus, string> =
@@ -40,10 +44,19 @@ export const OUTCOME_PROGRESS_LABEL: Record<OutcomeProgress, string> =
 export const OUTCOME_PROGRESS_PILL: Record<OutcomeProgress, string> =
   Object.fromEntries(OUTCOME_PROGRESS.map((s) => [s.value, s.pill])) as Record<OutcomeProgress, string>;
 
-/** For the PQS: an active (non-archived) outcome is in scope; it is "achieving or
- *  progressing" when Achieved or Progressing. */
+/**
+ * THE OUTCOME COUNTING RULE, in one place (Phil, 2026-10-14). Every figure (the register, the PQS
+ * percentage, the Cardiff return, readiness, the record page) reads these two:
+ *   In scope: every outcome not removed (archived_at, "Remove", what no longer relevant became).
+ *   Met: Achieved or Progressing. Not achieved is closed, in scope, and NOT met.
+ */
 export function isOutcomeAchievingOrProgressing(status: OutcomeStatus): boolean {
   return status === "achieved" || status === "progressing";
+}
+
+/** Closed: Achieved or Not achieved. A closed outcome needs no progress updates and can be reopened. */
+export function isOutcomeClosed(status: OutcomeStatus | string): boolean {
+  return status === "achieved" || status === "not_achieved";
 }
 
 /** Add whole months to a YYYY-MM-DD date, clamping the day to the month end. */
@@ -85,7 +98,7 @@ export const REVIEW_RAG_PILL: Record<ReviewRag, string> = {
 
 export type OutcomeUpdateRow = {
   id: string;
-  kind: "progress" | "completed" | "reopened";
+  kind: "progress" | "completed" | "reopened" | "not_achieved";
   progress: OutcomeProgress | null;
   note: string | null;
   author_name: string | null;

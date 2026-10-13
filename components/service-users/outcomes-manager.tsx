@@ -6,6 +6,7 @@ import {
   editOutcome,
   logOutcomeUpdate,
   completeOutcome,
+  notAchieveOutcome,
   reopenOutcome,
   archiveOutcome,
   setOutcomeTarget,
@@ -19,6 +20,7 @@ import {
   OUTCOME_PROGRESS_LABEL,
   OUTCOME_PROGRESS_PILL,
   REVIEW_RAG_PILL,
+  isOutcomeClosed,
   outcomeUpdateRag,
   type OutcomeRow,
   type OutcomeProgress,
@@ -51,9 +53,12 @@ export default function OutcomesManager({
   /** The discharge date, when this person has been discharged. */
   discharged: string | null;
 }) {
-  const active = outcomes.filter((o) => o.status !== "achieved");
+  const active = outcomes.filter((o) => !isOutcomeClosed(o.status));
   const achieved = outcomes.filter((o) => o.status === "achieved");
+  // Closed without being met, in their own list under the Achieved one (Phil, 2026-10-14).
+  const notAchieved = outcomes.filter((o) => o.status === "not_achieved");
   const [showAchieved, setShowAchieved] = useState(false);
+  const [showNotAchieved, setShowNotAchieved] = useState(false);
   // A discharged person takes past entries only, while the window is open (Phil, 2026-10-13).
   const ctx: EntryCtx = { past, discharged, today, pastOnly: !!past && !!discharged };
 
@@ -94,6 +99,23 @@ export default function OutcomesManager({
           </button>
           {showAchieved
             ? achieved.map((o) => (
+                <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
+              ))
+            : null}
+        </div>
+      ) : null}
+
+      {notAchieved.length > 0 ? (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowNotAchieved((v) => !v)}
+            className="text-sm font-semibold uppercase tracking-wide text-white/60 hover:text-white/90"
+          >
+            {showNotAchieved ? "▾" : "▸"} Not achieved outcomes ({notAchieved.length})
+          </button>
+          {showNotAchieved
+            ? notAchieved.map((o) => (
                 <OutcomeCard key={o.id} serviceUserId={serviceUserId} outcome={o} intervalMonths={intervalMonths} ctx={ctx} />
               ))
             : null}
@@ -204,7 +226,7 @@ function AddOutcome({ serviceUserId, ctx }: { serviceUserId: string; ctx: EntryC
   );
 }
 
-type Panel = "update" | "edit" | "complete" | null;
+type Panel = "update" | "edit" | "complete" | "not_achieved" | null;
 
 function OutcomeCard({
   serviceUserId,
@@ -219,7 +241,7 @@ function OutcomeCard({
 }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const isActive = outcome.status !== "achieved";
+  const isActive = !isOutcomeClosed(outcome.status);
   // A past outcome with no update yet is due from the day it began.
   const anchor = (outcome.last_update_at ?? outcome.start_date ?? outcome.created_at)?.slice(0, 10) ?? null;
   const rag = outcomeUpdateRag(anchor, intervalMonths, ctx.today, isActive);
@@ -264,9 +286,14 @@ function OutcomeCard({
               {ctx.pastOnly ? "Add a past update" : "Log update"}
             </button>
             {ctx.pastOnly ? null : (
-              <button type="button" onClick={() => setPanel(panel === "complete" ? null : "complete")} className="btn-outline text-xs">
-                Mark achieved
-              </button>
+              <>
+                <button type="button" onClick={() => setPanel(panel === "complete" ? null : "complete")} className="btn-outline text-xs">
+                  Mark achieved
+                </button>
+                <button type="button" onClick={() => setPanel(panel === "not_achieved" ? null : "not_achieved")} className="btn-outline text-xs">
+                  Mark not achieved
+                </button>
+              </>
             )}
           </>
         ) : (
@@ -301,8 +328,16 @@ function OutcomeCard({
           achievedOn={achievedOn}
         />
       ) : null}
-      {panel === "complete" ? (
-        <CompleteForm serviceUserId={serviceUserId} outcomeId={outcome.id} onDone={() => setPanel(null)} />
+      {panel === "complete" || panel === "not_achieved" ? (
+        <CloseForm
+          key={panel}
+          as={panel === "complete" ? "achieved" : "not_achieved"}
+          serviceUserId={serviceUserId}
+          outcomeId={outcome.id}
+          onDone={() => setPanel(null)}
+          ctx={ctx}
+          earliest={[from, ...outcome.updates.map((u) => updateDate(u))].sort().slice(-1)[0]}
+        />
       ) : null}
       {panel === "edit" ? (
         <EditForm serviceUserId={serviceUserId} outcome={outcome} onDone={() => setPanel(null)} />
@@ -317,6 +352,8 @@ function OutcomeCard({
                   <span className="text-white/60">{ukDate(updateDate(u))}</span>
                   {u.kind === "completed" ? (
                     <span className="pill pill-green">Achieved</span>
+                  ) : u.kind === "not_achieved" ? (
+                    <span className="pill pill-neutral">Not achieved</span>
                   ) : u.kind === "reopened" ? (
                     <span className="pill pill-neutral">Reopened</span>
                   ) : u.progress ? (
@@ -413,9 +450,33 @@ function LogUpdateForm({
   );
 }
 
-function CompleteForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: string; outcomeId: string; onDone: () => void }) {
-  const [state, formAction, pending] = useActionState(completeOutcome, IDLE_STATE);
+/**
+ * CLOSING AN OUTCOME (Phil, 2026-10-14): Mark achieved (as before, the note optional) or Mark not
+ * achieved (the reason required). While the company's window for past entries is open the past box
+ * shows; ticked, it asks for the date it was closed (required), else the close date is today.
+ */
+function CloseForm({
+  as,
+  serviceUserId,
+  outcomeId,
+  onDone,
+  ctx,
+  earliest,
+}: {
+  as: "achieved" | "not_achieved";
+  serviceUserId: string;
+  outcomeId: string;
+  onDone: () => void;
+  ctx: EntryCtx;
+  /** The earliest day it may be closed on: the day it began, or its latest dated update. */
+  earliest: string;
+}) {
+  const [state, formAction, pending] = useActionState(as === "achieved" ? completeOutcome : notAchieveOutcome, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
+  const [pastTicked, setPastTicked] = useState(false);
+  const isPast = !!ctx.past && (pastTicked || ctx.pastOnly);
+  const latest = [ctx.today, ctx.discharged].filter((d): d is string => !!d).sort()[0];
+  const notMet = as === "not_achieved";
   useEffect(() => {
     if (state.ok && !pending) {
       flash();
@@ -427,13 +488,28 @@ function CompleteForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: str
     <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
-      <div>
-        <label className="form-label">Closing note (optional)</label>
-        <input name="note" placeholder="How this outcome was achieved." maxLength={2000} />
+      <PastTick ctx={ctx} label="This was closed on a past date" checked={pastTicked} onChange={setPastTicked} />
+      {isPast ? <input type="hidden" name="entered_later" value="1" /> : null}
+      <div className={`grid gap-3 ${isPast ? "sm:grid-cols-[10rem_1fr]" : ""}`}>
+        {isPast ? (
+          <div>
+            <label className="form-label">Date it was closed</label>
+            <input type="date" name="closed_on" required min={earliest} max={latest} />
+          </div>
+        ) : null}
+        <div>
+          <label className="form-label">{notMet ? "Reason it was not achieved" : "Closing note (optional)"}</label>
+          <input
+            name="note"
+            required={notMet}
+            placeholder={notMet ? "For example: health declined." : "How this outcome was achieved."}
+            maxLength={2000}
+          />
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-primary"} text-xs`}>
-          {pending ? "Saving…" : saved ? "Achieved" : "Mark achieved"}
+          {pending ? "Saving…" : saved ? (notMet ? "Not achieved" : "Achieved") : notMet ? "Mark not achieved" : "Mark achieved"}
         </button>
         <button type="button" onClick={onDone} className="btn-ghost text-xs">Cancel</button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}

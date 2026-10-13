@@ -342,7 +342,7 @@ export type OutcomesRegister = {
  *  Each service user's worst outcome-update RAG surfaces so managers see who needs
  *  a progress update. */
 export async function getOutcomesRegister(companyId: string, branchId: string | null = null): Promise<OutcomesRegister> {
-  const { outcomeUpdateRag } = await import("./outcome-consts");
+  const { outcomeUpdateRag, isOutcomeAchievingOrProgressing, isOutcomeClosed } = await import("./outcome-consts");
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const [{ data: sus }, { data: outcomes }, { data: company }] = await Promise.all([
@@ -375,8 +375,9 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
     const rec = byId.get(o.service_user_id) ?? { inScope: 0, ap: 0, achieved: 0, rag: "none", dueIso: null };
     rec.inScope += 1;
     if (o.status === "achieved") rec.achieved += 1;
-    if (o.status === "achieved" || o.status === "progressing") rec.ap += 1;
-    const isActive = o.status !== "achieved";
+    // The one counting rule (outcome-consts): Not achieved is in scope, closed, and not met.
+    if (isOutcomeAchievingOrProgressing(o.status as import("./outcome-consts").OutcomeStatus)) rec.ap += 1;
+    const isActive = !isOutcomeClosed(o.status);
     // A past outcome with no update yet is due from the day it began, not the day it was typed in.
     const anchor = (o.last_update_at ?? o.start_date ?? o.created_at)?.slice(0, 10) ?? null;
     const r = outcomeUpdateRag(anchor, intervalMonths, today, isActive);
@@ -439,6 +440,7 @@ export async function getOutcomesAsAt(
   endIso: string,
 ): Promise<{ inScope: number; achievingOrProgressing: number }> {
   const { countsOn, statusAsAt } = await import("./outcome-history");
+  const { isOutcomeAchievingOrProgressing } = await import("./outcome-consts");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   if (endIso >= today) {
     const reg = await getOutcomesRegister(companyId);
@@ -512,7 +514,7 @@ export async function getOutcomesAsAt(
     const st = statusAsAt(o, byOutcome.get(o.id) ?? [], endIso, today);
     if (st === null) continue;
     inScope += 1;
-    if (st === "achieved" || st === "progressing") ap += 1;
+    if (isOutcomeAchievingOrProgressing(st)) ap += 1;
   }
   return { inScope, achievingOrProgressing: ap };
 }

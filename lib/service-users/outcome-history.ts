@@ -105,6 +105,33 @@ export type TimelineUpdate = {
   created_at: string;
 };
 
+/**
+ * Checks the date an outcome is CLOSED on, Achieved or Not achieved (Phil, 2026-10-14). Not in the
+ * future, not before the outcome began, not before its latest dated update, and for a discharged
+ * person not after their discharge. Null when it is fine.
+ */
+export function closeDateError(i: {
+  date: string;
+  todayIso: string;
+  outcomeFromIso: string;
+  dischargeDate: string | null;
+  existing: TimelineUpdate[];
+}): string | null {
+  if (!isIsoDate(i.date)) return "Choose the date the outcome was closed.";
+  if (i.date > i.todayIso) return "The date it was closed cannot be in the future.";
+  if (i.date < i.outcomeFromIso) {
+    return `The outcome began on ${ukDate(i.outcomeFromIso)}, so it cannot be closed before then.`;
+  }
+  const latest = latestDate(i.existing);
+  if (latest && i.date < latest) {
+    return `The outcome has an update dated ${ukDate(latest)}, so it cannot be closed before then.`;
+  }
+  if (i.dischargeDate && i.date > i.dischargeDate) {
+    return `This person was discharged on ${ukDate(i.dischargeDate)}, so the outcome must be closed on or before then.`;
+  }
+  return null;
+}
+
 /** Checks a past update's date against its outcome. Null when it is fine. */
 export function pastUpdateError(i: {
   date: string;
@@ -116,6 +143,8 @@ export function pastUpdateError(i: {
   /** True when the past update marks the outcome achieved. */
   marksAchieved: boolean;
   existing: TimelineUpdate[];
+  /** How the outcome was closed, for the wording; achieved when left out. */
+  closedAs?: "achieved" | "not_achieved";
 }): string | null {
   if (!isIsoDate(i.date)) return "Choose the date of the update.";
   if (i.date > i.todayIso) return "The update's date cannot be in the future.";
@@ -126,9 +155,10 @@ export function pastUpdateError(i: {
     return `This person was discharged on ${ukDate(i.dischargeDate)}, so the update must be dated on or before then.`;
   }
   if (i.achievedOn) {
-    if (i.marksAchieved) return "This outcome is already achieved.";
+    const word = i.closedAs === "not_achieved" ? "closed as not achieved" : "achieved";
+    if (i.marksAchieved) return i.closedAs === "not_achieved" ? "This outcome is already closed." : "This outcome is already achieved.";
     if (i.date > i.achievedOn) {
-      return `This outcome was achieved on ${ukDate(i.achievedOn)}, so a past update must be dated on or before then.`;
+      return `This outcome was ${word} on ${ukDate(i.achievedOn)}, so a past update must be dated on or before then.`;
     }
   }
   if (i.marksAchieved) {
@@ -163,6 +193,7 @@ export function pastUpdateIsLatest(existing: TimelineUpdate[], date: string, ach
 /** The status one update leaves an outcome in. */
 function statusFromUpdate(u: TimelineUpdate): OutcomeStatus {
   if (u.kind === "completed") return "achieved";
+  if (u.kind === "not_achieved") return "not_achieved";
   if (u.kind === "reopened") return "working_towards";
   const p = u.progress;
   return p === "progressing" || p === "no_change" || p === "regressing" ? p : "working_towards";

@@ -13,7 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import type { OutcomeProgress } from "./outcome-consts";
+import { isOutcomeClosed } from "./outcome-consts";
 import {
+  closeDateError,
   enteredLaterLine,
   historicWindowOpen,
   londonDate,
@@ -361,7 +363,8 @@ async function logPastUpdate(i: {
   ]);
   if (!outcome) return { error: "Outcome not found." };
   const timeline = (existing as TimelineUpdate[] | null) ?? [];
-  const achieved = outcome.status === "achieved";
+  // Closed, Achieved or Not achieved (2026-10-14): past updates only up to the day it closed.
+  const achieved = isOutcomeClosed(outcome.status);
   const achievedStamp = outcome.achieved_at ?? outcome.last_update_at;
   const marksAchieved = i.progress === null;
 
@@ -373,6 +376,7 @@ async function logPastUpdate(i: {
     dischargeDate: i.ctx.dischargeDate,
     marksAchieved,
     existing: timeline,
+    closedAs: outcome.status === "not_achieved" ? "not_achieved" : "achieved",
   });
   if (bad) return { error: bad };
 
@@ -428,52 +432,115 @@ async function logPastUpdate(i: {
 
 /** Mark an outcome achieved (moves it to the Achieved list). */
 export async function completeOutcome(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return closeOutcome(formData, "achieved");
+}
+
+/** Close an outcome as NOT achieved, with a required reason (Phil, 2026-10-14; 0466). */
+export async function notAchieveOutcome(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return closeOutcome(formData, "not_achieved");
+}
+
+/**
+ * CLOSING AN OUTCOME, Achieved or Not achieved (Phil, 2026-10-14). Without the past box the close
+ * date is today, exactly as before. With the past box ticked (only while the company's window is
+ * open) the person gives the date it closed: never in the future, never before the outcome began or
+ * its latest dated update (closeDateError). The date is stored as the close update's dated_on and
+ * the outcome's achieved_at at midday, as a past Achieved update already was, so it never shifts a
+ * day. Not achieved needs its reason, which is the update's note (the database refuses one without).
+ */
+async function closeOutcome(formData: FormData, as: "achieved" | "not_achieved"): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
   const outcomeId = String(formData.get("outcome_id") ?? "").trim();
   const note = (String(formData.get("note") ?? "").trim().slice(0, 2000)) || null;
+  const past = formData.get("entered_later") === "1";
   if (!serviceUserId || !outcomeId) return { error: "Missing outcome." };
+  if (as === "not_achieved" && !note) return { error: "Give the reason it was not achieved." };
 
-  const { supabase, companyId, discharged, windowOpen } = await loadServiceUser(serviceUserId);
+  const ctx = await loadServiceUser(serviceUserId);
+  const { supabase, companyId, discharged, windowOpen } = ctx;
   if (!companyId) return { error: "Service user not found." };
-  if (discharged && windowOpen) return { error: DISCHARGED_PAST_ONLY };
+  if (past && !windowOpen) return { error: windowClosedError(ctx.until) };
+  if (!past && discharged && windowOpen) return { error: DISCHARGED_PAST_ONLY };
 
+  const [{ data: outcome }, { data: existing }] = await Promise.all([
+    supabase
+      .from("service_user_outcomes")
+      .select("id, title, status, start_date, created_at")
+      .eq("id", outcomeId)
+      .eq("service_user_id", serviceUserId)
+      .is("archived_at", null)
+      .maybeSingle<{ id: string; title: string | null; status: string; start_date: string | null; created_at: string }>(),
+    supabase.from("service_user_outcome_updates").select("kind, progress, dated_on, created_at").eq("outcome_id", outcomeId),
+  ]);
+  if (!outcome) return { error: "Outcome not found." };
+  if (isOutcomeClosed(outcome.status)) return { error: "This outcome is already closed. Reopen it first." };
+
+  const today = londonToday();
+  const date = past ? String(formData.get("closed_on") ?? "").trim() : today;
+  if (past) {
+    const bad = closeDateError({
+      date,
+      todayIso: today,
+      outcomeFromIso: outcomeFrom(outcome),
+      dischargeDate: ctx.dischargeDate,
+      existing: (existing as TimelineUpdate[] | null) ?? [],
+    });
+    if (bad) return { error: bad };
+  }
+
+  const by = profile.full_name || profile.email;
   const at = nowIso();
-  await supabase.from("service_user_outcome_updates").insert({
+  const stamp = past ? middayOf(date) : at;
+  const { error: insErr } = await supabase.from("service_user_outcome_updates").insert({
     company_id: companyId,
     service_user_id: serviceUserId,
     outcome_id: outcomeId,
-    kind: "completed",
+    kind: as === "achieved" ? "completed" : "not_achieved",
     progress: null,
     note,
     created_by: profile.id,
-    author_name: profile.full_name || profile.email,
+    author_name: by,
     created_at: at,
+    ...(past ? { dated_on: date, entered_later: true } : {}),
   });
-  const { error } = await supabase
-    .from("service_user_outcomes")
-    .update({ status: "achieved", achieved_at: at, last_update_at: at, updated_by: profile.id, updated_at: at })
-    .eq("id", outcomeId)
-    .eq("service_user_id", serviceUserId);
-  if (error) return { error: "Could not complete the outcome. Please try again." };
+  if (insErr) return { error: refusal(insErr, "Could not close the outcome. Please try again.") };
 
+  const { data: moved, error } = await supabase
+    .from("service_user_outcomes")
+    .update({ status: as, achieved_at: stamp, last_update_at: stamp, updated_by: profile.id, updated_at: at })
+    .eq("id", outcomeId)
+    .eq("service_user_id", serviceUserId)
+    .select("id");
+  if (error || !moved?.length) {
+    return { error: as === "achieved" ? "Could not complete the outcome. Please try again." : "Could not close the outcome. Please try again." };
+  }
+
+  const what = as === "achieved" ? "Marked a personal outcome achieved" : "Closed a personal outcome as not achieved";
   await writeAudit({
     companyId,
     actorId: profile.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "service_user.outcome_achieved",
+    action: as === "achieved" ? "service_user.outcome_achieved" : "service_user.outcome_not_achieved",
     entityType: "service_user",
     entityId: serviceUserId,
-    summary: "Marked a personal outcome achieved",
+    summary: past
+      ? `${what}: ${outcome.title ?? "outcome"}. ${enteredLaterLine(at, by, date)}`
+      : as === "achieved"
+        ? what
+        : `${what}: ${outcome.title ?? "outcome"}`,
+    ...(past || as === "not_achieved"
+      ? { metadata: { outcome_id: outcomeId, ...(past ? { entered_later: true, dated_on: date } : {}), ...(as === "not_achieved" ? { reason: note } : {}) } }
+      : {}),
   });
   revalidatePath(`/service-users/${serviceUserId}/outcomes`);
   revalidatePath("/service-users/outcomes");
-  return { ok: "Marked achieved" };
+  return { ok: as === "achieved" ? "Marked achieved" : "Closed as not achieved" };
 }
 
-/** Reopen an achieved outcome back to active (status returns to working towards). */
+/** Reopen a closed outcome (Achieved or Not achieved) back to active (status returns to working towards). */
 export async function reopenOutcome(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };

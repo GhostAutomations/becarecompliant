@@ -4558,6 +4558,13 @@ Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md R1 to R3. R1 passes on Bevan. WAITING f
 Monday 19/10/2026 (R3), checked with Phil, then DONE; Bevan's test weekly recurring invoice drafts the
 same day as a second check and is cancelled after (Phil's popup).
 
+### 2026-10-14 — Outcomes: Not achieved, and a past close date (Phase 13, Thistle ticket 8)
+
+Outcomes close Achieved or Not achieved (a reason required, grey pill, own section). Not achieved counts
+as closed and not met (one rule, outcome-consts). With the past box ticked, the close date is asked for
+(not in the future, not before the outcome began or its latest update). 0466 (constraints only).
+Decision: docs/decisions/outcomes.md. Tests: TEST-CHECKLIST-OUTCOMES-NOT-ACHIEVED.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
