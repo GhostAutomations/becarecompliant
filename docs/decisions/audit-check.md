@@ -17,3 +17,13 @@ AUDITOR DROPDOWN (Phil mid-test request 2026-07-25, built same day): Auditor Ful
 Form = ~23 fields (omitted the monday Name + Region): auditor_name, date_of_audit (first date field => completion stamp), audit_period_start/end (optional, Staff ECM), calls_attended, avg_call_duration_pct (should be 90%), avg_earliness_mins/avg_lateness_mins (<=15, optional), cancelled_calls, calls_attended_pct (0-100), then Yes/No/NA singles food_fluid_documented / bowel_urine_documented / tasks_acknowledged / mood_wellbeing_documented each with an "if no" long_text via visibleWhen in:["no"], other_follow_up, environment_flag, signoff_date, signature, approval_comments. See [launch-form-set](launch-form-set.md), [custom-register-columns](custom-register-columns.md), [phase3-decisions](phase3-decisions.md).
 
 Still Acme-only (not a founder template that seeds new companies).
+
+PERCENTAGES UP TO 125 ON BOTH AUDITS (Phil, 2026-10-13, Thistle ticket; migrations 0455 and 0456).
+The People Audit's calls attended and average call duration percentages took up to 125 since 0297;
+the Service User Audit (key audit_su) still stopped at 100, so a real 108% average call duration was
+refused. Both of its percentages now take up to 125 as well, and nothing else on the form changed.
+Every company's version 1 already had Evidence, so each got VERSION 2 (Phil popup "Publish version
+2", audit F128), leaving version 1 exactly as completed. The library template went to version 2, so
+new companies are seeded with it. PQS, Readiness and Reg 80 count audits; they do not read these
+answers, so a value over 100 moves no figure.
+
