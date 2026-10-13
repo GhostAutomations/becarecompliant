@@ -4443,6 +4443,10 @@ absence popup is wider with one bracket joining the absences that count. One sha
 record page, booking, recording, the drafted questions and the letters. Switch off: exactly as before
 (unit tested, and checked on Thistle's real data). Bevan test people ZZ Absence Test A, B and C.
 Decision: docs/decisions/absence-stage-history.md. Tests: TEST-CHECKLIST-ABSENCE-BRACKET.md.
+Then (Phil, popups after the first live test): one booking line per meeting on a card, and Record
+meeting's level line worded from the stage. B0 to B17 all pass (B14 by Phil on his phone, B15 Thistle
+unchanged, checked as Founder in support mode). DONE, signed off by Phil 2026-10-13. Thistle stays off until
+Phil says.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

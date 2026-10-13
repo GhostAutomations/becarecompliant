@@ -24,7 +24,7 @@ People, Absence.
 | B11 | Test C, Record meeting: Meeting Type offers Stage 2; the absences listed are absence 4, 1 Oct 2026 (close without saving) | PASS (Meeting Type: Stage 2 only; "Stage 2 covers absence 4", "Absence 4: 01/10/2026"; closed, nothing saved) |
 | B12 | Test A's record page: the Absence tile shows "Stage 1 Due · Stage 2 Due" | PASS (Absence tile shows "Stage 1 Due · Stage 2 Due") |
 | B13 | Dashboard, Absences tile: "Invites to send" counts Test A, B and C | PASS (Dashboard: 3 Invites to send) |
-| B14 | Phone: View absence fills the screen, the bracket and two line cards read cleanly, nothing cut off | |
-| B15 | Thistle unchanged after the push: Thistle's Absence page, cards and View absence look exactly as before (Phil signed in as Founder in Thistle, or a Thistle manager) | |
-| B16 | ZZ Stage One card (older Bevan test person with Stage 1, 2 and 3 meetings booked): one booking line per meeting, Stage 1 first | |
-| B17 | Test C, Record meeting: current absence level reads "Stage 2 reached on 1 Oct 2026 with 4 absences in 6 months. Stage 2 covers absence 4." (close without saving) | |
+| B14 | Phone: View absence fills the screen, the bracket and two line cards read cleanly, nothing cut off | PASS (Phil on his phone, 2026-10-13: "Looks good") |
+| B15 | Thistle unchanged after the push: Thistle's Absence page, cards and View absence look exactly as before (Phil signed in as Founder in Thistle, or a Thistle manager) | PASS (Chrome as Founder in support mode, looked only: old subtitle, Ellie "Stage 2, Stage 3", Gladys Stage 2 due after a new absence, Sarah one Stage 2 booking line; Sarah's View absence the old 576px popup, no stage lines or bar, absence 1 "Outside the window"; support mode exited) |
+| B16 | ZZ Stage One card (older Bevan test person with Stage 1, 2 and 3 meetings booked): one booking line per meeting, Stage 1 first | PASS (deploy 7db49e06: three lines, Stage 1 22 Oct, Stage 2 21 Oct, Stage 3 28 Oct) |
+| B17 | Test C, Record meeting: current absence level reads "Stage 2 reached on 1 Oct 2026 with 4 absences in 6 months. Stage 2 covers absence 4." (close without saving) | PASS (exactly that wording; closed, nothing saved) |
