@@ -52,3 +52,11 @@ Run one at a time.
 | C2 | Ticked with Reply to email empty: refused with "Enter a reply to email address to get a copy of each invoice email, or untick the box.", nothing typed lost | PASS (Bevan: ticked with Reply to email empty, refused with that message; the tick and everything typed kept) |
 | C3 | A real company (Thistle, emails on): Send or Resend an invoice by email with the box ticked; the client's inbox shows Thistle Care Ltd as the sender and the reply to inbox gets a copy | Not tested: waits for Thistle's next real email invoice, with the copy box ticked by Thistle (Phil's popup) |
 | C4 | Every other email (staff alerts, invites, digests) still shows Be Care Compliant as the sender | PASS (code: the invoice email is the only caller of sendEmail that passes a sender name or a copy; every other email is untouched) |
+
+## Invoicing list: Period and Mark paid (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| M1 | Invoicing list: columns Number, Client, branch, Period, Issued, Due, Total, Status; Period reads "28/09/2026 to 04/10/2026", a dash when none | Not tested |
+| M2 | A sent or overdue row has Mark paid; drafts and paid rows do not; it asks "Mark INV... as paid today?" and No changes nothing | Not tested |
+| M3 | Yes: the invoice moves to the Paid section, paid today, no method; Paid this month goes up | Not tested |

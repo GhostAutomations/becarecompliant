@@ -160,13 +160,16 @@ export type InvoiceRow = {
   total_pence: number;
   client_name: string;
   branch_name: string | null;
+  /** The service period the invoice is for (Phil, 2026-10-13: a Period column on the list). */
+  supply_period_start: string | null;
+  supply_period_end: string | null;
 };
 
 export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invoices")
-    .select("id, number, status, issue_date, due_date, total_pence, bill_to_name, created_at, service_users(full_name), branches(name)")
+    .select("id, number, status, issue_date, due_date, total_pence, bill_to_name, created_at, supply_period_start, supply_period_end, service_users(full_name), branches(name)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   return ((data as Array<{
@@ -177,6 +180,8 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
     due_date: string | null;
     total_pence: number;
     bill_to_name: string | null;
+    supply_period_start: string | null;
+    supply_period_end: string | null;
     service_users: { full_name: string } | null;
     branches: { name: string } | null;
   }> | null) ?? []).map((r) => ({
@@ -188,6 +193,8 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
     total_pence: r.total_pence,
     client_name: r.service_users?.full_name ?? r.bill_to_name ?? "Unknown client",
     branch_name: r.branches?.name ?? null,
+    supply_period_start: r.supply_period_start,
+    supply_period_end: r.supply_period_end,
   }));
 }
 

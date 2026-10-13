@@ -4531,6 +4531,11 @@ PASS on Bevan (green "Saved" still showing after 7 seconds; typing in a field tu
 Tick box under Reply to email for a copy (CC) of every invoice email (0465). Invoice emails show the
 care company's name as the sender. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md C0 to C4.
 
+### 2026-10-13 — Invoicing list: Period column and Mark paid (Phase 13)
+
+Period (service period) after the branch column; Mark paid on each sent or overdue row, asking first,
+paid today with no method. No migration. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md M1 to M3.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

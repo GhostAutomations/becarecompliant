@@ -10,6 +10,8 @@ import {
   STATUS_LABEL,
 } from "@/lib/invoicing/types";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import ActionForm from "@/components/action-form";
+import { markInvoicePaid } from "@/lib/invoicing/invoice-actions";
 
 export const metadata: Metadata = { title: "Invoicing" };
 
@@ -46,10 +48,12 @@ export default async function InvoicingPage() {
             <th className="py-2 pr-3">Number</th>
             <th className="py-2 pr-3">Client</th>
             <th className="py-2 pr-3">{bw.one}</th>
+            <th className="py-2 pr-3">Period</th>
             <th className="py-2 pr-3">Issued</th>
             <th className="py-2 pr-3">Due</th>
             <th className="py-2 pr-3 text-right">Total</th>
             <th className="py-2 pr-3">Status</th>
+            <th className="py-2"><span className="sr-only">Mark paid</span></th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +68,12 @@ export default async function InvoicingPage() {
                 </td>
                 <td className="py-2 pr-3 text-white/85">{inv.client_name}</td>
                 <td className="py-2 pr-3 text-white/60">{inv.branch_name}</td>
+                {/* The service period the invoice is for (Phil, 2026-10-13). */}
+                <td className="py-2 pr-3 whitespace-nowrap text-white/60">
+                  {inv.supply_period_start || inv.supply_period_end
+                    ? `${inv.supply_period_start ? ukDate(inv.supply_period_start) : "…"} to ${inv.supply_period_end ? ukDate(inv.supply_period_end) : "…"}`
+                    : "—"}
+                </td>
                 {/* ukDate, not the raw ISO string: the stored date leaked to this
                     table as 2026-08-10 (17 Aug QA), the recurring leak item 27 predicts. */}
                 <td className="py-2 pr-3 text-white/60">{inv.issue_date ? ukDate(inv.issue_date) : "—"}</td>
@@ -73,6 +83,21 @@ export default async function InvoicingPage() {
                 </td>
                 <td className="py-2 pr-3">
                   <span className={`pill ${STATUS_PILL[ds]}`}>{STATUS_LABEL[ds]}</span>
+                </td>
+                <td className="py-2">
+                  {/* Mark paid from the list (Phil, 2026-10-13): a sent or overdue invoice, paid
+                      today, no method. To record a method or another date, use Record a payment
+                      on the invoice instead. Asks first. */}
+                  {inv.status === "sent" ? (
+                    <ActionForm
+                      action={markInvoicePaid}
+                      hidden={{ invoice_id: inv.id }}
+                      label="Mark paid"
+                      buttonClassName="btn-outline text-xs"
+                      confirm={`Mark ${inv.number ?? "this invoice"} as paid today?`}
+                      className=""
+                    />
+                  ) : null}
                 </td>
               </tr>
             );
