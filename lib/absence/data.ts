@@ -14,12 +14,13 @@ import { type BranchAddressRow, meetingPlaces } from "@/lib/branches/office-addr
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { bySurname } from "@/lib/people/name-sort";
 import {
-  aggregateFromSummary,
-  deriveAbsenceStatus,
   resolveAbsenceConfig,
   type AbsenceConfig,
   type AbsenceStatus,
 } from "./logic";
+import { absenceStageHistoryOn, absenceStatusForPerson, absenceStatusesFor, loadStageInputs } from "./stage-switch";
+import { openStagesLine } from "./stage-history";
+import { SUMMARY_STAGE_COLUMNS } from "./logic";
 
 export type AbsenceConfigRow = {
   company_id: string;
@@ -97,17 +98,61 @@ export async function listAbsenceRegister(
   if (branchId) query = query.eq("branch_id", branchId);
 
   const { data } = await query;
-  const rows = bySurname((data as SummaryRow[] | null) ?? [], (r) => r.full_name).map((r) => ({
-    personId: r.person_id,
-    fullName: r.full_name,
-    branchId: r.branch_id,
-    occasions: r.occasions,
-    totalDays: Number(r.total_days),
-    firstAbsence: r.first_absence,
-    lastAbsence: r.last_absence,
-    status: deriveAbsenceStatus(aggregateFromSummary(r as unknown as Record<string, unknown>), config),
-    notCounted: r.not_counted ?? 0,
-  }));
+  let summary = (data as SummaryRow[] | null) ?? [];
+
+  /* The stage history switch (0457): every stage reached stays until its meeting is held, so a
+     person whose absences have all left today's window can still have one open. They are added
+     here, with nothing counting today. Switch off: only the view's rows, as before. */
+  const on = config.method === "stages" && (await absenceStageHistoryOn(companyId));
+  const inputs = on ? await loadStageInputs(supabase, { companyId, branchId }) : undefined;
+  if (inputs) {
+    const have = new Set(summary.map((r) => r.person_id));
+    const missing = [...inputs.keys()].filter((id) => !have.has(id));
+    if (missing.length > 0) {
+      const { data: extra } = await supabase
+        .from("people")
+        .select("id, full_name, branch_id")
+        .eq("company_id", companyId)
+        .eq("employment_status", "active")
+        .is("archived_at", null)
+        .in("id", missing);
+      summary = summary.concat(
+        ((extra ?? []) as Array<{ id: string; full_name: string; branch_id: string | null }>).map((p) => ({
+          company_id: companyId,
+          person_id: p.id,
+          full_name: p.full_name,
+          branch_id: p.branch_id,
+          occasions: 0,
+          total_days: 0,
+          first_absence: null,
+          last_absence: null,
+          latest_meeting_stage: null,
+          not_counted: 0,
+        })),
+      );
+    }
+  }
+  const statuses = await absenceStatusesFor(
+    supabase,
+    companyId,
+    config,
+    summary as unknown as Array<Record<string, unknown> & { person_id: string }>,
+    { on, inputs },
+  );
+  const rows = bySurname(summary, (r) => r.full_name)
+    .map((r) => ({
+      personId: r.person_id,
+      fullName: r.full_name,
+      branchId: r.branch_id,
+      occasions: r.occasions,
+      totalDays: Number(r.total_days),
+      firstAbsence: r.first_absence,
+      lastAbsence: r.last_absence,
+      status: statuses.get(r.person_id) as AbsenceStatus,
+      notCounted: r.not_counted ?? 0,
+    }))
+    // An added person is shown only while a stage of theirs is still open.
+    .filter((r) => r.occasions > 0 || r.notCounted > 0 || (r.status.history?.open.length ?? 0) > 0 || !inputs);
 
   return { config, rows };
 }
@@ -297,4 +342,22 @@ export async function listPersonMeetings(
     .eq("person_id", personId)
     .order("meeting_date", { ascending: false });
   return (data as AbsenceMeetingRow[] | null) ?? [];
+}
+
+/**
+ * "Stage 1 Pending · Stage 2 Due" for the person's record, only with the stage history switch on
+ * (0457). Null when it is off, for a Bradford company, or when no stage is open.
+ */
+export async function getPersonOpenStagesLine(companyId: string, personId: string): Promise<string | null> {
+  if (!(await absenceStageHistoryOn(companyId))) return null;
+  const config = await getAbsenceConfig(companyId);
+  if (config.method !== "stages") return null;
+  const supabase = await createClient();
+  const { data: summary } = await supabase
+    .from("person_absence_summary")
+    .select(SUMMARY_STAGE_COLUMNS)
+    .eq("person_id", personId)
+    .maybeSingle();
+  const status = await absenceStatusForPerson(supabase, companyId, config, personId, summary as Record<string, unknown> | null);
+  return status.history ? openStagesLine(status.history) || null : null;
 }

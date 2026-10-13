@@ -26,6 +26,7 @@ right file (or a new file listed here) in the same session.
 ## Decisions by area (`docs/decisions`)
 
 - [absence-discounting](absence-discounting.md): Discounting absences, restarting the count, recording unbooked meetings, and Return to Work on the dashboard — Phil's decisions 2026-09-24 from the Thistle monday import. Read before touching absence counting, stages or the Absences dashboard tile.
+- [absence-stage-history](absence-stage-history.md): Absence stages worked out at the date of each absence, every stage kept until its meeting is held, the wide View absence popup with one bracket; behind companies.absence_stage_history, on for Bevan only (Phil, 2026-10-13). Read before touching absence counting, stages or the View absence popup.
 - [absence-round2](absence-round2.md): Phil's Absence changes list 2026-09-29 (Phase 13) — meeting invite approval, AI meeting questions, AI outcome letter, stage actions in Settings. Read before touching absence meetings, letters or Settings > Absence.
 - [assignments-policies](assignments-policies.md): BCC assignments, the policy library, signed policies, per-policy signing rules, written/pasted policies, the signed copy, standing policies for new starters and the briefing emails (0133/0135/0136/0137/0138)
 - [audit-2026-10-decisions](audit-2026-10-decisions.md): Phil's standing decisions from the October 2026 security and bug audit (popups 3 to 4 Oct) that apply to future BCC work, e.g. dash rule scope, who counts in Readiness, support mode and Evidence.

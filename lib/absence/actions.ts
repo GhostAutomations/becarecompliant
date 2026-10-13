@@ -47,7 +47,8 @@ import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
 import { getAbsenceConfig } from "@/lib/absence/data";
-import { SUMMARY_STAGE_COLUMNS, aggregateFromSummary, deriveAbsenceStatus } from "@/lib/absence/logic";
+import { SUMMARY_STAGE_COLUMNS, offeredStages } from "@/lib/absence/logic";
+import { absenceStatusForPerson } from "@/lib/absence/stage-switch";
 import { stageActionFor, stageActionSentence, warningAllowed, warningTooHighMessage } from "@/lib/absence/stage-actions";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -335,8 +336,9 @@ export async function recordAbsenceMeeting(
       getAbsenceConfig(person.company_id as string),
     ]);
     if (config.method === "stages") {
-      const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
-      const offered = availableStages(derived.meetingStage, derived.derivedStage);
+      // Through the shared status (lib/absence/stage-switch.ts): the stage history when it is on.
+      const derived = await absenceStatusForPerson(supabase, person.company_id as string, config, personId, summary);
+      const offered = offeredStages(derived);
       const chosen = stageFrom(answers["meeting_type"]);
       if (chosen && !offered.includes(chosen)) {
         return {
@@ -678,32 +680,44 @@ async function planBooking(formData: FormData): Promise<BookingPlan | { error: s
     supabase.from("person_absence_summary").select(SUMMARY_STAGE_COLUMNS).eq("person_id", personId).maybeSingle(),
     getAbsenceConfig(person.company_id as string),
   ]);
-  const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
-  /* The stage they are on: from the held meetings as the Absence card works it out (a meeting whose
-     absences were discounted with no warning drops them back, 0429; stage_after, 0423), and any
-     meeting already booked and not yet held, which cannot be booked twice. */
-  const rows = (stageRows ?? []) as Array<{ stage: number | null; stage_after: number | null; evidence_id: string | null }>;
-  const openBooked = rows.filter((r) => !r.evidence_id).reduce((m, r) => Math.max(m, r.stage ?? 0), 0);
-  const heldStage =
-    config.method === "stages"
-      ? (derived.meetingStage ?? 0)
-      : rows.filter((r) => r.evidence_id).reduce((m, r) => Math.max(m, r.stage_after ?? r.stage ?? 0), 0);
-  const maxStage = Math.max(openBooked, heldStage);
-  if (stage <= maxStage) {
-    return {
-      error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,
-    };
-  }
+  const derived = await absenceStatusForPerson(supabase, person.company_id as string, config, personId, summary);
+  /* THE STAGE HISTORY SWITCH (0457): the stages offered are the Due ones (or the next one when
+     nothing is Due), whatever was held before, because a stage can be reached again. */
+  if (derived.offered) {
+    if (!derived.offered.includes(stage)) {
+      return {
+        error: derived.offered.length
+          ? `Only ${derived.offered.map((s) => `Stage ${s}`).join(" or ")} can be booked for this person now.`
+          : "Every stage reached has already been booked or held for this person.",
+      };
+    }
+  } else {
+    /* The stage they are on: from the held meetings as the Absence card works it out (a meeting whose
+       absences were discounted with no warning drops them back, 0429; stage_after, 0423), and any
+       meeting already booked and not yet held, which cannot be booked twice. */
+    const rows = (stageRows ?? []) as Array<{ stage: number | null; stage_after: number | null; evidence_id: string | null }>;
+    const openBooked = rows.filter((r) => !r.evidence_id).reduce((m, r) => Math.max(m, r.stage ?? 0), 0);
+    const heldStage =
+      config.method === "stages"
+        ? (derived.meetingStage ?? 0)
+        : rows.filter((r) => r.evidence_id).reduce((m, r) => Math.max(m, r.stage_after ?? r.stage ?? 0), 0);
+    const maxStage = Math.max(openBooked, heldStage);
+    if (stage <= maxStage) {
+      return {
+        error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,
+      };
+    }
 
-  /* The same rule as the drop down (lib/absence/record-meeting.ts availableStages): the stage after
-     the last one, up to what their absences call for, and always at least that next stage. */
-  const offered = availableStages(maxStage, derived.derivedStage);
-  if (config.method === "stages" && !offered.includes(stage)) {
-    return {
-      error: offered.length
-        ? `Only ${offered.map((s) => `Stage ${s}`).join(" or ")} can be booked for this person now.`
-        : "Every stage has already been held or booked for this person.",
-    };
+    /* The same rule as the drop down (lib/absence/record-meeting.ts availableStages): the stage after
+       the last one, up to what their absences call for, and always at least that next stage. */
+    const offered = availableStages(maxStage, derived.derivedStage);
+    if (config.method === "stages" && !offered.includes(stage)) {
+      return {
+        error: offered.length
+          ? `Only ${offered.map((s) => `Stage ${s}`).join(" or ")} can be booked for this person now.`
+          : "Every stage has already been held or booked for this person.",
+      };
+    }
   }
 
   const conductor = await resolveConductor(supabase, person.company_id as string, conductedBy);

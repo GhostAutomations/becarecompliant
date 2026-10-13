@@ -474,7 +474,9 @@ export async function getAbsenceActions(companyId: string): Promise<AbsenceActio
   ]);
   const booked = new Set(openBookings.map((b) => b.person_id));
   return {
-    invites: rows.filter((r) => r.status.meetingDue && !booked.has(r.personId)).length,
+    /* Stage history switch on (0457): meetingDue already means a stage with no meeting booked, and a
+       booking for another stage does not cover it. Off: as before. */
+    invites: rows.filter((r) => r.status.meetingDue && (r.status.history ? true : !booked.has(r.personId))).length,
     rtw: rtw.length,
     rtwOverdue: rtw.filter((r) => r.overdue).length,
     rtwList: sortRtwForDashboard(rtw),

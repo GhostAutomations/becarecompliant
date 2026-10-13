@@ -47,7 +47,7 @@ import {
 import { listPersonHolidays } from "@/lib/holidays/data";
 import { getPersonLoginStatus } from "@/lib/staff/data";
 import { invitePersonLogin } from "@/lib/staff/actions";
-import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
+import { getPersonOpenStagesLine, listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
   setArchived,
@@ -220,6 +220,7 @@ export default async function PersonPage({
     absences,
     meetings,
     dbsPendingLatest,
+    openStages,
   ] = await Promise.all([
     getPersonChecks(id),
     listPeopleCheckDefinitions(companyId),
@@ -231,6 +232,8 @@ export default async function PersonPage({
     listPersonAbsences(id),
     listPersonMeetings(id),
     getLatestDbsPending(id),
+    // Stage history switch only (0457): "Stage 1 Pending · Stage 2 Due", else null.
+    getPersonOpenStagesLine(companyId, id),
   ]);
 
   // Outcome letters for their recorded absence meetings (0343). RLS keeps these to the people who
@@ -1072,6 +1075,11 @@ export default async function PersonPage({
 
         <div className="glass-card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Absence</h2>
+          {openStages ? (
+            <p className="mb-3">
+              <span className="pill pill-amber">{openStages}</span>
+            </p>
+          ) : null}
           {absences.length === 0 && meetings.length === 0 ? (
             <p className="text-sm text-white/50">No absences recorded.</p>
           ) : (

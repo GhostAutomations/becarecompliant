@@ -10,8 +10,17 @@
  * Nothing here talks to the database or React. Keep it dependency-free.
  */
 
-import { type AbsenceWindow, absenceWindowFrom } from "@/lib/absence/window";
-import { stageDueAfterNewAbsence } from "@/lib/absence/next-stage";
+/* Relative and extensioned, so node --test can load this file (logic.test.ts). */
+import { type AbsenceWindow, absenceWindowFrom } from "./window.ts";
+import { stageDueAfterNewAbsence } from "./next-stage.ts";
+import { availableStages } from "./record-meeting.ts";
+import {
+  bookableStages,
+  stageHistory,
+  type HistoryEvent,
+  type HistoryMeeting,
+  type StageHistory,
+} from "./stage-history.ts";
 
 export type AbsenceMethod = "stages" | "bradford";
 
@@ -114,6 +123,11 @@ export type AbsenceStatus = {
   /** Every stage triggered and not yet held, lowest first (Phil, 2026-10-08: "show all the stages
    *  that have been triggered"). Empty when no meeting is due. */
   triggeredStages: number[];
+  /** Only with the stage history switch on (companies.absence_stage_history): every stage reached
+   *  at the date of the absence that reached it, with its own status (stage-history.ts). */
+  history?: StageHistory;
+  /** Only with the switch on: the stages a meeting can be booked or recorded at, lowest Due first. */
+  offered?: number[];
 };
 
 /**
@@ -279,4 +293,72 @@ export function resolveAbsenceConfig(row: {
         ? DEFAULT_BRADFORD_BANDS
         : DEFAULT_STAGE_THRESHOLDS;
   return { method, window, thresholds };
+}
+
+/** What the stage history needs about one person: every absence and every meeting, ever. */
+export type StageHistoryInputs = {
+  events: HistoryEvent[];
+  meetings: HistoryMeeting[];
+  todayIso: string;
+};
+
+/**
+ * THE ONE WAY a person's absence stage is worked out (Phil, 2026-10-13). Every screen, check and
+ * letter goes through this, by way of lib/absence/stage-switch.ts, which reads the company's switch
+ * (companies.absence_stage_history) and passes the inputs only when it is on.
+ *
+ * Switch off (inputs null), or a Bradford company: exactly the old count, deriveAbsenceStatus.
+ * Switch on: the stages reached at the date of each absence (stage-history.ts), mapped onto the
+ * same shape so every caller keeps working.
+ */
+export function resolveAbsenceStatus(
+  agg: AbsenceAggregate,
+  config: AbsenceConfig,
+  inputs: StageHistoryInputs | null,
+): AbsenceStatus {
+  if (!inputs || !isStageThresholds(config.method, config.thresholds)) return deriveAbsenceStatus(agg, config);
+  const stages = [...(config.thresholds as StageThreshold[])].sort((a, b) => a.stage - b.stage);
+  const history = stageHistory({
+    events: inputs.events,
+    meetings: inputs.meetings,
+    triggers: stages
+      .filter((s) => s.occasions != null)
+      .map((s) => ({ stage: Number(s.stage), occasions: Number(s.occasions) })),
+    window: config.window,
+    todayIso: inputs.todayIso,
+  });
+  const held = inputs.meetings.filter((m) => m.held && m.stage != null).map((m) => m.stage as number);
+  const label = (n: number) => stages.find((s) => s.stage === n)?.label ?? `Stage ${n}`;
+  const openStages = history.open.map((r) => r.stage);
+  const top = openStages.length
+    ? Math.max(...openStages)
+    : history.current.length
+      ? Math.max(...history.current.map((r) => r.stage))
+      : null;
+  const due = history.open.filter((r) => r.state === "due").map((r) => r.stage);
+  const occasions = Math.max(0, agg.occasions ?? 0);
+  const totalDays = Math.max(0, agg.totalDays ?? 0);
+  return {
+    method: config.method,
+    occasions,
+    totalDays,
+    bradfordScore: bradfordScore(occasions, totalDays),
+    derivedLabel: top != null ? label(top) : null,
+    derivedStage: top,
+    action: null,
+    meetingStage: held.length ? Math.max(...held) : null,
+    meetingDue: due.length > 0,
+    dueAfterNewAbsence: false,
+    lastHeldStage: held.length ? Math.max(...held) : null,
+    droppedBack: false,
+    triggeredStages: due,
+    history,
+    offered: bookableStages(history, held),
+  };
+}
+
+/** The stages a meeting can be booked or recorded at with nothing booked: the switch's own list
+ *  when it is on, otherwise the old rule (record-meeting.ts availableStages). */
+export function offeredStages(status: Pick<AbsenceStatus, "offered" | "meetingStage" | "derivedStage">): number[] {
+  return status.offered ?? availableStages(status.meetingStage, status.derivedStage);
 }

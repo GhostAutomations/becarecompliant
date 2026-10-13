@@ -91,6 +91,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     personId: args.personId,
     conductorId: args.conductor.id,
     asOfIso: args.absencesAsOfIso,
+    stage: args.stage,
   });
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
   const stageLabel = stageLabelFor(args.stage, extras.meetingName);

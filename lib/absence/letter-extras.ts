@@ -20,6 +20,9 @@ import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { officeAddress, resolveBranchAddress, type BranchAddressRow } from "@/lib/branches/office-address";
 import { meetingNameInSentence } from "@/lib/absence/meeting-name";
 import type { InvitationAbsence } from "@/lib/absence/invitation-letter";
+import { absenceStageHistoryOn } from "@/lib/absence/stage-switch";
+import { stageAbsenceIds, stageHistory } from "@/lib/absence/stage-history";
+import { stageThresholds } from "@/lib/absence/meeting-questions";
 
 export type LetterExtras = {
   meetingName: string | null;
@@ -62,21 +65,25 @@ export async function loadLetterExtras(opts: {
   /** The person's next meeting day, if any: a discount made from then on is that meeting's, not
    *  this one's (Phil, 2026-10-12). */
   countDiscountedBefore?: string | null;
+  /** The meeting's stage. With the stage history switch on (0457) the letter lists the absences
+   *  that reached that stage, even those that have since left today's window. */
+  stage?: number | null;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
-  const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config] =
+  const [{ data: person }, { data: branches }, jobTitle, { data: events }, meetingName, logoDataUrl, config, historyOn] =
     await Promise.all([
       admin.from("people").select("branch_id, home_address").eq("id", opts.personId).eq("company_id", opts.companyId).maybeSingle(),
       admin.from("branches").select("id, name, kind, address, phone, uses_office_address").eq("company_id", opts.companyId),
       letterJobTitle(opts.companyId, opts.conductorId),
       admin
         .from("absence_events")
-        .select("start_date, end_date, days, reason, discounted_at, discount_reason")
+        .select("id, start_date, end_date, days, reason, discounted_at, discount_reason")
         .eq("company_id", opts.companyId)
         .eq("person_id", opts.personId),
       companyMeetingName(opts.companyId),
       getCompanyLogoDataUrl(opts.companyId).catch(() => null),
       getAbsenceConfig(opts.companyId),
+      absenceStageHistoryOn(opts.companyId),
     ]);
 
   // Letterhead: the employee's branch office when it has premises of its own, else the main office.
@@ -90,14 +97,29 @@ export async function loadLetterExtras(opts: {
   const today = opts.asOfIso && /^\d{4}-\d{2}-\d{2}$/.test(opts.asOfIso) ? opts.asOfIso : formatCivilDate(todayInLondon());
   const windowStart = windowStartIso(today, config.window);
   const from = opts.countDiscountedFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.countDiscountedFrom) ? opts.countDiscountedFrom : null;
-  const raw = ((events ?? []) as Array<InvitationAbsence & { discounted_at: string | null; discount_reason: string | null }>)
+  const raw = ((events ?? []) as Array<InvitationAbsence & { id: string; discounted_at: string | null; discount_reason: string | null }>)
     .filter((e) => e.start_date <= today);
   const here = discountedAtMeeting(raw, from, opts.countDiscountedBefore);
   const hereDates = new Set(here.map((e) => e.start_date));
-  const counted = countedAbsences(
-    raw.map((e) => (hereDates.has(e.start_date) ? { ...e, discounted_at: null } : e)),
-    { windowStart },
-  );
+  const asHeld = raw.map((e) => (hereDates.has(e.start_date) ? { ...e, discounted_at: null } : e));
+  /* Switch on (0457): the absences that reached this stage, as they stood on the day. A stage not
+     reached (a meeting held early) keeps today's list, as before. */
+  const stageIds =
+    historyOn && config.method === "stages" && opts.stage
+      ? stageAbsenceIds(
+          stageHistory({
+            events: asHeld,
+            meetings: [],
+            triggers: stageThresholds(config.method, config.thresholds),
+            window: config.window,
+            todayIso: today,
+          }),
+          opts.stage,
+        )
+      : null;
+  const counted = stageIds
+    ? asHeld.filter((e) => stageIds.includes(e.id)).sort((a, b) => a.start_date.localeCompare(b.start_date))
+    : countedAbsences(asHeld, { windowStart });
 
   return {
     meetingName,

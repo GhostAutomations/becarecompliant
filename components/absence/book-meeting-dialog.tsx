@@ -52,6 +52,7 @@ export default function BookMeetingDialog({
   defaultStage,
   minStage,
   maxStage,
+  stages,
   conductors,
   offices,
   stageActions = {},
@@ -70,6 +71,9 @@ export default function BookMeetingDialog({
   /** Only stages the person's absence level actually calls for are offered
    *  (Phil, 2026-07-12): nothing above their derived stage. */
   maxStage: number;
+  /** With the stage history switch on (0457): exactly the stages offered, lowest Due first.
+   *  Replaces minStage to maxStage, because the Due stages need not run in a row. */
+  stages?: number[];
   /** Active Managers + Admins: the only people who can hold the meeting. */
   conductors: ConductorLite[];
   /** Named offices (company office + branch offices) for the Location. */
@@ -103,6 +107,7 @@ export default function BookMeetingDialog({
             defaultStage={defaultStage}
             minStage={minStage}
             maxStage={maxStage}
+            stages={stages}
             conductors={conductors}
             offices={offices}
             stageActions={stageActions}
@@ -130,6 +135,7 @@ function BookMeetingForm({
   defaultStage,
   minStage,
   maxStage,
+  stages,
   conductors,
   offices,
   stageActions,
@@ -140,6 +146,7 @@ function BookMeetingForm({
   defaultStage: number;
   minStage: number;
   maxStage: number;
+  stages?: number[];
   conductors: ConductorLite[];
   offices: MeetingOffice[];
   stageActions: Record<number, string>;
@@ -326,7 +333,7 @@ function BookMeetingForm({
               onChange={(e) => setStage(Number(e.target.value))}
               disabled={busy}
             >
-              {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
+              {(stages ?? [1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
               ))}
             </select>

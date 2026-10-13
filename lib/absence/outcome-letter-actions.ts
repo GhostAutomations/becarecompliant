@@ -219,6 +219,7 @@ async function letterSetup(ctx: LetterCtx) {
       asOfIso: ctx.asOfIso,
       countDiscountedFrom: ctx.discountedFrom,
       countDiscountedBefore: ctx.discountedBefore,
+      stage: ctx.meeting.stage,
     }),
     getAbsenceConfig(ctx.companyId),
   ]);

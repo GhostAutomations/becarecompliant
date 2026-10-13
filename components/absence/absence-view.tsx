@@ -21,11 +21,12 @@ import DiscountInForm from "@/components/absence/discount-in-form";
 import { stageActionFor, stageActionLines } from "@/lib/absence/stage-actions";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
-import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
+import { offeredStages, type AbsenceMethod, type StageThreshold } from "@/lib/absence/logic";
+import { openStagesLine, stageAbsenceIds } from "@/lib/absence/stage-history";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
-import { availableStages, recordableStages } from "@/lib/absence/record-meeting";
+import { recordableStages } from "@/lib/absence/record-meeting";
 import { DEFAULT_APPEAL_DAYS } from "@/lib/absence/invitation-letter";
 import { fieldToNameSelect, removeField } from "@/lib/form-schema";
 import { countedAbsences } from "@/lib/absence/discount";
@@ -228,7 +229,10 @@ export default function AbsenceView({
        are that stage's (Phil, 2026-10-08: when several stages are triggered the manager picks, the
        higher one chosen by default). */
     const triggered = r.status.triggeredStages ?? [];
-    const defaultUnbooked = nothingBooked && triggered.length > 0 ? Math.max(...triggered) : null;
+    /* With the stage history switch on (0457) the LOWEST Due stage is chosen to start with (Phil,
+       2026-10-13), and the manager can change it. */
+    const defaultUnbooked =
+      nothingBooked && triggered.length > 0 ? (r.status.history ? Math.min(...triggered) : Math.max(...triggered)) : null;
     const schema: FormSchema = {
       ...meetingSchema,
       sections: meetingSchema.sections.map((s) => ({
@@ -237,10 +241,7 @@ export default function AbsenceView({
           f.key === "meeting_type" && "options" in f
             ? {
                 ...f,
-                options: recordableStages(
-                  bookedStages,
-                  availableStages(r.status.meetingStage, r.status.derivedStage),
-                ).map((st) => ({
+                options: recordableStages(bookedStages, offeredStages(r.status)).map((st) => ({
                   label: `Stage ${st}`,
                   value: `Stage ${st}`,
                 })),
@@ -265,8 +266,15 @@ export default function AbsenceView({
     // Absences outside the rolling window no longer count either, so they are not discussed
     // (2026-09-29: this list used every absence ever recorded, which would have put a Stage 1 onto
     // absences from years ago). The same rule the drafted questions use: discussedAbsences.
-    const chronological = countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
     const bookedStage = earliest?.stage ?? defaultUnbooked;
+    /* Switch on (0457): the absences that reached the stage, even those that have since left
+       today's window. A stage not reached keeps today's list. */
+    const stageIds = r.status.history ? stageAbsenceIds(r.status.history, bookedStage) : null;
+    const chronological = stageIds
+      ? (eventsByPerson[r.personId] ?? [])
+          .filter((e) => stageIds.includes(e.id))
+          .sort((a, b) => a.start_date.localeCompare(b.start_date))
+      : countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
     const discussed = discussedAbsences(
       chronological,
       bookedStage,
@@ -343,7 +351,9 @@ export default function AbsenceView({
     derivedLabel: r.status.derivedLabel,
     meetingDue: r.status.meetingDue,
     bradfordScore: r.status.bradfordScore,
-    booking: bookingByPerson[r.personId] ?? null,
+    /* Switch on (0457): a booking for one stage does not cover another that is Due, so a Due stage
+       keeps them in Action required. */
+    booking: r.status.history && r.status.meetingDue ? null : bookingByPerson[r.personId] ?? null,
   });
   // Ranked: whoever needs a meeting booking first, booked meetings next, then stages already
   // dealt with, then everyone below threshold (Phil, 2026-10-06). lib/absence/rank.ts.
@@ -427,7 +437,9 @@ export default function AbsenceView({
                have been triggered"). */
             const triggeredList = (s.triggeredStages ?? []).map((n) => `Stage ${n}`);
             const several = triggeredList.length > 1;
-            const pillLabel = several ? triggeredList.join(", ") : s.derivedLabel;
+            /* Switch on (0457): every open stage, compactly: "Stage 1 Pending · Stage 2 Due". */
+            const historyLine = s.history ? openStagesLine(s.history) : "";
+            const pillLabel = historyLine || (several ? triggeredList.join(", ") : s.derivedLabel);
             const severalLine = several
               ? `${triggeredList.slice(0, -1).join(", ")} and ${triggeredList[triggeredList.length - 1]} have ${triggeredList.length === 2 ? "both" : "all"} been triggered.`
               : "";
@@ -480,7 +492,14 @@ export default function AbsenceView({
                   </p>
                 )}
                 {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
-                {s.meetingDue && (
+                {s.meetingDue && s.history && (
+                  <p className="text-xs font-medium text-amber-300">
+                    {s.triggeredStages.length > 1
+                      ? `Meetings due: ${s.triggeredStages.map((n) => `Stage ${n}`).join(" and ")}.`
+                      : `A Stage ${s.triggeredStages[0]} meeting is due.`}
+                  </p>
+                )}
+                {s.meetingDue && !s.history && (
                   <p className="text-xs font-medium text-amber-300">
                     {several
                       ? severalLine
@@ -541,18 +560,26 @@ export default function AbsenceView({
                     canDiscount={canDiscount}
                     windowStart={windowStart}
                     openOnMount={openViewPersonId === r.personId}
+                    history={s.history}
                   />
                   {/* Nothing left to book once every stage has been held (Phil, 2026-10-12, THE LIST 55):
                       said on the card instead of a Book meeting that opens empty. */}
-                  {canManage && availableStages(s.meetingStage, s.derivedStage).length === 0 ? (
-                    <p className="self-center text-xs text-white/50">Every stage has been held.</p>
+                  {canManage && offeredStages(s).length === 0 ? (
+                    <p className="self-center text-xs text-white/50">
+                      {s.history ? "Every stage reached is booked or held." : "Every stage has been held."}
+                    </p>
                   ) : canManage ? (
                     <BookMeetingDialog
                       personId={r.personId}
                       personName={r.fullName}
-                      defaultStage={Math.min(4, Math.max(1, ...(s.triggeredStages?.length ? s.triggeredStages : [(s.meetingStage ?? 0) + 1])))}
+                      defaultStage={
+                        s.offered?.length
+                          ? s.offered[0]
+                          : Math.min(4, Math.max(1, ...(s.triggeredStages?.length ? s.triggeredStages : [(s.meetingStage ?? 0) + 1])))
+                      }
                       minStage={(s.meetingStage ?? 0) + 1}
-                      maxStage={Math.max(0, ...availableStages(s.meetingStage, s.derivedStage))}
+                      maxStage={Math.max(0, ...offeredStages(s))}
+                      stages={s.offered}
                       conductors={conductors}
                       offices={offices}
                       stageActions={stageActionMap}
@@ -646,7 +673,10 @@ export default function AbsenceView({
         <div>
           <h1 className="page-title">Absence</h1>
           <p className="page-subtitle">
-            People with absences in the current window. Tracking method:{" "}
+            {rows.some((r) => r.status.history)
+              ? "People with absences in the current window, or a stage still to deal with."
+              : "People with absences in the current window."}{" "}
+            Tracking method:{" "}
             {method === "bradford" ? "Bradford Factor" : "Trigger points (stages)"}.
           </p>
         </div>

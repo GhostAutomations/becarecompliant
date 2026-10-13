@@ -4432,6 +4432,18 @@ audit F128), version 1 and its Evidence untouched; the library template is versi
 get it (0455, 0456 for Thistle on Phil's go). PQS, Readiness and Reg 80 count audits only. A1 to A8
 in TEST-CHECKLIST-SU-AUDIT-125.md pass.
 
+### 2026-10-13 — Absence stages at the date of each absence, the popup bracket (Phase 13, Thistle ticket)
+
+The rolling window was measured back from today, so stages a person had reached vanished once their
+absences aged out, even with a meeting booked. Behind a new per company switch
+(companies.absence_stage_history, 0457, on for Bevan only): the window is measured from each absence,
+every stage reached stays Due, Pending or Dealt with until its own meeting is held, and the View
+absence popup is wider with one bracket joining the absences that count. One shared function
+(lib/absence/stage-switch.ts, resolveAbsenceStatus) for the Absence page, the dashboard count, the
+record page, booking, recording, the drafted questions and the letters. Switch off: exactly as before
+(unit tested, and checked on Thistle's real data). Bevan test people ZZ Absence Test A, B and C.
+Decision: docs/decisions/absence-stage-history.md. Tests: TEST-CHECKLIST-ABSENCE-BRACKET.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

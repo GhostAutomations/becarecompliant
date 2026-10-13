@@ -18,8 +18,9 @@ import { runAi } from "@/lib/ai/anthropic";
 import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { stageActionFor } from "@/lib/absence/stage-actions";
-import { availableStages } from "@/lib/absence/record-meeting";
-import { SUMMARY_STAGE_COLUMNS, aggregateFromSummary, deriveAbsenceStatus } from "@/lib/absence/logic";
+import { SUMMARY_STAGE_COLUMNS, offeredStages } from "@/lib/absence/logic";
+import { absenceStageHistoryOn, absenceStatusForPerson } from "@/lib/absence/stage-switch";
+import { stageAbsenceIds, stageHistory } from "@/lib/absence/stage-history";
 import { absenceCountState, countedAbsences, windowStartIso } from "@/lib/absence/discount";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { StageThreshold } from "@/lib/absence/logic";
@@ -28,6 +29,7 @@ import {
   buildMeetingPrompt,
   discussedAbsences,
   redactName,
+  stageThresholds,
   meetingNotesFromAnswers,
   rtwNotesFromAnswers,
   rtwNotesFromPortal,
@@ -107,7 +109,21 @@ export async function draftMeetingQuestions(
     ...e,
     days: e.days === null ? null : Number(e.days),
   }));
-  const counted = countedAbsences(events, { windowStart });
+  /* With the stage history switch on (0457), a stage's meeting is about the absences that reached
+     it, even when some have since left today's window. */
+  const history = (await absenceStageHistoryOn(person.company_id as string)) && config.method === "stages"
+    ? stageHistory({
+        events,
+        meetings: [],
+        triggers: stageThresholds(config.method, config.thresholds),
+        window: config.window,
+        todayIso: formatCivilDate(todayInLondon()),
+      })
+    : null;
+  const stageIds = history ? stageAbsenceIds(history, stage) : null;
+  const counted = stageIds
+    ? events.filter((e) => stageIds.includes(e.id)).sort((a, b) => a.start_date.localeCompare(b.start_date))
+    : countedAbsences(events, { windowStart });
   const discountedCount = events.filter((e) => absenceCountState(e, { windowStart }) === "discounted").length;
   const thresholds =
     config.method === "stages"
@@ -180,8 +196,8 @@ export async function draftMeetingQuestions(
       .select(SUMMARY_STAGE_COLUMNS)
       .eq("person_id", personId)
       .maybeSingle();
-    const derived = deriveAbsenceStatus(aggregateFromSummary(summary), config);
-    const offered = availableStages(derived.meetingStage, derived.derivedStage);
+    const derived = await absenceStatusForPerson(supabase, person.company_id as string, config, personId, summary);
+    const offered = offeredStages(derived);
     if (offered.length === 1) promptStage = offered[0];
   }
 
