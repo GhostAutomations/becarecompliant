@@ -24,9 +24,9 @@ Run one at a time.
 | # | Check | Result |
 |---|-------|--------|
 | D0 | Unit tests: the Date column only when a line has a date, "Mon 05/10/2026" (month end, leap day, clock change, blanks), both PDF width sets with a date total 100%, page headings and colSpan match | PASS (lib/invoicing/invoice-table.test.ts, 7) |
-| D1 | Bevan, New invoice: each line has a Date box first, then Service, Unit, Handed, Qty; a line can be saved with or without a date | Not tested |
-| D2 | A draft with dated lines: the invoice page shows a Date column left of Service reading "Mon 05/10/2026"; the Preview PDF shows the same | Not tested |
-| D3 | Edit page: change a date, Preview: the PDF shows the new date and the draft is saved | Not tested |
-| D4 | An invoice with no dates (INV-00001 on Bevan): no Date column on the page or the PDF; it prints exactly as before | Not tested |
-| D5 | Fill lines from care plan: filled lines keep their week heading, with the Date box empty | Not tested |
+| D1 | Bevan, New invoice: each line has a Date box first, then Service, Unit, Handed, Qty; a line can be saved with or without a date | PASS (Chrome as Founder on Bevan: Date box first on each line; saved with two dated lines and one without) |
+| D2 | A draft with dated lines: the invoice page shows a Date column left of Service reading "Mon 05/10/2026"; the Preview PDF shows the same | PASS (invoice page: Date column first, "Mon 05/10/2026", "Tue 06/10/2026", blank for the undated line; Preview PDF the same, widths fit) |
+| D3 | Edit page: change a date, Preview: the PDF shows the new date and the draft is saved | PASS (third line set to 30/09/2026 unsaved, Preview: PDF reads "Wed 30/09/2026", the widest day, and fits; the draft saved it, still a draft) |
+| D4 | An invoice with no dates (INV-00001 on Bevan): no Date column on the page or the PDF; it prints exactly as before | PASS (INV-00001: no Date heading on the page; its PDF has no Date column and reads exactly as before) |
+| D5 | Fill lines from care plan: filled lines keep their week heading, with the Date box empty | PASS (care plan fill on a new, unsaved invoice: "Week: 09/10/2026 to 11/10/2026" heading, Date box empty, date not set) |
 | D6 | Phil: Thistle, edit each draft, give each Sleep line its night, save, Preview: the Date column reads each night | Not tested |
