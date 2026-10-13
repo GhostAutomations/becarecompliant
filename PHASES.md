@@ -4525,18 +4525,22 @@ Found while testing: the shared save button (ActionForm) has flashed Saved for 2
 keepSaved (off by default), on for the Settings, Invoicing form. Other pages unchanged by his choice
 (docs/decisions/save-button-behaviour.md). Test: Save on Settings, Invoicing stays green until edited:
 PASS on Bevan (green "Saved" still showing after 7 seconds; typing in a field turned it back to Save).
+DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-13 — Invoice emails: a copy to the company, and the company as the sender (Phase 13)
 
 Tick box under Reply to email for a copy (CC) of every invoice email (0465). Invoice emails show the
-care company's name as the sender. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md C0 to C4.
+care company's name as the sender. Decision: docs/decisions/invoicing.md. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md C0 to C4,
+all pass. DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-13 — Invoicing list: Period column and Mark paid (Phase 13)
 
 Period (service period) after the branch column; Mark paid on each sent or overdue row, asking first,
 paid today with no method. No migration. Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md M1 to M3.
 Then: list dates all DD/MM/YYYY; the invoice email reworded (Dear, due, contact the reply to address,
-Kind regards) and shown light only for the logo. Tests E1 to E3.
+Kind regards) and shown light only for the logo. Tests M1 to M3 and E0 to E3 all pass (E2 and E3 on a
+test email from Bevan to Phil, Bevan's email block lifted for one minute on his go). The email log no
+longer says "copy to" when the copy address is the client's own. DONE, signed off by Phil 2026-10-13.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

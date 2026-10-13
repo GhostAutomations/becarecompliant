@@ -520,7 +520,13 @@ async function emailInvoiceOnSend(
     });
 
     // A copy to the company's own reply to inbox when they ticked it (Phil, 2026-10-13; 0465).
-    const copyTo = config.cc_reply_to && config.reply_to_email ? config.reply_to_email : null;
+    // No copy when it would go to the client's own address (sendEmail drops it), so the log never
+    // claims a copy that was not sent.
+    const copyTo =
+      config.cc_reply_to && config.reply_to_email &&
+      config.reply_to_email.trim().toLowerCase() !== inv.bill_to_email.trim().toLowerCase()
+        ? config.reply_to_email
+        : null;
     const result = await sendEmail({ companyId: inv.company_id,
       to: inv.bill_to_email,
       subject: `${companyName} invoice ${inv.number}`,
