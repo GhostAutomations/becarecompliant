@@ -4447,6 +4447,8 @@ Then (Phil, popups after the first live test): one booking line per meeting on a
 meeting's level line worded from the stage. B0 to B17 all pass (B14 by Phil on his phone, B15 Thistle
 unchanged, checked as Founder in support mode). DONE, signed off by Phil 2026-10-13. Thistle switched on the
 same day on Phil's go (audit logged); its cards matched the dry run.
+Then (THE LIST 56, Thistle's answer): a held meeting can be marked as dealing with a stage reached
+after it (0458, inside that stage's window only); one carer's 5 Jun Stage 1 meeting marked, audit logged.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

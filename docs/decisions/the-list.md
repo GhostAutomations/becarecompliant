@@ -279,6 +279,11 @@ The next five were found by the step 7 check of the October audit fixes and park
     missing from BCC: E. Powell-Lawrence (17, 20, 21 Apr), C. Ufondu (27 Apr), S. Didwell (12 Apr,
     disallowed), S. Wainwright (8 and 29 May), C. Coutts (8 May, disallowed). Open questions for
     Thistle: add the 24 Apr absence? is their window 6 or 12 months? fix the other five?
+    DONE 2026-10-13: Thistle said there is no further absence and her Stage 1 meeting gave a verbal
+    warning. With the stage history on (0457) she showed Stage 1 Due, because the meeting came before
+    the 25 Sep absence reached Stage 1. Phil's popup: her 5 Jun meeting marked as dealing with it
+    (0458, audit logged); she shows Stage 1 Dealt with, nothing due. The other five people's missing
+    absences were not raised by Thistle and are left as they are.
 57. **Apply 0419: take the 18 tables out of the old Realtime row change stream (audit F155)**
     (Phil, popup 2026-10-13, parked from the live Tickets job as its own piece). 0419 was never
     applied, so profiles, invites, people, check_instances, service_users, complaints, incidents and

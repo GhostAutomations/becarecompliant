@@ -56,7 +56,7 @@ export async function loadStageInputs(
     .eq("company_id", scope.companyId);
   let mtq = supabase
     .from("absence_meetings")
-    .select("id, person_id, stage, meeting_date, evidence_id, response")
+    .select("id, person_id, stage, meeting_date, evidence_id, response, deals_with_later")
     .eq("company_id", scope.companyId);
   if (scope.personIds) {
     evq = evq.in("person_id", scope.personIds);
@@ -85,6 +85,7 @@ export async function loadStageInputs(
     meeting_date: string | null;
     evidence_id: string | null;
     response: string | null;
+    deals_with_later: boolean | null;
   }>) {
     const meeting: HistoryMeeting = {
       id: m.id,
@@ -92,6 +93,7 @@ export async function loadStageInputs(
       meeting_date: m.meeting_date,
       held: !!m.evidence_id,
       declined: !m.evidence_id && m.response === "declined",
+      dealsWithLater: m.deals_with_later === true,
     };
     slot(m.person_id).meetings.push(meeting);
   }

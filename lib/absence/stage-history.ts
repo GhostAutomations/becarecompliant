@@ -24,6 +24,10 @@
  *   - Once dealt with, the same stage is reached again only after the count has fallen below its
  *     trigger and climbs back to it. While a stage is still open it is not reached a second time.
  *   - A declined booking is not a booking (the same as the old count): the stage stays Due.
+ *   - A meeting marked as dealing with a stage reached later (absence_meetings.deals_with_later,
+ *     0458; Phil, 2026-10-13, for a Thistle carer whose Stage 1 meeting was held before her third
+ *     absence) counts even though it came first, but only inside the rolling window that reached
+ *     the stage. A meeting on or after the date is always preferred.
  *
  * Only for the trigger point method. Bradford companies keep the old count.
  */
@@ -45,6 +49,8 @@ export type HistoryMeeting = {
   held: boolean;
   /** The employee declined the invitation. */
   declined?: boolean | null;
+  /** Marked as dealing with the stage even though held before it was reached (0458). */
+  dealsWithLater?: boolean | null;
 };
 
 export type StageTrigger = { stage: number; occasions: number };
@@ -119,7 +125,16 @@ export function stageHistory(input: {
   for (const t of triggers) {
     const used = new Set<string>();
     const held = meetings.filter((m) => m.stage === t.stage && m.held && m.meeting_date);
-    const dealtBy = (from: string) => held.find((m) => !used.has(m.id) && (m.meeting_date as string) >= from) ?? null;
+    const dealtBy = (from: string) =>
+      held.find((m) => !used.has(m.id) && (m.meeting_date as string) >= from) ??
+      held.find(
+        (m) =>
+          !used.has(m.id) &&
+          !!m.dealsWithLater &&
+          (m.meeting_date as string) < from &&
+          (m.meeting_date as string) >= windowStartIso(from, input.window),
+      ) ??
+      null;
 
     let above = false;
     let last: ReachedStage | null = null;
@@ -127,7 +142,10 @@ export function stageHistory(input: {
       const nowAbove = step.inWindow.length >= t.occasions;
       if (nowAbove && !above) {
         // Still open from last time: the same stage is not reached twice.
-        const openStill = last && (last.state !== "dealt_with" || (last.meetingDate as string) > step.event.start_date);
+        const openStill =
+          last &&
+          (last.state !== "dealt_with" ||
+            ((last.meetingDate as string) > step.event.start_date && (last.meetingDate as string) >= last.reachedOn));
         if (!openStill) {
           const m = dealtBy(step.event.start_date);
           if (m) used.add(m.id);

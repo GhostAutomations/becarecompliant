@@ -83,3 +83,13 @@
 - [stated] "Let's put that on Thistle now then. So they can see absence more clearly." Switched on the
   same day after every check passed, with an audit entry (company.absence_stage_history_set).
   Checked as Founder in support mode: every card matched the dry run.
+
+## A meeting held before its stage was reached (Phil, 2026-10-13, Gladys ticket)
+
+- Thistle confirmed: no further absence to add, and her Stage 1 meeting on 5 Jun 2026 gave a verbal
+  warning. It came before her third absence (25 Sep) reached Stage 1, so it showed Stage 1 Due.
+- [stated] Popup: "Mark her 5 Jun meeting as dealing with it", not a second meeting on a false date
+  and not a rule change for everyone. `absence_meetings.deals_with_later` (0458), set by Be Care
+  Compliant on a company's request, audit logged (absence.meeting_deals_with_later); no screen sets
+  it. It counts only inside the rolling window that reached the stage; a meeting on or after the
+  date is always preferred. Set for her one meeting only.

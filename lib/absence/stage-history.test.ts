@@ -27,12 +27,13 @@ const ev = (start: string, end: string | null = null, discounted = false): Histo
   end_date: end,
   discounted_at: discounted ? "2026-10-13T10:00:00Z" : null,
 });
-const mt = (stage: number, date: string, held: boolean, declined = false): HistoryMeeting => ({
+const mt = (stage: number, date: string, held: boolean, declined = false, dealsWithLater = false): HistoryMeeting => ({
   id: `m${++n}`,
   stage,
   meeting_date: date,
   held,
   declined,
+  dealsWithLater,
 });
 
 /** The ticket's pattern: 1 to 7 April (7 days), 9 April, 29 August, 1 October 2026. */
@@ -217,4 +218,34 @@ test("no triggers set, no stages", () => {
   const h = stageHistory({ events: ticketPattern(), meetings: [], triggers: [], window: SIX_MONTHS, todayIso: "2026-10-13" });
   assert.deepEqual(h.current, []);
   assert.equal(openStagesLine(h), "");
+});
+
+test("a meeting held early and MARKED deals with the stage reached later (0458)", () => {
+  // Two absences, a Stage 1 meeting with a warning, then the third absence reaches Stage 1.
+  const events = [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25")];
+  assert.equal(run(events, [mt(1, "2026-06-05", true)]).current[0].state, "due");
+  const h = run(events, [mt(1, "2026-06-05", true, false, true)]);
+  assert.deepEqual(h.current.map((r) => [r.stage, r.reachedOn, r.state, r.meetingDate]), [[1, "2026-09-25", "dealt_with", "2026-06-05"]]);
+  assert.deepEqual(h.open, []);
+});
+
+test("a marked early meeting outside the window that reached the stage does not count", () => {
+  const events = [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25")];
+  // The window at 25 Sep starts 25 Mar: a meeting on 1 Mar is before it.
+  assert.equal(run(events, [mt(1, "2026-03-01", true, false, true)]).current[0].state, "due");
+});
+
+test("a marked early meeting does not stop the next stage, or the same stage later", () => {
+  const events = [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25"), ev("2026-09-26")];
+  const h = run(events, [mt(1, "2026-06-05", true, false, true)]);
+  assert.deepEqual(h.current.map((r) => [r.stage, r.state]), [
+    [1, "dealt_with"],
+    [2, "due"],
+  ]);
+});
+
+test("a meeting on or after the date is preferred to a marked early one", () => {
+  const events = [ev("2026-03-27"), ev("2026-04-10"), ev("2026-09-25")];
+  const h = run(events, [mt(1, "2026-06-05", true, false, true), mt(1, "2026-10-06", true)]);
+  assert.equal(h.current[0].meetingDate, "2026-10-06");
 });
