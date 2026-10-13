@@ -103,6 +103,8 @@ type DraftLine = {
   vat_rate: number;
   period_start: string | null;
   period_end: string | null;
+  /** The visit day, on care plan billed drafts (Phil, 2026-10-13). */
+  service_date: string | null;
 };
 
 export type DraftResult = {
@@ -190,6 +192,7 @@ export async function draftFromSchedule(
         vat_rate: vatEnabled ? 20 : 0,
         period_start: l.period_start,
         period_end: l.period_end,
+        service_date: l.service_date,
       }));
     }
   }
@@ -238,6 +241,7 @@ export async function draftFromSchedule(
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
         period_start: null,
         period_end: null,
+        service_date: null,
       };
     });
   }
@@ -293,6 +297,7 @@ export async function draftFromSchedule(
       vat_rate: l.vat_rate,
       period_start: l.period_start,
       period_end: l.period_end,
+      service_date: l.service_date,
       position: i,
     })),
   );

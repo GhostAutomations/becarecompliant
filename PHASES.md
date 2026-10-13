@@ -4542,6 +4542,12 @@ Kind regards) and shown light only for the logo. Tests M1 to M3 and E0 to E3 all
 test email from Bevan to Phil, Bevan's email block lifted for one minute on his go). The email log no
 longer says "copy to" when the copy address is the client's own. DONE, signed off by Phil 2026-10-13.
 
+### 2026-10-13 — Care plan lines dated, and the payment editable on a paid invoice (Phase 13)
+
+Fill lines from care plan and recurring care plan drafts give one dated line per visit day under the
+week heading. A paid invoice's Date paid and Method can be changed (logged). No migration.
+Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md P1 to P4.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

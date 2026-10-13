@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
-import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
+import { sendInvoice, markInvoicePaid, updateInvoicePayment, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
 import { formatMoney, formatUnitPrice, showsUnitPrice, showsServiceDate, serviceDateParts, bankDetailRows, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
@@ -105,6 +105,27 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <div>
                 <label htmlFor="paid_method" className="form-label">Method (optional)</label>
                 <input id="paid_method" name="paid_method" placeholder="Bank transfer, card, cash" />
+              </div>
+            </div>
+          </ActionForm>
+        </section>
+      ) : null}
+
+      {/* The payment on a paid invoice can be changed: the date paid and the method (Phil,
+          2026-10-13). Mark paid from the list records today and no method. */}
+      {inv.status === "paid" ? (
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-white/80">Payment</h2>
+          <ActionForm action={updateInvoicePayment} label="Save payment" className="mt-3 space-y-4">
+            <input type="hidden" name="invoice_id" value={inv.id} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="paid_date" className="form-label">Date paid</label>
+                <input id="paid_date" name="paid_date" type="date" required max={today} defaultValue={inv.paid_date ?? today} />
+              </div>
+              <div>
+                <label htmlFor="paid_method" className="form-label">Method (optional)</label>
+                <input id="paid_method" name="paid_method" maxLength={120} placeholder="Bank transfer, card, cash" defaultValue={inv.paid_method ?? ""} />
               </div>
             </div>
           </ActionForm>

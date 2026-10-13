@@ -32,6 +32,8 @@ export type BuilderLine = {
   description: string;
   period_start: string;
   period_end: string;
+  /** The visit day this line is for (Phil, 2026-10-13: care plan lines come dated). */
+  service_date: string;
 };
 
 /** A care plan row as stored, carrying its version window. */
@@ -124,23 +126,28 @@ export function buildCarePlanLines(
     return v ? `${v.from}|${v.to ?? ""}` : "none";
   };
 
-  /** Bill one contiguous same-version segment [sStart, sEnd] as a dated line group. */
+  /** Bill one contiguous same-version segment [sStart, sEnd] as a dated line group: ONE LINE PER
+   *  VISIT DAY (Phil, 2026-10-13, popup "One line per day, under the week heading"), each with its
+   *  date, under the segment's week heading. Two services on one day are two lines with that date.
+   *  The total is the same as the old one line per service per week. */
   function billSegment(sStart: string, sEnd: string, out: BuilderLine[]) {
     const v = versionForDay(sStart);
     if (!v) return;
-    const counts = [0, 0, 0, 0, 0, 0, 0];
-    let d = new Date(`${sStart}T00:00:00Z`);
-    const de = new Date(`${sEnd}T00:00:00Z`);
+    let day = sStart;
     let g = 0;
-    while (d <= de && g < 8) {
-      counts[(d.getUTCDay() + 6) % 7] += 1;
-      d.setUTCDate(d.getUTCDate() + 1);
+    while (day <= sEnd && g < 8) {
+      billDay(v, day, sStart, sEnd, out);
+      day = addDaysUtc(day, 1);
       g += 1;
     }
+  }
+
+  function billDay(v: PlanVersion, day: string, sStart: string, sEnd: string, out: BuilderLine[]) {
+    const dow = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
     const merged = new Map<string, BuilderLine>();
     for (const e of v.entries) {
-      const occ = counts[e.day_of_week] ?? 0;
-      const qty = occ * Number(e.quantity);
+      if (e.day_of_week !== dow) continue;
+      const qty = Number(e.quantity);
       if (qty <= 0) continue;
       /* Lines merge on the CARER COUNT, not on the single/double word. A three carer call and
          a two carer call are both "double handed" and are not the same money, so merging on
@@ -166,6 +173,7 @@ export function buildCarePlanLines(
           description: `${e.service}, ${e.unit} (${carersLabel(carers)})`,
           period_start: sStart,
           period_end: sEnd,
+          service_date: day,
         });
       }
     }

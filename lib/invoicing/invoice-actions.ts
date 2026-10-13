@@ -602,6 +602,59 @@ export async function markInvoicePaid(_prev: ActionState, formData: FormData): P
   return { ok: "Marked paid" };
 }
 
+/** Change the payment on a PAID invoice: the date paid and the method (Phil, 2026-10-13: Mark paid
+ *  from the list records today and no method, and the method could not be added afterwards).
+ *  Only a paid invoice; the date cannot be in the future. Logged with the before and after. */
+export async function updateInvoicePayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { error: err };
+  const companyId = profile.company_id!;
+  const id = trimOrNull(formData.get("invoice_id"));
+  if (!id) return { error: "Missing invoice." };
+  const paid_date = isoDateOr(formData.get("paid_date"), null);
+  if (!paid_date) return { error: "Enter the date it was paid." };
+  if (paid_date > londonToday()) return { error: "The date paid cannot be in the future." };
+  const paid_method = trimOrNull(formData.get("paid_method"))?.slice(0, 120) ?? null;
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("invoices")
+    .select("number, paid_date, paid_method")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .eq("status", "paid")
+    .maybeSingle();
+  if (!before) return { error: "Only a paid invoice's payment can be changed." };
+
+  const { data, error } = await supabase
+    .from("invoices")
+    .update({ paid_date, paid_method, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .eq("status", "paid")
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "Could not save the payment. Please try again." };
+
+  await writeAudit({
+    companyId,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "invoicing.payment_updated",
+    entityType: "invoice",
+    entityId: id,
+    summary: `Changed the payment on invoice ${before.number ?? ""}`.trim(),
+    metadata: {
+      before: { paid_date: before.paid_date, paid_method: before.paid_method },
+      after: { paid_date, paid_method },
+    },
+  });
+  revalidatePath(`/invoicing/${id}`);
+  revalidatePath("/invoicing");
+  return { ok: "Saved" };
+}
+
 /** Edit a recurring invoice: cadence, the day it lands on, and when it next runs.
  *  Phil, 2026-07-27: "if its clickable it could be editable". */
 export async function updateSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {

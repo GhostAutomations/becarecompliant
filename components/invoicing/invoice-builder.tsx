@@ -214,8 +214,8 @@ export default function InvoiceBuilder({
       if (res.lines.length > 0) {
         setRows(
           res.lines.map((l) => ({
-            // Popup "Leave fill as it is": filled lines keep their week heading and no date.
-            date: "",
+            // One line per visit day, dated, under its week heading (Phil, 2026-10-13).
+            date: l.service_date ?? "",
             service: l.service,
             unit: l.unit,
             handed: l.handed,

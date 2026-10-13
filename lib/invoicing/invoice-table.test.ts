@@ -158,3 +158,23 @@ test("the invoice email: Dear, due as DD/MM/YYYY, contact the reply to address, 
   assert.ok(!list.includes("ukDate("));
   assert.ok(list.includes("listDate(inv.issue_date)") && list.includes("listDate(inv.due_date)"));
 });
+
+test("care plan fill: one dated line per visit day, under the week heading, recurring drafts the same", () => {
+  const billing = readFileSync(new URL("./care-plan-billing.ts", import.meta.url), "utf8");
+  const cron = readFileSync(new URL("./cron.ts", import.meta.url), "utf8");
+  const builder = readFileSync(new URL("../../components/invoicing/invoice-builder.tsx", import.meta.url), "utf8");
+  assert.ok(billing.includes("service_date: day,"), "each line carries its visit day");
+  assert.ok(billing.includes("period_start: sStart,") && billing.includes("period_end: sEnd,"), "the week heading stays");
+  assert.ok(billing.includes("if (e.day_of_week !== dow) continue;"), "only that day's visits");
+  assert.ok(cron.includes("service_date: l.service_date,"), "recurring care plan drafts are dated too");
+  assert.ok(builder.includes("date: l.service_date ?? \"\","), "the Fill button puts the date in the box");
+});
+
+test("a paid invoice's payment can be changed: date and method, not in the future", () => {
+  const actions = readFileSync(new URL("./invoice-actions.ts", import.meta.url), "utf8");
+  assert.ok(actions.includes("export async function updateInvoicePayment"));
+  assert.ok(actions.includes("The date paid cannot be in the future."));
+  assert.ok(actions.includes('.eq("status", "paid")'));
+  assert.ok(page.includes("action={updateInvoicePayment}"));
+  assert.ok(page.includes('inv.status === "paid" ?'));
+});

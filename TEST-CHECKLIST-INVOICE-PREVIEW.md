@@ -69,3 +69,13 @@ Run one at a time.
 | E1 | Invoicing list: Period, Issued and Due read DD/MM/YYYY (Thistle: 28/09/2026 to 04/10/2026, 13/10/2026, 20/10/2026) | PASS (Bevan: Issued 13/10/2026, Due 27/10/2026; Phil confirmed the list, 2026-10-13) |
 | E2 | Thistle's next real invoice email reads Dear [name], due by DD/MM/YYYY, please contact us at [their accounts address], Kind regards, Thistle Care Ltd | PASS (Phil, on a test invoice email from Bevan to his own inbox, 2026-10-13 23:23, Bevan's email block lifted for one minute on his go) |
 | E3 | The same email on Phil's phone in dark mode: the email shows light, the logo sits on white, no white block | PASS (Phil, same email, Thistle's logo copied to Bevan) |
+
+## Care plan lines dated, payment editable (Phil, 2026-10-13)
+
+| # | Check | Result |
+|---|-------|--------|
+| P0 | Source tests: each care plan line carries its day, only that day's visits, the week heading stays, recurring drafts dated, the Fill button fills the box; the payment can be changed only on a paid invoice, not in the future | PASS (lib/invoicing/invoice-table.test.ts) |
+| P1 | Bevan, New invoice, Fill lines from care plan: one line per visit day with its date, under the week heading; same total as before | Not tested |
+| P2 | A paid invoice shows Payment with Date paid and Method; change both and save: they show on the page and the PDF, the log has the before and after | Not tested |
+| P3 | A future date paid is refused with "The date paid cannot be in the future.", nothing typed lost | Not tested |
+| P4 | A recurring care plan invoice drafts with dated lines (when one next runs) | Not tested (no care plan billed recurring invoice exists yet) |
