@@ -206,3 +206,12 @@ test("rule A, the input: the AI is given this absence only, and the right fit no
   assert.match(back, /ask whether they have one/);
   assert.match(back, /ask one question about whether anything at work caused it/);
 });
+
+test("the name is taken out of what the AI reads, but the rules read the reason as recorded", () => {
+  const a: RtwAbsence = { startDate: "2026-10-01", endDate: "2026-10-03", reason: "Back or muscle pain (Jo Back said it hurt)" };
+  const p = rtwDraftPrompt(a, "Back or muscle pain (the employee said it hurt)");
+  assert.match(p, /the employee said it hurt/);
+  assert.doesNotMatch(p, /Jo Back/);
+  assert.match(p, /ask one question about whether anything at work caused it/);
+  assert.match(selfCertQuestion(a), /due to back or muscle pain/);
+});

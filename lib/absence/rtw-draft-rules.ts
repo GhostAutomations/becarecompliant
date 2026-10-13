@@ -261,17 +261,19 @@ export function checkRtwSummary(summary: string, a: RtwAbsence): { summary: stri
 
 /**
  * Everything the AI is given about the absence (rule A, and UK GDPR data minimisation): this one
- * absence's dates, its calendar days and its reason in the employee's words, with their name taken
- * out by the caller. No other absence, stage, Bradford score, count or name.
+ * absence's dates, its calendar days and its reason in the employee's words. `reasonForAi` is that
+ * reason with the employee's name taken out by the caller; the rules themselves read the reason as
+ * recorded (a name like "Back" must not change whether work is asked about). No other absence,
+ * stage, Bradford score, count or name.
  */
-export function rtwDraftPrompt(a: RtwAbsence): string {
+export function rtwDraftPrompt(a: RtwAbsence, reasonForAi: string | null = a.reason): string {
   const days = calendarDays(a.startDate, a.endDate);
   const end = a.endDate && a.endDate >= a.startDate ? a.endDate : a.startDate;
   return [
     `First day of absence: ${longDate(a.startDate)}`,
     `Last day of absence: ${longDate(end)}`,
     `Calendar days: ${days}`,
-    `Reason given, in the employee's words where recorded: ${a.reason?.trim() || "not recorded"}`,
+    `Reason given, in the employee's words where recorded: ${reasonForAi?.trim() || "not recorded"}`,
     "",
     needsFitNote(days)
       ? "This absence is more than 7 calendar days, so a fit note is needed: ask whether they have one."

@@ -103,13 +103,10 @@ export async function draftReturnToWork(
   if (!ctx) return { error: "That absence could not be found." };
 
   /* ONLY THIS ABSENCE (rule A, and UK GDPR data minimisation): its dates and its reason, with the
-     employee's name taken out. No other absence, stage, score, count or name goes to the AI. */
-  const absence: RtwAbsence = {
-    startDate: ctx.startDate,
-    endDate: ctx.endDate,
-    reason: ctx.reason ? redactName(ctx.reason, ctx.personName) : null,
-  };
-  const prompt = rtwDraftPrompt(absence);
+     employee's name taken out of what the AI reads. No other absence, stage, score, count or name
+     goes to the AI. The rules read the reason as recorded. */
+  const absence: RtwAbsence = { startDate: ctx.startDate, endDate: ctx.endDate, reason: ctx.reason };
+  const prompt = rtwDraftPrompt(absence, ctx.reason ? redactName(ctx.reason, ctx.personName) : null);
 
   const result = await runAi({
     companyId: profile.company_id,
