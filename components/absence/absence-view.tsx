@@ -89,6 +89,7 @@ export default function AbsenceView({
   canRecordRtw = canManage,
   canDiscount,
   windowStart,
+  windowWords = "",
 }: {
   method: AbsenceMethod;
   /** Stage occasions thresholds (stages method), for scoping which absences a
@@ -125,6 +126,8 @@ export default function AbsenceView({
   canDiscount: boolean;
   /** First date inside the rolling window (Europe/London today less the window). */
   windowStart: string;
+  /** "6 months": the rolling window in the policy's words, for the stage history wording. */
+  windowWords?: string;
 }) {
   const bw = useBranchWord();
   const [branch, setBranch] = useState("");
@@ -275,6 +278,17 @@ export default function AbsenceView({
           .filter((e) => stageIds.includes(e.id))
           .sort((a, b) => a.start_date.localeCompare(b.start_date))
       : countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
+    /* Switch on (0457, Phil 2026-10-13): the level is worded from the stage, "Stage 2 reached on
+       1 Oct 2026 with 4 absences in 6 months.", not today's window, which can say 2. */
+    const reachedStage =
+      r.status.history && bookedStage
+        ? [...r.status.history.reached].reverse().find((x) => x.stage === bookedStage) ?? null
+        : null;
+    const reachedLine = reachedStage
+      ? `Stage ${reachedStage.stage} reached on ${formatBookedDate(reachedStage.reachedOn)} with ${reachedStage.counted.length} ${
+          reachedStage.counted.length === 1 ? "absence" : "absences"
+        }${windowWords ? ` in ${windowWords}` : ""}.`
+      : "";
     const discussed = discussedAbsences(
       chronological,
       bookedStage,
@@ -299,7 +313,10 @@ export default function AbsenceView({
         "To discuss the employee's attendance record, review absence history, understand any underlying reasons for absence, and agree any appropriate actions and support measures.",
       // Names the stage and which absences it covers (Phil, 2026-10-07), so the count above and the
       // dates below plainly match: a Thistle Stage 2 covers only Absence 4.
-      current_absence_level: `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period.${
+      current_absence_level: `${
+        reachedLine ||
+        `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period.`
+      }${
         bookedStage && discussed.length > 0
           ? ` Stage ${bookedStage} covers ${
               discussed.length === 1
@@ -508,35 +525,32 @@ export default function AbsenceView({
                       : `A ${s.derivedLabel ?? "stage"} meeting is due.`}
                   </p>
                 )}
-                {bookingByPerson[r.personId] && (
-                  <div className="text-xs font-medium text-sky-300">
+                {/* One line per booked meeting with the stage history switch on (0457, Phil 2026-10-13),
+                    so each open stage's booking shows beside its pill; off, only the earliest, as before. */}
+                {(s.history
+                  ? [...(allBookingsByPerson[r.personId] ?? [])].sort((a, b) => (a.stage ?? 9) - (b.stage ?? 9))
+                  : bookingByPerson[r.personId]
+                    ? [bookingByPerson[r.personId]]
+                    : []
+                ).map((b) => (
+                  <div key={b.id} className="text-xs font-medium text-sky-300">
                     <p>
-                      {bookingByPerson[r.personId].stage
-                        ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
-                        : "Meeting booked"}
-                      {bookingByPerson[r.personId].meeting_date
-                        ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
+                      {b.stage ? `Stage ${b.stage} meeting booked` : "Meeting booked"}
+                      {b.meeting_date
+                        ? `: ${formatBookedDate(b.meeting_date)}${b.meeting_time ? ` at ${String(b.meeting_time).slice(0, 5)}` : ""}`
                         : ""}
-                      {bookingByPerson[r.personId].conductor_name
-                        ? `, held by ${bookingByPerson[r.personId].conductor_name}`
-                        : ""}
-                      {bookingByPerson[r.personId].location
-                        ? `, ${locationLabel(bookingByPerson[r.personId].location!, offices)}`
-                        : ""}
+                      {b.conductor_name ? `, held by ${b.conductor_name}` : ""}
+                      {b.location ? `, ${locationLabel(b.location, offices)}` : ""}
                     </p>
-                    {bookingByPerson[r.personId].response === "accepted" && (
-                      <p className="text-emerald-300">Invitation accepted.</p>
-                    )}
-                    {bookingByPerson[r.personId].response === "declined" && (
+                    {b.response === "accepted" && <p className="text-emerald-300">Invitation accepted.</p>}
+                    {b.response === "declined" && (
                       <p className="text-red-300">
                         Invitation declined
-                        {bookingByPerson[r.personId].response_reason
-                          ? `: ${bookingByPerson[r.personId].response_reason}`
-                          : "."}
+                        {b.response_reason ? `: ${b.response_reason}` : "."}
                       </p>
                     )}
                   </div>
-                )}
+                ))}
 
                 {/* Two by two, full width, so a narrow card holds its buttons in tidy rows
                     instead of a ragged wrap. */}

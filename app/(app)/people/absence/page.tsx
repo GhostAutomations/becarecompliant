@@ -11,6 +11,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listBranchNames, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
 import { canDiscountAbsences, windowStartIso } from "@/lib/absence/discount";
+import { windowLabel } from "@/lib/absence/window";
 import { canRecordReturnToWork } from "@/lib/absence/rtw-roles";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
@@ -116,6 +117,7 @@ export default async function AbsencePage() {
         canRecordRtw={canRecordReturnToWork(profile.role)}
         canDiscount={canDiscountAbsences(profile.role)}
         windowStart={windowStartIso(formatCivilDate(todayInLondon()), config.window)}
+        windowWords={windowLabel(config.window)}
       />
     </div>
   );

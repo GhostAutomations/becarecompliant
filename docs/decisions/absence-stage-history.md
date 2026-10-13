@@ -68,3 +68,12 @@
 - [stated] Outside the popup (Absence cards, the person's record) every open stage shows compactly:
   "Stage 1 Pending · Stage 2 Due". The Dashboard tile's "Invites to send" counts a person with a Due
   stage even when another stage is booked.
+
+## After the first live test (Phil's popups, 2026-10-13)
+
+- [stated] With the switch on, a card shows one line per booked meeting, not only the earliest, so
+  each open stage's booking sits beside its pill.
+- [stated] A discounted absence between counted ones stays inside the one bar (its Discounted pill
+  and strike through say it does not count). Do not break the bar.
+- [stated] With the switch on, Record meeting's "current absence level" is worded from the stage:
+  "Stage 2 reached on 1 Oct 2026 with 4 absences in 6 months. Stage 2 covers absence 4."
