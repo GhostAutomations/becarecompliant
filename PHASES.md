@@ -4554,7 +4554,9 @@ the first one. DONE, signed off by Phil 2026-10-13.
 
 Thistle's weekly invoice repeats 7 Sleep lines: each draft now dates them Mon to Sun, only when the
 lines are exactly one per day; every recurring draft carries its service period. No migration.
-Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md R1 to R3.
+Tests: TEST-CHECKLIST-INVOICE-PREVIEW.md R1 to R3. R1 passes on Bevan. WAITING for Thistle's draft on
+Monday 19/10/2026 (R3), checked with Phil, then DONE; Bevan's test weekly recurring invoice drafts the
+same day as a second check and is cancelled after (Phil's popup).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
