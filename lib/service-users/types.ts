@@ -43,6 +43,9 @@ export type ServiceUserRecord = {
   package_start_date: string | null;
   service_status: ServiceStatus;
   discharge_date: string | null;
+  /** In hospital since (0461), when known; and the day they last came out. */
+  hospital_since?: string | null;
+  hospital_returned_on?: string | null;
   /** Retention hold (item 18): see the People twin. */
   retention_hold?: boolean | null;
   retention_hold_reason?: string | null;
@@ -90,7 +93,13 @@ export type SuCheckStatus = {
   expiry_date: string | null;
   last_evidence_id: string | null;
   effective_amber: number;
-  rag: Rag | "none";
+  /** "paused" while the service user is in hospital (0461). */
+  rag: Rag | "none" | "paused";
+  /** The check's own scheduled date, when due_date is the resumed one after a hospital stay. */
+  scheduled_due_date?: string | null;
+  paused?: boolean;
+  /** When they went into hospital this time, if known. */
+  hospital_since?: string | null;
 };
 
 /** Record-level rollup (worst RAG across a Record's checks). */
@@ -102,7 +111,9 @@ export type ServiceUserRollup = {
   red_count: number;
   amber_count: number;
   green_count: number;
-  rag: Rag | "none";
+  /** "paused" when every check still to do is paused (in hospital, 0461). */
+  rag: Rag | "none" | "paused";
+  paused_count?: number;
 };
 
 /** A derived Care Plan Review slot (REV1-4 for Complex branches): scheduled due +

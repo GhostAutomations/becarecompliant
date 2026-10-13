@@ -679,6 +679,12 @@
     @apply bg-white/5 text-white/45;
   }
 
+  /* Paused: the service user is in hospital (0461). Grey, but readable, unlike an empty cell. */
+  .rag-cell-paused {
+    background: rgba(148, 163, 184, 0.18);
+    color: #cbd5e1;
+  }
+
   /* A COMPLETED date in the Supervision, Appraisal and Care Plan Review columns.
      Bold, NO PILL: green if it was done by its due date, amber if it was late
      (Phil, 2026-09-16). Amber rather than red for late, because it did happen -
@@ -926,6 +932,7 @@
 .theme-navy .rag-cell-amber { background: rgba(235, 165, 62, 0.16); color: #f0b65e; }
 .theme-navy .rag-cell-red { background: rgba(239, 97, 82, 0.16); color: #f38a7c; }
 .theme-navy .rag-cell-none { background: transparent; color: rgba(255, 255, 255, 0.35); }
+.theme-navy .rag-cell-paused { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
 .theme-navy .done-on-time { color: #43d99a; }
 .theme-navy .done-late { color: #f0b65e; }
 

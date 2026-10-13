@@ -36,7 +36,7 @@ import { useBranchWord } from "@/components/branches/branch-word";
 import { useRememberBranch } from "@/components/register/use-remember-branch";
 import { mayOfferCheckComplete } from "@/lib/register/complete-offer";
 
-const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
+const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, paused: 3, none: 3 };
 
 // Custom check register columns are parked as a later feature (Phil, 2026-07-16):
 // code + migrations stay, but the Columns panel and the extra columns are hidden.
@@ -56,10 +56,20 @@ function ragClass(rag: string): string {
       ? "rag-cell-amber"
       : rag === "green"
         ? "rag-cell-green"
-        : "rag-cell-none";
+        : rag === "paused"
+          ? "rag-cell-paused"
+          : "rag-cell-none";
 }
 
 function RagDate({ date, rag }: { date: string | null; rag: string }) {
+  // In hospital (0461): the check is paused, so the cell says so instead of a due date.
+  if (rag === "paused") {
+    return (
+      <span className="rag-cell rag-cell-paused" title="Paused: in hospital" aria-label="Paused: in hospital">
+        Paused
+      </span>
+    );
+  }
   if (!date) return <span className="rag-cell rag-cell-none">—</span>;
   return <span className={`rag-cell ${ragClass(rag)}`}>{formatDisplayDate(date)}</span>;
 }
@@ -430,7 +440,14 @@ export default function ServiceUserRegister({
                                   <Fragment key={s.n}>
                                     {/* Outstanding: the pill counts down. Done: plain, because
                                         the verdict has moved to the Done cell. */}
-                                    <td>{s.comp ? <CycleDate date={s.due} /> : <RagDate date={s.due} rag={s.rag} />}</td>
+                                    <td>
+                                      {s.comp ? (
+                                        <CycleDate date={s.due} />
+                                      ) : (
+                                        // The review still to do is paused while they are in hospital (0461).
+                                        <RagDate date={s.due} rag={su.service_status === "hospital" && s.due ? "paused" : s.rag} />
+                                      )}
+                                    </td>
                                     <td>{s.comp ? <DoneDate date={s.comp} late={s.rag === "red"} /> : <CycleDate date={null} />}</td>
                                   </Fragment>
                                 ))}
@@ -527,6 +544,8 @@ function ServiceUserCards({
                 <span className="pill-amber">Review due soon</span>
               ) : rag === "green" ? (
                 <span className="pill-green">Up to date</span>
+              ) : rag === "paused" ? (
+                <span className="pill-neutral">Paused: in hospital</span>
               ) : (
                 <span className="pill-neutral">No reviews due</span>
               )}

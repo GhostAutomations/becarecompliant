@@ -4472,6 +4472,15 @@ when the reason points to work; fully fit first, anything else last, no support 
 check enforces it on every draft (lib/absence/rtw-draft-rules.ts). Stage meeting questions
 untouched. No migration. Tests: TEST-CHECKLIST-RTW-QUESTIONS.md.
 
+### 2026-10-13 — Service users in hospital: checks paused (Phase 13, Thistle ticket)
+
+While a service user is in hospital, their checks still to do are paused: grey "Paused: in hospital",
+out of overdue and due counts, the Dashboard, rollups, readiness, reminders, chasers and the daily
+report; exports and the Reg 80 list show them as paused, never compliant. Coming back asks for the
+date they came out; checks due before it + 7 days fall due then (amber), stored beside the due date
+and cleared by the next completion. One place: 0461 (su_check_paused, check_effective_due, triggers).
+Thistle's two hospital dates left blank until Phil supplies them. Tests: TEST-CHECKLIST-HOSPITAL-PAUSE.md.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

@@ -16,6 +16,7 @@ import {
   type IncidentRow,
 } from "@/lib/framework/case-handling";
 import { reportableCheck } from "@/lib/notifications/reportable";
+import { effectiveDue, isPausedCheck } from "@/lib/service-users/hospital-pause";
 import { amberWindow, isDueSoon } from "@/lib/framework/due-soon";
 import { cache } from "react";
 import { assessGap, gapInHand, isLateReason, isSafetyCheck, type GapAction, type GapRisk, type GapUpdate } from "@/lib/framework/gaps";
@@ -92,6 +93,8 @@ export type FrameworkItem = {
   safety: boolean;
   action: GapAction;
   risk: GapRisk | null;
+  /** In hospital since (0461), for a paused service user check; null when not known. */
+  pausedSince?: string | null;
 };
 
 export type FrameworkReadiness = {
@@ -479,7 +482,7 @@ async function getFrameworkItemsUncached(
   companyId: string,
   regulator: "cqc" | "ciw",
   branchId: string | null = null,
-): Promise<Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>> {
+): Promise<Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[]; paused?: FrameworkItem[] }>> {
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
@@ -495,7 +498,9 @@ async function getFrameworkItemsUncached(
     if (fr && fr.regulator === regulator && m.check_definition_id) defToCode.set(m.check_definition_id, fr.code);
   }
   const defIds = [...defToCode.keys()];
-  const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>();
+  /* paused: checks of service users in hospital (0461). Left out of the scores, overdue and due soon;
+     kept here so an inspector report can show them as paused rather than hide them. */
+  const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[]; paused?: FrameworkItem[] }>();
   // No check mapped still leaves DBS and Right to Work to look at, so this does not return early.
   if (defIds.length > 0) {
 
@@ -505,7 +510,7 @@ async function getFrameworkItemsUncached(
 
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, key, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id)")
+    .select("id, definition_id, due_date, resume_due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, key, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id, hospital_since)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -514,19 +519,23 @@ async function getFrameworkItemsUncached(
 
   for (const raw of (inst as unknown[]) ?? []) {
     const r = raw as {
-      id: string; definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
+      id: string; definition_id: string; due_date: string; resume_due_date: string | null; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
       check_definitions: { name: string; key: string | null; recurring: boolean; amber_days: number | null } | { name: string; key: string | null; recurring: boolean; amber_days: number | null }[] | null;
       people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }[] | null;
-      service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null }[] | null;
+      service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null }[] | null;
     };
     const def = relOne(r.check_definitions);
+    // After a hospital stay the resumed date counts (0461); the stored due date is unchanged.
+    r.due_date = effectiveDue(r.due_date, r.resume_due_date) ?? r.due_date;
     /* DONE IS DONE (Phil, 2026-09-19): twelve completed Setup Visits were listed here as overdue.
        The same rule as the daily report and the readiness roll-up (0305). */
     if (!reportableCheck({ recurring: def?.recurring ?? true, dueDate: r.due_date, lastCompletedOn: r.last_completed_on })) continue;
     let recordName: string | null = null;
     let recordId: string | null = null;
     let population: "people" | "service_users";
+    let paused = false;
+    let pausedSince: string | null = null;
     if (r.record_type === "person") {
       const p = relOne(r.people);
       if (!p || p.employment_status === "leaver" || p.archived_at) continue;
@@ -537,6 +546,8 @@ async function getFrameworkItemsUncached(
       if (!su || su.service_status === "cancelled" || su.archived_at) continue;
       if (branchId && su.branch_id !== branchId) continue;
       recordName = su.full_name; recordId = r.service_user_id; population = "service_users";
+      paused = isPausedCheck({ serviceStatus: su.service_status, recurring: def?.recurring ?? true, lastCompletedOn: r.last_completed_on, dueDate: r.due_date });
+      pausedSince = su.hospital_since ?? null;
     }
     if (!recordId) continue;
     const code = defToCode.get(r.definition_id);
@@ -558,7 +569,13 @@ async function getFrameworkItemsUncached(
       action: null,
       risk: null,
     };
-    const bucket = byCode.get(code) ?? { overdue: [], dueSoon: [] };
+    const bucket: { overdue: FrameworkItem[]; dueSoon: FrameworkItem[]; paused?: FrameworkItem[] } =
+      byCode.get(code) ?? { overdue: [], dueSoon: [] };
+    if (paused) {
+      (bucket.paused ??= []).push({ ...item, pausedSince });
+      byCode.set(code, bucket);
+      continue;
+    }
     if (r.due_date < today) bucket.overdue.push(item);
     /* The check's own amber window, as the count above the list uses (DEF-068). It was a flat
        30 days, so Thistle's card said "11 due soon" and listed 18. */

@@ -27,7 +27,9 @@ function ragClass(rag: string): string {
       ? "rag-cell-amber"
       : rag === "green"
         ? "rag-cell-green"
-        : "rag-cell-none";
+        : rag === "paused"
+          ? "rag-cell-paused"
+          : "rag-cell-none";
 }
 
 export default function ExtraCheckCell({
@@ -49,14 +51,20 @@ export default function ExtraCheckCell({
   if (!status) return <span className="rag-cell rag-cell-none">—</span>;
 
   const shown =
-    text === undefined
-      ? status.due_date
-        ? formatDisplayDate(status.due_date)
-        : ""
-      : text;
+    status.rag === "paused"
+      ? "Paused"
+      : text === undefined
+        ? status.due_date
+          ? formatDisplayDate(status.due_date)
+          : ""
+        : text;
 
   const inner = (
-    <span className={`rag-cell ${ragClass(status.rag)}`} title={shown || undefined}>
+    <span
+      className={`rag-cell ${ragClass(status.rag)}`}
+      title={status.rag === "paused" ? "Paused: in hospital" : shown || undefined}
+      aria-label={status.rag === "paused" ? "Paused: in hospital" : undefined}
+    >
       {shown || "—"}
     </span>
   );

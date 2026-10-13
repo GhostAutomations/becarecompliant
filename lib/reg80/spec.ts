@@ -395,7 +395,11 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     training_summary: trainingLines.join("\n"),
     late_checks: p.lateChecks.length
       ? p.lateChecks
-          .map((c) => `${c.recordName}, ${c.checkName}, due ${ukDate(c.dueDate)} (${c.theme})${c.label ? `. ${c.label}` : ""}. ${c.action ?? "No action in place"}.`)
+          .map((c) =>
+            c.paused
+              ? `${c.recordName}, ${c.checkName} (${c.theme}). ${c.label}.`
+              : `${c.recordName}, ${c.checkName}, due ${ukDate(c.dueDate)} (${c.theme})${c.label ? `. ${c.label}` : ""}. ${c.action ?? "No action in place"}.`,
+          )
           .join("\n")
       : "No checks overdue.",
     self_ratings: p.selfRatings.length

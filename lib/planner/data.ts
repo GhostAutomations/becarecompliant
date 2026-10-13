@@ -1,4 +1,5 @@
 import "server-only";
+import { effectiveDue } from "@/lib/service-users/hospital-pause";
 import { meetingChipLabel } from "@/lib/absence/meeting-name";
 import { visitLabel } from "@/lib/planner/visit";
 import { earliestDue } from "@/lib/planner/due-tone";
@@ -81,7 +82,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     supabase
       .from("check_instances")
       .select(
-        "id, record_type, person_id, service_user_id, due_date, branch_id, active, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)",
+        "id, record_type, person_id, service_user_id, due_date, resume_due_date, branch_id, active, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)",
       )
       .eq("company_id", companyId)
       .eq("active", true)
@@ -154,15 +155,17 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     } else if (raw.record_type === "service_user") {
       const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);
       if (!su || su.service_status !== "active" || su.archived_at) continue;
+      // Back from hospital (0461): the resumed date counts, never the one that fell while away.
+      const suDue = effectiveDue(dueDate, (raw as { resume_due_date?: string | null }).resume_due_date ?? null) ?? dueDate;
       toBook.push({
         instanceId: raw.id as string,
         subjectId: raw.service_user_id as string,
         population: "service_users",
         recordName: su.full_name,
         checkName: def.name,
-        dueDate,
+        dueDate: suDue,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: boardWeekIndex(todayIso, dueDate),
+        block: boardWeekIndex(todayIso, suDue),
       });
     }
   }

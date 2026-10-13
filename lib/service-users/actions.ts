@@ -12,6 +12,7 @@
  * logged in the pages that render them (writeAudit), not just writes here.
  */
 
+import { returnDateProblem, longDate as ukDateLong } from "@/lib/service-users/hospital-pause";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -598,11 +599,33 @@ export async function setServiceStatus(
   }
 
   const discharge_date = status === "cancelled" ? todayIso() : null;
+
+  /* COMING OUT OF HOSPITAL (0461, Phil 2026-10-13): the date they came out is asked for, and their
+     paused checks fall due 7 days after it. The database records the dates and moves the checks
+     (service_users_hospital_dates / _resume), whatever changes the status; this says it plainly
+     first. */
+  const { data: before } = await supabase
+    .from("service_users")
+    .select("service_status, hospital_since")
+    .eq("id", id)
+    .maybeSingle();
+  const leavingHospital = before?.service_status === "hospital" && (status === "active" || status === "respite");
+  const returnedOn = leavingHospital ? String(formData.get("hospital_returned_on") ?? "").trim() : "";
+  if (leavingHospital) {
+    const problem = returnDateProblem(returnedOn, todayIso(), (before?.hospital_since as string | null) ?? null);
+    if (problem) return { error: problem };
+  }
+
   // Setting a status also un-archives, so changing the pill (e.g. back to Active)
   // brings an archived Record back into the relevant view, not stuck in Archive.
   const { data, error } = await supabase
     .from("service_users")
-    .update({ service_status: status, discharge_date, archived_at: null })
+    .update({
+      service_status: status,
+      discharge_date,
+      archived_at: null,
+      ...(leavingHospital ? { hospital_returned_on: returnedOn } : {}),
+    })
     .eq("id", id)
     .select("id");
   if (error) return { error: error.message };
@@ -625,9 +648,13 @@ export async function setServiceStatus(
     action: "service_user.status_changed",
     entityType: "service_user",
     entityId: id,
-    summary: `Set service status to ${status}`,
+    summary: leavingHospital
+      ? `Set service status to ${status}, out of hospital on ${ukDateLong(returnedOn)}`
+      : `Set service status to ${status}`,
     metadata: {
       status,
+      previous_status: before?.service_status ?? null,
+      ...(leavingHospital ? { hospital_returned_on: returnedOn } : {}),
       retention_rows_updated: retention.updated,
       ...(retention.error ? { retention_error: retention.error } : {}),
     },

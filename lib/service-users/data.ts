@@ -45,7 +45,7 @@ export {
 export async function getServiceUserRollupCounts(
   companyId: string,
   branchId?: string | null,
-): Promise<{ compliant: number; dueSoon: number; overdue: number; total: number }> {
+): Promise<{ compliant: number; dueSoon: number; overdue: number; paused: number; total: number }> {
   const supabase = await createClient();
   let query = supabase
     .from("service_user_rollup")
@@ -53,12 +53,14 @@ export async function getServiceUserRollupCounts(
     .eq("company_id", companyId);
   if (branchId) query = query.eq("branch_id", branchId);
   const { data } = await query;
-  const counts = { compliant: 0, dueSoon: 0, overdue: 0, total: 0 };
+  const counts = { compliant: 0, dueSoon: 0, overdue: 0, paused: 0, total: 0 };
   for (const r of (data as Array<{ rag: string }> | null) ?? []) {
     counts.total += 1;
     if (r.rag === "red") counts.overdue += 1;
     else if (r.rag === "amber") counts.dueSoon += 1;
     else if (r.rag === "green") counts.compliant += 1;
+    // In hospital (0461): their checks are paused, so they are none of the three.
+    else if (r.rag === "paused") counts.paused += 1;
   }
   return counts;
 }
@@ -528,7 +530,9 @@ export async function getServiceUser(id: string, client?: SupabaseClient): Promi
 
 /** active = Main; hospital / respite / cancelled = the status views; all = every
  *  status (loaded once so the client can switch views instantly). */
-export type SuRegisterScope = "active" | "hospital" | "respite" | "cancelled" | "all";
+/** "in_care": active and in hospital, for the inspector facing exports (0461: hospital checks are
+ *  shown as paused, never hidden). */
+export type SuRegisterScope = "active" | "hospital" | "respite" | "cancelled" | "all" | "in_care";
 
 /** The register: Records for a branch (or all visible) in the given scope, plus
  *  each Record's per-check status and rollup and its tracker (Planned Review Date +
@@ -555,6 +559,8 @@ export async function listRegister(
     query = query.eq("service_status", "hospital").is("archived_at", null);
   } else if (scope === "respite") {
     query = query.eq("service_status", "respite").is("archived_at", null);
+  } else if (scope === "in_care") {
+    query = query.in("service_status", ["active", "hospital"]).is("archived_at", null);
   } else {
     query = query.eq("service_status", "active").is("archived_at", null);
   }

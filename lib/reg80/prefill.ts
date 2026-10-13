@@ -1,4 +1,5 @@
 import "server-only";
+import { pausedLabel } from "@/lib/service-users/hospital-pause";
 
 /**
  * Be Care Compliant — Regulation 80 (RISCA Wales) Quality of Care Review prefill.
@@ -98,7 +99,8 @@ export type Reg80Prefill = {
    *  Empty when nobody has rated yet. */
   selfRatings: Array<{ title: string; rating: string; setByName: string; on: string; note: string | null }>;
   /** Overdue checks today and why they are late, as the Readiness page shows them (0375, snag S5). */
-  lateChecks: Array<{ theme: string; recordName: string; checkName: string; dueDate: string; label: string | null; action: string | null }>;
+  /** paused: a service user in hospital (0461), shown as paused, not late. */
+  lateChecks: Array<{ theme: string; recordName: string; checkName: string; dueDate: string; label: string | null; action: string | null; paused?: boolean }>;
   pqs: {
     mandatoryTraining: number | null;
     safeguarding: number | null;
@@ -149,6 +151,19 @@ async function readLateChecks(
         dueDate: i.dueDate,
         label: i.risk ? GAP_RISK_LABEL[i.risk] : null,
         action: actionText(i.action, ukDate),
+      });
+    }
+    /* Service users in hospital (0461): their checks are paused, not late, and the report says so
+       rather than leaving them out. */
+    for (const i of items.get(q.code)?.paused ?? []) {
+      out.push({
+        theme: q.title,
+        recordName: i.recordName,
+        checkName: i.checkName,
+        dueDate: i.dueDate,
+        label: pausedLabel(i.pausedSince),
+        action: null,
+        paused: true,
       });
     }
   }

@@ -67,7 +67,12 @@ export default async function ServiceUserSummaryPage({
         </div>
       </section>
 
-      <p className="text-xs text-white/40">{counts.total} active service users.</p>
+      <p className="text-xs text-white/40">
+        {counts.total} active service users.
+        {counts.paused > 0
+          ? ` ${counts.paused} in hospital, with their checks paused until they come back.`
+          : ""}
+      </p>
     </div>
   );
 }

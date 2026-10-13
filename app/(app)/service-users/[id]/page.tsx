@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import ServiceStatusFields from "@/components/service-users/service-status-fields";
+import { pausedLabel } from "@/lib/service-users/hospital-pause";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import Link from "next/link";
 import { NoFormLinked } from "@/components/forms/no-form-linked";
 import CycleBox from "@/components/records/cycle-box";
@@ -58,12 +61,15 @@ import { bookedCheckInstanceIds } from "@/lib/planner/booked-checks";
 
 export const metadata: Metadata = { title: "Service User" };
 
-const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
+/* Paused (in hospital, 0461) sits between amber and green: a record whose outstanding checks are all
+   paused reads Paused, never Compliant. */
+const RAG_RANK: Record<string, number> = { red: 0, amber: 1, paused: 1.5, green: 2, none: 3 };
 
-function ragPill(rag: string, size = "") {
+function ragPill(rag: string, size = "", hospitalSince: string | null = null) {
   if (rag === "red") return <span className={`pill-red ${size}`}><span className="pill-dot" /> Overdue</span>;
   if (rag === "amber") return <span className={`pill-amber ${size}`}><span className="pill-dot" /> Due soon</span>;
   if (rag === "green") return <span className={`pill-green ${size}`}><span className="pill-dot" /> Compliant</span>;
+  if (rag === "paused") return <span className={`pill-neutral ${size}`}>{pausedLabel(hospitalSince)}</span>;
   return <span className={`pill-neutral ${size}`}>Not scheduled</span>;
 }
 
@@ -236,7 +242,7 @@ export default async function ServiceUserPage({
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className={`page-title ${NAME_SIZE}`}>{serviceUser.full_name}</h1>
-            {ragPill(worstRag, PILL_SIZE)}
+            {ragPill(worstRag, PILL_SIZE, serviceUser.hospital_since ?? null)}
             {serviceUser.service_status !== "active" ? (
               <span className="pill-neutral">{SERVICE_STATUS_LABELS[serviceUser.service_status]}</span>
             ) : null}
@@ -349,7 +355,10 @@ export default async function ServiceUserPage({
                     the days; the Complete button inside it has gone with it. */}
                 {slots.map((s) => {
                   const slotCls =
-                    s.rag === "red"
+                    // The review still to do is paused while they are in hospital (0461).
+                    serviceUser.service_status === "hospital" && !s.comp && s.due
+                      ? "rag-cell-paused"
+                      : s.rag === "red"
                       ? "rag-cell-red"
                       : s.rag === "amber"
                         ? "rag-cell-amber"
@@ -421,7 +430,7 @@ export default async function ServiceUserPage({
                         <h3 className="text-[15px] font-semibold text-white">{def.name}</h3>
                         <p className="text-[12px] text-white/45">{recurrenceLabel(def)}</p>
                       </div>
-                      {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
+                      {s ? ragPill(s.rag, "", s.hospital_since ?? null) : <span className="pill-neutral">Not applied</span>}
                     </div>
                     <dl className="mt-3 space-y-1 text-[13px] text-white/60">
                       {/* A finished one-off has no next due, so the row goes rather than
@@ -517,12 +526,12 @@ export default async function ServiceUserPage({
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
               <ActionForm action={setServiceStatus} hidden={{ service_user_id: serviceUser.id }} inline label="Save status">
-                <label htmlFor="service_status" className="form-label">Service status</label>
-                <select id="service_status" name="status" defaultValue={serviceUser.service_status}>
-                  {(Object.keys(SERVICE_STATUS_LABELS) as ServiceStatus[]).map((k) => (
-                    <option key={k} value={k}>{SERVICE_STATUS_LABELS[k]}</option>
-                  ))}
-                </select>
+                {/* Coming out of hospital asks for the date (0461). */}
+                <ServiceStatusFields
+                  current={serviceUser.service_status}
+                  hospitalSince={serviceUser.hospital_since ?? null}
+                  todayIso={formatCivilDate(todayInLondon())}
+                />
               </ActionForm>
               {/* Archive is only offered once a Service User is Cancelled. */}
               {serviceUser.archived_at || serviceUser.service_status === "cancelled" ? (

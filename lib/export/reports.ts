@@ -26,6 +26,7 @@ import {
 import { listRegister as listServiceUserRegister } from "@/lib/service-users/data";
 import { reviewSlots } from "@/lib/service-users/logic";
 import { SERVICE_STATUS_LABELS, type SuCheckStatus, type ServiceUserRow } from "@/lib/service-users/types";
+import { pausedLabel } from "@/lib/service-users/hospital-pause";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportBlock, ReportDoc } from "@/lib/export/pdf";
 import { fmtDate, generatedAt, ragLabel, ragTone } from "@/lib/export/format";
@@ -33,8 +34,13 @@ import { getBranchTerms } from "@/lib/branches/company-word";
 
 const EXCLUSION_NOTE =
   "Active records only. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
+/* Service users in hospital are included (Phil, 2026-10-13): their checks are paused, and shown as
+   paused, never hidden and never counted as compliant. */
+const SU_EXCLUSION_NOTE =
+  "Active service users, and service users in hospital whose checks are paused until they come back and are shown as paused, not as compliant. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
 
 type Overdue = { record: string; check: string; due: string | null };
+type Paused = { record: string; check: string; label: string };
 
 /** The date window a report covers: checks are shown by their due date. `from`
  *  null means "include everything overdue" (no lower bound); `to` is the upper
@@ -81,12 +87,18 @@ function splitChecks(
   checks: (CheckStatus | SuCheckStatus)[],
   win: ReportWindow,
   today: string,
+  paused?: Paused[],
 ): { overdue: Overdue[]; dueSoon: Overdue[] } {
   const overdue: Overdue[] = [];
   const dueSoon: Overdue[] = [];
   for (const c of checks) {
     const due = c.due_date;
     if (!due) continue;
+    // In hospital (0461): listed as paused, never as overdue or due.
+    if ((c as SuCheckStatus).rag === "paused") {
+      paused?.push({ record: recordName, check: c.check_name, label: pausedLabel((c as SuCheckStatus).hospital_since) });
+      continue;
+    }
     if (win.from && due < win.from) continue;
     if (due > win.to) continue;
     if (due < today) overdue.push({ record: recordName, check: c.check_name, due });
@@ -95,9 +107,35 @@ function splitChecks(
   return { overdue, dueSoon };
 }
 
-function ragCell(rag: Rag | "none") {
+function ragCell(rag: Rag | "none" | "paused", hospitalSince?: string | null) {
   if (rag === "none") return { text: "No checks", rag: "neutral" as const };
+  if (rag === "paused") return { text: pausedLabel(hospitalSince), rag: "neutral" as const };
   return { text: ragLabel(rag), rag: ragTone(rag) };
+}
+
+/** The words for a record's compliance in a CSV: paused service users say so, never Compliant. */
+function ragWords(rag: Rag | "none" | "paused", hospitalSince?: string | null): string {
+  if (rag === "none") return "No checks";
+  if (rag === "paused") return pausedLabel(hospitalSince);
+  return ragLabel(rag);
+}
+
+/** Every paused check (service users in hospital), so the report shows them rather than hiding
+ *  them. */
+function pausedBlocks(paused: Paused[]): ReportBlock[] {
+  if (paused.length === 0) return [];
+  return [
+    { kind: "heading", text: "Paused: in hospital" },
+    {
+      kind: "table",
+      columns: [
+        { header: "Name", width: "35%" },
+        { header: "Task", width: "30%" },
+        { header: "Status", width: "35%" },
+      ],
+      rows: paused.map((p) => [{ text: p.record }, { text: p.check }, { text: p.label, rag: "neutral" as const }]),
+    },
+  ];
 }
 
 /** A completed date cell coloured on time (green) or late (red), matching the
@@ -109,13 +147,14 @@ function completedCell(date: string | null, rag: Rag | "none") {
   return { text: `${fmtDate(date)}${late ? " (late)" : ""}`, rag: tone };
 }
 
-function summaryCounts(rags: (Rag | "none")[]) {
+function summaryCounts(rags: (Rag | "none" | "paused")[]) {
   return {
     total: rags.length,
     red: rags.filter((r) => r === "red").length,
     amber: rags.filter((r) => r === "amber").length,
     green: rags.filter((r) => r === "green").length,
     none: rags.filter((r) => r === "none").length,
+    paused: rags.filter((r) => r === "paused").length,
   };
 }
 
@@ -311,7 +350,7 @@ export async function buildPeopleRegisterReport(
 export async function buildServiceUserRegisterReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
-  const { definitions, rows } = await listServiceUserRegister(input.companyId, input.branchId, "active");
+  const { definitions, rows } = await listServiceUserRegister(input.companyId, input.branchId, "in_care");
   const bw = await getBranchTerms(input.companyId);
   const scopeLabel = input.branchName ? input.branchName : bw.all;
   const win = input.window ?? defaultReportWindow();
@@ -332,17 +371,18 @@ export async function buildServiceUserRegisterReport(
   const counts = summaryCounts(rows.map((r) => r.rollup?.rag ?? "none"));
   const allOverdue: Overdue[] = [];
   const allDueSoon: Overdue[] = [];
+  const allPaused: Paused[] = [];
 
   const recordRows = rows.map((r: ServiceUserRow) => {
     const checks = Object.values(r.statusByKey);
-    const { overdue, dueSoon } = splitChecks(r.service_user.full_name, checks, win, today);
+    const { overdue, dueSoon } = splitChecks(r.service_user.full_name, checks, win, today, allPaused);
     allOverdue.push(...overdue);
     allDueSoon.push(...dueSoon);
     return [
       { text: r.service_user.full_name, strong: true },
       { text: r.service_user.branch_name ?? input.branchName ?? "" },
       { text: SERVICE_STATUS_LABELS[r.service_user.service_status] },
-      ragCell(r.rollup?.rag ?? "none"),
+      ragCell(r.rollup?.rag ?? "none", r.service_user.hospital_since),
       { text: String(overdue.length) },
       { text: String(dueSoon.length) },
     ];
@@ -358,7 +398,7 @@ export async function buildServiceUserRegisterReport(
       { label: "Period", value: periodLabel(win) },
       { label: "Generated at", value: generatedAt() },
     ],
-    footerNote: EXCLUSION_NOTE,
+    footerNote: SU_EXCLUSION_NOTE,
     blocks: [
       { kind: "heading", text: "Compliance summary" },
       {
@@ -367,6 +407,7 @@ export async function buildServiceUserRegisterReport(
           { header: "Compliant" },
           { header: "Due soon" },
           { header: "Overdue" },
+          { header: "Paused: in hospital" },
           { header: "No checks" },
           { header: "Total service users" },
         ],
@@ -374,6 +415,7 @@ export async function buildServiceUserRegisterReport(
           { text: String(counts.green), rag: "green" },
           { text: String(counts.amber), rag: "amber" },
           { text: String(counts.red), rag: "red" },
+          { text: String(counts.paused), rag: "neutral" },
           { text: String(counts.none), rag: "neutral" },
           { text: String(counts.total), strong: true },
         ]],
@@ -393,6 +435,7 @@ export async function buildServiceUserRegisterReport(
         rows: recordRows,
       },
       ...overdueBlocks(allOverdue, allDueSoon, win),
+      ...pausedBlocks(allPaused),
       ...(reviewRows.length > 0
         ? ([
             { kind: "heading", text: "Care reviews" },
@@ -419,7 +462,7 @@ export async function buildServiceUserRegisterReport(
       r.service_user.full_name,
       r.service_user.branch_name ?? input.branchName ?? "",
       SERVICE_STATUS_LABELS[r.service_user.service_status],
-      r.rollup ? (r.rollup.rag === "none" ? "No checks" : ragLabel(r.rollup.rag)) : "No checks",
+      r.rollup ? ragWords(r.rollup.rag, r.service_user.hospital_since) : "No checks",
       overdue.length,
       dueSoon.length,
     ];
@@ -463,7 +506,7 @@ export async function buildComplianceReport(
   const today = todayIso();
   const [{ rows: pRows }, { rows: sRows }] = await Promise.all([
     listPeopleRegister(input.companyId, input.branchId, "active"),
-    listServiceUserRegister(input.companyId, input.branchId, "active"),
+    listServiceUserRegister(input.companyId, input.branchId, "in_care"),
   ]);
 
   const pCounts = summaryCounts(pRows.map((r) => r.rollup?.rag ?? "none"));
@@ -478,8 +521,9 @@ export async function buildComplianceReport(
   }
   const sOverdue: Overdue[] = [];
   const sDueSoon: Overdue[] = [];
+  const sPaused: Paused[] = [];
   for (const r of sRows) {
-    const s = splitChecks(r.service_user.full_name, Object.values(r.statusByKey), win, today);
+    const s = splitChecks(r.service_user.full_name, Object.values(r.statusByKey), win, today, sPaused);
     sOverdue.push(...s.overdue);
     sDueSoon.push(...s.dueSoon);
   }
@@ -495,16 +539,17 @@ export async function buildComplianceReport(
       { label: "Period", value: periodLabel(win) },
       { label: "Generated at", value: generatedAt() },
     ],
-    footerNote: EXCLUSION_NOTE,
+    footerNote: SU_EXCLUSION_NOTE,
     blocks: [
       { kind: "heading", text: "Compliance summary" },
       {
         kind: "table",
         columns: [
-          { header: "Register", width: "28%" },
+          { header: "Register", width: "24%" },
           { header: "Compliant" },
           { header: "Due soon" },
           { header: "Overdue" },
+          { header: "Paused: in hospital" },
           { header: "No checks" },
           { header: "Total" },
         ],
@@ -514,6 +559,7 @@ export async function buildComplianceReport(
             { text: String(pCounts.green), rag: "green" },
             { text: String(pCounts.amber), rag: "amber" },
             { text: String(pCounts.red), rag: "red" },
+            { text: "" },
             { text: String(pCounts.none), rag: "neutral" },
             { text: String(pCounts.total), strong: true },
           ],
@@ -522,6 +568,7 @@ export async function buildComplianceReport(
             { text: String(sCounts.green), rag: "green" },
             { text: String(sCounts.amber), rag: "amber" },
             { text: String(sCounts.red), rag: "red" },
+            { text: String(sCounts.paused), rag: "neutral" },
             { text: String(sCounts.none), rag: "neutral" },
             { text: String(sCounts.total), strong: true },
           ],
@@ -535,6 +582,7 @@ export async function buildComplianceReport(
       overdueTable(sOverdue),
       { kind: "heading", text: `Service User ${duePeriod.toLowerCase()}` },
       dueTable(sDueSoon),
+      ...pausedBlocks(sPaused),
     ],
   };
 
@@ -543,6 +591,7 @@ export async function buildComplianceReport(
     ...pDueSoon.map((o) => ["People", "Due in period", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
     ...sOverdue.map((o) => ["Service User", "Overdue", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
     ...sDueSoon.map((o) => ["Service User", "Due in period", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
+    ...sPaused.map((o) => ["Service User", o.label, o.record, o.check, ""] as CsvCell[]),
   ];
   const csv = buildCsv(["Register", "Urgency", "Record", "Check", "Due"], csvRows);
 
