@@ -9,11 +9,14 @@ export default function TicketDetail({
   messages,
   founder,
   aside,
+  answer,
 }: {
   ticket: TicketRow;
   messages: TicketMessage[];
   founder: boolean;
   aside?: ReactNode;
+  /** The founder's reply and status form, in place of the plain reply box (2026-10-13). */
+  answer?: ReactNode;
 }) {
   const rag = ragOf(ticket.rag);
   const status = statusOf(ticket.status);
@@ -85,10 +88,12 @@ export default function TicketDetail({
             ))}
           </ol>
         )}
-        <TicketReplyForm
-          ticketId={ticket.id}
-          placeholder={founder ? "Your reply. They are emailed when you send it." : "Add anything that helps, or answer a question we asked."}
-        />
+        {answer ?? (
+          <TicketReplyForm
+            ticketId={ticket.id}
+            placeholder={founder ? "Your reply. They are emailed when you send it." : "Add anything that helps, or answer a question we asked."}
+          />
+        )}
       </div>
     </div>
   );

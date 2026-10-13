@@ -33,6 +33,7 @@ import {
   SCREENSHOT_TYPES,
   TICKET_RAISER_ROLES,
   statusOf,
+  ticketEmail,
   ticketProblem,
   ticketRef,
   ticketSmsText,
@@ -172,6 +173,106 @@ export async function raiseTicket(_prev: ActionState, formData: FormData): Promi
   redirect(`/tickets/${id}`);
 }
 
+type TicketForEmail = {
+  ticket_number: number;
+  company_id: string;
+  subject: string;
+  status: string;
+  raised_by_email: string | null;
+  raised_by_name: string;
+  companies: { name: string } | Array<{ name: string }> | null;
+};
+
+async function loadTicket(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ticketId: string,
+): Promise<TicketForEmail | null> {
+  const { data } = await supabase
+    .from("support_tickets")
+    .select("ticket_number, company_id, subject, status, raised_by_email, raised_by_name, companies(name)")
+    .eq("id", ticketId)
+    .maybeSingle();
+  return (data as TicketForEmail | null) ?? null;
+}
+
+/**
+ * THE FOUNDER ANSWERS A TICKET: a reply, a new status, or both, in ONE save and ONE email (Phil,
+ * 2026-10-13: "if I write 'this has been done' and Save, then change the status to Resolved and
+ * Save, the customer gets two emails"). The message and the status are written together by
+ * founder_update_support_ticket (0453), so they cannot half save, and the email says both.
+ */
+export async function answerTicket(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const ticketId = String(formData.get("ticket_id") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  if (!ticketId) return { error: "Missing ticket." };
+  if (body.length > 5000) return { error: "Keep a reply under 5,000 characters." };
+  return founderAnswer({ user, profile, ticketId, body, status });
+}
+
+async function founderAnswer(i: {
+  user: { id: string };
+  profile: { email: string; role: string };
+  ticketId: string;
+  body: string;
+  /** Empty keeps the status as it is. */
+  status: string;
+}): Promise<ActionState> {
+  const supabase = await createClient();
+  const before = await loadTicket(supabase, i.ticketId);
+  if (!before) return { error: "That ticket could not be found." };
+  const target = i.status || before.status;
+  if (!i.body && target === before.status) return { error: "Write a reply or choose a new status." };
+
+  const { data: saved, error } = await supabase.rpc("founder_update_support_ticket", {
+    p_ticket: i.ticketId,
+    p_body: i.body || null,
+    p_status: target,
+  });
+  if (error) return { error: error.message };
+  const result = (saved ?? {}) as { status_from?: string; status_to?: string; status_changed?: boolean };
+  const from = result.status_from ?? before.status;
+  const to = result.status_to ?? target;
+
+  const ref = ticketRef(before.ticket_number);
+  const email = ticketEmail({ ref, ticketSubject: before.subject, hasReply: Boolean(i.body), statusFrom: from, statusTo: to });
+  const note = email
+    ? await emailRaiser(before, email.subject, email.lead, i.body || null, i.ticketId, { id: i.user.id, email: i.profile.email, role: i.profile.role })
+    : "";
+
+  if (i.body) {
+    await writeAudit({
+      companyId: before.company_id,
+      actorId: i.user.id,
+      actorEmail: i.profile.email,
+      actorRole: i.profile.role,
+      action: "ticket.replied",
+      entityType: "support_ticket",
+      entityId: i.ticketId,
+      summary: `Replied on ${ref}`,
+    });
+  }
+  if (from !== to) {
+    await writeAudit({
+      companyId: before.company_id,
+      actorId: i.user.id,
+      actorEmail: i.profile.email,
+      actorRole: i.profile.role,
+      action: "ticket.status_set",
+      entityType: "support_ticket",
+      entityId: i.ticketId,
+      summary: `${ref} set to ${statusOf(to).label}`,
+      metadata: { from, to },
+    });
+  }
+  revalidatePath(`/tickets/${i.ticketId}`);
+  revalidatePath(`/founder/tickets/${i.ticketId}`);
+  revalidatePath("/founder/tickets");
+  const done = i.body && from !== to ? `Reply sent and set to ${statusOf(to).label}.` : i.body ? "Reply sent." : `Set to ${statusOf(to).label}.`;
+  return { ok: `${done}${note}` };
+}
+
 export async function replyToTicket(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const ticketId = String(formData.get("ticket_id") ?? "");
@@ -180,47 +281,37 @@ export async function replyToTicket(_prev: ActionState, formData: FormData): Pro
   if (!body) return { error: "Write a reply first." };
   if (body.length > 5000) return { error: "Keep a reply under 5,000 characters." };
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: ticketId, p_body: body });
-  if (error) return { error: error.message };
-
-  const { data: t } = await supabase
-    .from("support_tickets")
-    .select("ticket_number, company_id, subject, raised_by_email, raised_by_name, companies(name)")
-    .eq("id", ticketId)
-    .maybeSingle();
-  const ticket = t as {
-    ticket_number: number;
-    company_id: string;
-    subject: string;
-    raised_by_email: string | null;
-    raised_by_name: string;
-    companies: { name: string } | Array<{ name: string }> | null;
-  } | null;
-  if (!ticket) return { ok: "Reply sent." };
-  const ref = ticketRef(ticket.ticket_number);
-  const companyName = (Array.isArray(ticket.companies) ? ticket.companies[0]?.name : ticket.companies?.name) ?? "A company";
-  let note = "";
-
+  // The founder's reply goes through the one save, so it is one email however it was sent.
   if (profile.role === "platform_admin") {
-    // The founder replied: email whoever raised it, with a button back to the ticket.
-    note = await emailRaiser(ticket, `${ref}: a reply from Be Care Compliant`, `We have replied to your ticket "${ticket.subject}".`, body, ticketId);
-  } else {
-    // The company replied: into the founder's inbox and email, like every founder notice.
-    await notifyFounder({
-      subject: `${ref} reply from ${companyName}`,
-      heading: `${companyName} replied on ${ref}`,
-      preheader: ticket.subject,
-      bodyHtml: `<p><strong>${escapeHtml(profile.full_name || profile.email)}</strong> wrote:</p><p style="white-space:pre-wrap">${escapeHtml(body)}</p>`,
-      bodyText: `${profile.full_name || profile.email} wrote:\n\n${body}`,
-      ctaLabel: "Open the ticket",
-      ctaUrl: `${siteUrl()}/founder/tickets/${ticketId}`,
-      companyId: ticket.company_id,
-    });
+    return founderAnswer({ user, profile, ticketId, body, status: "" });
   }
 
+  const supabase = await createClient();
+  const before = await loadTicket(supabase, ticketId);
+  const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: ticketId, p_body: body });
+  if (error) return { error: error.message };
+  if (!before) return { ok: "Reply sent." };
+
+  // A reply on a Resolved ticket reopens it to In progress (Phil, 2026-10-13, popup; 0453).
+  const reopened = before.status === "resolved";
+  const ref = ticketRef(before.ticket_number);
+  const companyName = (Array.isArray(before.companies) ? before.companies[0]?.name : before.companies?.name) ?? "A company";
+
+  // The company replied: into the founder's inbox and email, like every founder notice. ONE notice,
+  // which says when the reply reopened the ticket. The company is not emailed: they wrote it.
+  await notifyFounder({
+    subject: `${ref} reply from ${companyName}${reopened ? ", reopened" : ""}`,
+    heading: `${companyName} replied on ${ref}${reopened ? " and it is open again" : ""}`,
+    preheader: before.subject,
+    bodyHtml: `<p><strong>${escapeHtml(profile.full_name || profile.email)}</strong> wrote:</p><p style="white-space:pre-wrap">${escapeHtml(body)}</p>${reopened ? "<p>The ticket was resolved, so their reply has moved it back to In progress.</p>" : ""}`,
+    bodyText: `${profile.full_name || profile.email} wrote:\n\n${body}${reopened ? "\n\nThe ticket was resolved, so their reply has moved it back to In progress." : ""}`,
+    ctaLabel: "Open the ticket",
+    ctaUrl: `${siteUrl()}/founder/tickets/${ticketId}`,
+    companyId: before.company_id,
+  });
+
   await writeAudit({
-    companyId: ticket.company_id,
+    companyId: before.company_id,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
@@ -229,81 +320,85 @@ export async function replyToTicket(_prev: ActionState, formData: FormData): Pro
     entityId: ticketId,
     summary: `Replied on ${ref}`,
   });
+  if (reopened) {
+    await writeAudit({
+      companyId: before.company_id,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "ticket.status_set",
+      entityType: "support_ticket",
+      entityId: ticketId,
+      summary: `${ref} reopened by a reply: set to In progress`,
+      metadata: { from: "resolved", to: "in_progress", by_reply: true },
+    });
+  }
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath(`/founder/tickets/${ticketId}`);
-  return { ok: `Reply sent.${note}` };
+  revalidatePath("/founder/tickets");
+  return { ok: reopened ? "Reply sent. The ticket is open again." : "Reply sent." };
 }
 
+/** The status on its own (kept for any page still posting to it): the same one save, one email. */
 export async function setTicketStatus(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requirePlatformAdmin();
   const ticketId = String(formData.get("ticket_id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!ticketId) return { error: "Missing ticket." };
   const supabase = await createClient();
-  const { data: before } = await supabase
-    .from("support_tickets")
-    .select("ticket_number, company_id, subject, status, raised_by_email, raised_by_name")
-    .eq("id", ticketId)
-    .maybeSingle();
-  const ticket = before as {
-    ticket_number: number;
-    company_id: string;
-    subject: string;
-    status: string;
-    raised_by_email: string | null;
-    raised_by_name: string;
-  } | null;
-  if (!ticket) return { error: "That ticket could not be found." };
-  if (ticket.status === status) return { ok: "No change." };
-
-  const { error } = await supabase.rpc("set_support_ticket_status", { p_ticket: ticketId, p_status: status });
-  if (error) return { error: error.message };
-
-  const label = statusOf(status).label;
-  const ref = ticketRef(ticket.ticket_number);
-  const note = await emailRaiser(
-    ticket,
-    `${ref} is now ${label.toLowerCase()}`,
-    `Your ticket "${ticket.subject}" is now ${label.toLowerCase()}.`,
-    null,
-    ticketId,
-  );
-  await writeAudit({
-    companyId: ticket.company_id,
-    actorId: user.id,
-    actorEmail: profile.email,
-    actorRole: profile.role,
-    action: "ticket.status_set",
-    entityType: "support_ticket",
-    entityId: ticketId,
-    summary: `${ref} set to ${label}`,
-    metadata: { from: ticket.status, to: status },
-  });
-  revalidatePath(`/founder/tickets/${ticketId}`);
-  revalidatePath("/founder/tickets");
-  return { ok: `Set to ${label}.${note}` };
+  const before = await loadTicket(supabase, ticketId);
+  if (!before) return { error: "That ticket could not be found." };
+  if (before.status === status) return { ok: "No change." };
+  return founderAnswer({ user, profile, ticketId, body: "", status });
 }
 
-/** Email whoever raised the ticket. Returns a note for the on screen message when it could not go. */
+/**
+ * Email whoever raised the ticket. Returns a note for the on screen message when it could not go.
+ * EVERY ATTEMPT IS RECORDED (ticket.emailed): to whom, the subject, and whether it went or why not,
+ * so "how many emails did they get" is read from the log rather than guessed (2026-10-13).
+ */
 async function emailRaiser(
   ticket: { company_id: string; raised_by_email: string | null; raised_by_name: string },
   subject: string,
   lead: string,
   reply: string | null,
   ticketId: string,
+  actor: { id: string; email: string; role: string },
 ): Promise<string> {
-  if (!ticket.raised_by_email) return " They have no email address, so they were not emailed.";
-  if (!resendConfigured()) return " Email is not set up (RESEND_API_KEY / RESEND_FROM), so they were not emailed.";
-  const html = noticeEmailHtml({
-    preheader: lead,
-    heading: subject,
-    bodyHtml:
-      `<p>Hello ${escapeHtml(ticket.raised_by_name.split(" ")[0] || ticket.raised_by_name)},</p><p>${escapeHtml(lead)}</p>` +
-      (reply ? `<p style="white-space:pre-wrap">${escapeHtml(reply)}</p>` : ""),
-    ctaLabel: "View your ticket",
-    ctaUrl: `${siteUrl()}/tickets/${ticketId}`,
+  let note: string;
+  let sent = false;
+  let reason: string | null = null;
+  if (!ticket.raised_by_email) {
+    reason = "no email address";
+    note = " They have no email address, so they were not emailed.";
+  } else if (!resendConfigured()) {
+    reason = "email not set up";
+    note = " Email is not set up (RESEND_API_KEY / RESEND_FROM), so they were not emailed.";
+  } else {
+    const html = noticeEmailHtml({
+      preheader: lead,
+      heading: subject,
+      bodyHtml:
+        `<p>Hello ${escapeHtml(ticket.raised_by_name.split(" ")[0] || ticket.raised_by_name)},</p><p>${escapeHtml(lead)}</p>` +
+        (reply ? `<p style="white-space:pre-wrap">${escapeHtml(reply)}</p>` : ""),
+      ctaLabel: "View your ticket",
+      ctaUrl: `${siteUrl()}/tickets/${ticketId}`,
+    });
+    const r = await sendEmail({ to: ticket.raised_by_email, subject, html, companyId: ticket.company_id });
+    sent = r.sent;
+    reason = r.sent ? null : (r.error ?? r.skippedReason ?? "unknown reason");
+    note = r.sent ? ` ${ticket.raised_by_name} has been emailed.` : ` The email to ${ticket.raised_by_name} did not go: ${reason}.`;
+  }
+  await writeAudit({
+    companyId: ticket.company_id,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    action: "ticket.emailed",
+    entityType: "support_ticket",
+    entityId: ticketId,
+    summary: `${sent ? "Emailed" : "Not emailed"} ${ticket.raised_by_name}: ${subject}`,
+    metadata: { to: ticket.raised_by_email, subject, sent, reason, with_reply: Boolean(reply) },
   });
-  const r = await sendEmail({ to: ticket.raised_by_email, subject, html, companyId: ticket.company_id });
-  if (r.sent) return ` ${ticket.raised_by_name} has been emailed.`;
-  return ` The email to ${ticket.raised_by_name} did not go: ${r.error ?? r.skippedReason ?? "unknown reason"}.`;
+  return note;
 }

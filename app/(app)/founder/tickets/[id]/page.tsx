@@ -5,7 +5,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { getTicket } from "@/lib/tickets/data";
 import { ticketWhen } from "@/lib/tickets/options";
 import TicketDetail from "@/components/tickets/ticket-detail";
-import TicketStatusControl from "@/components/tickets/status-control";
+import TicketAnswerForm from "@/components/tickets/answer-form";
 
 export const metadata: Metadata = { title: "Ticket" };
 
@@ -29,9 +29,10 @@ export default async function FounderTicketPage({ params }: { params: Promise<{ 
                 ? `You were texted at ${ticketWhen(t.founder_texted_at)}.`
                 : `You were not texted${t.founder_text_error ? `: ${t.founder_text_error}` : "."}`}
             </p>
-            <TicketStatusControl ticketId={t.id} status={t.status} />
           </div>
         }
+        /* One press saves the reply and the status and sends one email (Phil, 2026-10-13). */
+        answer={<TicketAnswerForm ticketId={t.id} status={t.status} />}
       />
     </div>
   );

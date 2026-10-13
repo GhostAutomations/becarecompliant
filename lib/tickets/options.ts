@@ -97,6 +97,36 @@ export function ticketSmsText(t: {
   ].join("\n");
 }
 
+/**
+ * The ONE email to whoever raised the ticket after the founder saves (Phil, 2026-10-13: "One press
+ * saves the message and the status together and sends one email that says both"). A reply and a
+ * status change together are one email; either alone is one email; nothing changed is no email.
+ * Null when there is nothing to tell them.
+ */
+export function ticketEmail(i: {
+  ref: string;
+  ticketSubject: string;
+  hasReply: boolean;
+  statusFrom: string;
+  statusTo: string;
+}): { subject: string; lead: string } | null {
+  const changed = i.statusFrom !== i.statusTo;
+  const now = statusOf(i.statusTo).label.toLowerCase();
+  if (i.hasReply && changed) {
+    return {
+      subject: `${i.ref}: a reply from Be Care Compliant, now ${now}`,
+      lead: `We have replied to your ticket "${i.ticketSubject}", and it is now ${now}.`,
+    };
+  }
+  if (i.hasReply) {
+    return { subject: `${i.ref}: a reply from Be Care Compliant`, lead: `We have replied to your ticket "${i.ticketSubject}".` };
+  }
+  if (changed) {
+    return { subject: `${i.ref} is now ${now}`, lead: `Your ticket "${i.ticketSubject}" is now ${now}.` };
+  }
+  return null;
+}
+
 /** Problems the form refuses before it is sent. null when it is fine. */
 export function ticketProblem(input: {
   kind: string;

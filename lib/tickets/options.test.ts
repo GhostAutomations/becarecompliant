@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ticketProblem, ticketSmsText, whereLabel } from "./options.ts";
+import { ticketEmail, ticketProblem, ticketSmsText, whereLabel } from "./options.ts";
 
 const ok = { kind: "problem", department: "People", subject: "Cannot save", description: "It fails", rag: "red" };
 
@@ -21,4 +21,25 @@ test("the founder's text names the company and the rating, with no dashes", () =
   assert.match(s, /Rating: Red\. Needs an urgent response\./);
   assert.match(s, /Report a problem in People, Absence: Save fails/);
   assert.doesNotMatch(s.replace(/https?:\/\/\S+/g, ""), /[–—]| - /);
+});
+
+test("one email for a reply and a status together, one for either alone, none for nothing", () => {
+  const base = { ref: "Ticket 2", ticketSubject: "Letters" };
+  assert.deepEqual(ticketEmail({ ...base, hasReply: true, statusFrom: "in_progress", statusTo: "resolved" }), {
+    subject: "Ticket 2: a reply from Be Care Compliant, now resolved",
+    lead: 'We have replied to your ticket "Letters", and it is now resolved.',
+  });
+  assert.deepEqual(ticketEmail({ ...base, hasReply: true, statusFrom: "open", statusTo: "open" }), {
+    subject: "Ticket 2: a reply from Be Care Compliant",
+    lead: 'We have replied to your ticket "Letters".',
+  });
+  assert.deepEqual(ticketEmail({ ...base, hasReply: false, statusFrom: "open", statusTo: "in_progress" }), {
+    subject: "Ticket 2 is now in progress",
+    lead: 'Your ticket "Letters" is now in progress.',
+  });
+  assert.equal(ticketEmail({ ...base, hasReply: false, statusFrom: "open", statusTo: "open" }), null);
+  // No dashes in customer copy.
+  for (const e of [ticketEmail({ ...base, hasReply: true, statusFrom: "open", statusTo: "resolved" })!]) {
+    assert.doesNotMatch(e.subject + e.lead, /[–—]| - /);
+  }
 });
