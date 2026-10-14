@@ -40,6 +40,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/api/cron/goodwill-credits",
+      "schedule": "15 0 * * *"
+    },
+    {
       "path": "/api/cron/cloud-copies",
       "schedule": "* * * * *"
     }

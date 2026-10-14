@@ -34,6 +34,7 @@ import {
 import BackLink from "@/components/back-link";
 import { aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { isDemoCompany } from "@/lib/demo/data";
+import { creditsAdded, type LedgerRow } from "@/lib/billing/credits-added";
 
 export const metadata: Metadata = { title: "Billing" };
 
@@ -98,6 +99,15 @@ export default async function BillingPage() {
   const branches = await getBranchUsage(profile.company_id, tier);
   const aiCredits = await getAiCreditBalance(profile.company_id);
   const smsCredits = await getSmsCreditBalance(profile.company_id);
+  /* CREDITS ADDED (Phil, 2026-10-14; docs/decisions/goodwill-credits.md): the last 12 additions to
+     either balance, goodwill included. The ledgers are Admin (and Founder) only, as this page is. */
+  const ledgerReasons = ["monthly_grant", "topup", "goodwill"];
+  const [{ data: smsAdded, error: smsAddedErr }, { data: aiAdded, error: aiAddedErr }] = await Promise.all([
+    supabase.from("sms_credit_ledger").select("delta, reason, created_at").eq("company_id", profile.company_id).in("reason", ledgerReasons).gt("delta", 0).order("created_at", { ascending: false }).limit(12),
+    supabase.from("ai_credit_ledger").select("delta, reason, created_at").eq("company_id", profile.company_id).in("reason", ledgerReasons).gt("delta", 0).order("created_at", { ascending: false }).limit(12),
+  ]);
+  const added = creditsAdded((smsAdded ?? []) as LedgerRow[], (aiAdded ?? []) as LedgerRow[]);
+  const addedError = smsAddedErr ?? aiAddedErr;
   // One source for what each plan includes (lib/billing/allowances.ts), shared with the Order.
   const aiMonthly = aiMonthlyCredits(tier);
   const smsMonthly = smsMonthlyCredits(tier);
@@ -349,6 +359,25 @@ export default async function BillingPage() {
             <TopUpSmsButton />
           </div>
         ) : null}
+      </section>
+
+      {/* Credits added: allowance, top ups and goodwill, newest first */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Credits added</h2>
+        {addedError ? (
+          <p className="mt-2 text-sm text-red-300">The credits added could not be read just now. Refresh to try again.</p>
+        ) : added.length === 0 ? (
+          <p className="mt-2 text-sm text-white/60">No credits added yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-white/10 text-sm">
+            {added.map((a) => (
+              <li key={a.key} className="flex justify-between gap-3 py-2">
+                <span className="text-white/85">{a.text}</span>
+                <span className="shrink-0 text-white/50">{a.date}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Seats: what is used (the cost is in the plan card) */}

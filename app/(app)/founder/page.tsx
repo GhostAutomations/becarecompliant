@@ -326,6 +326,7 @@ export default async function FounderPage() {
           }
         />
         <FounderTile href="/founder/forms" icon="compliance" title="Form template library" text="Starter forms for new companies." />
+        <FounderTile href="/founder/goodwill" icon="satisfaction" title="Goodwill credits" text="Give a company extra SMS and AI credits, once, weekly or monthly." />
         <FounderTile href="/founder/invoices" icon="invoicing" title="Invoices" text="Every invoice sent, paid, due and overdue." />
         <FounderTile href="/founder/health" icon="serviceUsers" title="Platform health" text="Dependencies, sends and webhooks." />
         <FounderTile href="/founder/policy-library" icon="policies" title="Policy library" text="Sources the policy AI writes from, and changes to approve." />

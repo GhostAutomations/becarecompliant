@@ -4604,6 +4604,16 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Goodwill credits (Founder)
+
+New Founder console tile "Goodwill credits" (/founder/goodwill): give a company extra SMS and AI
+credits once, weekly or monthly, by a number of times or an end date, with a reason and private note
+the company never sees. Credits never expire (added like a top up). Bevan sees a "Credits added" list
+on Billing (last 12: allowance, top ups, goodwill). Founder only in the database; idempotent by grant
+and period; every grant, credit and stop audit logged. Daily cron /api/cron/goodwill-credits.
+Migration 0472. Decision: docs/decisions/goodwill-credits.md. Tests:
+TEST-CHECKLIST-GOODWILL-CREDITS.md. IN PROGRESS.
+
 ### 2026-10-14 — Founder console tiles (Founder)
 
 The 15 tiles below the two charts are equal rounded squares with a centred gold icon and the name
