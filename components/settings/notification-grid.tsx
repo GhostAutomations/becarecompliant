@@ -93,6 +93,24 @@ export default function NotificationGrid({
     });
   };
 
+  /* "ALL" ON EACH HEADING BAND (Phil, 2026-10-15): one box per person per tick column that sets
+     every check in that group at once. Shown ticked only when every box below it is ticked (popup:
+     "Empty until all are ticked"). Like a single tick, Email also ticks Recent activity. */
+  const setGroup = (pid: string, rows: GridDefinition[], which: "inApp" | "email", on: boolean) => {
+    reset();
+    setChanged((c) => (c.includes(pid) ? c : [...c, pid]));
+    setTicks((t) => {
+      const mine = { ...(t[pid] ?? {}) };
+      for (const d of rows) {
+        const cur = mine[d.id] ?? { inApp: false, email: false };
+        mine[d.id] = which === "email" ? { inApp: on ? true : cur.inApp, email: on } : { inApp: on, email: on ? cur.email : false };
+      }
+      return { ...t, [pid]: mine };
+    });
+  };
+  const allOn = (pid: string, rows: GridDefinition[], which: "inApp" | "email") =>
+    rows.length > 0 && rows.every((d) => (ticks[pid]?.[d.id] ?? { inApp: false, email: false })[which]);
+
   if (people.length === 0) {
     return (
       <p className="text-sm text-white/60">
@@ -164,10 +182,33 @@ export default function NotificationGrid({
           </thead>
           {groups.map((g) => (
             <tbody key={g.title}>
-              <tr>
-                <th className="sticky left-0 z-10 bg-navy-900 p-2 text-left font-semibold text-white/70">{g.title}</th>
+              {/* The heading band: its own shaded row, bold white, with the "all" boxes. */}
+              <tr className="border-t-2 border-white/20 bg-navy-800">
+                <th className="sticky left-0 z-10 bg-navy-800 p-2 text-left text-sm font-bold text-white">
+                  {g.title}
+                  <span className="block text-[11px] font-normal text-white/50">All {g.title.toLowerCase()} checks</span>
+                </th>
                 {people.map((p) => (
-                  <td key={p.id} colSpan={2} className="border-l border-white/10" />
+                  <td key={p.id} colSpan={2} className="border-l border-white/10 p-0">
+                    <div className="grid grid-cols-2 text-center">
+                      <span className="p-1.5">
+                        <input
+                          type="checkbox"
+                          checked={allOn(p.id, g.rows, "inApp")}
+                          onChange={(e) => setGroup(p.id, g.rows, "inApp", e.target.checked)}
+                          aria-label={`${p.name}: all ${g.title} checks, Recent activity`}
+                        />
+                      </span>
+                      <span className="p-1.5">
+                        <input
+                          type="checkbox"
+                          checked={allOn(p.id, g.rows, "email")}
+                          onChange={(e) => setGroup(p.id, g.rows, "email", e.target.checked)}
+                          aria-label={`${p.name}: all ${g.title} checks, Email`}
+                        />
+                      </span>
+                    </div>
+                  </td>
                 ))}
               </tr>
               {g.rows.map((d) => (

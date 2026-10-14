@@ -18,6 +18,10 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
   branches and "Add a branch". Columns: every active or invited login whose role can be notified,
   so a new Supervisor can be set up before their first sign in. The Notifications section that was
   briefly in the user popup (Settings, Users) was removed by popup: the grid is the only place.
+- **Grid headings (Phil, 2026-10-15):** "People" and "Service Users" are bold white on their own
+  shaded band. On each band, every person has an "all" Recent activity box and an "all" Email box
+  that tick or untick every check in that group for them. An "all" box shows ticked only when every
+  box below it is ticked, otherwise empty (popup: "Empty until all are ticked").
 - **Branches (popups 2026-10-14):** a person is told about every branch they belong to (their own
   branch and any additional branches); "own branch" means all of them, not just the main one. The
   Admin can add a branch, and **adding a branch also gives the person access to it** (an additional
