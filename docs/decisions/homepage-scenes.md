@@ -40,14 +40,23 @@ section stay unless Phil agrees a change.
 
 ## How they play (the quality bar)
 
-- Drawn server side in the FINAL state. Below the screen they are set to the opening frame and
-  play once when half on screen; scrolled away part way they pause; a Replay control appears at
-  the end. Already on screen when the page wakes: left finished, Replay showing.
+- **They loop while on screen** (Phil's popup after seeing the preview: "Loop while on screen",
+  replacing the first "play once, with Replay"). Once a third of a story is on screen: the
+  finished picture fades, the opening frame fades in, the steps run, the finished picture holds
+  4 seconds, and again. Scrolled away, every timer stops and it rests on the finished picture;
+  it never stops part way through. No Replay control.
+- Drawn server side in the FINAL state, which is what no script and reduced motion see.
 - Reduced motion: never arms, every animation off, the final frame. No script: the final frame.
 - Only opacity and transform move. A changing value is two layers stacked in one grid cell, so
   nothing reflows (CLS 0). Steps 260 to 600ms, each story under about 5.2 seconds.
 - **Styles are inline in the homepage** (`scenes/styles.ts`, every class `hs-`), not a CSS
   module: a module was a second stylesheet to fetch and pushed first paint from 0.9s to 1.2s.
+  **Trap, found by Phil on the preview:** the script that prefixed the classes also renamed the
+  keyframes, and caught `.hs-visit`, `.hs-glow` and `.hs-press` a second time (`.hs-hs-visit`), so
+  the form card never hid and sat behind the matrix headings. After any change to the scene
+  styles, LOOK at the frames again, not just the numbers.
+- **The form card sits above the matrix headings** (z-index 40): the app's sticky `.matrix th`
+  are z-index 20 and 30.
 - **The hero scene is not faded in** (no Reveal): calm, and the largest thing on the first screen
   is not held back until the script has run. That took Lighthouse mobile back to 99.
 
@@ -64,6 +73,8 @@ section stay unless Phil agrees a change.
   log, but two past migrations of ours did (0112 test company rename, 0182 whistleblowing
   categories).
 - **No animation library** (none was installed). CSS animations and IntersectionObserver only.
+- **Comparison table row** (popup): "A copy of every completed form in your own SharePoint or
+  OneDrive". Only what is built: Google Drive is not built, and Outlook is email, not storage.
 
 ## Reported, not fixed (prices are out of scope)
 

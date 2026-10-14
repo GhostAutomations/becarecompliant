@@ -44,7 +44,7 @@ export default function CloudStory() {
       label="A short animation: a completed supervision is saved in Be Care Compliant and a PDF copy appears in the person's folder in the company's own OneDrive or SharePoint."
       className={s.frame}
     >
-      <div className="space-y-3 p-4 pb-12 sm:p-5 sm:pb-12">
+      <div className="space-y-3 p-4 sm:p-5">
         {/* Where it starts: the evidence, stored. */}
         <div className="glass-card flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">

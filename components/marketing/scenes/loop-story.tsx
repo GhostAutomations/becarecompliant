@@ -24,7 +24,7 @@ export default function LoopStory() {
       label="A short animation: an overdue supervision is completed, its due date turns from red to done, today's date is stamped, the next supervision is scheduled, and the overdue count on the dashboard drops by one."
       className={s.frame}
     >
-      <div className="relative space-y-3 p-4 pb-12 sm:p-5 sm:pb-12">
+      <div className="relative space-y-3 p-4 sm:p-5">
         {/* The dashboard, above: the Overdue tile and the branch readiness card. */}
         <div className="grid grid-cols-1 gap-3 min-[460px]:grid-cols-2">
           <div className="glass-card p-4">

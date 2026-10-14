@@ -26,7 +26,7 @@ export default function RtwStory() {
       label="A short animation: Return to Work questions are checked and sent to a member of staff by text, they answer in their portal, and their answers arrive back on the Return to Work."
       className={s.frame}
     >
-      <div className="grid gap-4 p-4 pb-12 sm:grid-cols-[1fr_11rem] sm:p-5 sm:pb-12">
+      <div className="grid gap-4 p-4 sm:grid-cols-[1fr_11rem] sm:p-5">
         <div className="space-y-3">
           <div className="glass-card flex flex-wrap items-center justify-between gap-2 p-4">
             <div className="min-w-0">

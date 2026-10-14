@@ -13,6 +13,9 @@ const ROWS: Array<{ label: string; marks: [Mark, Mark, Mark] }> = [
   { label: "Checks that complete and reschedule themselves", marks: ["no", "limited", "yes"] },
   { label: "Red, amber, green rollup from check to company", marks: ["no", "limited", "yes"] },
   { label: "Inspector ready evidence, exportable to PDF and CSV", marks: ["no", "no", "yes"] },
+  // Phil, 2026-10-14 (popup): only what is built today. Copies go to the company's own Microsoft
+  // 365 (settings/cloud, lib/cloud); Google Drive is not built, so it is not claimed.
+  { label: "A copy of every completed form in your own SharePoint or OneDrive", marks: ["no", "limited", "yes"] },
   { label: "Reminders and chasers built in", marks: ["no", "limited", "yes"] },
   { label: "Audit trail on every access and change", marks: ["no", "limited", "yes"] },
   { label: "Built for special category health data", marks: ["no", "no", "yes"] },

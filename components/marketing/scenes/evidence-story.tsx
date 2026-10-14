@@ -27,7 +27,7 @@ export default function EvidenceStory() {
       label="A short animation: a completed supervision shown as stored evidence, with who completed it, when and on which form version, then downloaded as a PDF, with each step written to the audit trail."
       className={s.frame}
     >
-      <div className="space-y-3 p-4 pb-12 sm:p-5 sm:pb-12">
+      <div className="space-y-3 p-4 sm:p-5">
         <div className={s.appear} style={d(200)}>
           <p className="text-xs text-white/55">&larr; Back to person</p>
           <div className="mt-1 flex flex-wrap items-end justify-between gap-3">

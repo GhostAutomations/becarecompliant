@@ -12,9 +12,9 @@
  * read only, so they always look like the real screens.
  *
  * HOW A STORY RUNS. The markup is drawn in its FINAL state, which is what a reader with reduced
- * motion, no script or a slow phone sees. When the story is about to scroll into view the player
- * sets data-state="armed" (the opening frame, held still), then "run" (each step animates from
- * the opening frame to the final one, at its own delay, and holds), then "done". Only opacity
+ * motion, no script or a slow phone sees. While a story is on screen the player loops it:
+ * "fadeOut" (the picture fades), "armed" (the opening frame fades in), "run" (each step animates
+ * from the opening frame to the final one, at its own delay, and holds), "done" (held, then again). Only opacity
  * and transform move, so nothing reflows: a value that changes is two layers stacked in one grid
  * cell, the old one fading out as the new one fades in, and the cell is already as wide as the
  * wider of the two.
@@ -30,40 +30,13 @@ export const SCENES_CSS = `
 }
 
 /* While off screen part way through, everything holds where it is. */
-.hs-story[data-paused="true"] * {
-  animation-play-state: paused !important;
+/* The whole picture fades out before each new pass and back in on the opening frame, so the loop
+   never jumps from the finished picture straight to the start. */
+.hs-stage {
+  transition: opacity 300ms ease;
 }
-
-.hs-replay {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 0.75rem;
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(8, 18, 49, 0.75);
-  padding: 0.3rem 0.7rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
+.hs-story[data-state="fadeOut"] .hs-stage {
   opacity: 0;
-  transition: opacity 300ms ease, color 150ms ease, border-color 150ms ease;
-  pointer-events: none;
-}
-.hs-story[data-state="done"] .hs-replay {
-  opacity: 1;
-  pointer-events: auto;
-}
-.hs-replay:hover {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.5);
-}
-.hs-replay:focus-visible {
-  outline: 2px solid #f59e0b;
-  outline-offset: 2px;
 }
 
 /* ---- Stacked layers: a value that changes without moving anything ------------------------- */
@@ -149,12 +122,12 @@ export const SCENES_CSS = `
 }
 
 /* A button being pressed: a short squeeze, then back. */
-.hs-story[data-state="run"] .hs-hs-press {
+.hs-story[data-state="run"] .hs-press {
   animation: hs-press 260ms ease-in-out var(--d, 0ms) both;
 }
 
 /* A soft highlight that passes over a changed row and fades. Final state: gone. */
-.hs-hs-glow {
+.hs-glow {
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -163,20 +136,22 @@ export const SCENES_CSS = `
   opacity: 0;
   pointer-events: none;
 }
-.hs-story[data-state="run"] .hs-hs-glow {
+.hs-story[data-state="run"] .hs-glow {
   animation: hs-glow 1600ms ease-in-out var(--d, 0ms) both;
 }
 
 /* A card that comes in, does its job and goes. Final state: gone. */
-.hs-hs-visit {
+.hs-visit {
+  /* Above the matrix's sticky headings (z-index 20 and 30 in the app's .matrix th). */
+  z-index: 40;
   opacity: 0;
   transform: translateY(8px) scale(0.98);
   pointer-events: none;
 }
-.hs-story[data-state="armed"] .hs-hs-visit {
+.hs-story[data-state="armed"] .hs-visit {
   opacity: 0;
 }
-.hs-story[data-state="run"] .hs-hs-visit {
+.hs-story[data-state="run"] .hs-visit {
   animation: hs-visit var(--len, 1800ms) cubic-bezier(0.2, 0, 0, 1) var(--d, 0ms) both;
 }
 
@@ -227,7 +202,7 @@ export const SCENES_CSS = `
   .hs-story .hs-leave,
   .hs-story .hs-countOld,
   .hs-story .hs-visit,
-  .hs-story .hs-hs-glow {
+  .hs-story .hs-glow {
     opacity: 0 !important;
   }
   .hs-story .hs-after,
@@ -236,8 +211,8 @@ export const SCENES_CSS = `
     opacity: 1 !important;
     transform: none !important;
   }
-  .hs-replay {
-    display: none;
+  .hs-stage {
+    opacity: 1 !important;
   }
 }
 
