@@ -4610,7 +4610,7 @@ Setup is due on the package start (was the day before), amber on the day only, r
 the done date green when on or before the start, red after. "Setup Visit Due" column removed. All
 companies and new ones (0471); stored setup dates moved (Thistle 71, Demo 40, Bevan 21) on Phil's OK.
 A package start edit moves an outstanding setup. Decision: docs/decisions/setup-due-rule.md. Tests:
-TEST-CHECKLIST-SETUP-DUE-RULE.md (S0 to S1 pass so far).
+TEST-CHECKLIST-SETUP-DUE-RULE.md, S0 to S6 pass. DONE 2026-10-14.
 
 ### 2026-10-14 — Tickets: two sections, three RAG columns, Managers see their own (Phase 13, Thistle)
 
