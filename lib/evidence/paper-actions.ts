@@ -25,6 +25,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { emailCompletionNotifications } from "@/lib/notifications/completion-email";
 import { queueCloudCopies } from "@/lib/cloud/queue";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
@@ -317,6 +318,8 @@ export async function finishPaperUpload(input: {
     summary: `Completed ${label} on paper`,
     metadata: { evidence_id: evidenceId, next_due: nextDue, definition_id: def.id, paper: true, record_type: population },
   });
+  // Anyone told about this completion who asked for Email (0473). Never fails the completion.
+  await emailCompletionNotifications(evidenceId);
 
   revalidatePath(base);
   revalidatePath(population === "people" ? "/people" : "/service-users");

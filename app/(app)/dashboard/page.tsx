@@ -42,7 +42,6 @@ import {
   getAuditsCompleted,
   getDuePreview,
   getPlannerWeek,
-  getRecentActivity,
   getPqsSummary,
   getPqsScopes,
   getAbsenceActions,
@@ -54,6 +53,10 @@ import { getBranchTerms } from "@/lib/branches/company-word";
 import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import { DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 import { getCompanyRow } from "@/lib/companies/row";
+import ActionForm from "@/components/action-form";
+import { getMyNotifications } from "@/lib/notifications/personal";
+import { dismissNotification } from "@/lib/notifications/personal-actions";
+import { activityDetail, activityHref, activityTitle, activityWhen } from "@/lib/notifications/activity";
 
 /**
  * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
@@ -638,15 +641,6 @@ function fmtWindowDate(iso: string): string {
   });
 }
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/London",
-  });
-}
 
 /* ------------------------------------------------------------------ page */
 
@@ -835,7 +829,9 @@ export default async function DashboardPage() {
       profile.role === "company_admin" || profile.role === "platform_admin"
         ? timed("dash.spend", getSpendThisMonth(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getSpendThisMonth>> | null),
-      timed("dash.activity", getRecentActivity(companyId)),
+      // PERSONAL since 0473 (Phil, 2026-10-14, popup "Replace it with the personal one"): this
+      // person's own notifications, not the company's audit lines, which only Admins could read.
+      timed("dash.activity", getMyNotifications(user.id)),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]),
   ]);
@@ -1560,23 +1556,35 @@ export default async function DashboardPage() {
             </div>
           )}
         </Panel>
-        <Panel title="Recent activity" href="/reports" linkLabel="View all">
-          {activity.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing has happened yet today.</p>
+        {/* RECENT ACTIVITY, PERSONAL (0473, Phil 2026-10-14). Only this person's notifications,
+            newest first: the checks their Admin set them to be told about. Each opens the Evidence
+            and has Remove, which hides it for them alone. Live through DashboardLive. */}
+        <Panel title="Recent activity">
+          {activity === null ? (
+            <p className="text-sm text-red-300">Your notifications could not be read just now. Refresh to try again.</p>
+          ) : activity.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing new. Completed checks you&rsquo;re notified about will appear here.</p>
           ) : (
-            /* TEN lines, smaller and tighter (Phil, 2026-07-30), filling the space that was
-               sitting empty under six. No scroll: the panel shows what it shows and the corner
-               link goes to the rest. */
-            <ul className="space-y-1">
-              {activity.map((a, i) => (
+            <ul className="space-y-1.5">
+              {activity.map((a) => (
                 <li
-                  key={`${a.when}-${i}`}
-                  className="flex items-start justify-between gap-2 border-b border-white/5 pb-1 last:border-0 last:pb-0"
+                  key={a.id}
+                  className="flex items-start justify-between gap-2 border-b border-white/5 pb-1.5 last:border-0 last:pb-0"
                 >
-                  <span className="min-w-0 text-[11px] leading-snug text-white/80">{a.summary}</span>
-                  <span className="shrink-0 text-[10px] leading-snug text-white/45">
-                    {fmtWhen(a.when)}
-                  </span>
+                  <Link href={activityHref(a)} className="min-w-0 flex-1 hover:underline">
+                    <span className="block text-xs font-semibold leading-snug text-white">{activityTitle(a.checkName)}</span>
+                    <span className="block text-[11px] leading-snug text-white/70">{activityDetail(a)}</span>
+                    <span className="block text-[10px] leading-snug text-white/45">{activityWhen(a.createdAt)}</span>
+                  </Link>
+                  <ActionForm
+                    action={dismissNotification}
+                    hidden={{ notification_id: a.id }}
+                    label="Remove"
+                    savingLabel="Removing…"
+                    savedLabel="Removed"
+                    buttonClassName="btn-outline btn-xs"
+                    className="shrink-0"
+                  />
                 </li>
               ))}
             </ul>

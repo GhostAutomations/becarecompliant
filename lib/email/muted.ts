@@ -8,7 +8,9 @@ import "server-only";
  * email and no text. Checked here, in the one place every company email and text goes out
  * (sendEmail, sendEmailBatch and sendSms when given the company). Two things still go, by
  * Phil's choice (popup 2026-10-02): password resets and login invites, so a test login can
- * never be locked out. They are sent without a company, so this never sees them. Founder
+ * never be locked out. They are sent without a company, so this never sees them.
+ * A third by popup (2026-10-14): the per person "[Check] completed" emails
+ * (lib/notifications/completion-email.ts), sent without a company the same way. Founder
  * emails (trial requests, demo login details, the inbox) are not company emails either.
  *
  * Read past RLS with the service client, because a cron or a webhook has no user. Cached for a

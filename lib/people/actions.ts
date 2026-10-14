@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
+import { emailCompletionNotifications } from "@/lib/notifications/completion-email";
 import { removeSignatureFiles } from "@/lib/letters/signature";
 import { forgetCloudRecord, queueCloudCopy } from "@/lib/cloud/queue";
 import { inviteStaffForPerson, followPersonEmailChange } from "@/lib/staff/invite";
@@ -2040,6 +2041,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     summary: `Completed ${def.name}`,
     metadata: { evidence_id: result.evidenceId, next_due: advanced.nextDue, definition_id: def.id },
   });
+  // Anyone told about this completion who asked for Email (0473). Never fails the completion.
+  await emailCompletionNotifications(result.evidenceId);
 
   // The Check is filed: the part-finished copy has done its job. Discarded HERE, on
   // success, and not when the form was submitted -- a submit that comes back with an

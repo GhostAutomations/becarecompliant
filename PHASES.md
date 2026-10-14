@@ -4604,6 +4604,15 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Per person notifications: Recent activity and Email (Phase 13, Thistle)
+
+Thistle's Supervisors asked to be told when a Care Plan Review is completed. The Admin sets, per
+person in Settings, Users, which "[Check] completed" events reach their Recent activity tile and
+Email. Supervisors default to Care Plan Review. Branches they belong to; adding one gives access. The
+dashboard's company wide Recent activity is replaced by the personal one. Test companies get these
+emails. Migration 0473. Decision: docs/decisions/personal-notifications.md. Tests:
+TEST-CHECKLIST-PERSONAL-NOTIFICATIONS.md. IN PROGRESS.
+
 ### 2026-10-14 — Goodwill credits (Founder)
 
 New Founder console tile "Goodwill credits" (/founder/goodwill): give a company extra SMS and AI

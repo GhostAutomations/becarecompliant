@@ -39,6 +39,8 @@ const TABLES = [
   "holiday_requests",
   "complaints",
   "incidents",
+  // The personal Recent activity tile (0473): the broadcast carries the table name only.
+  "user_notifications",
 ];
 const SETTLE_MS = 1_500;
 const MIN_GAP_MS = 10_000;

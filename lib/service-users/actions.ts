@@ -21,6 +21,7 @@ import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
 import { profilesById } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
+import { emailCompletionNotifications } from "@/lib/notifications/completion-email";
 import { queueCloudCopy } from "@/lib/cloud/queue";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
@@ -1256,6 +1257,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       : `${def.name} dated ${completedOnIso} added to the history; the check was not moved`,
     metadata: { evidence_id: result.evidenceId, next_due: moves ? nextDue : null, completed_on: completedOnIso, definition_id: def.id, record_type: "service_user" },
   });
+  // Anyone told about this completion who asked for Email (0473). Never fails the completion.
+  if (moves) await emailCompletionNotifications(result.evidenceId);
 
   // Filed: discard the part-finished copy (see lib/forms/draft-key.ts).
   await dropDraft(checkDraftKey("service_users", instanceId));

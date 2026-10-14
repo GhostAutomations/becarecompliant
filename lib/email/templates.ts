@@ -564,6 +564,38 @@ export function noticeEmailHtml(opts: {
   });
 }
 
+/**
+ * A check this person is notified about was completed (0473, Phil 2026-10-14;
+ * docs/decisions/personal-notifications.md). Like the mention email it says what, for whom, by
+ * whom and when, and NEVER what the form says: that belongs in the app, behind a login.
+ */
+export function checkCompletedEmailHtml(opts: {
+  recipientName: string;
+  checkName: string;
+  recordName: string | null;
+  actorName: string | null;
+  branchName: string | null;
+  completedOn: string | null;
+  companyName: string;
+  url: string;
+}): string {
+  const heading = `${opts.checkName} completed`;
+  const forWhom = opts.recordName ? ` for <strong style="color:#ffffff;">${escapeHtml(opts.recordName)}</strong>` : "";
+  const byWhom = opts.actorName ? ` by ${escapeHtml(opts.actorName)}` : "";
+  const when = opts.completedOn ? `, dated ${escapeHtml(opts.completedOn)}` : "";
+  const where = [opts.branchName, opts.companyName].filter(Boolean).map((x) => escapeHtml(x as string)).join(", ");
+  return noticeEmailHtml({
+    preheader: heading,
+    heading,
+    bodyHtml: `<p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)}.</p>
+    <p style="margin:0 0 12px 0;">A ${escapeHtml(opts.checkName)} was completed${forWhom}${byWhom}${when}${where ? ` (${where})` : ""}.</p>
+    <p style="margin:0;">Open it to see the form. For privacy, its answers are not included in this email.</p>`,
+    ctaLabel: "Open it",
+    ctaUrl: opts.url,
+    footerNote: "You receive this email because your Admin set you to be told when this check is completed. Your Admin can change it in Settings, Users.",
+  });
+}
+
 /** Subject of the email sent when somebody is @mentioned in an Update. */
 export function mentionEmailSubject(authorName: string): string {
   return `${authorName} mentioned you in an update`;
