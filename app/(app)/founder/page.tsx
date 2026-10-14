@@ -297,18 +297,23 @@ export default async function FounderPage() {
           Eight to a row on a wide screen (1536 and up) so the whole console fits without scrolling,
           four on a laptop, two on a tablet. Phones stay as they always were: one tile per row with
           its description. app-tile is shared (Settings, the form builder), so the shared class is
-          untouched; the shape is set on these tiles only (FounderTile, below). */}
+          untouched; the shape is set on these tiles only (FounderTile, below). In alphabetical order
+          (Phil, 2026-10-14). */}
       <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
-        <FounderTile href="/founder/forms" icon="compliance" title="Form template library" text="Starter forms for new companies." />
-        <FounderTile href="/founder/policy-library" icon="policies" title="Policy library" text="Sources the policy AI writes from, and changes to approve." />
-        <FounderTile href="/founder/question-bank" icon="complaints" title="Question bank" text="Reusable questions for the builder." />
-        <FounderTile href="/founder/usage" icon="reports" title="Usage" text="Metered SMS and AI per company." />
-        <FounderTile href="/founder/audit" icon="readiness" title="Audit console" text="Every change across every company." />
-        <FounderTile href="/founder/revenue" icon="outcomes" title="Revenue" text="MRR and billing." />
-        <FounderTile href="/founder/training-templates" icon="training" title="Training templates" text="Master training course catalogue." />
-        <FounderTile href="/founder/invoices" icon="invoicing" title="Invoices" text="Every invoice sent, paid, due and overdue." />
         <FounderTile href="/founder/agreements" icon="briefings" title="Agreements" text="Who has accepted the terms and DPA." />
-        <FounderTile href="/founder/health" icon="serviceUsers" title="Platform health" text="Dependencies, sends and webhooks." />
+        <FounderTile href="/founder/audit" icon="readiness" title="Audit console" text="Every change across every company." />
+        <FounderTile
+          href="/founder/companies"
+          icon="dashboard"
+          title="Companies"
+          text={`${list.length} ${list.length === 1 ? "company" : "companies"} · ${formatPence(mrrPence)}/mo committed. Tiers, seats, billing and usage.`}
+        />
+        <FounderTile
+          href="/founder/demos"
+          icon="whiteboard"
+          title="Demos"
+          text="Set up a Demo Care Company Limited for a client, see how much they used it and what they thought."
+        />
         <FounderTile
           href="/founder/inbox"
           icon="submissions"
@@ -320,31 +325,24 @@ export default async function FounderPage() {
               : "Everything sent to and from the platform, kept for good."
           }
         />
+        <FounderTile href="/founder/forms" icon="compliance" title="Form template library" text="Starter forms for new companies." />
+        <FounderTile href="/founder/invoices" icon="invoicing" title="Invoices" text="Every invoice sent, paid, due and overdue." />
+        <FounderTile href="/founder/health" icon="serviceUsers" title="Platform health" text="Dependencies, sends and webhooks." />
+        <FounderTile href="/founder/policy-library" icon="policies" title="Policy library" text="Sources the policy AI writes from, and changes to approve." />
+        <FounderTile href="/founder/question-bank" icon="complaints" title="Question bank" text="Reusable questions for the builder." />
+        <FounderTile href="/founder/revenue" icon="outcomes" title="Revenue" text="MRR and billing." />
         <FounderTile
           href="/founder/tickets"
           icon="tickets"
           title="Tickets"
-          pills={
-            tickets.total > 0 ? (
-              <>
-                {tickets.red > 0 ? <span className="pill pill-red">{tickets.red} red</span> : null}
-                {tickets.amber > 0 ? <span className="pill pill-amber">{tickets.amber} amber</span> : null}
-                {tickets.green > 0 ? <span className="pill pill-green">{tickets.green} green</span> : null}
-              </>
-            ) : null
-          }
+          rag={tickets}
           text={
             tickets.total > 0
               ? `${tickets.total} ${tickets.total === 1 ? "ticket is" : "tickets are"} open or in progress.`
               : "Problems and feature requests from companies. Nothing open."
           }
         />
-        <FounderTile
-          href="/founder/demos"
-          icon="whiteboard"
-          title="Demos"
-          text="Set up a Demo Care Company Limited for a client, see how much they used it and what they thought."
-        />
+        <FounderTile href="/founder/training-templates" icon="training" title="Training templates" text="Master training course catalogue." />
         <FounderTile
           href="/founder/trial-requests"
           icon="people"
@@ -364,12 +362,7 @@ export default async function FounderPage() {
               : "Leads from the Request a trial form on the website. Nothing waiting."
           }
         />
-        <FounderTile
-          href="/founder/companies"
-          icon="dashboard"
-          title="Companies"
-          text={`${list.length} ${list.length === 1 ? "company" : "companies"} · ${formatPence(mrrPence)}/mo committed. Tiers, seats, billing and usage.`}
-        />
+        <FounderTile href="/founder/usage" icon="reports" title="Usage" text="Metered SMS and AI per company." />
       </section>
     </div>
   );
@@ -377,9 +370,11 @@ export default async function FounderPage() {
 
 /**
  * One tile below the Founder console's charts (Phil, 2026-10-14). From tablet width up: an equal
- * square, rounded as every app-tile, with the gold icon and the white bold name centred and any
- * count pills under them; no description. On a phone it is the tile it always was: name and pills
- * on one line, the description under them.
+ * square, rounded as every app-tile, with the gold icon and the white bold name centred and no
+ * description. Its pills hang UNDER the name without moving it, so every name sits at the same
+ * height; the ticket pills have fixed places, red on the left, amber in the middle, green on the
+ * right, an empty place left empty. On a phone it is the tile it always was: name and pills on one
+ * line, the description under them.
  */
 function FounderTile({
   href,
@@ -387,21 +382,44 @@ function FounderTile({
   title,
   text,
   pills = null,
+  rag = null,
 }: {
   href: string;
   icon: NavEntry["icon"];
   title: string;
   text: string;
   pills?: React.ReactNode;
+  /** Open tickets by rating, drawn in their three fixed places. */
+  rag?: { red: number; amber: number; green: number } | null;
 }) {
+  const ragPill = (tone: "red" | "amber" | "green") =>
+    rag && rag[tone] > 0 ? <span className={`pill pill-${tone}`}>{rag[tone]} {tone}</span> : null;
+  const hasRag = !!rag && rag.red + rag.amber + rag.green > 0;
   return (
-    <Link href={href} className="app-tile sm:aspect-square sm:items-center sm:justify-center sm:text-center">
+    <Link href={href} className="app-tile relative sm:aspect-square sm:items-center sm:justify-center sm:text-center">
       <NavIcon icon={icon} className="hidden h-8 w-8 text-gold-400 sm:block" />
-      <div className="flex items-start justify-between gap-2 sm:flex-col sm:items-center">
+      <div className="flex items-start justify-between gap-2 sm:block">
         <h2 className="text-base font-semibold text-white">{title}</h2>
-        {pills ? <div className="flex flex-wrap gap-1 sm:justify-center">{pills}</div> : null}
+        {pills || hasRag ? (
+          <div className="flex flex-wrap gap-1 sm:hidden">
+            {pills}
+            {ragPill("red")}
+            {ragPill("amber")}
+            {ragPill("green")}
+          </div>
+        ) : null}
       </div>
       <p className="text-sm text-white/60 sm:hidden">{text}</p>
+      {pills ? (
+        <div className="absolute inset-x-3 top-[calc(50%+2.5rem)] hidden justify-center sm:flex">{pills}</div>
+      ) : null}
+      {hasRag ? (
+        <div className="absolute inset-x-3 top-[calc(50%+2.5rem)] hidden grid-cols-3 gap-1 sm:grid">
+          <span className="flex justify-center">{ragPill("red")}</span>
+          <span className="flex justify-center">{ragPill("amber")}</span>
+          <span className="flex justify-center">{ragPill("green")}</span>
+        </div>
+      ) : null}
     </Link>
   );
 }
