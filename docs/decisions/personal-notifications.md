@@ -9,7 +9,8 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
   has, listed from its own check definitions. The event type is a column, so more kinds of event can
   be added later without rebuilding.
 - **How:** every notification goes into the person's **Recent activity** tile on their dashboard.
-  **Email** is an extra tick per check type (Email always comes with Recent activity). No SMS.
+  **Email** is a separate tick per check type. No SMS. (Until 0474 Email always came with Recent
+  activity; Phil, 2026-10-15, popup "Let Email stand alone": now a person can be emailed only.)
 - **Who sets it:** Company Admin and Founder only, enforced in the database. A Registered Manager or
   the person themselves cannot change anyone's notifications.
 - **Where (Phil, 2026-10-14, after seeing it in the user popup):** Settings, Notifications, one grid,
@@ -51,6 +52,8 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
 
 ## How it works (0473)
 
+- `user_notifications.show_in_app` (0474): false for an email only notification, which is kept for
+  the email and its once only key but not shown on the tile.
 - `notification_preferences`: explicit choices only; no row means the default
   (`notification_default_in_app`). Written only by `set_notification_preferences`.
 - `user_notifications`: one row per person per completion, unique on person, check and Evidence.

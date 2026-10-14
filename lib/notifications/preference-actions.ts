@@ -27,7 +27,8 @@ export async function saveNotificationGrid(_prev: ActionState, formData: FormDat
   for (const pid of changed) {
     const prefs = definitions.map((d) => {
       const key = `${pid}:${d}`;
-      return { definition_id: d, in_app: inApp.has(key) || email.has(key), email: email.has(key) };
+      // Two separate ticks since 0474 (Phil, popup "Let Email stand alone").
+      return { definition_id: d, in_app: inApp.has(key), email: email.has(key) };
     });
     const { error } = await supabase.rpc("set_notification_preferences", { p_profile: pid, p_prefs: prefs });
     if (error) failed.push(error.message);

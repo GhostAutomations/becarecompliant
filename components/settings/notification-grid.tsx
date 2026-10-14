@@ -3,7 +3,7 @@
 /**
  * Be Care Compliant: "Who is told when a check is completed" on Settings, Notifications (0473,
  * Phil 2026-10-14; docs/decisions/personal-notifications.md). Check types down the left, people
- * across the top, two ticks each: Recent activity and Email (Email comes with Recent activity).
+ * across the top, two ticks each: Recent activity and Email, separate since 0474 (Phil, popup).
  * Under each name, the branches they are told about, with Add a branch, which also gives them
  * access to it. One Save for the whole grid; only the people whose ticks changed are sent. A
  * refused save keeps every tick. Company Admin and Founder only; the database refuses anyone else.
@@ -88,14 +88,15 @@ export default function NotificationGrid({
     setChanged((c) => (c.includes(pid) ? c : [...c, pid]));
     setTicks((t) => {
       const cur = t[pid]?.[did] ?? { inApp: false, email: false };
-      const next = which === "email" ? { inApp: on ? true : cur.inApp, email: on } : { inApp: on, email: on ? cur.email : false };
+      // Two separate ticks (0474, Phil 2026-10-15: "Let Email stand alone").
+      const next = { ...cur, [which]: on };
       return { ...t, [pid]: { ...(t[pid] ?? {}), [did]: next } };
     });
   };
 
   /* "ALL" ON EACH HEADING BAND (Phil, 2026-10-15): one box per person per tick column that sets
      every check in that group at once. Shown ticked only when every box below it is ticked (popup:
-     "Empty until all are ticked"). Like a single tick, Email also ticks Recent activity. */
+     "Empty until all are ticked"). Email and Recent activity are separate ticks (0474). */
   const setGroup = (pid: string, rows: GridDefinition[], which: "inApp" | "email", on: boolean) => {
     reset();
     setChanged((c) => (c.includes(pid) ? c : [...c, pid]));
@@ -103,7 +104,7 @@ export default function NotificationGrid({
       const mine = { ...(t[pid] ?? {}) };
       for (const d of rows) {
         const cur = mine[d.id] ?? { inApp: false, email: false };
-        mine[d.id] = which === "email" ? { inApp: on ? true : cur.inApp, email: on } : { inApp: on, email: on ? cur.email : false };
+        mine[d.id] = { ...cur, [which]: on };
       }
       return { ...t, [pid]: mine };
     });

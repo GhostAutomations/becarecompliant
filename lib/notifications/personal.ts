@@ -15,6 +15,8 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
     .from("user_notifications")
     .select("id, person_id, service_user_id, evidence_id, actor_name, completed_on, created_at, definition:check_definitions(name), branch:branches(name)")
     .eq("profile_id", profileId)
+    // Email only notifications (0474) are not shown here.
+    .eq("show_in_app", true)
     .is("dismissed_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);
