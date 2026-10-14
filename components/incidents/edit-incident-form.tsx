@@ -5,6 +5,7 @@ import { updateIncident } from "@/lib/incidents/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { IncidentRecord } from "@/lib/incidents/types";
+import type { RegulatorCode } from "@/lib/incidents/case-display";
 import IncidentFields from "./incident-fields";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
@@ -13,11 +14,13 @@ export default function EditIncidentForm({
   serviceUsers,
   people,
   todayIso,
+  regulator,
 }: {
   incident: IncidentRecord;
   serviceUsers: Array<{ id: string; full_name: string; branch_id: string | null }>;
   people: Array<{ id: string; full_name: string; branch_id: string | null }>;
   todayIso: string;
+  regulator: RegulatorCode | null;
 }) {
   const [state, formAction, pending] = useActionState(updateIncident, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
@@ -35,6 +38,7 @@ export default function EditIncidentForm({
         branchId={incident.branch_id ?? ""}
         todayIso={todayIso}
         onEdit={reset}
+        regulator={regulator}
       />
 
       <div>

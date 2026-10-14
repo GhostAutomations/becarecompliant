@@ -51,6 +51,14 @@ export function categoryFrom(answers: Answers): string | null {
   return text(answers, "category");
 }
 
+/** "What type of incident was it?" (0467): the words given when the kind of event is Other, read
+ *  from the question for the chosen type. Null for any other kind, or when blank. */
+export function categoryOtherFrom(answers: Answers): string | null {
+  if (categoryFrom(answers) !== "Other") return null;
+  const type = eventTypeFrom(answers);
+  return type ? text(answers, `${categoryKey(type)}_other`) : null;
+}
+
 /** A yes/no answer as a boolean; null when not answered. */
 export function yesNo(answers: Answers, key: string): boolean | null {
   const v = answers[key];

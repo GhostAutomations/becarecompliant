@@ -5,6 +5,9 @@ import BackLink from "@/components/back-link";
 import EditIncidentForm from "@/components/incidents/edit-incident-form";
 import IncidentStatusControl from "@/components/incidents/incident-status-control";
 import IncidentStages from "@/components/incidents/incident-stages";
+import WhatWasReported from "@/components/incidents/what-was-reported";
+import { caseRegulator, categoryLabel } from "@/lib/incidents/case-display";
+import { createClient } from "@/lib/supabase/server";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/form-keys";
@@ -23,7 +26,7 @@ export const metadata: Metadata = { title: "Incident" };
 
 
 export default async function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
   const bw = await getBranchTerms(profile.company_id);
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/dashboard");
@@ -34,12 +37,16 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   const incident = await getIncident(id);
   if (!incident) notFound();
 
-  const [serviceUsers, people, investigationForm, outcomeForm] = await Promise.all([
+  const supabase = await createClient();
+  const [serviceUsers, people, investigationForm, outcomeForm, { data: company }] = await Promise.all([
     listServiceUsersLite(profile.company_id),
     listPeopleLite(profile.company_id),
     getCompanyFormByKey(profile.company_id, INCIDENT_INVESTIGATION_FORM),
     getCompanyFormByKey(profile.company_id, INCIDENT_OUTCOME_FORM),
+    supabase.from("companies").select("regulator").eq("id", profile.company_id).maybeSingle<{ regulator: string | null }>(),
   ]);
+  // The one regulator this case names: its branch's, else the company's (0467).
+  const regulator = caseRegulator(incident.branch_regulator, company?.regulator);
 
   /* THE CASE'S OWN STATE, read once and handed to the one module that decides what a case is
      waiting for. The screen and the server action must not each have their own idea of it. */
@@ -72,7 +79,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
       <div>
         <BackLink href="/incidents" label="Back to Incidents" />
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="page-title">{incident.category}</h1>
+          <h1 className="page-title">{categoryLabel(incident.category, incident.category_other)}</h1>
           <span className="text-sm text-white/50">
             {formatUkDate(incident.occurred_on)}
             {incident.occurred_at ? ` at ${formatTime(incident.occurred_at)}` : ""}
@@ -125,6 +132,12 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
         />
       </section>
 
+      <WhatWasReported
+        incident={incident}
+        regulator={regulator}
+        actor={{ id: user.id, email: profile.email ?? null, role: profile.role }}
+      />
+
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
         <div className="glass-card p-6">
           <EditIncidentForm
@@ -132,6 +145,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
             serviceUsers={serviceUsers}
             people={people}
             todayIso={todayIso()}
+            regulator={regulator}
           />
         </div>
 

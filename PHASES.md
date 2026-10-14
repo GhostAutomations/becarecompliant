@@ -4567,6 +4567,16 @@ Decision: docs/decisions/outcomes.md. Tests: TEST-CHECKLIST-OUTCOMES-NOT-ACHIEVE
 pass (cards two across on wide screens added in the same job). N9 (Valerie's outcome) is Thistle's,
 after Phil's reply on ticket 8. DONE, signed off by Phil 2026-10-14.
 
+### 2026-10-14 — Incident form fixes: right regulator, every answer, RIDDOR, Other (Phase 13, Thistle)
+
+Each branch has a regulator (filled from its company, defaulted for new branches, set in Settings,
+Branches); the incident case names only that one. A "What was reported" card shows every answer
+(Not recorded where blank), then the case, Investigation and Outcome. Type of event editable on the
+case (required except on cases that never had one). RIDDOR on the case with the HSE link and date
+rules. "What type of incident was it?" on every Report form and the case when the kind is Other,
+shown as "Other: [words]", grouped under Other. 0467. Decision: docs/decisions/incidents-whistleblowing.md.
+Tests: TEST-CHECKLIST-INCIDENT-FORM.md. IN PROGRESS: built, migration not yet applied.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

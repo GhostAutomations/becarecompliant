@@ -88,6 +88,8 @@ export type IncidentRecord = {
   /** HH:MM:SS from Postgres `time`, or null when the time was not recorded. */
   occurred_at: string | null;
   category: string;
+  /** "What type of incident was it?" when the category is Other (0467). */
+  category_other?: string | null;
 
   service_user_id: string | null;
   service_user_name?: string | null;
@@ -110,6 +112,13 @@ export type IncidentRecord = {
   local_authority: string | null;
   local_authority_reference: string | null;
   safeguarding_outcome: string | null;
+
+  /** RIDDOR (0467): reportable or not, null when nobody has said; the HSE date and reference. */
+  riddor_reportable?: boolean | null;
+  riddor_reported_on?: string | null;
+  riddor_reference?: string | null;
+  /** The branch's regulator, cqc or ciw (0467). */
+  branch_regulator?: string | null;
 
   status: IncidentStatus;
   closed_on: string | null;

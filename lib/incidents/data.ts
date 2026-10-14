@@ -15,14 +15,14 @@ import type { IncidentRecord } from "./types";
 export { listAccessibleBranchTypes } from "@/lib/service-users/data";
 
 type IncidentRow = Omit<IncidentRecord, "branch_name" | "service_user_name" | "person_name"> & {
-  branches: { name: string } | null;
+  branches: { name: string; regulator?: string | null } | null;
   service_users: { full_name: string } | null;
   people: { full_name: string } | null;
   incident_people?: Array<{ people: { full_name: string } | { full_name: string }[] | null }> | null;
 };
 
 const INCIDENT_SELECT =
-  "*, branches(name), service_users:service_user_id(full_name), people:person_id(full_name), incident_people(people(full_name))";
+  "*, branches(name, regulator), service_users:service_user_id(full_name), people:person_id(full_name), incident_people(people(full_name))";
 
 function toIncident(row: IncidentRow): IncidentRecord {
   const { branches, service_users, people, incident_people, ...rest } = row;
@@ -34,6 +34,7 @@ function toIncident(row: IncidentRow): IncidentRecord {
     staff_names: staff.length > 0 ? staff : people?.full_name ? [people.full_name] : [],
     ...rest,
     branch_name: branches?.name ?? null,
+    branch_regulator: branches?.regulator ?? null,
     service_user_name: service_users?.full_name ?? null,
     person_name: people?.full_name ?? null,
   };

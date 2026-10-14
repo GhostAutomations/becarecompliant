@@ -59,4 +59,34 @@ product. Verified 2026-08-14: a supervisor, a Viewer, on_call and staff all see 
 the duty to notify. `incidents` is in the realtime publication (0176) — the `<RealtimeRefresh>`
 subscription had been silently inert. Whistleblowing is deliberately NOT in that publication.
 
+## Incident form fixes from Thistle (Phil, 2026-10-14, migration 0467)
+
+- **One regulator per branch.** `branches.regulator` (cqc or ciw), filled from the company for
+  every branch and defaulted the same way for every new branch by a BEFORE INSERT trigger
+  (`branches_default_regulator`), so no creation path can forget. Admins change it in Settings,
+  Branches. The incident case names only that regulator ("Notifiable to CIW", "CIW reference"),
+  else the company's, else "the regulator" (`lib/incidents/case-display.ts`).
+- **What was reported** (Phil's popup: "A What was reported card"). Near the top of the case,
+  below the Investigate buttons: every Report question with its answer in two columns, then what
+  is on the case (type of event, kind, notifiable, safeguarding, RIDDOR, the outcome fields),
+  then the Investigation and Outcome answers once filed. Blank reads "Not recorded"; nothing is
+  backfilled. Conditional questions nobody was asked are left out, the same rule as the Evidence
+  page. Each form shown writes an `evidence.viewed` audit row. The edit form below is unchanged.
+- **Type of event on the case** (Phil: "Yes, editable on the case"). Required, except on a case
+  that never had one (the cases filed before 0303 may stay blank and read Not recorded).
+- **RIDDOR on the case** (Phil: "On the case, like Notifiable"). Yes or No (or Not recorded),
+  then Date reported to HSE and HSE reference, with the HSE's own list linked. The date cannot
+  be in the future or before the incident. Answering No clears the date and reference. The
+  Outcome form's own two RIDDOR questions are unchanged.
+- **Other in words** (Phil: "Report form and the case"). "What type of incident was it?" is on
+  every company's Report form (and the template for new companies), shown and required only when
+  the kind is Other, and on the case. Stored as category Other plus `incidents.category_other`;
+  shown as "Other: [words]" on the case title, the register and evidence headers; reports and the
+  Reg 80 still group by the plain category, so it counts under Other. A case saved as Other
+  before this keeps working without words and reads "Other".
+- **Not changed in this job** (they name both CQC and CIW on purpose or need a regulator set):
+  the staff concern page, the "(CQC or CIW)" errors when no regulator is set, the policy AI
+  error, the Founder company regulator choice, and the branch form's "Registered with ..." line,
+  which still names the company's regulator.
+
 Related: [reg80](reg80.md) [permission-boundaries](permission-boundaries.md) [the-list](the-list.md)

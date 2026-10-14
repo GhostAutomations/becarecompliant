@@ -18,6 +18,7 @@ import {
   type IncidentStatus,
 } from "@/lib/incidents/types";
 import { countable, summariseIncidents, needsAction } from "@/lib/incidents/summary";
+import { categoryLabel } from "@/lib/incidents/case-display";
 import { formatUkDate, formatTime } from "@/lib/incidents/logic";
 import { useBranchWord } from "@/components/branches/branch-word";
 
@@ -220,7 +221,7 @@ export default function IncidentsRegister({
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/incidents/${r.id}`} className="font-medium text-white hover:underline">
-                        {r.category}
+                        {categoryLabel(r.category, r.category_other)}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-white/70">{r.branch_name ?? "—"}</td>

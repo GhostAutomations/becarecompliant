@@ -31,6 +31,7 @@ export default function BranchForm({
   officeAddress,
   initialRegistered,
   regulatorName,
+  initialRegulator,
 }: {
   branchId: string;
   initialName: string;
@@ -45,6 +46,8 @@ export default function BranchForm({
   /** "Registered with CIW as its own service" (0363): readiness is worked out per such branch. */
   initialRegistered: boolean;
   regulatorName: string;
+  /** Which regulator this branch answers to (0467): cqc or ciw. */
+  initialRegulator: string;
 }) {
   const bw = useBranchWord();
   const [state, action, pending] = useActionState(renameBranch, IDLE_STATE);
@@ -95,6 +98,27 @@ export default function BranchForm({
           </span>
         </label>
       )}
+
+      {/* THE BRANCH'S REGULATOR (0467, Phil 2026-10-14): an incident on this branch names only
+          this one. Starts as the company's. */}
+      <div>
+        <label htmlFor={`regulator-${branchId}`} className="form-label">
+          Regulator
+        </label>
+        <select
+          id={`regulator-${branchId}`}
+          name="regulator"
+          defaultValue={initialRegulator}
+          disabled={pending}
+        >
+          {initialRegulator === "" ? <option value="">Not set</option> : null}
+          <option value="ciw">CIW, Care Inspectorate Wales</option>
+          <option value="cqc">CQC, Care Quality Commission</option>
+        </select>
+        <p className="mt-1 text-[11px] text-white/40">
+          Incidents on this {bw.oneLower} are notified to this regulator.
+        </p>
+      </div>
 
       {/* READINESS PER SERVICE (0363, Phil 2026-10-01): the regulator inspects and rates each
           registered service on its own. The office is usually not one, so it starts unticked. */}

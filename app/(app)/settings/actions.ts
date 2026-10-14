@@ -941,6 +941,11 @@ export async function renameBranch(
   // Only touched when the form showed the tick (0363), so an older form cannot clear it.
   const registeredShown = formData.get("registered_service_shown") === "1";
   const registered = formData.get("registered_service") === "on";
+  // The branch's regulator (0467). Only touched when the form sent one, so an older form cannot clear it.
+  const regulatorPosted = String(formData.get("regulator") ?? "").trim();
+  if (regulatorPosted && regulatorPosted !== "ciw" && regulatorPosted !== "cqc") {
+    return { error: "Choose CIW or CQC as the regulator." };
+  }
 
   const { error, count } = await supabase
     .from("branches")
@@ -951,6 +956,7 @@ export async function renameBranch(
         address: sharesOffice ? null : address || null,
         phone: sharesOffice ? null : phone || null,
         ...(registeredShown ? { registered_service: registered } : {}),
+        ...(regulatorPosted ? { regulator: regulatorPosted } : {}),
       },
       { count: "exact" },
     )
@@ -974,6 +980,7 @@ export async function renameBranch(
       phone: sharesOffice ? null : phone || null,
       uses_office_address: sharesOffice,
       ...(registeredShown ? { registered_service: registered } : {}),
+      ...(regulatorPosted ? { regulator: regulatorPosted } : {}),
     },
   });
   // Every Form field keyed branch or region carries a baked copy of the branch names

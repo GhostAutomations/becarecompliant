@@ -24,6 +24,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { labelFor, notOnFile, type EvidenceRecordType, type EvidenceSubject } from "./subject-format";
+import { categoryLabel } from "@/lib/incidents/case-display";
 
 export { describeSubject, labelFor, notOnFile } from "./subject-format";
 export type { EvidenceRecordType, EvidenceSubject } from "./subject-format";
@@ -78,14 +79,20 @@ export async function loadEvidenceSubject(
          is the per-company number the case was given (0301). */
       const { data } = await admin
         .from("incidents")
-        .select("category, occurred_on, ref_number")
+        .select("category, category_other, occurred_on, ref_number")
         .eq("id", recordId)
-        .maybeSingle<{ category: string | null; occurred_on: string | null; ref_number: number | null }>();
+        .maybeSingle<{
+          category: string | null;
+          category_other: string | null;
+          occurred_on: string | null;
+          ref_number: number | null;
+        }>();
       if (!data?.category) return notOnFile(kind, recordId);
       return {
         kind,
         label: labelFor(kind),
-        name: data.category,
+        // "Other: [words]" when the kind is Other (0467).
+        name: categoryLabel(data.category, data.category_other),
         reference: data.ref_number ? `Incident ${data.ref_number}` : null,
         detail: data.occurred_on,
       };

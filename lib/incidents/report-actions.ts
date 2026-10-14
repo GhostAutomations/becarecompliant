@@ -42,6 +42,7 @@ import { INCIDENTS_ROLES } from "@/lib/auth/module-roles";
 import { createServiceClient } from "@/lib/supabase/admin";
 import {
   categoryFrom,
+  categoryOtherFrom,
   eventTypeFrom,
   officeQuestionsMissing,
   withoutOfficeAnswers,
@@ -154,6 +155,9 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
       occurred_on: occurredOn,
       occurred_at: hhmm(answers, "occurred_at"),
       category,
+      // "What type of incident was it?" when the kind is Other (0467). Over-long words are cut
+      // here only so the insert cannot fail on them; the form's own limit refuses them below.
+      category_other: categoryOtherFrom(answers)?.slice(0, 200) ?? null,
       event_type: eventTypeFrom(answers),
       description,
       immediate_action: str(answers, "immediate_action"),
