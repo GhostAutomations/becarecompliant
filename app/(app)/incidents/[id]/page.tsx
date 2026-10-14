@@ -5,7 +5,7 @@ import BackLink from "@/components/back-link";
 import EditIncidentForm from "@/components/incidents/edit-incident-form";
 import IncidentStatusControl from "@/components/incidents/incident-status-control";
 import IncidentStages from "@/components/incidents/incident-stages";
-import WhatWasReported from "@/components/incidents/what-was-reported";
+import WhatWasReported, { loadFiledForms } from "@/components/incidents/what-was-reported";
 import { caseRegulator, categoryLabel } from "@/lib/incidents/case-display";
 import { createClient } from "@/lib/supabase/server";
 import { getCompanyFormByKey } from "@/lib/people/data";
@@ -38,12 +38,14 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   if (!incident) notFound();
 
   const supabase = await createClient();
-  const [serviceUsers, people, investigationForm, outcomeForm, { data: company }] = await Promise.all([
+  const [serviceUsers, people, investigationForm, outcomeForm, { data: company }, filed] = await Promise.all([
     listServiceUsersLite(profile.company_id),
     listPeopleLite(profile.company_id),
     getCompanyFormByKey(profile.company_id, INCIDENT_INVESTIGATION_FORM),
     getCompanyFormByKey(profile.company_id, INCIDENT_OUTCOME_FORM),
     supabase.from("companies").select("regulator").eq("id", profile.company_id).maybeSingle<{ regulator: string | null }>(),
+    // Read before the page is drawn, never inside the card (see loadFiledForms).
+    loadFiledForms(incident, { id: user.id, email: profile.email ?? null, role: profile.role }),
   ]);
   // The one regulator this case names: its branch's, else the company's (0467).
   const regulator = caseRegulator(incident.branch_regulator, company?.regulator);
@@ -132,11 +134,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
         />
       </section>
 
-      <WhatWasReported
-        incident={incident}
-        regulator={regulator}
-        actor={{ id: user.id, email: profile.email ?? null, role: profile.role }}
-      />
+      <WhatWasReported incident={incident} regulator={regulator} filed={filed} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
         <div className="glass-card p-6">

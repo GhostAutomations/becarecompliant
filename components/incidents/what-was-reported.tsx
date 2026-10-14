@@ -174,15 +174,19 @@ function Part({ title, note, children }: { title: string; note?: React.ReactNode
   );
 }
 
-export default async function WhatWasReported({
-  incident,
-  regulator,
-  actor,
-}: {
-  incident: IncidentRecord;
-  regulator: RegulatorCode | null;
-  actor: { id: string; email: string | null; role: string };
-}) {
+/** The forms filed on the case, read (and the read audited) BEFORE the page is drawn.
+ *
+ *  LOADED UP FRONT, NOT INSIDE THE CARD (found 2026-10-14 on Bevan and Phil's phone). As an async
+ *  component the card was drawn after the rest of the page and streamed in late pieces; after a
+ *  save on the case, the page sometimes waited on those pieces for ever and the button stayed on
+ *  "Saving…" although the save had stored. The page now awaits this with its other reads and the
+ *  card itself is plain, so the page arrives whole, as it did before the card. */
+export type FiledForms = { report: EvidenceRow | null; investigation: EvidenceRow | null; outcome: EvidenceRow | null };
+
+export async function loadFiledForms(
+  incident: IncidentRecord,
+  actor: { id: string; email: string | null; role: string },
+): Promise<FiledForms> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
@@ -198,21 +202,35 @@ export default async function WhatWasReported({
   const outcome = evidence.filter((e) => keyOf(e) === INCIDENT_OUTCOME_FORM).at(-1) ?? null;
 
   const shown = [report, investigation, outcome].filter((e): e is EvidenceRow => !!e);
-  for (const e of shown) {
-    await writeAudit({
-      companyId: incident.company_id,
-      actorId: actor.id,
-      actorEmail: actor.email,
-      actorRole: actor.role,
-      action: "evidence.viewed",
-      entityType: "evidence",
-      entityId: e.id,
-      summary: "Viewed evidence on the incident case",
-      metadata: { incident_id: incident.id },
-    });
-  }
+  await Promise.all(
+    shown.map((e) =>
+      writeAudit({
+        companyId: incident.company_id,
+        actorId: actor.id,
+        actorEmail: actor.email,
+        actorRole: actor.role,
+        action: "evidence.viewed",
+        entityType: "evidence",
+        entityId: e.id,
+        summary: "Viewed evidence on the incident case",
+        metadata: { incident_id: incident.id },
+      }),
+    ),
+  );
+  return { report, investigation, outcome };
+}
 
-  const filed = (e: EvidenceRow) => (
+export default function WhatWasReported({
+  incident,
+  regulator,
+  filed: { report, investigation, outcome },
+}: {
+  incident: IncidentRecord;
+  regulator: RegulatorCode | null;
+  filed: FiledForms;
+}) {
+
+  const filedBy = (e: EvidenceRow) => (
     <>
       {e.author_name ? `${e.author_name}, ` : ""}
       {formatUkDate(e.submitted_at)}.{" "}
@@ -226,7 +244,7 @@ export default async function WhatWasReported({
     <section className="glass-card space-y-4 p-5">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">What was reported</h2>
 
-      <Part title="The report" note={report ? filed(report) : undefined}>
+      <Part title="The report" note={report ? filedBy(report) : undefined}>
         {report ? (
           <FormAnswers e={report} />
         ) : (
@@ -241,13 +259,13 @@ export default async function WhatWasReported({
       </Part>
 
       {investigation ? (
-        <Part title="Investigation" note={filed(investigation)}>
+        <Part title="Investigation" note={filedBy(investigation)}>
           <FormAnswers e={investigation} />
         </Part>
       ) : null}
 
       {outcome ? (
-        <Part title="Outcome" note={filed(outcome)}>
+        <Part title="Outcome" note={filedBy(outcome)}>
           <FormAnswers e={outcome} />
         </Part>
       ) : null}
