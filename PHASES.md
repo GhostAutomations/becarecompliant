@@ -4592,6 +4592,15 @@ Same day, on the preview: stories loop while on screen; SharePoint or OneDrive c
 pricing cards' buttons level; the Service User register scene; four carers in the lead story; dates
 always current; "Built for care" merged into "What changes for your service".
 
+### 2026-10-14 — Annual Appraisal Due and Done wrong for one Thistle carer (Phase 13, Thistle)
+
+Newport carer showed Appraisal Due 05/09/2026 red and Done blank. Cause: the appraisal columns count
+three supervisions per appraisal; two ad hoc supervisions threw the count. Phil chose to delete the
+two ad hoc imported completions (13/05/2025, 20/10/2025) rather than change the code. Thistle
+migrated_completions 733 to 731; only that carer's values changed. Tests:
+TEST-CHECKLIST-APPRAISAL-CYCLE.md, A0 and A1 pass. DONE, Phil passed the screen 2026-10-14. The
+counting stays in the code: anyone else with an extra supervision can show the same.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations
