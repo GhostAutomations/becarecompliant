@@ -17,6 +17,6 @@ Bevan test records (Llanelli, linked to existing Bevan test logins, no new accou
 | O4 | Bevan: complete the Annual Appraisal: LTL 1 due 80 days after it, LTL 2 and 3 show last cycle's dates | Not tested |
 | O5 | Bevan: untick ZZ Test Supervisor: ZZ Office Test back in Llanelli on the Compliance matrix, Supervision 1 due where LTL 1 was | Not tested |
 | O6 | Bevan: dashboard Overdue and Due figures count the LTL for the ticked person, not a supervision; the People register report shows their latest LTL as their latest supervision | Not tested |
-| O7 | Thistle (Phil): Settings > Users shows "Show on Office matrix" on a login; tick Lauren Morgan, Chloe Driscoll and Gabrielle Thomas | Not tested |
-| O8 | Thistle (Phil): People, Compliance, Office branch shows the three with LTL 1 to 3 and Annual Appraisal matching the dry run (Chloe LTL 1 done 31/07/2026, LTL 2 due 19/10/2026; Lauren LTL 1 due 25/07/2026 red; Gabrielle LTL 1 due 07/12/2026) | Not tested |
+| O7 | Thistle (Phil): Settings > Users shows "Show on Office matrix" on a login; tick the three supervisors named in the job (People records dd3ac98a, Newport; a7527364, Cardiff; 184fd105, Newport) | Not tested |
+| O8 | Thistle (Phil): People, Compliance, Office branch shows the three with LTL 1 to 3 and Annual Appraisal matching the dry run (a7527364: LTL 1 done 31/07/2026, LTL 2 due 19/10/2026; dd3ac98a: LTL 1 due 25/07/2026 red; 184fd105: LTL 1 due 07/12/2026) | Not tested |
 | O9 | Thistle (Phil): Newport and Cardiff no longer show the three; everyone else unchanged | Not tested |
