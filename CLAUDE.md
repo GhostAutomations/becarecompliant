@@ -100,6 +100,21 @@ People (staff) and Service Users (clients) always stay distinct. "Founder" is Ph
 - After testing, re-run everything and compare with the baseline: full test suite, typecheck and build pass; every changed file listed with its reason, anything out of scope reverted or explained; row counts match except intended changes (shown before/after); policies, functions and triggers unchanged except intended ones.
 - Every job report ends with a "Nothing else changed" section giving that evidence. If anything fails, stop and tell Phil. Never fix it quietly.
 
+### Clear questions (every job, no exceptions)
+- Every question to Phil is a popup (AskUserQuestion), never a question buried in a message.
+- One decision per question, in plain English, no jargon. Give one or two sentences of context so it can be answered without scrolling back.
+- Each option says what will happen if it's chosen. Recommended option first, labelled "(Recommended)".
+- Never assume an answer to a question you've asked. Never re-ask a question Phil has already answered.
+
+### Finish line (every job, no exceptions)
+- The LAST message of every job must start with one of these lines, exactly as written, in capitals:
+  - `WE ARE DONE. THIS JOB IS FINISHED.` Only when every part is built, tested, checked against "No collateral damage", pushed if agreed, and the deploy is confirmed READY. Nothing is still running or waiting.
+  - `NOT FINISHED. I NEED YOUR ANSWER TO CONTINUE.` When stopped for a decision. The popup follows straight away.
+  - `NOT FINISHED. WAITING FOR YOU TO: [one plain sentence, e.g. approve the push]` When stopped for Phil's approval or an action only he can do.
+  - `NOT FINISHED. SOMETHING FAILED: [one plain sentence]` When a test or check failed and you've stopped.
+- After that line, give a short bullet summary: what was done, what Phil needs to test (if anything), and what is NOT done.
+- Never end a job ambiguously. Never write "that should work now". Never say finished while anything is still running, unpushed or unchecked.
+
 ## Testing
 
 - Test now, in the same piece of work. Final Testing (Phase 11) is passed, so nothing is logged
