@@ -52,3 +52,20 @@
   ticket tables; signed in users can only read. Every write goes through the ticket functions.
 - **F155** (0419 never applied) is parked as THE LIST 57 (Phil popup).
 
+
+## Two sections, three columns, and who sees which tickets (Phil, 2026-10-14; migration 0470)
+
+- **One layout for the Founder console and every company's Tickets page**
+  (`components/tickets/ticket-sections.tsx`, sorting in `lib/tickets/sections.ts`):
+  "Open and in progress" open, holding open and in progress tickets, the one waiting longest at the
+  top; "Resolved · n" folded until clicked, the newest resolved at the top. Inside each, three
+  columns by rating: red, amber, green, each with its count, "None" when empty; on a phone they
+  stack red, amber, green. The card is the existing one, so in progress tickets carry their
+  "In progress" pill and the Founder's cards name the company.
+- **Who sees which tickets, in the database** (`can_see_support_ticket`, which the ticket rows,
+  their messages and replying all use): the Founder sees every ticket; Admin, Responsible
+  Individual and Registered Manager see every ticket in their company; everyone else, the Branch
+  Manager included, sees only the tickets they raised (open, in progress and resolved).
+- **Notifications already follow it.** Raising texts only the Founder, a company reply emails only
+  the Founder, and the Founder's reply or status change emails only the person who raised it. No
+  company role is notified about anyone else's ticket.

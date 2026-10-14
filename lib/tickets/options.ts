@@ -46,12 +46,12 @@ export const TICKET_RAISER_ROLES: readonly string[] = [
   "on_call",
 ];
 
-/** The roles that see every ticket from their company. Mirrors can_see_support_ticket. */
+/** The roles that see every ticket from their company. Mirrors can_see_support_ticket. A Branch
+ *  Manager sees only the tickets they raised, like everyone else (0470, Phil 2026-10-14). */
 export const TICKET_SEE_ALL_ROLES: readonly string[] = [
   "company_admin",
   "registered_individual",
   "registered_manager",
-  "manager",
 ];
 
 export function ticketRef(n: number | string): string {

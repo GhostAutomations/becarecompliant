@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Tickets: two sections, three RAG columns, Managers see their own (Phase 13, Thistle)
+
+One layout for the Founder console and every company's Tickets page: "Open and in progress" open,
+oldest at the top; "Resolved · n" folded, newest resolved at the top; red, amber and green columns
+inside each. A Branch Manager now sees only the tickets they raised, in the database (0470); Founder,
+Admin, Responsible Individual and Registered Manager unchanged. Decision: docs/decisions/tickets.md.
+Tests: TEST-CHECKLIST-TICKETS-LAYOUT.md (T0 pass so far).
+
 ### 2026-10-14 — Office matrix: Lead the Leader in place of supervisions (Phase 13, Thistle)
 
 A login ticked "Show on Office matrix" (Settings > Users, Admin and Founder) moves its person into

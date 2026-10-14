@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { listTickets } from "@/lib/tickets/data";
-import TicketList from "@/components/tickets/ticket-list";
+import TicketSections from "@/components/tickets/ticket-sections";
 import TicketsLive, { NewTicketToast } from "@/components/tickets/tickets-live";
 
 export const metadata: Metadata = { title: "Tickets" };
@@ -10,8 +10,6 @@ export const metadata: Metadata = { title: "Tickets" };
 export default async function FounderTicketsPage() {
   await requirePlatformAdmin();
   const rows = await listTickets(null);
-  const open = rows.filter((t) => t.status !== "resolved");
-  const resolved = rows.filter((t) => t.status === "resolved");
   return (
     <div className="page-shell space-y-4">
       {/* Live (Phil, 2026-10-13): a new ticket, a status or a reply appears without a refresh. */}
@@ -20,12 +18,10 @@ export default async function FounderTicketsPage() {
       <Link href="/founder" className="text-sm text-white/60 hover:text-white">← Back to Founder console</Link>
       <div>
         <h1 className="page-title">Tickets</h1>
-        <p className="page-subtitle">Problems and feature requests raised by companies, newest first.</p>
+        <p className="page-subtitle">Problems and feature requests raised by companies, the one waiting longest at the top.</p>
       </div>
-      <h2 className="text-base font-semibold text-white">Open and in progress ({open.length})</h2>
-      <TicketList rows={open} basePath="/founder/tickets" showCompany empty="Nothing waiting." />
-      <h2 className="text-base font-semibold text-white">Resolved ({resolved.length})</h2>
-      <TicketList rows={resolved} basePath="/founder/tickets" showCompany empty="None resolved yet." />
+      {/* Two sections, three columns by rating, the same layout as every company's page (Phil, 2026-10-14). */}
+      <TicketSections rows={rows} basePath="/founder/tickets" showCompany />
     </div>
   );
 }

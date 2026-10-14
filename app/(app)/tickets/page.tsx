@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { listTickets } from "@/lib/tickets/data";
 import { TICKET_RAISER_ROLES, TICKET_SEE_ALL_ROLES } from "@/lib/tickets/options";
 import TicketList from "@/components/tickets/ticket-list";
+import TicketSections from "@/components/tickets/ticket-sections";
 import TicketsLive from "@/components/tickets/tickets-live";
 
 export const metadata: Metadata = { title: "Tickets" };
@@ -33,11 +34,16 @@ export default async function TicketsPage() {
           <Link href="/tickets/new" className="btn-primary text-sm">Raise a ticket</Link>
         ) : null}
       </div>
-      <TicketList
-        rows={rows}
-        basePath="/tickets"
-        empty={founder ? "This company has not raised a ticket." : "No tickets yet. Raise one when something is not working, or for a feature you would like."}
-      />
+      {/* Two sections, three columns by rating, the same layout as the Founder console's (Phil, 2026-10-14). */}
+      {rows.length === 0 ? (
+        <TicketList
+          rows={rows}
+          basePath="/tickets"
+          empty={founder ? "This company has not raised a ticket." : "No tickets yet. Raise one when something is not working, or for a feature you would like."}
+        />
+      ) : (
+        <TicketSections rows={rows} basePath="/tickets" />
+      )}
     </div>
   );
 }
