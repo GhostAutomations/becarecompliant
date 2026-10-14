@@ -21,3 +21,8 @@ Run one at a time.
 | I10 | Incident counts on the Dashboard and the Incidents summary unchanged for Thistle, Bevan and Demo; Thistle and Demo incident rows unchanged | Database PASS (incident rows for Thistle, Bevan and Demo identical on every existing column; counts Thistle 2 open, Bevan 3 open, Demo 3 closed 1 open 1 under review, as before). Screens not yet looked at |
 | I11 | Phil, Thistle, open one of Thistle's incidents: What was reported shows the report's answers, "Notifiable to CIW", and nothing names CQC (look only, change nothing) | Not tested |
 | I12 | Phone width: the What was reported card is one column and readable; the edit form's new boxes fit | Not tested |
+
+Note on saving: during I6 to I8, 3 of 6 saves in Claude's background Chrome tab stayed on "Saving…"
+although each one was stored and the server answered normally. Re-run with Phil's Chrome open on
+Bevan (2026-10-14): three saves in a row on Bevan 4, each a real change, each turned green "Saved"
+and was stored. Treated as the background tab, not the form.
