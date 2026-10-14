@@ -289,48 +289,51 @@ export default async function FounderPage() {
         </div>
       </section>
 
+      {/* SQUARE CORNERS (Phil, 2026-10-14): the tiles below the two charts only. app-tile is shared
+          (Settings, the form builder), so the shared class is untouched; Tailwind's rounded-none on
+          each tile here overrides its rounded corners on this page alone. */}
       <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/founder/forms" className="app-tile">
+        <Link href="/founder/forms" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Form template library</h2>
           <p className="text-sm text-white/60">Starter forms for new companies.</p>
         </Link>
-        <Link href="/founder/policy-library" className="app-tile">
+        <Link href="/founder/policy-library" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Policy library</h2>
           <p className="text-sm text-white/60">Sources the policy AI writes from, and changes to approve.</p>
         </Link>
-        <Link href="/founder/question-bank" className="app-tile">
+        <Link href="/founder/question-bank" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Question bank</h2>
           <p className="text-sm text-white/60">Reusable questions for the builder.</p>
         </Link>
-        <Link href="/founder/usage" className="app-tile">
+        <Link href="/founder/usage" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Usage</h2>
           <p className="text-sm text-white/60">Metered SMS and AI per company.</p>
         </Link>
-        <Link href="/founder/audit" className="app-tile">
+        <Link href="/founder/audit" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Audit console</h2>
           <p className="text-sm text-white/60">Every change across every company.</p>
         </Link>
-        <Link href="/founder/revenue" className="app-tile">
+        <Link href="/founder/revenue" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Revenue</h2>
           <p className="text-sm text-white/60">MRR and billing.</p>
         </Link>
-        <Link href="/founder/training-templates" className="app-tile">
+        <Link href="/founder/training-templates" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Training templates</h2>
           <p className="text-sm text-white/60">Master training course catalogue.</p>
         </Link>
-        <Link href="/founder/invoices" className="app-tile">
+        <Link href="/founder/invoices" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Invoices</h2>
           <p className="text-sm text-white/60">Every invoice sent, paid, due and overdue.</p>
         </Link>
-        <Link href="/founder/agreements" className="app-tile">
+        <Link href="/founder/agreements" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Agreements</h2>
           <p className="text-sm text-white/60">Who has accepted the terms and DPA.</p>
         </Link>
-        <Link href="/founder/health" className="app-tile">
+        <Link href="/founder/health" className="app-tile rounded-none">
           <h2 className="text-base font-semibold text-white">Platform health</h2>
           <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>
         </Link>
-        <Link href="/founder/inbox" className="app-tile">
+        <Link href="/founder/inbox" className="app-tile rounded-none">
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-base font-semibold text-white">Email</h2>
             {waitingEmails > 0 ? (
@@ -343,7 +346,7 @@ export default async function FounderPage() {
               : "Everything sent to and from the platform, kept for good."}
           </p>
         </Link>
-        <Link href="/founder/tickets" className="app-tile sm:col-span-2 lg:col-span-4">
+        <Link href="/founder/tickets" className="app-tile rounded-none sm:col-span-2 lg:col-span-4">
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-base font-semibold text-white">Tickets</h2>
             <div className="flex gap-1">
@@ -358,7 +361,7 @@ export default async function FounderPage() {
               : "Problems and feature requests from companies. Nothing open."}
           </p>
         </Link>
-        <Link href="/founder/demos" className="app-tile sm:col-span-2 lg:col-span-4">
+        <Link href="/founder/demos" className="app-tile rounded-none sm:col-span-2 lg:col-span-4">
           <h2 className="text-base font-semibold text-white">Demos</h2>
           <p className="text-sm text-white/60">
             Set up a Demo Care Company Limited for a client, see how much they used it and what they thought.
@@ -366,7 +369,7 @@ export default async function FounderPage() {
         </Link>
         <Link
           href="/founder/trial-requests"
-          className="app-tile sm:col-span-2 lg:col-span-4"
+          className="app-tile rounded-none sm:col-span-2 lg:col-span-4"
         >
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-base font-semibold text-white">Trial requests</h2>
@@ -390,7 +393,7 @@ export default async function FounderPage() {
         </Link>
         <Link
           href="/founder/companies"
-          className="app-tile sm:col-span-2 lg:col-span-4"
+          className="app-tile rounded-none sm:col-span-2 lg:col-span-4"
         >
           <h2 className="text-base font-semibold text-white">Companies</h2>
           <p className="text-sm text-white/60">
