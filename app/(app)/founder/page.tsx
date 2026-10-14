@@ -27,6 +27,8 @@ import {
 } from "@/lib/founder/format";
 import { hoursWaiting, waitingLabel, waitingTone } from "@/lib/founder/trial-alerts";
 import { openTicketCounts } from "@/lib/tickets/data";
+import { NavIcon } from "@/components/nav-icon";
+import type { NavEntry } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Founder" };
 
@@ -290,121 +292,116 @@ export default async function FounderPage() {
       </section>
 
       {/* SQUARE TILES (Phil, 2026-10-14): from tablet width up, every tile below the two charts is an
-          equal square (as tall as it is wide) with its rounded corners kept, the content centred top
-          to bottom; the four that used to span the row are squares in the grid like the rest. Phones
-          stay as they always were: one tile per row at its natural height. app-tile is shared
-          (Settings, the form builder), so the shared class is untouched; the shape is set on these
-          tiles only. */}
-      <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/founder/forms" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Form template library</h2>
-          <p className="text-sm text-white/60">Starter forms for new companies.</p>
-        </Link>
-        <Link href="/founder/policy-library" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Policy library</h2>
-          <p className="text-sm text-white/60">Sources the policy AI writes from, and changes to approve.</p>
-        </Link>
-        <Link href="/founder/question-bank" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Question bank</h2>
-          <p className="text-sm text-white/60">Reusable questions for the builder.</p>
-        </Link>
-        <Link href="/founder/usage" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Usage</h2>
-          <p className="text-sm text-white/60">Metered SMS and AI per company.</p>
-        </Link>
-        <Link href="/founder/audit" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Audit console</h2>
-          <p className="text-sm text-white/60">Every change across every company.</p>
-        </Link>
-        <Link href="/founder/revenue" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Revenue</h2>
-          <p className="text-sm text-white/60">MRR and billing.</p>
-        </Link>
-        <Link href="/founder/training-templates" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Training templates</h2>
-          <p className="text-sm text-white/60">Master training course catalogue.</p>
-        </Link>
-        <Link href="/founder/invoices" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Invoices</h2>
-          <p className="text-sm text-white/60">Every invoice sent, paid, due and overdue.</p>
-        </Link>
-        <Link href="/founder/agreements" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Agreements</h2>
-          <p className="text-sm text-white/60">Who has accepted the terms and DPA.</p>
-        </Link>
-        <Link href="/founder/health" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Platform health</h2>
-          <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>
-        </Link>
-        <Link href="/founder/inbox" className="app-tile sm:aspect-square sm:justify-center">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold text-white">Email</h2>
-            {waitingEmails > 0 ? (
-              <span className="pill pill-amber">{waitingEmails}</span>
-            ) : null}
-          </div>
-          <p className="text-sm text-white/60">
-            {waitingEmails > 0
+          equal square with its rounded corners kept, holding only a gold icon and the white bold name,
+          centred ("centre the white bold text and gold icons. remove grey text"); count pills stay.
+          Eight to a row on a wide screen (1536 and up) so the whole console fits without scrolling,
+          four on a laptop, two on a tablet. Phones stay as they always were: one tile per row with
+          its description. app-tile is shared (Settings, the form builder), so the shared class is
+          untouched; the shape is set on these tiles only (FounderTile, below). */}
+      <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+        <FounderTile href="/founder/forms" icon="compliance" title="Form template library" text="Starter forms for new companies." />
+        <FounderTile href="/founder/policy-library" icon="policies" title="Policy library" text="Sources the policy AI writes from, and changes to approve." />
+        <FounderTile href="/founder/question-bank" icon="complaints" title="Question bank" text="Reusable questions for the builder." />
+        <FounderTile href="/founder/usage" icon="reports" title="Usage" text="Metered SMS and AI per company." />
+        <FounderTile href="/founder/audit" icon="readiness" title="Audit console" text="Every change across every company." />
+        <FounderTile href="/founder/revenue" icon="outcomes" title="Revenue" text="MRR and billing." />
+        <FounderTile href="/founder/training-templates" icon="training" title="Training templates" text="Master training course catalogue." />
+        <FounderTile href="/founder/invoices" icon="invoicing" title="Invoices" text="Every invoice sent, paid, due and overdue." />
+        <FounderTile href="/founder/agreements" icon="briefings" title="Agreements" text="Who has accepted the terms and DPA." />
+        <FounderTile href="/founder/health" icon="serviceUsers" title="Platform health" text="Dependencies, sends and webhooks." />
+        <FounderTile
+          href="/founder/inbox"
+          icon="submissions"
+          title="Email"
+          pills={waitingEmails > 0 ? <span className="pill pill-amber">{waitingEmails}</span> : null}
+          text={
+            waitingEmails > 0
               ? `${waitingEmails} ${waitingEmails === 1 ? "message is" : "messages are"} waiting on a reply.`
-              : "Everything sent to and from the platform, kept for good."}
-          </p>
-        </Link>
-        <Link href="/founder/tickets" className="app-tile sm:aspect-square sm:justify-center">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold text-white">Tickets</h2>
-            <div className="flex gap-1">
-              {tickets.red > 0 ? <span className="pill pill-red">{tickets.red} red</span> : null}
-              {tickets.amber > 0 ? <span className="pill pill-amber">{tickets.amber} amber</span> : null}
-              {tickets.green > 0 ? <span className="pill pill-green">{tickets.green} green</span> : null}
-            </div>
-          </div>
-          <p className="text-sm text-white/60">
-            {tickets.total > 0
+              : "Everything sent to and from the platform, kept for good."
+          }
+        />
+        <FounderTile
+          href="/founder/tickets"
+          icon="tickets"
+          title="Tickets"
+          pills={
+            tickets.total > 0 ? (
+              <>
+                {tickets.red > 0 ? <span className="pill pill-red">{tickets.red} red</span> : null}
+                {tickets.amber > 0 ? <span className="pill pill-amber">{tickets.amber} amber</span> : null}
+                {tickets.green > 0 ? <span className="pill pill-green">{tickets.green} green</span> : null}
+              </>
+            ) : null
+          }
+          text={
+            tickets.total > 0
               ? `${tickets.total} ${tickets.total === 1 ? "ticket is" : "tickets are"} open or in progress.`
-              : "Problems and feature requests from companies. Nothing open."}
-          </p>
-        </Link>
-        <Link href="/founder/demos" className="app-tile sm:aspect-square sm:justify-center">
-          <h2 className="text-base font-semibold text-white">Demos</h2>
-          <p className="text-sm text-white/60">
-            Set up a Demo Care Company Limited for a client, see how much they used it and what they thought.
-          </p>
-        </Link>
-        <Link
+              : "Problems and feature requests from companies. Nothing open."
+          }
+        />
+        <FounderTile
+          href="/founder/demos"
+          icon="whiteboard"
+          title="Demos"
+          text="Set up a Demo Care Company Limited for a client, see how much they used it and what they thought."
+        />
+        <FounderTile
           href="/founder/trial-requests"
-          className="app-tile sm:aspect-square sm:justify-center"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold text-white">Trial requests</h2>
-            {waitingTrialRequests > 0 ? (
-              <span
-                className={`pill ${
-                  waitingTone(oldestWaitingHours) === "red" ? "pill-red" : "pill-amber"
-                }`}
-              >
+          icon="people"
+          title="Trial requests"
+          pills={
+            waitingTrialRequests > 0 ? (
+              <span className={`pill ${waitingTone(oldestWaitingHours) === "red" ? "pill-red" : "pill-amber"}`}>
                 {waitingTrialRequests} new
               </span>
-            ) : null}
-          </div>
-          <p className="text-sm text-white/60">
-            {waitingTrialRequests > 0
+            ) : null
+          }
+          text={
+            waitingTrialRequests > 0
               ? `${waitingTrialRequests} ${waitingTrialRequests === 1 ? "request is" : "requests are"} waiting for a reply${
                   oldestWaitingHours > 0 ? `, the oldest for ${waitingLabel(oldestWaitingHours).replace("Waiting ", "")}` : ""
                 }. Setup stays founder led, so nothing is provisioned automatically.`
-              : "Leads from the Request a trial form on the website. Nothing waiting."}
-          </p>
-        </Link>
-        <Link
+              : "Leads from the Request a trial form on the website. Nothing waiting."
+          }
+        />
+        <FounderTile
           href="/founder/companies"
-          className="app-tile sm:aspect-square sm:justify-center"
-        >
-          <h2 className="text-base font-semibold text-white">Companies</h2>
-          <p className="text-sm text-white/60">
-            {list.length} {list.length === 1 ? "company" : "companies"} ·{" "}
-            {formatPence(mrrPence)}/mo committed. Tiers, seats, billing and usage.
-          </p>
-        </Link>
+          icon="dashboard"
+          title="Companies"
+          text={`${list.length} ${list.length === 1 ? "company" : "companies"} · ${formatPence(mrrPence)}/mo committed. Tiers, seats, billing and usage.`}
+        />
       </section>
     </div>
+  );
+}
+
+/**
+ * One tile below the Founder console's charts (Phil, 2026-10-14). From tablet width up: an equal
+ * square, rounded as every app-tile, with the gold icon and the white bold name centred and any
+ * count pills under them; no description. On a phone it is the tile it always was: name and pills
+ * on one line, the description under them.
+ */
+function FounderTile({
+  href,
+  icon,
+  title,
+  text,
+  pills = null,
+}: {
+  href: string;
+  icon: NavEntry["icon"];
+  title: string;
+  text: string;
+  pills?: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className="app-tile sm:aspect-square sm:items-center sm:justify-center sm:text-center">
+      <NavIcon icon={icon} className="hidden h-8 w-8 text-gold-400 sm:block" />
+      <div className="flex items-start justify-between gap-2 sm:flex-col sm:items-center">
+        <h2 className="text-base font-semibold text-white">{title}</h2>
+        {pills ? <div className="flex flex-wrap gap-1 sm:justify-center">{pills}</div> : null}
+      </div>
+      <p className="text-sm text-white/60 sm:hidden">{text}</p>
+    </Link>
   );
 }
