@@ -169,7 +169,9 @@ export function splitReporting(
  *  Managers get their branches. Supervisors do not receive the company reports. */
 export function scopeReporting(recipient: Recipient, checks: ReportingCheck[]): ReportingCheck[] {
   if (recipient.role === "company_admin") return checks;
-  if (recipient.role === "manager") {
+  // Supervisors (and Recruiters, who arrive holding every branch) only since 0475, when an Admin
+  // ticks a report for them: their branches, exactly like a Manager.
+  if (recipient.role === "manager" || recipient.role === "supervisor") {
     const branches = new Set(recipient.branchIds);
     return checks.filter((c) => c.branchId !== null && branches.has(c.branchId));
   }

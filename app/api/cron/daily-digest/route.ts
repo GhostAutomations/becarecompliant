@@ -13,6 +13,7 @@ import {
   getRecipients,
   getAttentionItems,
   getReportingData,
+  getMorningChoices,
   type AttentionItem,
   type Recipient,
   type ReportingCheck,
@@ -31,6 +32,7 @@ import {
   isLondonSendHour,
 } from "@/lib/notifications/digest";
 import { claimNotification, settleNotification, releaseNotification } from "@/lib/notifications/log";
+import { wantsMorningEmail, type MorningEmailKey } from "@/lib/notifications/morning";
 import {
   getOutstandingBriefings,
   managerOutstandingHtml,
@@ -156,11 +158,15 @@ export async function GET(request: NextRequest) {
   for (const company of companies) {
     summary.companies += 1;
     try {
-      const [recipients, items, reporting] = await Promise.all([
-        getRecipients(company.id),
+      const [recipients, items, reporting, morning] = await Promise.all([
+        getRecipients(company.id, { includeRecruiters: true }),
         getAttentionItems(company.id),
         getReportingData(company.id),
+        /* WHO GETS WHICH MORNING EMAIL (0475, Phil 2026-10-15): set per person by the Admin on
+           Settings, Notifications. With nothing set, exactly what each role got before. */
+        getMorningChoices(company.id),
       ]);
+      const wants = (r: Recipient, key: MorningEmailKey) => wantsMorningEmail(morning, r.profileId, key);
       if (recipients.length === 0) continue;
 
       /*
@@ -203,7 +209,7 @@ export async function GET(request: NextRequest) {
         // "Caseload" until 2026-08-14, which was the bug: supervisors were scoped by
         // person_assignments, a table migration 0078 abandoned, so this loop had nothing to
         // send and never sent it. They are scoped by BRANCH now. See lib/notifications/scope.ts.
-        const digestRecipients = recipients.filter((r) => r.role === "supervisor");
+        const digestRecipients = recipients.filter((r) => wants(r, "branch_digest"));
         for (const digest of buildDigests(digestRecipients, items)) {
           const logId = await claimNotification({
             companyId: company.id,
@@ -259,7 +265,7 @@ export async function GET(request: NextRequest) {
           plannable: c.plannable !== false,
         });
         const reportRecipients = recipients.filter(
-          (r) => r.role === "company_admin" || r.role === "manager",
+          (r) => wants(r, "people_report") || wants(r, "service_user_report"),
         );
         const populations: Array<{
           key: "people" | "service_users";
@@ -278,6 +284,7 @@ export async function GET(request: NextRequest) {
         for (const recipient of reportRecipients) {
           for (const pop of populations) {
             if (!pop.has) continue;
+            if (!wants(recipient, pop.key === "people" ? "people_report" : "service_user_report")) continue;
             const scoped = scopeReporting(recipient, pop.checks);
             const { overdue, dueSoon } = splitReporting(scoped);
             /* DBS renewals ride in the People report, scoped exactly like everything else, in a
@@ -359,7 +366,7 @@ export async function GET(request: NextRequest) {
             }
 
             for (const recipient of recipients) {
-              if (recipient.role === "supervisor") continue;
+              if (!wants(recipient, "briefings_overdue")) continue;
               const overdue = overdueForRecipient(outstanding, recipient, today);
               if (overdue.length === 0) continue;
               const subject = managerOutstandingSubject(overdue.length);

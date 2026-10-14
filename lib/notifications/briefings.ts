@@ -437,7 +437,9 @@ export function overdueForRecipient(
    * role to getRecipients and the leak arrives with it.
    */
   if (recipient.role === "company_admin") return overdue;
-  if (recipient.role !== "manager") return [];
+  // A Supervisor (or a Recruiter, holding every branch) only since 0475, when an Admin ticks
+  // "Briefings overdue" for them: their branches, like a Manager. Still an allowlist.
+  if (recipient.role !== "manager" && recipient.role !== "supervisor") return [];
   if (recipient.branchIds.length === 0) return [];
   return overdue.filter((b) => b.branchId != null && recipient.branchIds.includes(b.branchId));
 }

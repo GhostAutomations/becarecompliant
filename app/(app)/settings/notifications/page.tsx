@@ -12,6 +12,7 @@ import { twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 import NotificationGrid, { type GridDefinition, type GridPerson } from "@/components/settings/notification-grid";
+import MorningEmailGrid from "@/components/settings/morning-email-grid";
 import { NOTIFIABLE_ROLES } from "@/lib/notifications/activity";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -118,6 +119,17 @@ export default async function NotificationSettingsPage() {
       : Promise.resolve({ data: [] as Array<{ user_id: string; branch_id: string; is_primary: boolean }> }),
     Promise.all(ids.map((id) => supabase.rpc("get_notification_preferences", { p_profile: id }))),
   ]);
+  // Who gets the morning emails (0475): each person's four ticks, the default filled in by the database.
+  const morningResults = await Promise.all(ids.map((id) => supabase.rpc("get_morning_email_preferences", { p_profile: id })));
+  const morningInitial: Record<string, Record<string, boolean>> = {};
+  let morningError: string | null = null;
+  morningResults.forEach((r, i) => {
+    if (r.error) {
+      morningError = r.error.message;
+      return;
+    }
+    morningInitial[ids[i]] = Object.fromEntries(((r.data ?? []) as Array<{ email_key: string; receive: boolean }>).map((x) => [x.email_key, x.receive]));
+  });
   const gridBranches = ((branchRows ?? []) as Array<{ id: string; name: string }>).map((b) => ({ id: b.id, name: b.name }));
   const activeBranchIds = new Set(gridBranches.map((b) => b.id));
   const gridPeople: GridPerson[] = gridPeopleRows.map((p) => {
@@ -182,6 +194,25 @@ export default async function NotificationSettingsPage() {
         emailConfigured={resendConfigured()}
         smsConfigured={twilioConfigured()}
       />
+
+      <section className="glass-card space-y-3 p-5 backdrop-blur-none" aria-label="Who gets the morning emails">
+        <div>
+          <h2 className="text-sm font-semibold text-white/80">Who gets the morning emails</h2>
+          <p className="mt-1 text-xs text-white/55">
+            Tick Receive for each email a person should get each morning. They start as each role got them before.
+          </p>
+        </div>
+        {morningError ? (
+          <p className="text-sm text-red-300">The morning email settings could not be read: {morningError}</p>
+        ) : (
+          <MorningEmailGrid
+            people={gridPeople}
+            initial={morningInitial}
+            branches={gridBranches}
+            digestOn={settings?.email_digest_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.emailDigestEnabled}
+          />
+        )}
+      </section>
 
       <section className="glass-card space-y-3 p-5 backdrop-blur-none" aria-label="Who is told when a check is completed">
         <div>

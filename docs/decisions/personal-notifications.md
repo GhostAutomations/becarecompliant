@@ -67,3 +67,26 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
 - Email: `lib/notifications/completion-email.ts`, called after the audit entry in the three
   completion paths (People form, Service User form, paper evidence). It never fails a completion.
 - Live: the 0418 broadcast triggers (table name only) and `DashboardLive`; REPLICA IDENTITY FULL.
+
+## The morning emails, per person (0475, Phil 2026-10-15)
+
+"The same with the same rules" for the morning emails: a second grid on Settings, Notifications,
+"Who gets the morning emails", above the check grid. The four morning emails down the left, each
+saying what is in it; people across the top (the same people as the check grid); one Receive tick
+each; one Save. Phil's popups:
+- **One row per morning email:** Branch digest, People compliance report, Service User compliance
+  report, Briefings overdue.
+- **Any email for anyone**, each covering only what that person can open: the whole company for an
+  Admin, Responsible Individual, Registered Manager or Recruiter; their branches for anyone else.
+- **Recruiters appear**, starting with nothing ticked.
+
+The ticks start as each role got them before (`morning_email_default`): the branch digest for
+Supervisors; both reports and Briefings overdue for Admin, Responsible Individual, Registered Manager
+and Branch Managers. Applying 0475 changed nobody's email (proved: no difference for any company).
+The company's own "morning emails on" switch still governs all of it, and test companies still get
+none. Only explicit choices are stored (`morning_email_preferences`); the cron reads
+`morning_email_choices` (service role only). Recruiters are added to the cron's recipient list for
+the morning emails only, as branch scoped recipients holding every branch, so the SMS escalation and
+the invoicing chase never pick them up. A Supervisor given the reports or Briefings overdue gets
+their branches only (scopeReporting and overdueForRecipient now scope Supervisors like Managers).
+

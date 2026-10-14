@@ -4614,7 +4614,7 @@ emails. Migration 0473. Decision: docs/decisions/personal-notifications.md. Test
 TEST-CHECKLIST-PERSONAL-NOTIFICATIONS.md, N0 to N8 pass. Same day, at Phil's request: the grid on
 Settings, Notifications (not the user popup), bold group bands with "all" boxes, no slow fill, and
 Email as its own tick (0474). DONE, live 2026-10-15 (commits e2304d55, 1103fac1, e7cf9aba, 8d4a60d5,
-14128f5a).
+14128f5a). Then the morning emails per person in a second grid (0475), IN PROGRESS.
 
 ### 2026-10-14 — Goodwill credits (Founder)
 

@@ -104,14 +104,22 @@ export async function getDigestCompanies(): Promise<DigestCompany[]> {
  * Team Members are never compliance recipients.
  * Only active profiles with an email qualify.
  */
-export async function getRecipients(companyId: string): Promise<Recipient[]> {
+export async function getRecipients(
+  companyId: string,
+  /* RECRUITERS, for the morning emails only (0475, Phil 2026-10-15): they get nothing unless an
+     Admin ticks one for them, and then it covers the whole company, as their access does. They
+     come back as branch scoped "supervisor" recipients holding EVERY branch, so nothing that keys
+     on company_admin or manager (the SMS escalation, the invoicing chase) can ever pick them up.
+     Off by default: every other caller is unchanged. */
+  opts: { includeRecruiters?: boolean } = {},
+): Promise<Recipient[]> {
   const supabase = createServiceClient();
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, full_name, email, phone, role")
     .eq("company_id", companyId)
     .eq("status", "active")
-    .in("role", COMPLIANCE_RECIPIENT_ROLES);
+    .in("role", opts.includeRecruiters ? [...COMPLIANCE_RECIPIENT_ROLES, "recruiter"] : COMPLIANCE_RECIPIENT_ROLES);
   if (error) throw new Error(error.message);
   if (!profiles || profiles.length === 0) return [];
 
@@ -122,6 +130,12 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
     .in("user_id", ids);
 
   const branchByUser = groupBy(branchesRes.data ?? [], "user_id", "branch_id");
+  let allBranchIds: string[] = [];
+  if (opts.includeRecruiters && profiles.some((p) => p.role === "recruiter")) {
+    const { data: allBranches, error: branchErr } = await supabase.from("branches").select("id").eq("company_id", companyId);
+    if (branchErr) throw new Error(branchErr.message);
+    allBranchIds = (allBranches ?? []).map((b) => b.id as string);
+  }
 
   return profiles
     .filter((p) => Boolean(p.email))
@@ -133,9 +147,9 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
       // The rule and its nine role table live in ./roles.ts, where a test can
       // reach them. It returns null for anybody who is not a compliance
       // recipient, so a widened query above still cannot email a Viewer.
-      role: normaliseRecipientRole(p.role as string),
+      role: p.role === "recruiter" ? ("supervisor" as const) : normaliseRecipientRole(p.role as string),
       trueRole: p.role as string,
-      branchIds: branchByUser.get(p.id) ?? [],
+      branchIds: p.role === "recruiter" ? allBranchIds : (branchByUser.get(p.id) ?? []),
     }))
     .filter((r): r is Recipient => r.role !== null);
 }
@@ -633,3 +647,16 @@ function groupBy<T extends Record<string, unknown>>(
   }
   return map;
 }
+
+/**
+ * Which of the four morning emails each active person gets (0475, Phil 2026-10-15). From the
+ * database's own morning_email_choices, so the default ("what each role got before") lives in one
+ * place. Throws when it cannot be read: a guess here would email the wrong people.
+ */
+export async function getMorningChoices(companyId: string): Promise<import("@/lib/notifications/morning").MorningChoices> {
+  const { choicesFrom } = await import("@/lib/notifications/morning");
+  const { data, error } = await createServiceClient().rpc("morning_email_choices", { p_company: companyId });
+  if (error) throw new Error(`morning email choices: ${error.message}`);
+  return choicesFrom((data ?? []) as Array<{ profile_id: string; email_key: string; receive: boolean }>);
+}
+
