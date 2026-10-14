@@ -4610,7 +4610,7 @@ One layout for the Founder console and every company's Tickets page: "Open and i
 oldest at the top; "Resolved · n" folded, newest resolved at the top; red, amber and green columns
 inside each. A Branch Manager now sees only the tickets they raised, in the database (0470); Founder,
 Admin, Responsible Individual and Registered Manager unchanged. Decision: docs/decisions/tickets.md.
-Tests: TEST-CHECKLIST-TICKETS-LAYOUT.md (T0 pass so far).
+Tests: TEST-CHECKLIST-TICKETS-LAYOUT.md, T0 to T5 pass. DONE 2026-10-14.
 
 ### 2026-10-14 — Office matrix: Lead the Leader in place of supervisions (Phase 13, Thistle)
 
