@@ -161,7 +161,8 @@ export async function createCompany(
   // Seed the included Team (office) and first Branch. The office never shares an address with
   // itself (0222); said here as well as by the trigger in 0322 (DEF-063).
   const { error: branchErr } = await supabase.from("branches").insert([
-    { company_id: company.id, name: `${name} Office`, kind: "team", uses_office_address: false },
+    // The office branch is "Office" in every company (0468, Phil 2026-10-14).
+    { company_id: company.id, name: "Office", kind: "team", uses_office_address: false },
     /* uses_office_address said out loud on every row (DEF-090, 2026-09-30). A multi row insert
        sends every column any row names, so the office's false turned the branches' missing value
        into NULL rather than the column default, and the not null column refused the lot. */

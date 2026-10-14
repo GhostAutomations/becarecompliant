@@ -99,7 +99,8 @@ export default async function PeopleSummaryPage({
           : ragFor(t?.probation_end_due ?? null, today, probationAmber),
       },
       ...slots.map((s) => ({
-        label: `S${s.n}`,
+        // On the Office matrix the cycle is Lead the Leader (0468): L1, L2, L3.
+        label: row.office ? `L${s.n}` : `S${s.n}`,
         rag: (s.comp ? "green" : (s.rag as CardRag)) as CardRag,
       })),
       ...(cycleMode === "appraisal"
@@ -170,7 +171,7 @@ export default async function PeopleSummaryPage({
     /* The badge is the next thing they OWE: the active supervision slot, or the appraisal when
        the cycle is waiting on that instead. */
     const active = slots.find((s) => !s.comp && s.due) ?? null;
-    const nextLabel = active ? `SUP ${active.n}` : aa.nextDue ? "AA" : null;
+    const nextLabel = active ? `${row.office ? "LTL" : "SUP"} ${active.n}` : aa.nextDue ? "AA" : null;
     const nextDue = active ? active.due : aa.nextDue;
     const nextRag: CardRag = active
       ? ((active.rag as CardRag) ?? "none")

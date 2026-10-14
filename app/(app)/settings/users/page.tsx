@@ -28,6 +28,7 @@ import { MODULES, POLICY_WRITER_ROLES, isLocked, disabledKey } from "@/lib/auth/
 import { companyRoles, disabledModules } from "@/lib/auth/module-access";
 import { COPYABLE_ROLES, displayRoleLabel, roleChoiceValue } from "@/lib/auth/custom-roles";
 import { isCompanyWideRole } from "@/lib/people/roles";
+import { officeTickBlock } from "@/lib/people/office-cycle";
 import RoleAccessTile from "@/components/settings/role-access-tile";
 import { ROTA_SWITCH_ROLES } from "@/lib/on-call/rota-access";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -302,14 +303,55 @@ export default async function UsersPage() {
   const { data: linkedPeople } = userIds.length
     ? await supabase
         .from("people")
-        .select("profile_id, full_name, created_at")
+        .select("id, profile_id, full_name, job_title, employment_status, archived_at, created_at")
         .eq("company_id", companyId)
         .in("profile_id", userIds)
         .order("created_at", { ascending: true })
-    : { data: [] as Array<{ profile_id: string; full_name: string }> };
+    : { data: [] as LinkedPerson[] };
+  type LinkedPerson = {
+    id: string;
+    profile_id: string;
+    full_name: string;
+    job_title: string | null;
+    employment_status: string;
+    archived_at: string | null;
+  };
   const personNameByProfile = new Map<string, string>();
-  for (const p of (linkedPeople as Array<{ profile_id: string; full_name: string }> | null) ?? []) {
+  const personByProfile = new Map<string, LinkedPerson>();
+  for (const p of (linkedPeople as LinkedPerson[] | null) ?? []) {
     if (!personNameByProfile.has(p.profile_id)) personNameByProfile.set(p.profile_id, p.full_name);
+    if (!personByProfile.has(p.profile_id)) personByProfile.set(p.profile_id, p);
+  }
+  /* "Show on Office matrix" (0468): who is ticked now, and the job titles Lead the Leader applies to. */
+  const linkedIds = Array.from(personByProfile.values()).map((p) => p.id);
+  const [{ data: openPeriods }, { data: ltlDefRow }] = await Promise.all([
+    linkedIds.length
+      ? supabase.from("person_office_periods").select("person_id").is("ended_at", null).in("person_id", linkedIds)
+      : Promise.resolve({ data: [] as Array<{ person_id: string }> }),
+    supabase
+      .from("check_definitions")
+      .select("job_titles, form_id, active")
+      .eq("company_id", companyId)
+      .eq("population", "people")
+      .eq("key", "lead_the_leader")
+      .maybeSingle(),
+  ]);
+  const tickedPeople = new Set(((openPeriods as Array<{ person_id: string }> | null) ?? []).map((r) => r.person_id));
+  const ltlDef = ltlDefRow as { job_titles: string[] | null; form_id: string | null; active: boolean } | null;
+  function officeFor(profileId: string): UserListItem["office"] {
+    const p = personByProfile.get(profileId) ?? null;
+    const ticked = !!p && tickedPeople.has(p.id);
+    return {
+      ticked,
+      blocked: officeTickBlock({
+        linked: !!p,
+        ticked,
+        jobTitle: p?.job_title ?? null,
+        ltlJobTitles: ltlDef?.job_titles ?? null,
+        leaverOrArchived: !!p && (p.employment_status === "leaver" || !!p.archived_at),
+        hasLtlCheck: !!ltlDef?.active && !!ltlDef?.form_id,
+      }),
+    };
   }
   function statusWords(u: { email: string; status: string }): Pick<UserListItem, "statusLabel" | "statusTone"> {
     if (u.status === "active") return { statusLabel: "Active", statusTone: "green" };
@@ -346,6 +388,7 @@ export default async function UsersPage() {
       fullName: u.full_name,
       email: u.email,
       personName: personNameByProfile.get(u.id) ?? null,
+      office: officeFor(u.id),
       jobTitle: u.job_title ?? null,
       /* The value the role picker posts: their company's own role travels as "custom:<id>", so
          one field carries either kind and the two can never disagree (lib/auth/custom-roles). */

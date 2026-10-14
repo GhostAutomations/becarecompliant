@@ -148,6 +148,9 @@ export type RegisterRow = {
   /** All appraisal completion dates (ISO). Their COUNT resets the supervision cycle
    *  (each completed appraisal ends a 3-supervision cycle). */
   appraisalCompDates: string[];
+  /** On the Office matrix (0468): Lead the Leader runs their cycle, and their supCompDates
+   *  include the LTLs recorded while ticked (lib/people/office-cycle.ts). */
+  office?: boolean;
   /** The DBS risk column marker (lib/people/dbs-pending.ts), or null for a blank cell. */
   dbsRisk?: import("@/lib/people/dbs-pending").DbsRiskMarker | null;
 };

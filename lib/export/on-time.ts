@@ -46,6 +46,7 @@ import { getOutcomesAsAt } from "@/lib/service-users/data";
 import { outcomesPqs } from "@/lib/service-users/outcome-history";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { scwCountsAsRegistered } from "@/lib/people/scw";
+import { ltlCycleDates, onOffice, type OfficePeriod } from "@/lib/people/office-cycle";
 import type { BranchTerms } from "@/lib/branches/word";
 
 export type OnTimeWindow = { from: string; to: string };
@@ -431,6 +432,82 @@ async function computeOnTime(input: OnTimeInput) {
         const recId = row.person_id ?? row.service_user_id;
         if (!recId) continue;
         openDueByKey.set(`${row.definition_id}|${recId}`, parseCivilDate(row.due_date));
+      }
+    }
+  }
+
+  /*
+   * THE OFFICE MATRIX: LEAD THE LEADER COUNTS AS SUPERVISION (0468, Phil's popup 2026-10-14:
+   * "Count their LTLs as supervision"). A person ticked onto the Office matrix runs their cycle on
+   * Lead the Leader, so the LTLs recorded while ticked join their supervision history here, and
+   * while ticked the cycle's open due date is the one on their Lead the Leader (the supervision is
+   * set inactive). Nobody ever ticked: nothing is read and nothing changes.
+   */
+  const supDefForOffice = defs.find((d) => d.key === "supervision" && d.population === "people");
+  if (supDefForOffice && staff.length > 0) {
+    type PeriodRow = OfficePeriod & { person_id: string };
+    const periods = new Map<string, OfficePeriod[]>();
+    const staffIds = staff.map((p) => p.id);
+    for (let i = 0; i < staffIds.length; i += 200) {
+      const pq = supabase
+        .from("person_office_periods")
+        .select("person_id, started_at, ended_at")
+        .eq("company_id", input.companyId)
+        .in("person_id", staffIds.slice(i, i + 200))
+        .order("person_id", { ascending: true });
+      for (const r of await readAll<PeriodRow>(pq, "the Office matrix")) {
+        const a = periods.get(r.person_id) ?? [];
+        a.push({ started_at: r.started_at, ended_at: r.ended_at });
+        periods.set(r.person_id, a);
+      }
+    }
+    if (periods.size > 0) {
+      const { data: ltlDef } = await supabase
+        .from("check_definitions")
+        .select("id, form_id")
+        .eq("company_id", input.companyId)
+        .eq("population", "people")
+        .eq("key", "lead_the_leader")
+        .maybeSingle();
+      const ltl = ltlDef as { id: string; form_id: string | null } | null;
+      if (ltl?.form_id) {
+        const officeIds = Array.from(periods.keys());
+        type LtlRow = { id: string; record_id: string; submitted_at: string; paper_on: string | null };
+        const ltlQ = supabase
+          .from("evidence")
+          .select("id, record_id, submitted_at, paper_on:answers->>__completed_on")
+          .eq("company_id", input.companyId)
+          .eq("form_id", ltl.form_id)
+          .in("record_id", officeIds)
+          .order("submitted_at", { ascending: true })
+          .order("id", { ascending: true });
+        const byPerson = new Map<string, Array<{ date: string; submittedAt: string }>>();
+        for (const e of await readAll<LtlRow>(ltlQ, "Lead the Leader")) {
+          const d = e.paper_on && /^\d{4}-\d{2}-\d{2}$/.test(e.paper_on) ? parseCivilDate(e.paper_on) : tsToCivil(e.submitted_at);
+          const a = byPerson.get(e.record_id) ?? [];
+          a.push({ date: formatCivilDate(d), submittedAt: e.submitted_at });
+          byPerson.set(e.record_id, a);
+        }
+        for (const [pid, ps] of periods) {
+          const dates = ltlCycleDates(byPerson.get(pid) ?? [], ps).map(parseCivilDate);
+          if (dates.length === 0) continue;
+          const k = `${supDefForOffice.form_id}|${pid}`;
+          completionsByKey.set(k, mergeCompletions(completionsByKey.get(k) ?? [], dates.sort(compareCivil)));
+        }
+        const tickedIds = officeIds.filter((pid) => onOffice(periods.get(pid) ?? []));
+        if (tickedIds.length > 0) {
+          const iq = supabase
+            .from("check_instances")
+            .select("person_id, due_date")
+            .eq("company_id", input.companyId)
+            .eq("definition_id", ltl.id)
+            .eq("active", true)
+            .in("person_id", tickedIds)
+            .order("person_id", { ascending: true });
+          for (const r of await readAll<{ person_id: string; due_date: string | null }>(iq, "Lead the Leader due dates")) {
+            if (r.due_date) openDueByKey.set(`${supDefForOffice.id}|${r.person_id}`, parseCivilDate(r.due_date));
+          }
+        }
       }
     }
   }

@@ -4604,6 +4604,16 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Office matrix: Lead the Leader in place of supervisions (Phase 13, Thistle)
+
+A login ticked "Show on Office matrix" (Settings > Users, Admin and Founder) moves its person into
+the office branch, renamed "Office" in every company. There LTL 1 to 3 replace Supervision 1 to 3
+on the same engine, carrying on from where they were; untick and they go back. Chasers, dashboard,
+readiness, PQS, Regulation 73 and 80 and the Whiteboard count the LTL in place of supervision.
+Lead the Leader gets its five job titles in every company. 0468. Decision:
+docs/decisions/office-matrix.md. Tests: TEST-CHECKLIST-OFFICE-MATRIX.md (O0, O1 pass so far).
+Before it, the same day: THE LIST 58 built (the appraisal date fix), as this job depends on it.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

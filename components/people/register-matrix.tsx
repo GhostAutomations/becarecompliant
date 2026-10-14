@@ -28,6 +28,7 @@ import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
+import { cycleCheckKey } from "@/lib/people/office-cycle";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -126,6 +127,7 @@ export default function RegisterMatrix({
   returnTo = "/people",
   scope = "active",
   initialSort,
+  officeView = false,
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
@@ -143,10 +145,17 @@ export default function RegisterMatrix({
   scope?: string;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
+  /** The Office branch is chosen (0468): the cycle columns read LTL, not Supervision. */
+  officeView?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   useRememberedScroll(wrapRef, `people:${scope}`);
   const col = (key: string, def: string) => columnLabels[key] || def;
+  /* THE OFFICE MATRIX (Phil, 2026-10-14): Lead the Leader runs the cycle there, so the
+     supervision columns read LTL 1, LTL 2, LTL 3. A company's own shorthand is for its
+     supervision columns, so it does not apply here. */
+  const cyc = (key: string, n: number, part: "Due" | "Done") =>
+    officeView ? `LTL ${n} ${part}` : col(key, `Supervision ${n} ${part}`);
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
   // Acme "navy" theme only: show one branch at a time with a switcher.
   const [navy, setNavy] = useState(false);
@@ -223,16 +232,16 @@ export default function RegisterMatrix({
               <th>{col("probation_extension", "Probation Extension")}</th>
               {has("spot_check") ? <th>{col("spot_check_due", "Spot Check Due")}</th> : null}
               {has("spot_check") ? <th>{col("recent_spot_check", "Recent Spot Check")}</th> : null}
-              <th>{col("sup1_due", "Supervision 1 Due")}</th>
-              <th>{col("sup1_comp", "Supervision 1 Done")}</th>
-              <th>{col("sup2_due", "Supervision 2 Due")}</th>
-              <th>{col("sup2_comp", "Supervision 2 Done")}</th>
-              <th>{col("sup3_due", "Supervision 3 Due")}</th>
-              <th>{col("sup3_comp", "Supervision 3 Done")}</th>
+              <th>{cyc("sup1_due", 1, "Due")}</th>
+              <th>{cyc("sup1_comp", 1, "Done")}</th>
+              <th>{cyc("sup2_due", 2, "Due")}</th>
+              <th>{cyc("sup2_comp", 2, "Done")}</th>
+              <th>{cyc("sup3_due", 3, "Due")}</th>
+              <th>{cyc("sup3_comp", 3, "Done")}</th>
               {fourSup ? (
                 <>
-                  <th>{col("sup4_due", "Supervision 4 Due")}</th>
-                  <th>{col("sup4_comp", "Supervision 4 Done")}</th>
+                  <th>{cyc("sup4_due", 4, "Due")}</th>
+                  <th>{cyc("sup4_comp", 4, "Done")}</th>
                 </>
               ) : (
                 <>
@@ -252,7 +261,8 @@ export default function RegisterMatrix({
               const mh = row.statusByKey["manual_handling"];
               const mc = row.statusByKey["competency"];
               const sc = row.statusByKey["spot_check"];
-              const supStatus = row.statusByKey["supervision"];
+              // On the Office matrix the open cycle due date sits on Lead the Leader (0468).
+              const supStatus = row.statusByKey[cycleCheckKey(!!row.office)];
               const sup = supervisionSlots(
                 config.supInterval,
                 row.supCompDates,

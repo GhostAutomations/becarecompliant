@@ -84,6 +84,7 @@ right file (or a new file listed here) in the same session.
 - [permission-boundaries](permission-boundaries.md): BCC role permission boundaries as ACTUALLY ENFORCED, verified against the live database 2026-08-14. Supervisor is branch-wide (not caseload), Viewer is the team_member role relabelled. Read before reasoning about who can see or do what.
 - [phase10-round1](phase10-round1.md): BCC Phase 10 Additions Round 1 slice, decisions and build state (import templates + Complaints built)
 - [phase2-decisions](phase2-decisions.md): BCC Phase 2 (forms engine & evidence) agreed scope decisions from popups 2026-07-08
+- [office-matrix](office-matrix.md): The Office branch matrix with Lead the Leader (LTL 1 to 3) in place of supervisions for ticked logins; Phil's job spec and popup answers 2026-10-14. Read before touching the office branch, LTL or the supervision cycle.
 - [phase3-decisions](phase3-decisions.md): BCC Phase 3 (People section) agreed scope decisions from popups 2026-07-08
 - [phase4-built](phase4-built.md): BCC Phase 4 (Service Users) build outcome, schema-reuse + booking decisions, deferred invite email
 - [phase4-carryover](phase4-carryover.md): Patterns from Phase 3 (People) that Phil wants carried into Phase 4 (Service Users)

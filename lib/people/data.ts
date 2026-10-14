@@ -15,6 +15,7 @@ import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
+import { ltlCycleDates, onOffice, type OfficePeriod } from "@/lib/people/office-cycle";
 import { callerBranchIds } from "@/lib/auth/branches";
 import { getCompanyRow } from "@/lib/companies/row";
 import type {
@@ -433,6 +434,14 @@ export async function listRegister(
     pushAppraisalDate(m.record_id, m.completed_on);
   }
 
+  /* THE OFFICE MATRIX (0468, Phil 2026-10-14). A ticked person's cycle is their supervisions plus
+     the Lead the Leaders recorded while ticked; one engine draws both. Nobody ticked, ever: no
+     extra query and nothing added, so every other row is exactly what it was. */
+  const office = await officeCycles(supabase, ids, definitions.find((d) => d.key === "lead_the_leader")?.form_id ?? null);
+  for (const [pid, dates] of office.ltlDates) {
+    for (const d of dates) pushSupDate(pid, d);
+  }
+
   type DbsRiskRow = {
     record_id: string;
     decision: string | null;
@@ -461,6 +470,7 @@ export async function listRegister(
     supSlotByComp: supSlotByPerson.get(person.id) ?? new Map<string, number>(),
     supDueByComp: supDueByPerson.get(person.id) ?? new Map<string, string>(),
     appraisalCompDates: appraisalDatesByPerson.get(person.id) ?? [],
+    office: office.ticked.has(person.id),
     dbsRisk: dbsRiskMarker({
       latestPending: latestPendingBy.get(person.id) ?? null,
       latestDisclosure: latestDisclosureBy.get(person.id) ?? null,
@@ -485,6 +495,75 @@ export async function getPersonTracker(personId: string, client?: SupabaseClient
 /** Which answer holds the completion date, for each form version some Evidence was
  *  submitted under. One small query however many records are being read, and the same
  *  rule the saving side uses (lib/evidence/completion-date.ts). */
+/**
+ * Who is on the Office matrix, and the Lead the Leader dates that count towards their cycle
+ * (lib/people/office-cycle.ts). Read under the caller's RLS.
+ */
+async function officeCycles(
+  supabase: SupabaseClient,
+  personIds: readonly string[],
+  ltlFormId: string | null,
+): Promise<{ ticked: Set<string>; ltlDates: Map<string, string[]> }> {
+  const ticked = new Set<string>();
+  const ltlDates = new Map<string, string[]>();
+  if (personIds.length === 0) return { ticked, ltlDates };
+  const { data: periodRows } = await supabase
+    .from("person_office_periods")
+    .select("person_id, started_at, ended_at")
+    .in("person_id", personIds as string[]);
+  const periods = new Map<string, OfficePeriod[]>();
+  for (const r of (periodRows as Array<OfficePeriod & { person_id: string }>) ?? []) {
+    const a = periods.get(r.person_id) ?? [];
+    a.push({ started_at: r.started_at, ended_at: r.ended_at });
+    periods.set(r.person_id, a);
+  }
+  for (const [pid, ps] of periods) if (onOffice(ps)) ticked.add(pid);
+  if (periods.size === 0 || !ltlFormId) return { ticked, ltlDates };
+
+  const { data: ltlRows } = await supabase
+    .from("evidence")
+    .select("record_id, submitted_at, answers, form_version_id")
+    .eq("record_type", "person")
+    .eq("form_id", ltlFormId)
+    .in("record_id", Array.from(periods.keys()));
+  const rows =
+    (ltlRows as Array<{
+      record_id: string;
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      form_version_id: string | null;
+    }>) ?? [];
+  const keys = await dateKeysFor(supabase, rows);
+  const byPerson = new Map<string, Array<{ date: string; submittedAt: string }>>();
+  for (const e of rows) {
+    const a = byPerson.get(e.record_id) ?? [];
+    a.push({
+      date: completionDate(e.answers, e.submitted_at, keys.get(e.form_version_id ?? "") ?? null),
+      submittedAt: e.submitted_at,
+    });
+    byPerson.set(e.record_id, a);
+  }
+  for (const [pid, ps] of periods) {
+    const dates = ltlCycleDates(byPerson.get(pid) ?? [], ps);
+    if (dates.length > 0) ltlDates.set(pid, dates);
+  }
+  return { ticked, ltlDates };
+}
+
+/**
+ * One person's Office matrix state, for the record and completion pages: whether they are ticked,
+ * and the Lead the Leader dates to add to their supervision dates.
+ */
+export async function getOfficeCycle(
+  personId: string,
+  ltlFormId: string | null,
+  client?: SupabaseClient,
+): Promise<{ ticked: boolean; ltlDates: string[] }> {
+  const supabase = client ?? (await createClient());
+  const o = await officeCycles(supabase, [personId], ltlFormId);
+  return { ticked: o.ticked.has(personId), ltlDates: o.ltlDates.get(personId) ?? [] };
+}
+
 async function dateKeysFor(
   supabase: SupabaseClient,
   rows: ReadonlyArray<{ form_version_id?: string | null }>,

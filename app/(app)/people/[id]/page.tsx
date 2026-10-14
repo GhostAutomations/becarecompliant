@@ -34,6 +34,7 @@ import {
   getPersonChecks,
   getPersonTracker,
   getSupervisionCompDates,
+  getOfficeCycle,
   getAppraisalCompDates,
   getHealthCheckDates,
   getSupervisionCycleMode,
@@ -59,6 +60,7 @@ import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
 import DbsCardButtons from "@/components/people/dbs-complete-menu";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
+import { cycleCheckKey, cycleWord } from "@/lib/people/office-cycle";
 import { ukDate } from "@/lib/dates";
 import {
   type CheckStatus,
@@ -311,11 +313,19 @@ export default async function PersonPage({
   const supFormId = supDef?.form_id ?? null;
   const appraisalDef = definitions.find((d) => d.key === "appraisal");
   const healthDef = definitions.find((d) => d.key === "health_check");
-  const [supCompDates, appraisalCompDates, healthDates] = await Promise.all([
+  const ltlDef = definitions.find((d) => d.key === "lead_the_leader");
+  const [supOnlyDates, appraisalCompDates, healthDates, office] = await Promise.all([
     getSupervisionCompDates(id, supFormId, supDef?.id ?? null),
     getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.id ?? null),
     getHealthCheckDates(id, healthDef?.form_id ?? null),
+    getOfficeCycle(id, ltlDef?.form_id ?? null),
   ]);
+  /* THE OFFICE MATRIX (0468, Phil 2026-10-14). Ticked, Lead the Leader runs this person's cycle:
+     the same engine, their supervisions plus the LTLs recorded while ticked, drawn as LTL 1 to 3.
+     Never ticked: nothing is added and the card is exactly as it was. */
+  const supCompDates = [...supOnlyDates, ...office.ltlDates];
+  const cycle = cycleWord(office.ticked);
+  const cycleFormId = office.ticked ? ltlDef?.form_id ?? null : supFormId;
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? DEFAULT_AMBER_DAYS;
   const cycleMode = await getSupervisionCycleMode(companyId);
@@ -357,7 +367,7 @@ export default async function PersonPage({
   const aaSlot = appraisalSlot(appraisalCompDates, supCompDates, supInterval, supAmber, undefined, slots[2]?.comp ?? null);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
-  const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
+  const supStatus = statuses.find((s) => s.check_key === cycleCheckKey(office.ticked)) ?? null;
   // Checks grid order: Spot Check first, then Annual Appraisal, then the rest
   // (Phil, 2026-07-18). Unlisted checks keep their natural order after these.
   const CHECK_ORDER: Record<string, number> = { spot_check: 0, appraisal: 1 };
@@ -381,6 +391,8 @@ export default async function PersonPage({
       : null;
   const otherDefs = applicableDefs
     .filter((d) => d.key !== "supervision" && d.id !== appraisalTileDef?.id)
+    // On the Office matrix Lead the Leader is the cycle card above, not a one off tile.
+    .filter((d) => !(office.ticked && d.key === "lead_the_leader"))
     .sort((a, b) => (CHECK_ORDER[a.key] ?? 99) - (CHECK_ORDER[b.key] ?? 99));
 
   // Probation tile sits ABOVE the Checks until the employee passes probation, then
@@ -832,7 +844,9 @@ export default async function PersonPage({
               box in the same card, so the cycle reads left to right in the order it happens. */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {appraisalTileDef ? "Supervision and Annual Appraisal" : "Supervision"}
+              {office.ticked
+                ? appraisalTileDef ? "Lead the Leader and Annual Appraisal" : "Lead the Leader"
+                : appraisalTileDef ? "Supervision and Annual Appraisal" : "Supervision"}
             </h2>
             <div className={`glass-card grid gap-3 p-4 ${supCount === 4 || appraisalTileDef ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
               {slots.map((s) => (
@@ -841,13 +855,15 @@ export default async function PersonPage({
                   /* Named, not numbered. A bare "3" in a box needs the heading above the card
                      to mean anything, and the card is now headed "Supervision and Annual
                      Appraisal", so the number on its own read as a count of nothing. */
-                  title={`Supervision ${s.n}`}
+                  title={`${cycle} ${s.n}`}
                   due={s.due}
                   comp={s.comp}
                   ragClass={slotPill(s.rag)}
                   href={
-                    supStatus && supFormId && canComplete(supStatus.instance_id) && s.n === dueSupN
-                      ? `/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`
+                    supStatus && cycleFormId && canComplete(supStatus.instance_id) && s.n === dueSupN
+                      ? office.ticked
+                        ? `/people/${person.id}/checks/${supStatus.instance_id}/complete`
+                        : `/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`
                       : null
                   }
                   todayIso={todayIso}
@@ -855,6 +871,17 @@ export default async function PersonPage({
               ))}
               {appraisalTileDef ? appraisalBox : null}
             </div>
+            {office.ticked ? (
+              <p className="text-[11px] text-white/40">
+                On the Office matrix: Lead the Leader takes the place of supervisions. LTL 1 is due
+                {" "}{supInterval} days after successful probation end, then {supInterval} days after
+                {" "}{supCount === 4 ? `every ${supCount} LTLs (which restarts the cycle)` : "each Annual Appraisal (which restarts the cycle)"}.
+                {" "}Each further LTL is due {supInterval} days after the previous one is completed.
+                {appraisalTileDef
+                  ? ` The Annual Appraisal is due ${supInterval} days after LTL ${supCount}, and cannot be completed until that LTL has been. Completing it starts the next ${supCount}.`
+                  : ""}
+              </p>
+            ) : (
             <p className="text-[11px] text-white/40">
               Supervision 1 is due {supInterval} days after successful probation end, then
               {" "}{supInterval} days after {supCount === 4 ? `every ${supCount} supervisions (which restarts the cycle)` : "each Annual Appraisal (which restarts the cycle)"}.
@@ -863,6 +890,7 @@ export default async function PersonPage({
                 ? ` The Annual Appraisal is due ${supInterval} days after Supervision ${supCount}, and cannot be completed until that supervision has been. Completing it starts the next ${supCount}.`
                 : ""}
             </p>
+            )}
           </section>
 
           {/* Probation shows here (above Checks) until the employee passes, full

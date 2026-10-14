@@ -22,8 +22,13 @@ const PEOPLE_RIGHT = ["Medication Competency", "Manual Handling"];
    name here moves with it. "Setup" became "Setup Visit" on 2026-09-04. */
 const SU_LEFT = ["Setup Visit"];
 const SU_RIGHT = ["Care Plan Review"];
+/* THE OFFICE MATRIX (0468, Phil's popup 2026-10-14: "Their LTLs instead"). For people ticked onto
+   the Office matrix Lead the Leader takes the place of supervision, so their LTL sits under the
+   Supervision heading. Only a ticked person's LTL ever carries a due date, so an ad hoc one is
+   never drawn. */
+const LTL = "Lead the Leader";
 const ALLOWED: Record<"people" | "service_users", string[]> = {
-  people: [...PEOPLE_LEFT, ...PEOPLE_RIGHT],
+  people: [...PEOPLE_LEFT, ...PEOPLE_RIGHT, LTL],
   service_users: [...SU_LEFT, ...SU_RIGHT],
 };
 
@@ -77,7 +82,9 @@ export default function WhiteboardBoard({
   const weeks = boardWeeks(todayIso);
 
   function headingBlock(population: "people" | "service_users", h: string) {
-      const items = booked.filter((b) => b.population === population && b.checkName === h);
+      const items = booked.filter(
+        (b) => b.population === population && (b.checkName === h || (h === "Supervision" && b.checkName === LTL && !!b.dueDate)),
+      );
       return (
         <div key={h} className="mb-3">
           <h4 className="text-xs font-bold uppercase tracking-wide text-amber-600">{h}</h4>

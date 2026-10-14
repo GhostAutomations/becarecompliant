@@ -696,6 +696,36 @@ export async function renameLogin(_prev: ActionState, formData: FormData): Promi
   return { ok: result.changed ? "Saved" : "That is already the name." };
 }
 
+/**
+ * "Show on Office matrix" on a login (0468, Phil 2026-10-14; docs/decisions/office-matrix.md).
+ * Ticked, their People record moves to the Office branch and Lead the Leader runs their cycle;
+ * unticked, they go back to the branch they came from. The database decides and audit logs it:
+ * set_office_matrix allows only an Admin of the login's company or the Founder, and refuses a
+ * login with no People record or a job title Lead the Leader does not apply to.
+ */
+export async function setOfficeMatrix(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext({ logins: true });
+  if (!ctx.ok) return { error: ctx.error };
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Missing user." };
+  const on = formData.get("office") === "on";
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+
+  const { error } = await supabase.rpc("set_office_matrix", { p_profile_id: userId, p_on: on });
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings/users");
+  revalidatePath("/people");
+  return { ok: on ? "Saved. They now show on the Office matrix." : "Saved. They are back on their branch." };
+}
+
 /** A login's job title for the sign off of its letters (Phil, 2026-10-12, 0447): set by an Admin,
  *  or the Founder in support mode, for any login in the company, their own included. */
 export async function setLoginJobTitle(_prev: ActionState, formData: FormData): Promise<ActionState> {

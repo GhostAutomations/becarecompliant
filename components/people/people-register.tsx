@@ -120,10 +120,15 @@ export default function PeopleRegister({
       bookedForThisCheck: booked.has(instanceId),
     });
 
+  /* THE OFFICE MATRIX (0468, Phil 2026-10-14). The Office branch shows only the people ticked
+     "Show on Office matrix", with LTL in place of supervisions; All branches leaves them out, so
+     LTL and supervision dates never share a column. */
+  const officeView = branchOptions.find((b) => b.id === branchId)?.kind === "team";
   const term = search.trim().toLowerCase();
   const filtered = rows.filter(
     (r) =>
-      (!branchId || r.person.branch_id === branchId) &&
+      (!branchId ? !r.office : r.person.branch_id === branchId) &&
+      (!officeView || !!r.office) &&
       meta.match(r) &&
       (term === "" ||
         r.person.full_name.toLowerCase().includes(term) ||
@@ -219,7 +224,14 @@ export default function PeopleRegister({
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
               <NavIcon icon="people" className="h-6 w-6" />
             </span>
-            {view === "main" ? (
+            {view === "main" && officeView ? (
+              <>
+                <h2 className="text-base font-semibold text-white">No office staff on this matrix yet</h2>
+                <p className="max-w-md text-sm text-white/60">
+                  Tick &lsquo;Show on Office matrix&rsquo; on a user&rsquo;s account in Settings &gt; Users.
+                </p>
+              </>
+            ) : view === "main" ? (
               <>
                 <h2 className="text-base font-semibold text-white">No People records yet</h2>
                 <p className="max-w-md text-sm text-white/60">
@@ -251,6 +263,7 @@ export default function PeopleRegister({
                 scope={meta.scope}
                 returnTo={urlFor(view, branchId)}
                 initialSort={initialSort}
+                officeView={officeView}
               />
             </div>
             {/* Mobile: one stacked card per person — scroll DOWN, never sideways.

@@ -62,7 +62,7 @@ export async function getReg73Prefill(input: {
     }),
     supabase
       .from("person_check_status")
-      .select("check_name, rag")
+      .select("check_name, check_key, rag")
       .eq("company_id", input.companyId)
       .eq("branch_id", input.branchId),
     supabase
@@ -138,7 +138,9 @@ export async function getReg73Prefill(input: {
     branchName: input.branchName,
     generatedAt: today,
     spotCheckOverdue: overdueMap.get("Spot Check") ?? 0,
-    supervisionOverdue: overdueMap.get("Supervision") ?? 0,
+    // Lead the Leader counts as supervision for people on the Office matrix (0468); only they
+    // carry an LTL due date, so for everyone else this is the supervision count as before.
+    supervisionOverdue: cycleOverdue(statusRows.data),
     overdueByCheck,
     pqs,
     complaints: {
@@ -161,4 +163,11 @@ export async function getReg73Prefill(input: {
         }
       : null,
   };
+}
+
+/** Overdue supervisions, with Lead the Leader counted as one for people on the Office matrix. */
+function cycleOverdue(rows: unknown): number {
+  return ((rows as { check_name: string; check_key: string; rag: string }[] | null) ?? []).filter(
+    (r) => r.rag === "red" && (r.check_name === "Supervision" || r.check_key === "lead_the_leader"),
+  ).length;
 }

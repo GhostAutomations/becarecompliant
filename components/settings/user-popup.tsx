@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import TeamMemberControls, { type RoleOption } from "@/components/settings/team-member-controls";
 import LoginNameForm from "@/components/settings/login-name-form";
 import LoginJobTitleForm from "@/components/settings/login-job-title-form";
+import OfficeMatrixForm from "@/components/settings/office-matrix-form";
 
 export type BranchOption = { id: string; name: string };
 
@@ -40,6 +41,8 @@ export type UserListItem = {
   personName: string | null;
   /** The job title printed under their name on letters (0447), or null. */
   jobTitle: string | null;
+  /** "Show on Office matrix" (0468): ticked now, and why it cannot be ticked (null when it can). */
+  office: { ticked: boolean; blocked: string | null };
 };
 
 export default function UserPopup({
@@ -103,6 +106,15 @@ export default function UserPopup({
           {/* The job title under their name on letters (Phil, 2026-10-12): set here by an Admin. */}
           <div className="mt-4">
             <LoginJobTitleForm key={`job-${user.id}`} userId={user.id} jobTitle={user.jobTitle} />
+          </div>
+          {/* The Office matrix (Phil, 2026-10-14): Lead the Leader in place of supervisions. */}
+          <div className="mt-4">
+            <OfficeMatrixForm
+              key={`office-${user.id}-${user.office.ticked}`}
+              userId={user.id}
+              ticked={user.office.ticked}
+              blocked={user.office.blocked}
+            />
           </div>
         </div>
 
