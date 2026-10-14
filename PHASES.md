@@ -4601,7 +4601,8 @@ migrated_completions 733 to 731; only that carer's values changed. Tests:
 TEST-CHECKLIST-APPRAISAL-CYCLE.md, A0 and A1 pass. DONE, Phil passed the screen 2026-10-14.
 Same day, THE LIST 58 (Phil chose it before the Office matrix job): the code now splits the appraisal
 cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 people's Done colour
-changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4.
+changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
+pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

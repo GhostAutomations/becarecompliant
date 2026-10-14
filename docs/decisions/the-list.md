@@ -297,8 +297,9 @@ The next five were found by the step 7 check of the October audit fixes and park
     screens use Broadcast, 0418). To do: apply 0419 on Phil's go, confirm the publication is empty,
     and check the live screens still update.
 
-58. **The Annual Appraisal columns count supervisions instead of using the appraisal date** (Phil,
-    popup 2026-10-14, PARKED). `appraisalSlot` in lib/people/logic.ts assumes three supervisions per
+58. ~~**The Annual Appraisal columns count supervisions instead of using the appraisal date**~~
+    **DONE 2026-10-14** (commit 9010a364, TEST-CHECKLIST-APPRAISAL-CYCLE.md A2 to A4 pass). (Phil,
+    popup 2026-10-14, parked, then built the same day before the Office matrix job). `appraisalSlot` in lib/people/logic.ts assumes three supervisions per
     appraisal; the supervision columns already split on the date (`supervisionsConsumed`). An extra
     (ad hoc) supervision before an appraisal, or fewer than three, gives a wrong Appraisal Due and a
     blank Done. One Thistle carer was fixed by deleting two ad hoc supervisions instead
