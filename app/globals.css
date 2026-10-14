@@ -169,6 +169,15 @@
     @apply rounded-md;
   }
 
+  /* THE NOTIFICATIONS GRID (0473, Phil 2026-10-15: "watch the slow fill of the boxes"). Over two
+     hundred tick boxes in one grid: each one's own backdrop blur and colour fade made an "all" tick
+     paint box by box. Off for this grid only; every other tick box is untouched. */
+  .notify-grid input[type="checkbox"] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition: none;
+  }
+
   input[type="radio"] {
     @apply rounded-full;
   }

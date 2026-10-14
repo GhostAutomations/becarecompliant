@@ -183,7 +183,7 @@ export default async function NotificationSettingsPage() {
         smsConfigured={twilioConfigured()}
       />
 
-      <section className="glass-card space-y-3 p-5" aria-label="Who is told when a check is completed">
+      <section className="glass-card space-y-3 p-5 backdrop-blur-none" aria-label="Who is told when a check is completed">
         <div>
           <h2 className="text-sm font-semibold text-white/80">Who is told when a check is completed</h2>
           <p className="mt-1 text-xs text-white/55">

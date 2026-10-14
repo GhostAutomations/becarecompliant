@@ -143,7 +143,7 @@ export default function NotificationGrid({
         ))}
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-white/10">
+      <div className="notify-grid overflow-x-auto rounded-xl border border-white/10">
         <table className="min-w-full border-collapse text-xs">
           <thead>
             <tr className="align-top">
