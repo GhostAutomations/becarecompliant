@@ -1,6 +1,6 @@
 # Test checklist: Per person notifications, 2026-10-14
 
-Decision: `docs/decisions/personal-notifications.md`. Migration 0473 (applied 2026-10-14). Test writes on Bevan Care Ltd
+Decision: `docs/decisions/personal-notifications.md`. Migrations 0473 (applied 2026-10-14) and 0474 (applied 2026-10-15). Test writes on Bevan Care Ltd
 only (the Supervisor default reaches Thistle and Demo with no rows written). Run one at a time.
 
 Bevan test set up (records by id, branch A = Swansea, branch B = Neath):
@@ -18,3 +18,5 @@ Bevan test set up (records by id, branch A = Swansea, branch B = Neath):
 | N4 | Phil: Thistle, Settings, Notifications, "Who is told when a check is completed": the four Supervisors across the top with Cardiff, Newport under their names, "Care Plan Review completed" ticked for Recent activity for each, Email unticked, nothing else ticked (moved from the user popup to this grid at Phil's request) | PASS (Phil, and Claude read only in Phil's Chrome: 8 people, 4 ticks, no Email) |
 | N5 | Phil: Bevan as test Supervisor S1: Recent activity shows the test Care Plan Review with a Remove button | PASS (Phil) |
 | N6 | Phil: the test email in the test inbox: branded, a button, no plain link | PASS (Phil) |
+| N7 | Phil: the grid headings "People" and "Service Users" bold white on their own band, with an "all" box per person for Recent activity and Email; an "all" tick fills every box below at once (no slow fill) | PASS (Phil; Claude checked the per box blur and fade are off in the grid only) |
+| N8 | 0474: Email stands alone. Proved in a rolled back transaction (an email only person is emailed and not shown on the tile; existing rows unaffected), applied, advisor no ERROR; Phil: ticking Email leaves Recent activity as it was | PASS (Claude, Phil) |
