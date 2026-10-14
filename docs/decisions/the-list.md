@@ -316,6 +316,12 @@ The next five were found by the step 7 check of the October audit fixes and park
     1 date was stored by hand, Phil's go, 2026-10-14). To do: find everyone with a probation end, no
     supervision done and no stored Supervision 1 date, show Phil the list, then store the dates.
 
+60. **The Founder's "Manage as company" shows a person's supervision card with no history** (Phil,
+    popup 2026-10-14, PARKED). Seen on two Thistle records whose own Admin view is right: Supervision 1
+    due in 2025, nothing done. The record page's supervision and appraisal history reads come back
+    empty in support mode, so the cycle is worked out from nothing. To do: find which read the
+    Founder's session cannot see, and make support mode show the same history the Admin sees.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
