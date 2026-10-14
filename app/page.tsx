@@ -4,13 +4,15 @@ import { getSessionUser } from "@/lib/auth/guards";
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
 import PricingTable from "@/components/marketing/pricing-table";
-import ProductPreview from "@/components/marketing/product-preview";
+import HeroScene from "@/components/marketing/scenes/hero-scene";
 import Comparison from "@/components/marketing/comparison";
 import PqsReportPreview from "@/components/marketing/pqs-report-preview";
 import FeatureSpotlights from "@/components/marketing/feature-spotlights";
 import Outcomes from "@/components/marketing/outcomes";
 import SocialProof from "@/components/marketing/social-proof";
 import Reveal from "@/components/marketing/reveal";
+import RunTheService from "@/components/marketing/run-the-service";
+import { SCENES_CSS } from "@/components/marketing/scenes/styles";
 
 const TRUST = [
   "CQC in England",
@@ -43,21 +45,6 @@ export const metadata: Metadata = {
     "Compliance software for UK care providers. Track every supervision, spot check, DBS and care plan review, see what is overdue at a glance, and export the evidence for CQC, CIW and your local authority. From £79 a month plus VAT.",
 };
 
-const FEATURES: Array<{ title: string; body: string }> = [
-  {
-    title: "Two Registers, kept apart",
-    body: "Your staff sit in the People Register, the people you support sit in the Service User Register. Each has its own Checks, due dates and Evidence, so nothing gets mixed up.",
-  },
-  {
-    title: "Reminders that do the chasing",
-    body: "A daily digest tells you what is due and what has slipped. Supervisions, reviews and renewals get done on time instead of being found late.",
-  },
-  {
-    title: "Your own Forms when you need them",
-    body: "Start from the care template library, then build and version your own Forms with the form builder on Pro.",
-  },
-];
-
 const SECURITY: Array<{ title: string; body: string }> = [
   {
     title: "Separated in the database",
@@ -65,7 +52,9 @@ const SECURITY: Array<{ title: string; body: string }> = [
   },
   {
     title: "An audit trail nobody can edit",
-    body: "Every view, change and download is written to a log that has no way to be altered or deleted, by us or by anyone in your company. That is what makes it evidence.",
+    // "by us" came off (Phil, 2026-10-14, popup): users cannot alter it, but two past database
+    // changes of ours did (the test company rename, 0112, and whistleblowing categories, 0182).
+    body: "Every view, change and download is written to a log that nobody in your company can alter or delete. That is what makes it evidence.",
   },
   {
     title: "Held in the United Kingdom",
@@ -123,6 +112,9 @@ export default async function Home() {
 
   return (
     <div className="min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 text-white">
+      {/* The product scenes' styles, written into the page so there is no second stylesheet to
+          wait for (components/marketing/scenes/styles.ts). Homepage only, every class hs-. */}
+      <style dangerouslySetInnerHTML={{ __html: SCENES_CSS }} />
       <SiteHeader authed={Boolean(user)} />
 
       <main id="content">
@@ -177,9 +169,13 @@ export default async function Home() {
             ))}
           </ul>
 
-          <Reveal className="mx-auto mt-10 max-w-4xl" delay={80}>
-            <ProductPreview />
-          </Reveal>
+          {/* THE REAL REGISTER (Phil, 2026-10-14): built from the app's own matrix styles, so it
+              looks like the product because it is drawn the way the product draws it. Shown at
+              once, not faded in: calm, and the largest thing on the first screen is not held
+              back until the page's script has run. */}
+          <div className="mx-auto mt-10 max-w-6xl">
+            <HeroScene />
+          </div>
         </div>
       </section>
 
@@ -215,19 +211,9 @@ export default async function Home() {
         </div>
         <FeatureSpotlights />
 
-        {/* And everything else */}
-        <section className="mx-auto max-w-6xl px-4 pb-20">
-          <h3 className="text-center text-sm font-semibold uppercase tracking-wide text-white/50">And everything else you need</h3>
-          <div className="mt-8 grid gap-5 sm:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="glass-card glass-card-hover p-6">
-                <span aria-hidden className="block h-1 w-10 rounded-full bg-gold-400" />
-                <h4 className="mt-4 text-base font-semibold text-white">{f.title}</h4>
-                <p className="mt-2 text-sm text-white/75">{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Everything your service runs on (Phil, 2026-10-14: in place of the small "And
+            everything else you need" row). */}
+        <RunTheService />
       </div>
 
       {/* Outcomes */}

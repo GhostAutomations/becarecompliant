@@ -4579,6 +4579,16 @@ Tests: TEST-CHECKLIST-INCIDENT-FORM.md, I0 to I13 pass (a save that stuck on "Sa
 and fixed in the same job, 8dc91a79). DONE, signed off by Phil 2026-10-14 (a save taking a second or two
 is accepted).
 
+### 2026-10-14 — Homepage refresh: real product scenes, four stories, new features (branch homepage-refresh)
+
+Hero is now the real People register built from the app's own styles; four stories play once on
+scroll (the compliance loop, Evidence for an inspector, the copy landing in OneDrive, Return to Work
+by text); "Everything your service runs on" replaces "And everything else you need"; testimonial band
+hidden until a real quote; "by us" off the audit card. Lighthouse mobile 99 before and after, CLS 0.
+Decision: docs/decisions/homepage-scenes.md. Tests: TEST-CHECKLIST-HOMEPAGE-REFRESH.md. On a preview
+branch: NOT on main or becarecompliant.com until Phil says. Also this day: CLAUDE.md "Clear questions"
+and "Finish line" rules.
+
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
 To test NOW in Phase 13 (never Final Testing). Everything below is deployed and its migrations

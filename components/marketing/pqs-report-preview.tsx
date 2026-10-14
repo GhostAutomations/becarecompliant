@@ -18,7 +18,7 @@ const ROWS: Row[] = [
   { name: "Supervision", register: "People", gradedAt: "90 days", rate: 91.7, score: 7, star: true },
   { name: "Care plan review", register: "Service Users", gradedAt: "90 days", rate: 100, score: 10, star: true },
   { name: "Mandatory training", register: "People", gradedAt: "All courses", rate: 96.0, score: 7, star: true },
-  { name: "Staff registration", register: "People", gradedAt: "6 months in post", rate: 100, score: 10, star: true },
+  { name: "Social Care Wales registration", register: "People", gradedAt: "6 months in post", rate: 100, score: 10, star: true },
   { name: "Safeguarding training", register: "People", gradedAt: "Safeguarding", rate: 88.0, score: 7, star: true },
   { name: "Spot check", register: "People", gradedAt: "90 days", rate: 83.3, score: 5, star: false },
 ];

@@ -1,32 +1,15 @@
-import Link from "next/link";
-
 /**
  * Social proof, ready to fill. Add real quotes to TESTIMONIALS once you have launch
- * customers (never fabricate them). While it is empty we show an honest early adopter
- * callout instead, so the section still earns its place without inventing proof.
+ * customers (never fabricate them). While it is empty nothing shows at all.
  */
 type Testimonial = { quote: string; name: string; role: string };
 
 const TESTIMONIALS: Testimonial[] = [];
 
 export default function SocialProof() {
-  if (TESTIMONIALS.length === 0) {
-    return (
-      <section className="border-y border-white/10 bg-white/[0.03]">
-        <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-          <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">New and growing</span>
-          <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Be one of the first to run compliance this way</h2>
-          <p className="mx-auto mt-4 max-w-xl text-white/75">
-            Be Care Compliant is built by people who run real care services, for the managers who live under
-            inspection pressure. Request a trial and help shape where it goes next.
-          </p>
-          <div className="mt-6">
-            <Link href="/start-trial" className="btn-primary">Request a trial</Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // HIDDEN UNTIL THERE IS A REAL QUOTE (Phil, 2026-10-14, popup). The "Be one of the first"
+  // invitation is gone; the band comes back on its own as soon as a real testimonial is added.
+  if (TESTIMONIALS.length === 0) return null;
 
   return (
     <section className="border-y border-white/10 bg-white/[0.03]">
