@@ -83,22 +83,26 @@ export default function PricingTiers({ offerActive }: { offerActive: boolean }) 
                 </li>
               ))}
             </ul>
-            <Link
-              href={`/start-trial?tier=${t.key}`}
-              className={`mt-6 w-full justify-center text-sm ${t.featured ? "btn-primary" : "btn-outline"}`}
-            >
-              Request a trial
-            </Link>
-            <p className="mt-3 text-center text-xs text-white/60">
-              {offerActive ? (
-                <>
-                  Onboarding <s className="text-white/45">{ONBOARDING_FEE}</s>{" "}
-                  <span className="font-semibold text-gold-300">free until {ONBOARDING_OFFER_END_TEXT}</span>
-                </>
-              ) : (
-                <>Onboarding {ONBOARDING_FEE} one off, free on annual plans</>
-              )}
-            </p>
+            {/* mt-auto: the button and the onboarding line sit at the FOOT of every card, so the two
+                cards' buttons line up whatever the length of each list (Phil, 2026-10-14). */}
+            <div className="mt-auto pt-6">
+              <Link
+                href={`/start-trial?tier=${t.key}`}
+                className={`w-full justify-center text-sm ${t.featured ? "btn-primary" : "btn-outline"}`}
+              >
+                Request a trial
+              </Link>
+              <p className="mt-3 text-center text-xs text-white/60">
+                {offerActive ? (
+                  <>
+                    Onboarding <s className="text-white/45">{ONBOARDING_FEE}</s>{" "}
+                    <span className="font-semibold text-gold-300">free until {ONBOARDING_OFFER_END_TEXT}</span>
+                  </>
+                ) : (
+                  <>Onboarding {ONBOARDING_FEE} one off, free on annual plans</>
+                )}
+              </p>
+            </div>
           </div>
         ))}
       </div>

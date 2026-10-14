@@ -76,6 +76,18 @@ section stay unless Phil agrees a change.
 - **Comparison table row** (popup): "A copy of every completed form in your own SharePoint or
   OneDrive". Only what is built: Google Drive is not built, and Outlook is email, not storage.
 
+## Pricing page, one layout change (Phil, 2026-10-14, added to this preview by popup)
+
+- The Business and Pro cards end level: "Request a trial" and the onboarding line sit at the foot
+  of each card (`mt-auto`), so the two buttons line up and the shorter list leaves the gap. No
+  price or wording changed.
+
+## Measuring speed: use Vercel's compression
+
+- Lighthouse against `next start` is pessimistic: Next's own server sends the homepage gzip at
+  about 35KB where Vercel sends brotli at about 14KB. Measure through a brotli relay (or on the
+  real site) and compare like for like: the live and new homepages both scored 99 that way.
+
 ## Reported, not fixed (prices are out of scope)
 
 - Homepage, pricing page, code and the agreed decision all say £79 and £129.
