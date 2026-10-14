@@ -4611,7 +4611,8 @@ person in one grid on Settings, Notifications, which "[Check] completed" events 
 Email. Supervisors default to Care Plan Review. Branches they belong to; adding one gives access. The
 dashboard's company wide Recent activity is replaced by the personal one. Test companies get these
 emails. Migration 0473. Decision: docs/decisions/personal-notifications.md. Tests:
-TEST-CHECKLIST-PERSONAL-NOTIFICATIONS.md. IN PROGRESS.
+TEST-CHECKLIST-PERSONAL-NOTIFICATIONS.md, N0 to N6 pass. DONE, live 2026-10-15 (commits e2304d55,
+1103fac1).
 
 ### 2026-10-14 — Goodwill credits (Founder)
 
