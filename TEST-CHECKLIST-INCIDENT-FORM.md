@@ -34,4 +34,4 @@ waited on those late pieces for ever. Fix (commit 8dc91a79): the page reads the 
 other reads and the card is plain. After the fix, on Bevan 4: three time changes, the Other words
 and a RIDDOR date, each turned green "Saved" and the page updated.
 
-| I13 | After a save on the case (time, Other words, RIDDOR date), the button turns green "Saved" | PASS (Claude in Phil's Chrome after the fix, five saves) and Phil's phone: Not tested |
+| I13 | After a save on the case (time, Other words, RIDDOR date), the button turns green "Saved" | PASS (Claude in Phil's Chrome after the fix, five saves) and Phil's phone PASS (time change saved 09:48, the button finished; a second or two, accepted) |

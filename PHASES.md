@@ -4575,7 +4575,9 @@ Branches); the incident case names only that one. A "What was reported" card sho
 case (required except on cases that never had one). RIDDOR on the case with the HSE link and date
 rules. "What type of incident was it?" on every Report form and the case when the kind is Other,
 shown as "Other: [words]", grouped under Other. 0467. Decision: docs/decisions/incidents-whistleblowing.md.
-Tests: TEST-CHECKLIST-INCIDENT-FORM.md. IN PROGRESS: built, migration not yet applied.
+Tests: TEST-CHECKLIST-INCIDENT-FORM.md, I0 to I13 pass (a save that stuck on "Saving…" was found
+and fixed in the same job, 8dc91a79). DONE, signed off by Phil 2026-10-14 (a save taking a second or two
+is accepted).
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 
