@@ -4612,7 +4612,7 @@ the company never sees. Credits never expire (added like a top up). Bevan sees a
 on Billing (last 12: allowance, top ups, goodwill). Founder only in the database; idempotent by grant
 and period; every grant, credit and stop audit logged. Daily cron /api/cron/goodwill-credits.
 Migration 0472. Decision: docs/decisions/goodwill-credits.md. Tests:
-TEST-CHECKLIST-GOODWILL-CREDITS.md. IN PROGRESS.
+TEST-CHECKLIST-GOODWILL-CREDITS.md, G0 to G7 pass. DONE, live 2026-10-14 (commit 67c92aa1).
 
 ### 2026-10-14 — Founder console tiles (Founder)
 
