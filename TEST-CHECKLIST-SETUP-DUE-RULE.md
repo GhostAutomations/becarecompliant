@@ -14,6 +14,6 @@ day before)" (start 1 Oct, done 30 Sep), "ZZ Setup Done On The Day" (2 Oct), "ZZ
 | S1 | Bevan test service users in the database: today amber, 20 Oct green (amber is the day only), 10 Oct red; the done ones count as complete | PASS (Claude) |
 | S2 | Bevan, Service Users, Compliance, Llanelli (Claude in the browser as Bev): no "Setup Visit Due" column; the Setup Visit column shows Due 20 Oct 26 green, Due 14 Oct 26 amber, Late red, 30 Sep 26 green, 02 Oct 26 green, 04 Oct 26 red | Not tested |
 | S3 | Bevan: edit ZZ Setup Future's package start to 22 Oct 2026: its Setup shows Due 22 Oct 26 | Not tested |
-| S4 | Thistle (Phil), Service Users, Compliance: no "Setup Visit Due" column; Ann Daw shows 19 Jun 26 in green (was red); Charles Tsoka shows 11 Apr 24 in red (was green) | Not tested |
+| S4 | Thistle (Phil), Service Users, Compliance: no "Setup Visit Due" column; one service user done on the package start day now shows that date in green (was red), and one done the day after shows it in red (was green); the two are named in the job report, not here | Not tested |
 | S5 | Bevan (Phil): ZZ Setup Today shows amber "Due 14 Oct 26" | Not tested |
 | S6 | Bevan (Phil): ZZ Setup Done Late shows 04 Oct 26 in red | Not tested |
