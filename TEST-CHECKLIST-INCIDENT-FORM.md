@@ -20,9 +20,18 @@ Run one at a time.
 | I9 | A new Bevan test branch gets the company's regulator (proved in a rolled back insert) | PASS (rolled back: a new Bevan branch got CIW; with the company set to CQC a new branch got CQC; a regulator given is kept. The database also refuses Other words on a case that is not Other, a RIDDOR date before the incident, and an HSE reference without RIDDOR Yes) |
 | I10 | Incident counts on the Dashboard and the Incidents summary unchanged for Thistle, Bevan and Demo; Thistle and Demo incident rows unchanged | Database PASS (incident rows for Thistle, Bevan and Demo identical on every existing column; counts Thistle 2 open, Bevan 3 open, Demo 3 closed 1 open 1 under review, as before). Screens PASS: Thistle register 2 recorded, 2 open, as before; Bevan 4 recorded, 4 open, the one added being test report 4 |
 | I11 | Phil, Thistle, open one of Thistle's incidents: What was reported shows the report's answers, "Notifiable to CIW", and nothing names CQC (look only, change nothing) | PASS (Claude in Phil's Chrome, Thistle, the 13/10/2026 Fall at Newport, looked at only: What was reported shows the report's answers and On the case; "Notifiable to CIW" and "CIW Regulation 60"; no CQC anywhere; Not recorded only on Anything to attach, RIDDOR and the outcome fields not yet filed. Thistle's incident rows unchanged after; one evidence.viewed audit row added, as designed) |
-| I12 | Phone width: the What was reported card is one column and readable; the edit form's new boxes fit | Not tested |
+| I12 | Phone width: the What was reported card is one column and readable; the edit form's new boxes fit | PASS (Phil, phone, 2026-10-14: "Looks good") |
 
 Note on saving: during I6 to I8, 3 of 6 saves in Claude's background Chrome tab stayed on "Saving…"
 although each one was stored and the server answered normally. Re-run with Phil's Chrome open on
 Bevan (2026-10-14): three saves in a row on Bevan 4, each a real change, each turned green "Saved"
 and was stored. Treated as the background tab, not the form.
+
+CORRECTION, same day: it was the form. Phil's phone stuck too after changing the time and a staff
+member (both stored). Reproduced every time by changing the time. Cause: the What was reported card
+read its forms inside an async component that streamed into the page late; after a save the page
+waited on those late pieces for ever. Fix (commit 8dc91a79): the page reads the forms with its
+other reads and the card is plain. After the fix, on Bevan 4: three time changes, the Other words
+and a RIDDOR date, each turned green "Saved" and the page updated.
+
+| I13 | After a save on the case (time, Other words, RIDDOR date), the button turns green "Saved" | PASS (Claude in Phil's Chrome after the fix, five saves) and Phil's phone: Not tested |
