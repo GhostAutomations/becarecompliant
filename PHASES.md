@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Founder console tiles (Founder)
+
+The 15 tiles below the two charts are equal rounded squares with a centred gold icon and the name
+(count pills kept, no description): 8 a row from 1536 wide so the console fits without scrolling, 4 on
+a laptop, 2 on a tablet; phones as before. Founder page only (FounderTile); app-tile untouched. A
+square corners version went out first and was replaced the same day (Phil meant square tiles). Phil
+passed it 2026-10-14.
+
 ### 2026-10-14 — Service User Setup due on the package start, one Setup column (Phase 13, Thistle)
 
 Setup is due on the package start (was the day before), amber on the day only, red "Late" after;
