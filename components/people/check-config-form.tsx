@@ -93,7 +93,8 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     if (isExpiry) {
       fd.set("flag_days", flagDays);
     } else {
-      fd.set("days", def.recurring ? days : String(-Math.abs(Number.parseInt(days, 10) || 1)));
+      // A one off may be 0 (the anchor day itself), so only a blank falls back to 1.
+      fd.set("days", def.recurring ? days : String(-Math.abs(Number.isNaN(Number.parseInt(days, 10)) ? 1 : Number.parseInt(days, 10))));
       fd.set("frequency", def.recurring ? unit.frequency : "day");
       fd.set("amber_days", amber);
       fd.set("reporting_days", reportingDays);
@@ -161,7 +162,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       <input
         id={`days-${def.id}`}
         type="number"
-        min={1}
+        min={def.recurring ? 1 : 0}
         value={days}
         onChange={(e) => {
           setDays(e.target.value);

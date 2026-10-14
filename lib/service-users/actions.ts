@@ -280,6 +280,12 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   if (inv.error) return { error: inv.error };
 
   const supabase = await createClient();
+  const newStart = isoDateOrNull(formData.get("package_start_date"));
+  const { data: before } = await supabase
+    .from("service_users")
+    .select("package_start_date, company_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase
     .from("service_users")
     .update({
@@ -287,13 +293,23 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
       address: contact.values.address,
       phone: contact.values.phone,
       ssid: trimOrNull(formData.get("ssid")),
-      package_start_date: isoDateOrNull(formData.get("package_start_date")),
+      package_start_date: newStart,
       ...inv.values,
     })
     .eq("id", id);
   if (error) {
     if (error.code === "23505") return { error: "That SSID is already used in your company." };
     return { error: error.message };
+  }
+
+  /* THE SETUP MOVES WITH THE PACKAGE START (Phil, 2026-10-14; docs/decisions/setup-due-rule.md).
+     Setup is due from the package start, so a new start date moves a setup that is not done yet
+     to the Setup Visit's own rule (the same day by default). A done setup is left alone, and the
+     database refuses to move one (reschedule_check_instances only touches checks not done). */
+  const oldStart = (before?.package_start_date as string | null) ?? null;
+  if (before && newStart !== oldStart) {
+    const moved = await moveOutstandingSetup(supabase, id, before.company_id as string, newStart);
+    if (moved.error) return { error: `Saved, but the setup due date could not be moved: ${moved.error}` };
   }
 
   await writeAudit({
@@ -310,6 +326,38 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   revalidatePath(`/service-users/${id}`);
   revalidatePath("/service-users");
   return { ok: "Saved." };
+}
+
+/** Move a not yet done Setup to the Setup Visit's rule from a new package start. */
+async function moveOutstandingSetup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  serviceUserId: string,
+  companyId: string,
+  packageStart: string | null,
+): Promise<{ error?: string }> {
+  const { data: def } = await supabase
+    .from("check_definitions")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("population", "service_users")
+    .eq("key", "setup")
+    .maybeSingle();
+  if (!def) return {};
+  const { data: inst } = await supabase
+    .from("check_instances")
+    .select("id, due_date")
+    .eq("service_user_id", serviceUserId)
+    .eq("definition_id", def.id)
+    .is("last_completed_on", null)
+    .maybeSingle();
+  if (!inst) return {};
+  const due = initialDueDate(def as CheckDefinition, packageStart);
+  if ((inst.due_date ?? null) === due) return {};
+  const { error } = await supabase.rpc("reschedule_check_instances", {
+    p_definition_id: def.id,
+    p_rows: [{ instance_id: inst.id, due_date: due }],
+  });
+  return error ? { error: error.message } : {};
 }
 
 type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; carers: number; slot: string | null; quantity: number };

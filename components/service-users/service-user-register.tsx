@@ -36,6 +36,12 @@ import type { BranchType } from "@/lib/service-users/data";
 import { useBranchWord } from "@/components/branches/branch-word";
 import { useRememberBranch } from "@/components/register/use-remember-branch";
 import { mayOfferCheckComplete } from "@/lib/register/complete-offer";
+import { setupCell } from "@/lib/service-users/setup-cell";
+
+/** Today in Europe/London as an ISO date, for the Setup cell. */
+function londonToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+}
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, paused: 3, none: 3 };
 
@@ -346,8 +352,9 @@ export default function ServiceUserRegister({
                     <th>{col("ssid", "SSID")}</th>
                     <th>{col("status", "Status")}</th>
                     <th>{col("package_start_date", "Package Start Date")}</th>
-                    <th>{col("setup_due", "Setup Visit Due")}</th>
-                    <th>{col("setup_completed", "Setup Visit Completed")}</th>
+                    {/* ONE SETUP COLUMN (Phil, 2026-10-14): the separate Setup Due column is gone; the
+                        Setup cell says Due, Late or the date it was done (lib/service-users/setup-cell). */}
+                    <th>{col("setup_completed", "Setup Visit")}</th>
                     {isComplex ? (
                       <>
                         <th>{col("rev1_due", "Review 1 Due")}</th>
@@ -376,11 +383,14 @@ export default function ServiceUserRegister({
                     const su = row.service_user;
                     const review = row.statusByKey["care_plan_review"];
                     const setup = row.statusByKey["setup"];
-                    const setupDue = setup?.due_date ?? null;
-                    const setupComp = setup?.last_completed_on ?? null;
-                    // Completed on time (green) when the completion is on or before the
-                    // due date, otherwise late (red).
-                    const setupLate = !!setupComp && !!setupDue && setupComp > setupDue;
+                    const setupCellNow = setupCell({
+                      packageStart: su.package_start_date,
+                      due: setup?.due_date ?? null,
+                      completedOn: setup?.last_completed_on ?? null,
+                      today: londonToday(),
+                      amberDays: setup?.effective_amber ?? null,
+                      paused: setup?.rag === "paused",
+                    });
                     const newReviewDue = review?.due_date ?? null;
                     return (
                       <tr key={su.id}>
@@ -404,19 +414,12 @@ export default function ServiceUserRegister({
                         </td>
                         <td>{formatDisplayDate(su.package_start_date) || "—"}</td>
                         <td>
-                          {setupComp ? (
-                            <span>{formatDisplayDate(setupDue) || "—"}</span>
-                          ) : (
-                            <RagDate date={setupDue} rag={setup?.rag ?? "none"} status={su.service_status} />
-                          )}
-                        </td>
-                        <td>
-                          {setupComp ? (
-                            <span className={`rag-cell ${setupLate ? "rag-cell-red" : "rag-cell-green"}`}>
-                              {formatDisplayDate(setupComp)}
-                            </span>
-                          ) : (
+                          {setupCellNow.tone === "paused" ? (
+                            <RagDate date={null} rag="paused" status={su.service_status} />
+                          ) : setupCellNow.tone === "none" ? (
                             <span className="rag-cell rag-cell-none">—</span>
+                          ) : (
+                            <span className={`rag-cell ${ragClass(setupCellNow.tone)}`}>{setupCellNow.text}</span>
                           )}
                         </td>
                         {isComplex ? (

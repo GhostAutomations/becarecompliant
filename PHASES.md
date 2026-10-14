@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-14 — Service User Setup due on the package start, one Setup column (Phase 13, Thistle)
+
+Setup is due on the package start (was the day before), amber on the day only, red "Late" after;
+the done date green when on or before the start, red after. "Setup Visit Due" column removed. All
+companies and new ones (0471); stored setup dates moved (Thistle 71, Demo 40, Bevan 21) on Phil's OK.
+A package start edit moves an outstanding setup. Decision: docs/decisions/setup-due-rule.md. Tests:
+TEST-CHECKLIST-SETUP-DUE-RULE.md (S0 to S1 pass so far).
+
 ### 2026-10-14 — Tickets: two sections, three RAG columns, Managers see their own (Phase 13, Thistle)
 
 One layout for the Founder console and every company's Tickets page: "Open and in progress" open,

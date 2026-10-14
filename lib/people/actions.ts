@@ -1228,11 +1228,13 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
      */
     const recurring = String(formData.get("recurring") ?? "1") === "1";
     const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
-    if (Number.isInteger(days) && days !== 0 && (recurring ? days >= 1 : true)) {
+    /* A one off may be 0: due ON the anchor day itself (Setup, Phil 2026-10-14: "the setting for
+       the same day, but leave it because other companies might want to change it"). */
+    if (Number.isInteger(days) && (recurring ? days >= 1 : true)) {
       /* The unit the check is stored in comes back with the number (DEF-061): an Audit every
          3 months must not be saved as every 3 days. A one off is always a day offset. */
       patch.frequency = recurring ? intervalUnit(String(formData.get("frequency") ?? "day")).frequency : "day";
-      patch.interval = recurring ? days : -Math.abs(days);
+      patch.interval = recurring ? days : -Math.abs(days) || 0;
     }
     const amberRaw = String(formData.get("amber_days") ?? "").trim();
     if (amberRaw === "") patch.amber_days = null;

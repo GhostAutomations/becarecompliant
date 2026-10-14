@@ -156,8 +156,8 @@ export const SU_REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "ssid", name: "SSID" },
   { key: "status", name: "Status" },
   { key: "package_start_date", name: "Package Start Date" },
-  { key: "setup_due", name: "Setup Visit Due" },
-  { key: "setup_completed", name: "Setup Visit Completed" },
+  // One Setup column since 2026-10-14 (Phil): it shows Due, Late or the date done.
+  { key: "setup_completed", name: "Setup Visit" },
   { key: "most_recent_review", name: "Most Recent Review" },
   { key: "new_review_due", name: "New Review Due" },
   // Complex branches only (shown instead of the four Simple review columns above).
