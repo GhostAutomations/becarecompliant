@@ -297,6 +297,16 @@ The next five were found by the step 7 check of the October audit fixes and park
     screens use Broadcast, 0418). To do: apply 0419 on Phil's go, confirm the publication is empty,
     and check the live screens still update.
 
+58. **The Annual Appraisal columns count supervisions instead of using the appraisal date** (Phil,
+    popup 2026-10-14, PARKED). `appraisalSlot` in lib/people/logic.ts assumes three supervisions per
+    appraisal; the supervision columns already split on the date (`supervisionsConsumed`). An extra
+    (ad hoc) supervision before an appraisal, or fewer than three, gives a wrong Appraisal Due and a
+    blank Done. One Thistle carer was fixed by deleting two ad hoc supervisions instead
+    (TEST-CHECKLIST-APPRAISAL-CYCLE.md). A date based fix was worked out that day: it changed 12
+    people across Thistle, Bevan and Demo (one corrected, 11 Done dates changing between on time and
+    late) and nothing else. Also seen: that carer's stored appraisal due date is 29/03/2027 although
+    "after Supervision 3" says blank until Supervision 3 is done.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
