@@ -1,6 +1,7 @@
 import Story from "./story";
 import { d } from "./timing";
 import { s } from "./class-names";
+import { sceneDates } from "@/lib/marketing/scene-dates";
 
 /**
  * Be Care Compliant: Return to Work by text (Phil, 2026-10-14, popup).
@@ -20,6 +21,7 @@ const QUESTIONS = [
 ];
 
 export default function RtwStory() {
+  const t = sceneDates();
   return (
     <Story
       durationMs={5000}
@@ -28,17 +30,12 @@ export default function RtwStory() {
     >
       <div className="grid gap-4 p-4 sm:grid-cols-[1fr_11rem] sm:p-5">
         <div className="space-y-3">
-          <div className="glass-card flex flex-wrap items-center justify-between gap-2 p-4">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">Owain Pritchard</p>
-              <p className="text-[11px] text-white/55">Sickness, off 08/10/2026 to 10/10/2026, Riverside</p>
-            </div>
-            <span className="pill-amber shrink-0">Stage 1 Due</span>
-          </div>
-
           <div className="glass-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">Return to Work questions</p>
+              <div>
+                <p className="text-sm font-semibold text-white">Return to Work questions</p>
+                <p className="text-[11px] text-white/55">Owain Pugh, back from sickness</p>
+              </div>
               <span className="inline-flex items-center rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-bold text-gold-300 ring-1 ring-inset ring-gold-400/30">
                 AI
               </span>
@@ -55,11 +52,10 @@ export default function RtwStory() {
               <p className="text-[12px] text-white/70">
                 <span className={`${s.swap} ${s.swapStart}`}>
                   <span className={s.before} style={d(1500)}>
-                    Check these questions first, then send them to Owain. They get a text with a link and answer in their
-                    portal.
+                    Check these questions first, then send them to Owain.
                   </span>
                   <span className={s.after} style={d(1550)}>
-                    Sent to the phone ending 4471 on 14/10/2026. Waiting for Owain to answer.
+                    Sent to the phone ending 4471 on {t.slash(0)}. Waiting for Owain to answer.
                   </span>
                 </span>
               </p>
@@ -76,7 +72,7 @@ export default function RtwStory() {
               className={`${s.appear} mt-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-[12px] text-white/80`}
               style={d(4200)}
             >
-              Owain answered these through their portal on 14/10/2026.
+              Owain answered these through their portal on {t.slash(0)}.
             </p>
           </div>
         </div>

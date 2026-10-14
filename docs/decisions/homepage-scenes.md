@@ -24,6 +24,20 @@ section stay unless Phil agrees a change.
   "Supervision evidence, 12 months, page 3 of 47" document, and the PQS row "Staff registration"
   (the app calls it Social Care Wales registration).
 
+## Second round (Phil, 2026-10-14, after reviewing the preview: all four improvements)
+
+- **Service User register** in place of a second dashboard picture ("Two registers, kept apart"),
+  so the page shows both registers: Service User, SSID, Status, Most Recent Review, New Review
+  Due, Audit, with a Hospital row whose checks show the grey "Paused" pill.
+- **The lead story shows four carers** (Owain Pugh, Hannah Cole, Ffion Rees, Rhian Bowen), with
+  Ffion's row lit as it changes. The same people and dates as the hero.
+- **Dates are always current** (`lib/marketing/scene-dates.ts`, unit tested): every scene date is
+  days from today in London, worked out per request, so "today" is always today.
+- **Shorter page:** "Built for care, not bent into shape" and "What changes for your service"
+  merged into one section; the Return to Work story trimmed to the questions, the text and the
+  answer.
+- **Not added:** a line about a real customer. Phil asks Thistle first and gives the wording.
+
 ## The four stories (Phil's popup: Evidence, OneDrive, Return to Work, with the loop)
 
 1. **The compliance loop** (lead). Supervision 2 Due red, the form completed, the pill clears,

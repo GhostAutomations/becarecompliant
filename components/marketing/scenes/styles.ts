@@ -84,11 +84,13 @@ export const SCENES_CSS = `
 }
 
 /* RUN: each layer animates at its own delay (--d) and holds the end. */
+/* Old out, then new in: the new layer waits for the old one to go, so two values never show on
+   top of each other mid change. */
 .hs-story[data-state="run"] .hs-before {
-  animation: hs-fadeOut 400ms cubic-bezier(0.4, 0, 0.2, 1) var(--d, 0ms) both;
+  animation: hs-fadeOut 200ms cubic-bezier(0.4, 0, 0.2, 1) var(--d, 0ms) both;
 }
 .hs-story[data-state="run"] .hs-after {
-  animation: hs-fadeIn 450ms cubic-bezier(0.2, 0, 0, 1) var(--d, 0ms) both;
+  animation: hs-fadeIn 350ms cubic-bezier(0.2, 0, 0, 1) calc(var(--d, 0ms) + 180ms) both;
 }
 .hs-story[data-state="run"] .hs-appear {
   animation: hs-rise 500ms cubic-bezier(0.2, 0, 0, 1) var(--d, 0ms) both;
@@ -137,6 +139,18 @@ export const SCENES_CSS = `
   pointer-events: none;
 }
 .hs-story[data-state="run"] .hs-glow {
+  animation: hs-glow 1600ms ease-in-out var(--d, 0ms) both;
+}
+
+/* The same highlight laid over each cell of one table row, so the row lights up as one. */
+.hs-rowGlow {
+  position: absolute;
+  inset: 0;
+  background: rgba(251, 191, 36, 0.12);
+  opacity: 0;
+  pointer-events: none;
+}
+.hs-story[data-state="run"] .hs-rowGlow {
   animation: hs-glow 1600ms ease-in-out var(--d, 0ms) both;
 }
 
@@ -202,7 +216,8 @@ export const SCENES_CSS = `
   .hs-story .hs-leave,
   .hs-story .hs-countOld,
   .hs-story .hs-visit,
-  .hs-story .hs-glow {
+  .hs-story .hs-glow,
+  .hs-story .hs-rowGlow {
     opacity: 0 !important;
   }
   .hs-story .hs-after,
@@ -283,14 +298,24 @@ export const SCENES_CSS = `
   }
   .hs-compact th,
   .hs-compact td {
-    padding-left: 0.35rem;
-    padding-right: 0.35rem;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
   }
   .hs-compact th {
-    min-width: 4rem;
+    min-width: 0;
+    font-size: 9px;
+    letter-spacing: 0.02em;
   }
   .hs-compact td {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+  }
+  .hs-compact th,
+  .hs-compact td {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  .hs-matrixClip::after {
+    width: 1rem;
   }
 }
 

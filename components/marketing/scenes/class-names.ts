@@ -14,6 +14,7 @@ export const s = {
   matrixClip: "hs-matrixClip",
   phone: "hs-phone",
   press: "hs-press",
+  rowGlow: "hs-rowGlow",
   stage: "hs-stage",
   story: "hs-story",
   swap: "hs-swap",

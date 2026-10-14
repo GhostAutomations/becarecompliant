@@ -12,6 +12,9 @@ Branch `homepage-refresh`, on its Vercel preview link (NOT becarecompliant.com).
 | H4 | Mac: the Evidence story (audit lines appear one by one) and the OneDrive story (the PDF appears in the Supervision 2 folder) each loop while on screen; scroll away and back and they start again from the beginning | Not tested |
 | H4b | Mac: the comparison table has a row "A copy of every completed form in your own SharePoint or OneDrive" with a cross, Limited and a tick | Not tested |
 | H4c | Mac: the Pricing page. The Business and Pro "Request a trial" buttons sit on the same line, and both "Onboarding" lines underneath are level; the gap falls under the shorter Pro list. Same on the Annual switch | Not tested |
+| H4d | Mac: "Two registers, kept apart" shows the Service User register (Service User, Status, Most Recent Review, New Review Due, Audit), with Gwyn Thomas in Hospital and his checks Paused | Not tested |
+| H4e | Mac: the lead story shows four carers and only Ffion's row changes; the dates are around today's date, not October 2026 (check on another day) | Not tested |
+| H4f | Mac: one section "What changes for your service" sits under the hero; "Built for care, not bent into shape" is no longer a separate section | Not tested |
 | H5 | Mac: "Everything your service runs on" shows the Return to Work story beside "Your staff, looked after", then three cards; Pro lines carry a Pro chip and the note explains it | Not tested |
 | H6 | Mac: the testimonial band is gone; the Security audit card reads "nobody in your company can alter or delete"; nothing else in Security, Pricing, FAQ or the hero text has changed | Not tested |
 | H7 | Phone: the hero shows Carer and Supervision 2 Due and Done, nothing runs off the side, and each story plays as it comes into view | Not tested |

@@ -1,6 +1,7 @@
 import Story from "./story";
 import { d } from "./timing";
 import { s } from "./class-names";
+import { sceneDates } from "@/lib/marketing/scene-dates";
 
 /**
  * Be Care Compliant: Evidence for an inspector (Phil, 2026-10-14, popup).
@@ -14,13 +15,13 @@ import { s } from "./class-names";
  * screen", evidence.downloaded "Downloaded evidence PDF".
  */
 
-const AUDIT: Array<{ when: string; action: string; detail: string; at: number }> = [
-  { when: "14 October 2026 at 10:42", action: "evidence.created", detail: "Completed Supervision (version 3)", at: 1900 },
-  { when: "14 October 2026 at 10:43", action: "evidence.viewed", detail: "Viewed evidence on screen", at: 2500 },
-  { when: "14 October 2026 at 10:43", action: "evidence.downloaded", detail: "Downloaded evidence PDF", at: 3700 },
-];
-
 export default function EvidenceStory() {
+  const t = sceneDates();
+  const AUDIT: Array<{ when: string; action: string; detail: string; at: number }> = [
+    { when: `${t.long(0)} at 10:42`, action: "evidence.created", detail: "Completed Supervision (version 3)", at: 1900 },
+    { when: `${t.long(0)} at 10:43`, action: "evidence.viewed", detail: "Viewed evidence on screen", at: 2500 },
+    { when: `${t.long(0)} at 10:43`, action: "evidence.downloaded", detail: "Downloaded evidence PDF", at: 3700 },
+  ];
   return (
     <Story
       durationMs={4400}
@@ -43,7 +44,7 @@ export default function EvidenceStory() {
           <div className="glass-card mt-3 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
             {[
               ["Completed by", "Rhian Bowen"],
-              ["Completed at", "14/10/2026, 10:42"],
+              ["Completed at", `${t.slash(0)}, 10:42`],
               ["Form version", "Version 3"],
               ["Branch", "Riverside"],
             ].map(([k, v]) => (
@@ -63,7 +64,7 @@ export default function EvidenceStory() {
               </div>
               <div className="border-t border-white/5 pt-2">
                 <dt className="text-xs text-white/55">Date of supervision</dt>
-                <dd className="text-sm text-white/90">14 October 2026</dd>
+                <dd className="text-sm text-white/90">{t.long(0)}</dd>
               </div>
               <div className="border-t border-white/5 pt-2">
                 <dt className="text-xs text-white/55">Declaration</dt>

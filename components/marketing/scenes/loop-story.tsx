@@ -1,6 +1,7 @@
 import Story from "./story";
 import { d } from "./timing";
 import { s } from "./class-names";
+import { sceneDates } from "@/lib/marketing/scene-dates";
 
 /**
  * Be Care Compliant: the lead story, the compliance loop (Phil, 2026-10-14).
@@ -15,16 +16,15 @@ import { s } from "./class-names";
  * About five seconds, once. Drawn in its final state; see story.tsx for how it plays.
  */
 
-const TODAY = "14 Oct 26";
-
 export default function LoopStory() {
+  const t = sceneDates();
   return (
     <Story
       durationMs={5200}
       label="A short animation: an overdue supervision is completed, its due date turns from red to done, today's date is stamped, the next supervision is scheduled, and the overdue count on the dashboard drops by one."
       className={s.frame}
     >
-      <div className="relative space-y-3 p-4 sm:p-5">
+      <div className="relative space-y-3 p-3 sm:p-5">
         {/* The dashboard, above: the Overdue tile and the branch readiness card. */}
         <div className="grid grid-cols-1 gap-3 min-[460px]:grid-cols-2">
           <div className="glass-card p-4">
@@ -61,7 +61,7 @@ export default function LoopStory() {
           </div>
         </div>
 
-        {/* The People register: one carer's supervision cycle. */}
+        {/* The People register: four carers, Ffion's row the one that changes. */}
         <div className={`relative ${s.matrixClip} ${s.compact} ${s.wrapHead}`}>
           <table className="matrix">
             <thead>
@@ -73,30 +73,65 @@ export default function LoopStory() {
               </tr>
             </thead>
             <tbody>
-              <tr className="relative">
-                <td className="col-carer">Ffion Rees</td>
+              <tr>
+                <td className="col-carer">Owain Pugh</td>
+                <td>{t.matrix(-70)}</td>
                 <td>
-                  <span className={s.swap}>
-                    <span className={`${s.before} rag-cell rag-cell-red`} style={d(2200)}>12 Sep 26</span>
-                    <span className={s.after} style={d(2250)}>12 Sep 26</span>
-                  </span>
+                  <span className="done-late">{t.matrix(-64)}</span>
                 </td>
                 <td>
+                  <span className="rag-cell rag-cell-green">{t.matrix(22)}</span>
+                </td>
+              </tr>
+              <tr>
+                <td className="col-carer">Hannah Cole</td>
+                <td>
+                  <span className="rag-cell rag-cell-green">{t.matrix(56)}</span>
+                </td>
+                <td>—</td>
+                <td>
+                  <span className="rag-cell rag-cell-none">—</span>
+                </td>
+              </tr>
+              <tr>
+                <td className="col-carer">
+                  Ffion Rees
+                  <span className={s.rowGlow} style={d(2100)} />
+                </td>
+                <td className="relative">
+                  <span className={s.swap}>
+                    <span className={`${s.before} rag-cell rag-cell-red`} style={d(2200)}>{t.matrix(-32)}</span>
+                    <span className={s.after} style={d(2250)}>{t.matrix(-32)}</span>
+                  </span>
+                  <span className={s.rowGlow} style={d(2100)} />
+                </td>
+                <td className="relative">
                   <span className={s.swap}>
                     <span className={s.before} style={d(2600)}>—</span>
-                    <span className={`${s.after} done-late`} style={d(2650)}>{TODAY}</span>
+                    <span className={`${s.after} done-late`} style={d(2650)}>{t.matrix(0)}</span>
                   </span>
+                  <span className={s.rowGlow} style={d(2100)} />
                 </td>
-                <td>
+                <td className="relative">
                   <span className={s.swap}>
                     <span className={`${s.before} rag-cell rag-cell-none`} style={d(3000)}>—</span>
-                    <span className={`${s.after} rag-cell rag-cell-green`} style={d(3050)}>14 Jan 27</span>
+                    <span className={`${s.after} rag-cell rag-cell-green`} style={d(3050)}>{t.matrix(92)}</span>
                   </span>
+                  <span className={s.rowGlow} style={d(2100)} />
+                </td>
+              </tr>
+              <tr>
+                <td className="col-carer">Rhian Bowen</td>
+                <td>
+                  <span className="rag-cell rag-cell-green">{t.matrix(85)}</span>
+                </td>
+                <td>—</td>
+                <td>
+                  <span className="rag-cell rag-cell-none">—</span>
                 </td>
               </tr>
             </tbody>
           </table>
-          <span className={s.glow} style={d(2100)} />
         </div>
 
         {/* The form, visiting: completed and saved, then gone. */}
@@ -108,7 +143,7 @@ export default function LoopStory() {
           <p className="text-[11px] text-white/55">Ffion Rees, Riverside</p>
           <div className="mt-3 space-y-2 text-[11px]">
             <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/80">
-              Date of supervision: 14/10/2026
+              Date of supervision: {t.slash(0)}
             </div>
             <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/80">
               Wellbeing, workload and training discussed

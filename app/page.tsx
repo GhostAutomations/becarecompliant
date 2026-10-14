@@ -10,7 +10,6 @@ import PqsReportPreview from "@/components/marketing/pqs-report-preview";
 import FeatureSpotlights from "@/components/marketing/feature-spotlights";
 import Outcomes from "@/components/marketing/outcomes";
 import SocialProof from "@/components/marketing/social-proof";
-import Reveal from "@/components/marketing/reveal";
 import RunTheService from "@/components/marketing/run-the-service";
 import { SCENES_CSS } from "@/components/marketing/scenes/styles";
 
@@ -22,21 +21,6 @@ const TRUST = [
   // and Satisfaction feeds User Experience Q2 from the last six months of plan review answers.
   "Live PQS scoring",
   "Audit trail on every record",
-];
-
-const EDGES: Array<{ title: string; body: string }> = [
-  {
-    title: "It already speaks CQC and CIW",
-    body: "Supervisions, spot checks, DBS, mandatory training and care plan reviews are built in and named the way your regulator names them. There is no blank grid to design first.",
-  },
-  {
-    title: "The calendar keeps itself",
-    body: "A spreadsheet waits for you to update it. Here you complete the Form and the Check closes, the Evidence is stored and the next due date is set, all in one step.",
-  },
-  {
-    title: "Evidence, not just a tidy list",
-    body: "Every completed Form is timestamped, attributed and version stamped. When an inspector asks to see your work you export it rather than assemble it.",
-  },
 ];
 
 export const metadata: Metadata = {
@@ -179,26 +163,9 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Built for care, not adapted for it */}
-      <section className="border-y border-white/10 bg-white/[0.03]">
-        <div className="mx-auto max-w-6xl px-4 py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-semibold sm:text-3xl">Built for care, not bent into shape</h2>
-            <p className="mt-3 text-white/75">
-              Three things you get as standard when the software was written for care in the first place, rather
-              than adapted to it afterwards.
-            </p>
-          </div>
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {EDGES.map((e) => (
-              <div key={e.title} className="glass-card p-6">
-                <h3 className="text-base font-semibold text-white">{e.title}</h3>
-                <p className="mt-2 text-sm text-white/75">{e.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* What changes for your service (Phil, 2026-10-14: merged with "Built for care, not bent
+          into shape", which said much the same, to make the page shorter). */}
+      <Outcomes />
 
       {/* Feature spotlights (show the product) */}
       <div id="features" className="pt-20">
@@ -215,11 +182,6 @@ export default async function Home() {
             everything else you need" row). */}
         <RunTheService />
       </div>
-
-      {/* Outcomes */}
-      <Reveal>
-        <Outcomes />
-      </Reveal>
 
       {/* How it works */}
       <section id="how" className="border-y border-white/10 bg-white/[0.03]">

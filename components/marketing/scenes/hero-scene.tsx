@@ -1,4 +1,5 @@
 import { s } from "./class-names";
+import { sceneDates } from "@/lib/marketing/scene-dates";
 
 /**
  * Be Care Compliant: the hero scene, the People register as the app draws it today (Phil,
@@ -30,74 +31,81 @@ type Row = {
 
 const none: Pill = { text: "—", tone: "none" };
 
-const ROWS: Row[] = [
-  {
-    name: "Ffion Rees",
-    status: { text: "Active", tone: "green" },
-    job: "Care Assistant",
-    edbs: { text: "03 Mar 28", tone: "green" },
-    spot: { text: "21 Oct 26", tone: "amber" },
-    sup1Due: "12 Jun 26",
-    sup1Done: { text: "10 Jun 26" },
-    sup2Due: { text: "12 Sep 26", tone: "red" },
-    sup2Done: null,
-  },
-  {
-    name: "Owain Pritchard",
-    status: { text: "Active", tone: "green" },
-    job: "Senior Care Assistant",
-    edbs: { text: "19 Aug 27", tone: "green" },
-    spot: { text: "02 Dec 26", tone: "green" },
-    sup1Due: "05 May 26",
-    sup1Done: { text: "02 May 26" },
-    sup2Due: "05 Aug 26",
-    sup2Done: { text: "11 Aug 26", late: true },
-  },
-  {
-    name: "Hannah Clarke",
-    status: { text: "Active", tone: "green" },
-    job: "Care Assistant",
-    edbs: { text: "28 Nov 26", tone: "amber" },
-    spot: { text: "16 Dec 26", tone: "green" },
-    sup1Due: "09 Sep 26",
-    sup1Done: { text: "04 Sep 26" },
-    sup2Due: { text: "09 Dec 26", tone: "green" },
-    sup2Done: null,
-  },
-  {
-    name: "Priya Shah",
-    status: { text: "Active", tone: "green" },
-    job: "Care Assistant",
-    edbs: { text: "11 Jan 28", tone: "green" },
-    spot: { text: "05 Jan 27", tone: "green" },
-    sup1Due: { text: "24 Oct 26", tone: "amber" },
-    sup1Done: null,
-    sup2Due: none,
-    sup2Done: null,
-  },
-  {
-    name: "Megan Lloyd",
-    status: { text: "Mat Leave", tone: "amber" },
-    job: "Care Assistant",
-    edbs: { text: "07 Jul 27", tone: "green" },
-    spot: { text: "18 Nov 26", tone: "green" },
-    sup1Due: "20 Apr 26",
-    sup1Done: { text: "17 Apr 26" },
-    sup2Due: "20 Jul 26",
-    sup2Done: { text: "15 Jul 26" },
-  },
-  {
-    name: "Rhian Bowen",
-    status: { text: "Active", tone: "green" },
-    job: "Registered Manager",
-    edbs: { text: "22 Feb 28", tone: "green" },
-    spot: { text: "30 Jan 27", tone: "green" },
-    sup1Due: "14 Jul 26",
-    sup1Done: { text: "08 Jul 26" },
-    sup2Due: { text: "14 Jan 27", tone: "green" },
-    sup2Done: null,
-  },
-];
+/* Dates are days from today (lib/marketing/scene-dates.ts), so the picture never goes stale. The
+   colours follow the app's rules: a supervision due over 14 days away is green, inside 14 amber,
+   past it red; an Enhanced DBS ambers 90 days out; a supervision done after its due date is amber. */
+function rows(): Row[] {
+  const t = sceneDates();
+  const pill = (days: number, tone: Pill["tone"]): Pill => ({ text: t.matrix(days), tone });
+  return [
+    {
+      name: "Ffion Rees",
+      status: { text: "Active", tone: "green" },
+      job: "Care Assistant",
+      edbs: pill(505, "green"),
+      spot: pill(7, "amber"),
+      sup1Due: t.matrix(-124),
+      sup1Done: { text: t.matrix(-126) },
+      sup2Due: pill(-32, "red"),
+      sup2Done: null,
+    },
+    {
+      name: "Owain Pugh",
+      status: { text: "Active", tone: "green" },
+      job: "Senior Care Assistant",
+      edbs: pill(309, "green"),
+      spot: pill(49, "green"),
+      sup1Due: t.matrix(-162),
+      sup1Done: { text: t.matrix(-165) },
+      sup2Due: t.matrix(-70),
+      sup2Done: { text: t.matrix(-64), late: true },
+    },
+    {
+      name: "Hannah Cole",
+      status: { text: "Active", tone: "green" },
+      job: "Care Assistant",
+      edbs: pill(45, "amber"),
+      spot: pill(63, "green"),
+      sup1Due: t.matrix(-35),
+      sup1Done: { text: t.matrix(-40) },
+      sup2Due: pill(56, "green"),
+      sup2Done: null,
+    },
+    {
+      name: "Priya Shah",
+      status: { text: "Active", tone: "green" },
+      job: "Care Assistant",
+      edbs: pill(454, "green"),
+      spot: pill(83, "green"),
+      sup1Due: pill(10, "amber"),
+      sup1Done: null,
+      sup2Due: none,
+      sup2Done: null,
+    },
+    {
+      name: "Megan Lloyd",
+      status: { text: "Mat Leave", tone: "amber" },
+      job: "Care Assistant",
+      edbs: pill(266, "green"),
+      spot: pill(35, "green"),
+      sup1Due: t.matrix(-177),
+      sup1Done: { text: t.matrix(-180) },
+      sup2Due: t.matrix(-86),
+      sup2Done: { text: t.matrix(-91) },
+    },
+    {
+      name: "Rhian Bowen",
+      status: { text: "Active", tone: "green" },
+      job: "Registered Manager",
+      edbs: pill(496, "green"),
+      spot: pill(108, "green"),
+      sup1Due: t.matrix(-92),
+      sup1Done: { text: t.matrix(-98) },
+      sup2Due: pill(85, "green"),
+      sup2Done: null,
+    },
+  ];
+}
 
 function Rag({ p }: { p: Pill }) {
   return <span className={`rag-cell rag-cell-${p.tone}`}>{p.text}</span>;
@@ -163,7 +171,7 @@ export default function HeroScene() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r) => (
+              {rows().map((r) => (
                 <tr key={r.name}>
                   <td className="col-carer">{r.name}</td>
                   <td className="hidden sm:table-cell">

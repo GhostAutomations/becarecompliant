@@ -4588,6 +4588,9 @@ hidden until a real quote; "by us" off the audit card. Lighthouse mobile 99 befo
 Decision: docs/decisions/homepage-scenes.md. Tests: TEST-CHECKLIST-HOMEPAGE-REFRESH.md. On a preview
 branch: NOT on main or becarecompliant.com until Phil says. Also this day: CLAUDE.md "Clear questions"
 and "Finish line" rules.
+Same day, on the preview: stories loop while on screen; SharePoint or OneDrive comparison row;
+pricing cards' buttons level; the Service User register scene; four carers in the lead story; dates
+always current; "Built for care" merged into "What changes for your service".
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)
 

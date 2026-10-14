@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import Reveal from "@/components/marketing/reveal";
 import LoopStory from "@/components/marketing/scenes/loop-story";
-import DashboardScene from "@/components/marketing/scenes/dashboard-scene";
+import SuScene from "@/components/marketing/scenes/su-scene";
 import EvidenceStory from "@/components/marketing/scenes/evidence-story";
 import CloudStory from "@/components/marketing/scenes/cloud-story";
 
 /* ---- The scenes: built from the app's own components and styles, with invented names. Three of
-   them play a short story once as they scroll into view (Phil, 2026-10-14); the dashboard one is
-   still. The old drawings (a numbered list, a North/South/East branch picture no screen draws,
+   them play a short story on a loop while on screen (Phil, 2026-10-14); the Service User register
+   is still. The old drawings (a numbered list, a North/South/East branch picture no screen draws,
    and an evidence card) are gone. ---- */
 type Spot = { eyebrow: string; title: string; body: string; bullets: string[]; visual: ReactNode };
 
@@ -25,15 +25,15 @@ const SPOTS: Spot[] = [
     visual: <LoopStory />,
   },
   {
-    eyebrow: "One clear picture",
-    title: "Red, amber, green, from one carer to the whole company",
-    body: "Status rolls up from every check to the record, the branch and the company, so you always know where you stand.",
+    eyebrow: "Two registers, kept apart",
+    title: "The people you support, on a register of their own",
+    body: "Service users have their own register, with their own Checks and Evidence, beside your staff but never mixed up with them. Care plan reviews, audits and setup visits, in the same red, amber, green.",
     bullets: [
-      "Overdue, then due in 7, 14 and 30 days, on one line",
-      "Hover a figure to see exactly what is behind it",
-      "Readiness for every branch, theme by theme, for CQC or CIW",
+      "Care plan reviews and audits dated and chased for you",
+      "In hospital or on respite, their checks pause, then fall due a week after they are home",
+      "Care plan reviews feed your PQS figures as they are done",
     ],
-    visual: <DashboardScene />,
+    visual: <SuScene />,
   },
   {
     eyebrow: "Ready for the visit",

@@ -1,6 +1,7 @@
 import Story from "./story";
 import { d } from "./timing";
 import { s } from "./class-names";
+import { sceneDates } from "@/lib/marketing/scene-dates";
 
 /**
  * Be Care Compliant: the copy lands in OneDrive or SharePoint (Phil, 2026-10-14, popup).
@@ -38,6 +39,7 @@ function FolderIcon() {
 }
 
 export default function CloudStory() {
+  const t = sceneDates();
   return (
     <Story
       durationMs={4000}
@@ -49,7 +51,7 @@ export default function CloudStory() {
         <div className="glass-card flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">Supervision, Ffion Rees</p>
-            <p className="text-[11px] text-white/55">Completed 14/10/2026, 10:42, Version 3</p>
+            <p className="text-[11px] text-white/55">Completed {t.slash(0)}, 10:42, Version 3</p>
           </div>
           <span className="pill-green shrink-0">
             <span className="pill-dot" /> Evidence stored
@@ -89,7 +91,7 @@ export default function CloudStory() {
             </div>
             <div className={`${s.appear} relative ml-6 flex items-center gap-3 rounded-lg px-2 py-2`} style={d(1400)}>
               <FileIcon />
-              <span className="min-w-0 flex-1 truncate font-semibold text-white">FR Supervision 2026-10-14.pdf</span>
+              <span className="min-w-0 flex-1 truncate font-semibold text-white">FR Supervision {t.today}.pdf</span>
               <span className="shrink-0 text-[11px] text-white/55">Just now</span>
               <span className={s.glow} style={d(1500)} />
             </div>
