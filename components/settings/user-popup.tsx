@@ -110,7 +110,7 @@ export default function UserPopup({
           {/* The Office matrix (Phil, 2026-10-14): Lead the Leader in place of supervisions. */}
           <div className="mt-4">
             <OfficeMatrixForm
-              key={`office-${user.id}-${user.office.ticked}`}
+              key={`office-${user.id}`}
               userId={user.id}
               ticked={user.office.ticked}
               blocked={user.office.blocked}

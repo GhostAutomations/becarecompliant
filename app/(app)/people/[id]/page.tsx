@@ -602,7 +602,10 @@ export default async function PersonPage({
       : rags.reduce((worst, r) => (RAG_RANK[r] < RAG_RANK[worst] ? r : worst), "green" as string);
   /* Counted over the checks that are actually this person's, so the button never offers to
      apply something the database would refuse and then report nothing happened. */
-  const missingCount = applicableDefs.filter((d) => !statusByDef.has(d.id)).length;
+  // On the Office matrix the supervision is switched off on purpose (0468): not missing.
+  const missingCount = applicableDefs.filter(
+    (d) => !statusByDef.has(d.id) && !(office.ticked && d.key === "supervision"),
+  ).length;
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const isLeaver = person.employment_status === "leaver";
 
