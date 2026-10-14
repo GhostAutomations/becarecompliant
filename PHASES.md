@@ -4612,7 +4612,8 @@ on the same engine, carrying on from where they were; untick and they go back. C
 readiness, PQS, Regulation 73 and 80 and the Whiteboard count the LTL in place of supervision.
 Lead the Leader gets its five job titles in every company. 0468. Decision:
 docs/decisions/office-matrix.md. Tests: TEST-CHECKLIST-OFFICE-MATRIX.md, O0 to O9 pass. DONE, Phil passed the
-screen checks 2026-10-14 and ticked the three Thistle supervisors.
+screen checks 2026-10-14 and ticked the three Thistle supervisors. Then: the Lead the Leader form
+reworded ("Lead the Leader meeting", 0469); one Thistle supervisor's LTL 1 date stored; THE LIST 59.
 Before it, the same day: THE LIST 58 built (the appraisal date fix), as this job depends on it.
 
 ### 2026-10-07 — Still to test (Phil asked for these on the Phase 13 list)

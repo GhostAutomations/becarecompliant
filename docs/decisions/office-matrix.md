@@ -40,3 +40,10 @@ included.
   Registered Manager was asked and answered "Admin and Founder only").
 - Ticking is refused for a job title Lead the Leader does not apply to (the check's job titles).
 - The Planner Whiteboard lists Office people's LTLs to book in place of supervisions.
+- After ticking (Phil, 2026-10-14: "when I click in it says supervision"): the Lead the Leader form
+  says "Lead the Leader meeting" where it said "supervision" (8 places, every company and the
+  template, 0469; the sentence about a carer's supervision stays). Used forms got a new version, so
+  completed Lead the Leader Evidence keeps the wording it was filled in with.
+- A ticked person whose probation end was set without the Probation Review form had no stored LTL 1
+  date, so nothing chased it: stored by hand for the Thistle supervisor (Phil's go); everyone else
+  like it is THE LIST 59.

@@ -308,6 +308,14 @@ The next five were found by the step 7 check of the October audit fixes and park
     late) and nothing else. Also seen: that carer's stored appraisal due date is 29/03/2027 although
     "after Supervision 3" says blank until Supervision 3 is done.
 
+59. **Supervision 1 (or LTL 1) with no stored due date** (Phil, popup 2026-10-14, PARKED). The
+    register works Supervision 1 out from the probation end, but the dashboard, morning email and
+    chasers read the date stored on the check, which is only written when the Probation Review form
+    is completed (set_person_check_due). A probation end set any other way (the import) leaves it
+    empty, so nothing chases it. Found on a Thistle supervisor ticked onto the Office matrix (her LTL
+    1 date was stored by hand, Phil's go, 2026-10-14). To do: find everyone with a probation end, no
+    supervision done and no stored Supervision 1 date, show Phil the list, then store the dates.
+
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
 - Item 39 follow-on DONE in the same commit: canManageRecord (lib/auth/manage-scope.ts) decides Manage per record.
