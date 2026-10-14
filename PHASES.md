@@ -4585,8 +4585,8 @@ Hero is now the real People register built from the app's own styles; four stori
 scroll (the compliance loop, Evidence for an inspector, the copy landing in OneDrive, Return to Work
 by text); "Everything your service runs on" replaces "And everything else you need"; testimonial band
 hidden until a real quote; "by us" off the audit card. Lighthouse mobile 99 before and after, CLS 0.
-Decision: docs/decisions/homepage-scenes.md. Tests: TEST-CHECKLIST-HOMEPAGE-REFRESH.md. On a preview
-branch: NOT on main or becarecompliant.com until Phil says. Also this day: CLAUDE.md "Clear questions"
+Decision: docs/decisions/homepage-scenes.md. Tests: TEST-CHECKLIST-HOMEPAGE-REFRESH.md. LIVE on
+becarecompliant.com 2026-10-14 (Phil: "make it live"), commit 93ff9341. Also this day: CLAUDE.md "Clear questions"
 and "Finish line" rules.
 Same day, on the preview: stories loop while on screen; SharePoint or OneDrive comparison row;
 pricing cards' buttons level; the Service User register scene; four carers in the lead story; dates
