@@ -106,14 +106,22 @@ People (staff) and Service Users (clients) always stay distinct. "Founder" is Ph
 - Each option says what will happen if it's chosen. Recommended option first, labelled "(Recommended)".
 - Never assume an answer to a question you've asked. Never re-ask a question Phil has already answered.
 
+### Ready to look (every job, no exceptions)
+- When anything is ready for Phil to look at on screen, stop and send a popup headed "READY FOR YOU TO LOOK" with: WHERE (full URL, which company to be logged in as, what to click), WHAT YOU SHOULD SEE (the exact values or behaviour), and options Pass / Fail / Not looked yet.
+- Only once it is deployed and the Vercel deploy is READY (or the preview link works). Do not continue until Phil answers.
+
 ### Finish line (every job, no exceptions)
-- The LAST message of every job must start with one of these lines, exactly as written, in capitals:
-  - `WE ARE DONE. THIS JOB IS FINISHED.` Only when every part is built, tested, checked against "No collateral damage", pushed if agreed, and the deploy is confirmed READY. Nothing is still running or waiting.
-  - `NOT FINISHED. I NEED YOUR ANSWER TO CONTINUE.` When stopped for a decision. The popup follows straight away.
-  - `NOT FINISHED. WAITING FOR YOU TO: [one plain sentence, e.g. approve the push]` When stopped for Phil's approval or an action only he can do.
-  - `NOT FINISHED. SOMETHING FAILED: [one plain sentence]` When a test or check failed and you've stopped.
-- After that line, give a short bullet summary: what was done, what Phil needs to test (if anything), and what is NOT done.
-- Never end a job ambiguously. Never write "that should work now". Never say finished while anything is still running, unpushed or unchecked.
+- The last message of a finished job ENDS with:
+  ```
+  ==============================
+  WE ARE DONE. THIS JOB IS FINISHED.
+  READY FOR THE NEXT JOB.
+  ==============================
+  ```
+  then Done / Checked by you / Not done bullets.
+- Only when everything is built, tested, "Nothing else changed" passed, pushed with Phil's OK, deployed READY, and Phil has passed the screen checks.
+- Any message that stops before the end ENDS with one of: "NOT FINISHED. I NEED YOUR ANSWER TO CONTINUE." / "NOT FINISHED. WAITING FOR YOU TO: [sentence]" / "NOT FINISHED. SOMETHING FAILED: [sentence]".
+- Never end a message without one of these. Never write "that should work now".
 
 ## Testing
 
