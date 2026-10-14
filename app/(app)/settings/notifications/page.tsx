@@ -11,6 +11,9 @@ import { resendConfigured } from "@/lib/email/resend";
 import { twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
+import NotificationGrid, { type GridDefinition, type GridPerson } from "@/components/settings/notification-grid";
+import { NOTIFIABLE_ROLES } from "@/lib/notifications/activity";
+import { ROLE_LABELS } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -84,6 +87,73 @@ export default async function NotificationSettingsPage() {
     receivedAt: when.format(new Date(r.received_at as string)),
   }));
 
+  /* WHO IS TOLD WHEN A CHECK IS COMPLETED (0473, Phil 2026-10-14). People across the top: every
+     active or invited login whose role can open other people's checks. Each person's ticks come
+     from the database's own get_notification_preferences, so the Supervisor default shows exactly
+     as it is applied. Read through the Admin's own client: the database refuses anyone else. */
+  const [{ data: notifiable }, { data: branchRows }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role, status")
+      .eq("company_id", profile.company_id)
+      .in("status", ["active", "invited"])
+      .in("role", NOTIFIABLE_ROLES as unknown as string[])
+      .order("full_name"),
+    supabase
+      .from("branches")
+      .select("id, name")
+      .eq("company_id", profile.company_id)
+      .eq("kind", "branch")
+      .eq("status", "active")
+      .order("name"),
+  ]);
+  const roleOrder = ["company_admin", "registered_individual", "registered_manager", "recruiter", "manager", "supervisor"];
+  const gridPeopleRows = ((notifiable ?? []) as Array<{ id: string; full_name: string | null; email: string; role: string; status: string }>)
+    .slice()
+    .sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role) || (a.full_name ?? "").localeCompare(b.full_name ?? ""));
+  const ids = gridPeopleRows.map((p) => p.id);
+  const [{ data: ubRows }, prefResults] = await Promise.all([
+    ids.length
+      ? supabase.from("user_branches").select("user_id, branch_id, is_primary").in("user_id", ids)
+      : Promise.resolve({ data: [] as Array<{ user_id: string; branch_id: string; is_primary: boolean }> }),
+    Promise.all(ids.map((id) => supabase.rpc("get_notification_preferences", { p_profile: id }))),
+  ]);
+  const gridBranches = ((branchRows ?? []) as Array<{ id: string; name: string }>).map((b) => ({ id: b.id, name: b.name }));
+  const activeBranchIds = new Set(gridBranches.map((b) => b.id));
+  const gridPeople: GridPerson[] = gridPeopleRows.map((p) => {
+    const mine = ((ubRows ?? []) as Array<{ user_id: string; branch_id: string; is_primary: boolean }>).filter(
+      (u) => u.user_id === p.id && activeBranchIds.has(u.branch_id),
+    );
+    mine.sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+    return {
+      id: p.id,
+      name: p.full_name || p.email,
+      role: p.role,
+      roleLabel: ROLE_LABELS[p.role] ?? p.role,
+      invited: p.status === "invited",
+      primaryBranchId: mine.find((u) => u.is_primary)?.branch_id ?? null,
+      branchIds: mine.map((u) => u.branch_id),
+    };
+  });
+  let gridDefinitions: GridDefinition[] = [];
+  const gridInitial: Record<string, Record<string, { inApp: boolean; email: boolean }>> = {};
+  let gridError: string | null = null;
+  prefResults.forEach((r, i) => {
+    if (r.error) {
+      gridError = r.error.message;
+      return;
+    }
+    const rows = (r.data ?? []) as Array<{ definition_id: string; population: string; check_name: string; in_app: boolean; email: boolean }>;
+    if (gridDefinitions.length === 0) {
+      gridDefinitions = rows.map((x) => ({
+        id: x.definition_id,
+        population: x.population === "people" ? "people" : "service_users",
+        name: x.check_name,
+      }));
+    }
+    gridInitial[ids[i]] = Object.fromEntries(rows.map((x) => [x.definition_id, { inApp: x.in_app, email: x.email }]));
+  });
+
   return (
     <div className="page-shell space-y-6">
       <div>
@@ -112,6 +182,27 @@ export default async function NotificationSettingsPage() {
         emailConfigured={resendConfigured()}
         smsConfigured={twilioConfigured()}
       />
+
+      <section className="glass-card space-y-3 p-5" aria-label="Who is told when a check is completed">
+        <div>
+          <h2 className="text-sm font-semibold text-white/80">Who is told when a check is completed</h2>
+          <p className="mt-1 text-xs text-white/55">
+            Tick Recent activity to show it on their dashboard, and Email to email them as well. Supervisors start with Care Plan
+            Review completed.
+          </p>
+        </div>
+        {gridError ? (
+          <p className="text-sm text-red-300">The notification settings could not be read: {gridError}</p>
+        ) : (
+          <NotificationGrid
+            people={gridPeople}
+            definitions={gridDefinitions}
+            initial={gridInitial}
+            branches={gridBranches}
+            emailConfigured={resendConfigured()}
+          />
+        )}
+      </section>
     </div>
   );
 }

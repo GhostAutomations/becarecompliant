@@ -20,7 +20,7 @@ import { activityHref, completionEmailSubject, displayDate } from "@/lib/notific
  * invite and reset emails do. A real company is unaffected either way.
  *
  * Never throws: a completion must never fail because an email could not go. A missing
- * RESEND_API_KEY or RESEND_FROM is recorded as skipped in the log, and Settings, Users shows it.
+ * RESEND_API_KEY or RESEND_FROM is recorded as skipped in the log, and Settings, Notifications shows it.
  */
 export async function emailCompletionNotifications(evidenceId: string | null | undefined): Promise<void> {
   if (!evidenceId) return;

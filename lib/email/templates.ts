@@ -592,7 +592,7 @@ export function checkCompletedEmailHtml(opts: {
     <p style="margin:0;">Open it to see the form. For privacy, its answers are not included in this email.</p>`,
     ctaLabel: "Open it",
     ctaUrl: opts.url,
-    footerNote: "You receive this email because your Admin set you to be told when this check is completed. Your Admin can change it in Settings, Users.",
+    footerNote: "You receive this email because your Admin set you to be told when this check is completed. Your Admin can change it in Settings, Notifications.",
   });
 }
 

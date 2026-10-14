@@ -12,8 +12,12 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
   **Email** is an extra tick per check type (Email always comes with Recent activity). No SMS.
 - **Who sets it:** Company Admin and Founder only, enforced in the database. A Registered Manager or
   the person themselves cannot change anyone's notifications.
-- **Where:** Settings, Users, a user, Notifications: one row per check type with two ticks, and a
-  Branches list.
+- **Where (Phil, 2026-10-14, after seeing it in the user popup):** Settings, Notifications, one grid,
+  "Who is told when a check is completed": the check types down the left, the people across the top,
+  each with two ticks, Recent activity and Email. One Save for the grid. Under each name, their
+  branches and "Add a branch". Columns: every active or invited login whose role can be notified,
+  so a new Supervisor can be set up before their first sign in. The Notifications section that was
+  briefly in the user popup (Settings, Users) was removed by popup: the grid is the only place.
 - **Branches (popups 2026-10-14):** a person is told about every branch they belong to (their own
   branch and any additional branches); "own branch" means all of them, not just the main one. The
   Admin can add a branch, and **adding a branch also gives the person access to it** (an additional
@@ -33,8 +37,8 @@ do the audit. Notifications are set per person, by the Company Admin (or the Fou
   here."
 - **Email:** the existing sender, branded, with an "Open it" button. Says what, for whom, by whom,
   when; never the form's answers. Once per notification (notification_log dedupe
-  `check_completed:<notification id>`). A missing RESEND_API_KEY or RESEND_FROM is shown on the
-  Notifications section and logged as skipped.
+  `check_completed:<notification id>`). A missing RESEND_API_KEY or RESEND_FROM is shown above the
+  grid and logged as skipped.
 - **Test companies (popup 2026-10-14):** completion emails go out for test companies too, a third
   exception beside login invites and password resets (see framework-readiness.md, the standing
   rule). They are sent without the company, the same way invites are.

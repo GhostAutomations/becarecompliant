@@ -14,7 +14,6 @@ import TeamMemberControls, { type RoleOption } from "@/components/settings/team-
 import LoginNameForm from "@/components/settings/login-name-form";
 import LoginJobTitleForm from "@/components/settings/login-job-title-form";
 import OfficeMatrixForm from "@/components/settings/office-matrix-form";
-import NotificationPrefsForm from "@/components/settings/notification-prefs-form";
 
 export type BranchOption = { id: string; name: string };
 
@@ -117,20 +116,6 @@ export default function UserPopup({
               blocked={user.office.blocked}
             />
           </div>
-        </div>
-
-        {/* Notifications (0473, Phil 2026-10-14): what this person is told about, set by the Admin. */}
-        <div className="mb-5 border-b border-white/10 pb-5">
-          <h3 className="mb-2 text-sm font-semibold text-white/80">Notifications</h3>
-          <NotificationPrefsForm
-            key={`notify-${user.id}`}
-            userId={user.id}
-            role={user.role}
-            roleLabel={user.roleLabel}
-            primaryBranchId={user.primaryBranchId}
-            additionalBranchIds={user.additionalBranchIds}
-            branches={branches}
-          />
         </div>
 
         {user.canManage ? (
