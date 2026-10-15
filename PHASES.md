@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)
+
+People > Holidays > Blackout dates: periods when holidays can't be booked, set by the Company Admin,
+Responsible Individual or Registered Manager per branch or all branches, with a reason staff see.
+Refused at every entry point by one database check (0477), with "Book anyway" and a reason for
+Admin, RI and RM; existing holidays untouched; shaded on the calendar and listed in /my. Decision:
+docs/decisions/holiday-blackouts.md. Tests: TEST-CHECKLIST-HOLIDAY-BLACKOUTS.md. IN PROGRESS.
+
 ### 2026-10-14 — Per person notifications: Recent activity and Email (Phase 13, Thistle)
 
 Thistle's Supervisors asked to be told when a Care Plan Review is completed. The Admin sets, per

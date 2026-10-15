@@ -46,6 +46,8 @@ export type HolidayRequestRow = {
   /** The signed in user's own holiday (holiday_request_owner), set by listHolidayRequests so the
    *  Holiday page never offers an approver Approve, Decline or Edit dates on it (0444, audit F7). */
   own?: boolean;
+  /** "Book anyway" inside a blackout (0477): the reason given, stamped by the database. */
+  blackout_override_reason?: string | null;
 };
 
 /** Field keys on the holiday form that hold the first date back at work. */

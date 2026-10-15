@@ -46,6 +46,8 @@ import {
 } from "@/lib/holidays/actions";
 import { holidayHasStarted, londonTodayIso, officeChangeLabel, officeHolidayActions } from "@/lib/holidays/changes";
 import { useBranchWord } from "@/components/branches/branch-word";
+import BlackoutSection from "@/components/holidays/blackout-section";
+import { blackoutClash, blackoutDates, blackoutMessage, blackoutsOn, type Blackout } from "@/lib/holidays/blackouts";
 
 const HOLIDAY_HIDE_FOR_PERSON = [
   "name",
@@ -81,7 +83,7 @@ function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): b
  * withdraw your own. Each destructive or fiddly one opens its own small panel
  * rather than firing on a single click.
  */
-type ActionMode = "none" | "decline" | "dates" | "cancel";
+type ActionMode = "none" | "decline" | "dates" | "cancel" | "anyway";
 
 type OfficeActions = ReturnType<typeof officeHolidayActions>;
 
@@ -90,8 +92,14 @@ function RequestActions({
   actions,
   initialMode = "none",
   onChoose,
+  clash = null,
+  canOverride = false,
 }: {
   request: HolidayRequestRow;
+  /** The blackout this pending request falls in (0477), or null. */
+  clash?: Blackout | null;
+  /** Admin, Responsible Individual or Registered Manager: may approve or book anyway (rule 5). */
+  canOverride?: boolean;
   /** What this login may do to this holiday (officeHolidayActions): decide and edit dates for an
    *  approver on somebody else's holiday, cancel for an approver, withdraw for whoever booked it. */
   actions: OfficeActions;
@@ -106,6 +114,31 @@ function RequestActions({
   const pending = request.status === "pending";
   /* The office cancel, with a reason, for an approver; otherwise the booker's own withdraw. */
   const officeCancel = actions.cancel;
+
+  /* APPROVE ANYWAY inside a blackout (0477, rule 5): a reason, then the database checks the role,
+     stamps the reason on the holiday and logs it. */
+  if (mode === "anyway") {
+    return (
+      <div className="w-full max-w-sm space-y-2">
+        <ActionForm
+          action={decideHoliday}
+          hidden={{ request_id: request.id, decision: "approved", book_anyway: "1" }}
+          label="Approve anyway"
+          savedLabel="Approved"
+          buttonClassName="btn-primary px-3 py-1.5 text-xs"
+        >
+          {clash ? <p className="text-xs text-amber-300">{blackoutMessage(clash)}</p> : null}
+          <label htmlFor={`anyway-${request.id}`} className="form-label">
+            Reason for approving inside the blackout
+          </label>
+          <textarea id={`anyway-${request.id}`} name="blackout_override_reason" rows={2} required maxLength={300} />
+        </ActionForm>
+        <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
 
   if (mode === "decline") {
     return (
@@ -168,6 +201,7 @@ function RequestActions({
             maxLength={2000}
             placeholder="For example: spoke to them and agreed the new dates"
           />
+          {canOverride ? <BookAnywayFields idPrefix={`amend-anyway-${request.id}`} /> : null}
         </ActionForm>
         <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
           Cancel
@@ -212,14 +246,24 @@ function RequestActions({
       ) : null}
       {actions.decide ? (
         <>
-          <ActionForm
-            action={decideHoliday}
-            hidden={{ request_id: request.id, decision: "approved" }}
-            label="Approve"
-            savedLabel="Approved"
-            buttonClassName="btn-primary px-3 py-1.5 text-xs"
-            className=""
-          />
+          {pending && clash && !request.change_kind ? (
+            canOverride ? (
+              <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setMode("anyway")}>
+                Approve anyway
+              </button>
+            ) : (
+              <span className="text-xs text-white/60">Inside a blackout: an Admin, Responsible Individual or Registered Manager can approve it.</span>
+            )
+          ) : (
+            <ActionForm
+              action={decideHoliday}
+              hidden={{ request_id: request.id, decision: "approved" }}
+              label="Approve"
+              savedLabel="Approved"
+              buttonClassName="btn-primary px-3 py-1.5 text-xs"
+              className=""
+            />
+          )}
           <button
             type="button"
             className="btn-outline px-3 py-1.5 text-xs"
@@ -251,6 +295,76 @@ function RequestActions({
   );
 }
 
+/** "Book anyway" with its reason (0477, rule 5), for an Admin, Responsible Individual or Registered
+ *  Manager. Only used when the dates fall in a blackout; the database checks the role again. */
+function BookAnywayFields({ idPrefix }: { idPrefix: string }) {
+  const [on, setOn] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-2 text-xs text-white/80">
+        <input type="checkbox" name="book_anyway" value="1" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        Book anyway if these dates are in a blackout
+      </label>
+      {on ? (
+        <>
+          <label htmlFor={`${idPrefix}-reason`} className="form-label">Reason for booking inside the blackout</label>
+          <input id={`${idPrefix}-reason`} name="blackout_override_reason" maxLength={300} required />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** Under the booking and request forms: the blackout the chosen dates fall in, and for an Admin,
+ *  Responsible Individual or Registered Manager booking for someone, "Book anyway" (0477). */
+function BlackoutPanel({
+  blackouts,
+  branchId,
+  answers,
+  canOverride,
+  extras,
+  setExtra,
+}: {
+  blackouts: Blackout[];
+  branchId: string | null;
+  answers: Record<string, unknown>;
+  canOverride: boolean;
+  extras: Record<string, string>;
+  setExtra: (key: string, value: string) => void;
+}) {
+  const start = typeof answers["start_date_of_holiday"] === "string" ? (answers["start_date_of_holiday"] as string) : "";
+  const end = typeof answers["end_date_of_holiday"] === "string" ? (answers["end_date_of_holiday"] as string) : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return null;
+  const clash = blackoutClash(blackouts, branchId, start, end);
+  if (!clash) return null;
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+      <p>{blackoutMessage(clash)}</p>
+      {canOverride ? (
+        <>
+          <label className="flex items-center gap-2 text-white/85">
+            <input type="checkbox" checked={extras.book_anyway === "1"} onChange={(e) => setExtra("book_anyway", e.target.checked ? "1" : "")} />
+            Book anyway
+          </label>
+          {extras.book_anyway === "1" ? (
+            <div>
+              <label htmlFor="book-anyway-reason" className="form-label">Reason for booking inside the blackout</label>
+              <input
+                id="book-anyway-reason"
+                maxLength={300}
+                value={extras.blackout_override_reason ?? ""}
+                onChange={(e) => setExtra("blackout_override_reason", e.target.value)}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-white/70">Choose other dates.</p>
+      )}
+    </div>
+  );
+}
+
 export default function HolidayView({
   requests,
   branches,
@@ -260,6 +374,8 @@ export default function HolidayView({
   approvableBranchIds,
   canBookForPerson,
   currentUserId,
+  blackouts = [],
+  managesBlackouts = false,
 }: {
   requests: HolidayRequestRow[];
   branches: BranchLite[];
@@ -279,6 +395,11 @@ export default function HolidayView({
   canBookForPerson: boolean;
   /** So someone can withdraw their own pending request. */
   currentUserId: string;
+  /** Holiday blackout dates this login may see (0477). */
+  blackouts?: Blackout[];
+  /** Company Admin, Responsible Individual, Registered Manager or the Founder: manage blackouts
+   *  and "Book anyway" inside one. The database enforces both. */
+  managesBlackouts?: boolean;
 }) {
   const bw = useBranchWord();
   /** An approver for this holiday's branch (before asking whose holiday it is). */
@@ -303,6 +424,8 @@ export default function HolidayView({
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-based
   const [showHistory, setShowHistory] = useState(false);
+  /** A blackout day tapped on the calendar: its reason, shown under the grid (0477). */
+  const [boNote, setBoNote] = useState<string | null>(null);
   /* A name on the calendar opens that holiday (Phil, 2026-10-09: a manager clicked a booked
      holiday on the calendar and nothing happened). */
   const [openId, setOpenId] = useState<string | null>(null);
@@ -347,6 +470,11 @@ export default function HolidayView({
         (other.status === "approved" || other.status === "pending") &&
         overlaps(r.start_date, r.end_date, other.start_date, other.end_date),
     );
+
+  /** The blackout a live request falls in (0477), for the pill and the Approve anyway. */
+  const blackoutFor = (r: HolidayRequestRow) =>
+    r.status === "pending" || r.status === "approved" ? blackoutClash(blackouts, r.branch_id, r.start_date, r.end_date) : null;
+  const personBranch = (id: string) => people.find((p) => p.id === id)?.branch_id ?? null;
 
   // Month grid (Monday-first).
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
@@ -416,6 +544,16 @@ export default function HolidayView({
                 action={requestHoliday}
                 triggerLabel="Request holiday"
                 submitLabel="Submit request"
+                bottomPanel={(ctx) => (
+                  <BlackoutPanel
+                    blackouts={blackouts}
+                    branchId={branches.length === 1 ? branches[0].id : null}
+                    answers={ctx.answers}
+                    canOverride={false}
+                    extras={ctx.extras}
+                    setExtra={ctx.setExtra}
+                  />
+                )}
               />
             ) : (
               <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
@@ -462,6 +600,16 @@ export default function HolidayView({
               hideFields={HOLIDAY_HIDE_FOR_PERSON}
               triggerLabel="Book holiday"
               submitLabel="Book holiday"
+              bottomPanel={(ctx) => (
+                <BlackoutPanel
+                  blackouts={blackouts}
+                  branchId={personBranch(pickPerson)}
+                  answers={ctx.answers}
+                  canOverride={managesBlackouts}
+                  extras={ctx.extras}
+                  setExtra={ctx.setExtra}
+                />
+              )}
             />
           ) : (
             <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
@@ -491,6 +639,9 @@ export default function HolidayView({
                     {officeChangeLabel(r) ? (
                       <span className="pill pill-amber">{officeChangeLabel(r)}</span>
                     ) : null}
+                    {r.change_kind !== "cancel" && blackoutFor(r) ? (
+                      <span className="pill pill-red" title={blackoutMessage(blackoutFor(r)!)}>Clashes with blackout</span>
+                    ) : null}
                   </p>
                   <p className="text-xs text-white/60">
                     {r.change_kind === "cancel" ? "Asks to cancel " : ""}
@@ -517,6 +668,8 @@ export default function HolidayView({
                     request={r}
                     actions={actionsFor(r)}
                     onChoose={(m) => openHoliday(r.id, m)}
+                    clash={blackoutFor(r)}
+                    canOverride={managesBlackouts}
                   />
                 ) : (
                   <span className="pill pill-amber">Pending</span>
@@ -548,13 +701,28 @@ export default function HolidayView({
                     {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                   </p>
                 </div>
-                <RequestActions request={r} actions={actionsFor(r)} onChoose={(m) => openHoliday(r.id, m)} />
+                <RequestActions request={r} actions={actionsFor(r)} onChoose={(m) => openHoliday(r.id, m)} canOverride={managesBlackouts} />
               </li>
             ))}
           </ul>
           </div>
         </details>
       )}
+
+      {/* BLACKOUT DATES (0477): when holidays can't be booked. Managed by the Company Admin,
+          Responsible Individual and Registered Manager; seen by everyone on this page. */}
+      <details className="fold glass-card group overflow-hidden">
+        <FoldSummary label={`Blackout dates (${blackouts.filter((b) => b.end >= today).length})`} />
+        <div className="border-t border-white/10 p-4">
+          <BlackoutSection
+            blackouts={blackouts}
+            branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+            holidays={requests.map((r) => ({ id: r.id, name: r.requester_name, branchId: r.branch_id, start: r.start_date, end: r.end_date, status: r.status }))}
+            manages={managesBlackouts}
+            todayIso={today}
+          />
+        </div>
+      </details>
 
       {/* Calendar */}
       <div className="glass-card p-4">
@@ -586,6 +754,11 @@ export default function HolidayView({
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm bg-amber-400/40" /> Awaiting approval
           </span>
+          {blackouts.length > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-red-500/30 ring-1 ring-red-400/60" /> Blackout, no holidays
+            </span>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-white/50">
@@ -602,11 +775,31 @@ export default function HolidayView({
           {cells.map((day, i) => {
             if (day == null) return <div key={i} className="rounded-lg bg-white/[0.02]" />;
             const hols = holidaysOn(day);
+            /* A blackout day is shaded red, its reason on hover or tap (0477). */
+            const bo = blackoutsOn(blackouts, iso(year, month, day), branch || null);
+            const boTitle = bo.map((b) => `No holidays: ${b.reason} (${blackoutDates(b.start, b.end)}${b.allBranches ? "" : `, ${b.branchIds.map((id) => branchName(id) ?? "branch").join(", ")}`})`).join(". ");
             return (
               /* Every day is the same size; a busy day scrolls inside its own box rather than
                  hiding names behind "+1 more" (Phil, 2026-10-06). */
-              <div key={i} className="flex flex-col rounded-lg bg-white/5 p-1 text-left">
-                <div className="shrink-0 text-[11px] leading-4 text-white/50">{day}</div>
+              <div
+                key={i}
+                className={`flex flex-col rounded-lg p-1 text-left ${bo.length > 0 ? "bg-red-500/15 ring-1 ring-inset ring-red-400/50" : "bg-white/5"}`}
+                title={bo.length > 0 ? boTitle : undefined}
+              >
+                <div className="flex shrink-0 items-center justify-between gap-1 text-[11px] leading-4 text-white/50">
+                  <span>{day}</span>
+                  {bo.length > 0 ? (
+                    <button
+                      type="button"
+                      className="truncate rounded px-1 text-[9px] font-semibold uppercase tracking-wide text-red-200"
+                      title={boTitle}
+                      aria-label={boTitle}
+                      onClick={() => setBoNote(`${day} ${MONTHS[month]}: ${boTitle}`)}
+                    >
+                      No holidays
+                    </button>
+                  ) : null}
+                </div>
                 <div
                   className="mt-0.5 grid h-[103px] grid-cols-1 content-start gap-0.5 overflow-y-auto md:grid-cols-2"
                   // Reachable by keyboard, so names past the tenth can be scrolled to (review, 2026-10-07).
@@ -644,6 +837,14 @@ export default function HolidayView({
             );
           })}
         </div>
+        {boNote ? (
+          <p className="mt-3 flex items-start justify-between gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-100">
+            <span>{boNote}</span>
+            <button type="button" className="btn-ghost px-2 py-0.5 text-[11px]" onClick={() => setBoNote(null)}>
+              Close
+            </button>
+          </p>
+        ) : null}
         {onCalendar.length === 0 && (
           <p className="mt-3 text-xs text-white/50">No holidays to show yet.</p>
         )}
@@ -689,6 +890,11 @@ export default function HolidayView({
                 {r.status === "declined" && r.decision_note ? <p className="text-xs text-white/60">Reason: {r.decision_note}</p> : null}
                 {r.status === "cancelled" && r.cancel_reason ? <p className="text-xs text-white/60">Reason: {r.cancel_reason}</p> : null}
                 {live && r.change_kind !== "cancel" ? clashLine(r) : null}
+                {r.blackout_override_reason ? (
+                  <p className="text-xs text-amber-300">Booked inside a blackout: {r.blackout_override_reason}</p>
+                ) : r.status === "pending" && r.change_kind !== "cancel" && blackoutFor(r) ? (
+                  <p className="text-xs text-red-300">{blackoutMessage(blackoutFor(r)!)}</p>
+                ) : null}
                 {live && offersAny(actionsFor(r)) ? (
                   <div className="border-t border-white/10 pt-3">
                     <RequestActions
@@ -696,6 +902,8 @@ export default function HolidayView({
                       request={r}
                       actions={actionsFor(r)}
                       initialMode={openMode}
+                      clash={blackoutFor(r)}
+                      canOverride={managesBlackouts}
                     />
                   </div>
                 ) : null}

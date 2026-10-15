@@ -27,6 +27,7 @@ import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
+import { blackoutRefusal, blackoutWords, canOverrideBlackout, overrideFrom } from "@/lib/holidays/blackout-data";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { ukDate } from "@/lib/dates";
@@ -101,6 +102,12 @@ export async function requestHoliday(
       .maybeSingle();
     branchId = (ub?.branch_id as string | null) ?? null;
   }
+
+  /* BLACKOUT DATES (0477): asked before the form is stored, so a refused request leaves nothing
+     behind and what they typed stays in the form. The database makes the same check again on the
+     holiday itself. */
+  const blocked = await blackoutRefusal(supabase, companyId, branchId, startDate, endDate);
+  if (blocked) return { error: blocked };
 
   const form = await getCompanyFormByKey(companyId, "holiday_requests");
   if (!form) {
@@ -241,6 +248,21 @@ export async function bookHolidayForPerson(
   }
   const bookApproved = mayApprove === true;
 
+  /* BLACKOUT DATES (0477), before the form is stored. An Admin, Responsible Individual or
+     Registered Manager may tick "Book anyway" with a reason (rule 5); the database checks the role
+     again, stamps the reason on the holiday and logs it. */
+  const override = overrideFrom(formData);
+  const blocked = await blackoutRefusal(supabase, companyId, (person.branch_id as string | null) ?? null, startDate, endDate);
+  if (blocked) {
+    if (!override.ticked) {
+      return { error: canOverrideBlackout(profile.role) ? `${blocked} Tick Book anyway, with a reason, to book it regardless.` : blocked };
+    }
+    if (!canOverrideBlackout(profile.role)) {
+      return { error: "Only an Admin, Responsible Individual or Registered Manager can book a holiday inside a blackout." };
+    }
+    if (!override.reason) return { error: "Give a short reason for booking inside the blackout." };
+  }
+
   const result = await submitEvidence({
     formVersionId: form.versionId,
     branchId: (person.branch_id as string | null) ?? null,
@@ -265,6 +287,7 @@ export async function bookHolidayForPerson(
       request_evidence_id: result.evidenceId,
       decided_by: bookApproved ? user.id : null,
       decided_at: bookApproved ? new Date().toISOString() : null,
+      blackout_override_reason: blocked ? override.reason : null,
     })
     .select("id, status")
     .single();
@@ -410,14 +433,27 @@ export async function decideHoliday(
     .maybeSingle<ChangeRow>();
   if (!request) return { error: "That request could not be found." };
 
-  const { error: decErr } = await supabase.rpc("decide_holiday_request", {
-    p_id: requestId,
-    p_status: status,
-    p_evidence_id: null,
-    p_note: note,
-  });
+  /* APPROVE ANYWAY inside a blackout (0477, rule 5): Admin, Responsible Individual, Registered
+     Manager, with a reason; the database checks the role, stamps the reason and logs it. */
+  const override = overrideFrom(formData);
+  const { error: decErr } =
+    status === "approved" && override.ticked
+      ? override.reason
+        ? await supabase.rpc("decide_holiday_request_anyway", {
+            p_id: requestId,
+            p_evidence_id: null,
+            p_note: note,
+            p_override_reason: override.reason,
+          })
+        : { error: { message: "Give a short reason for approving inside the blackout." } }
+      : await supabase.rpc("decide_holiday_request", {
+          p_id: requestId,
+          p_status: status,
+          p_evidence_id: null,
+          p_note: note,
+        });
   if (decErr) {
-    return { error: `The decision could not be recorded: ${decErr.message}` };
+    return { error: blackoutWords(decErr.message) ?? `The decision could not be recorded: ${decErr.message}` };
   }
 
   const changeKind = request.change_kind;
@@ -585,6 +621,10 @@ export async function amendHoliday(
     const fd = new FormData();
     fd.set("request_id", requestId);
     fd.set("decision", "approved");
+    if (formData.get("book_anyway") === "1") {
+      fd.set("book_anyway", "1");
+      fd.set("blackout_override_reason", String(formData.get("blackout_override_reason") ?? ""));
+    }
     const res = await decideHoliday({}, fd);
     return res.error ? { error: `The dates were saved, but approving failed: ${res.error}` } : { ok: "Dates saved and approved." };
   };
@@ -593,14 +633,32 @@ export async function amendHoliday(
   }
   if (!reason) return { error: "Give a reason for the change. The person will see it." };
 
-  const { error } = await supabase.rpc("amend_holiday_request", {
-    p_id: requestId,
-    p_start_date: startDate,
-    p_end_date: endDate,
-    p_reason: reason,
-    p_return_to_work: returnToWork,
-  });
-  if (error) return { error: error.message };
+  /* New dates inside a blackout (0477): "Book anyway" with a reason, Admin, Responsible
+     Individual or Registered Manager only; the database checks the role and logs it. */
+  const amendOverride = overrideFrom(formData);
+  if (amendOverride.ticked && !amendOverride.reason) {
+    return { error: "Give a short reason for booking inside the blackout." };
+  }
+  const { error } = amendOverride.reason
+    ? await supabase.rpc("amend_holiday_request_anyway", {
+        p_id: requestId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_reason: reason,
+        p_return_to_work: returnToWork,
+        p_override_reason: amendOverride.reason,
+      })
+    : await supabase.rpc("amend_holiday_request", {
+        p_id: requestId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_reason: reason,
+        p_return_to_work: returnToWork,
+      });
+  if (error) {
+    const words = blackoutWords(error.message);
+    return { error: words ? (canOverrideBlackout(profile.role) ? `${words} Tick Book anyway, with a reason, to keep these dates.` : words) : error.message };
+  }
 
   // Approving straight after sends the approval email, with the new dates, instead.
   const emailed = thenApprove ? false : await notifyHolidayChanged({

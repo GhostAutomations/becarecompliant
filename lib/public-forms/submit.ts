@@ -33,6 +33,7 @@ import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { resolvePublicForm } from "@/lib/public-forms/data";
 import { notifyHolidayRequested } from "@/lib/notifications/holiday";
 import type { PublicSubmitState } from "@/lib/public-forms/types";
+import { blackoutWords } from "@/lib/holidays/blackout-data";
 
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MINUTES = 10;
@@ -176,7 +177,8 @@ export async function submitPublicForm(
     p_end_date: endDate,
     p_note: typeof cleaned["note"] === "string" ? (cleaned["note"] as string) : null,
   });
-  if (error) return { error: "Your form could not be sent. Please tell your manager." };
+  // A holiday inside a blackout (0477): the database refused it and nothing was kept, so say why.
+  if (error) return { error: blackoutWords(error.message) ?? "Your form could not be sent. Please tell your manager." };
 
   const outcome = (result ?? {}) as {
     submission_id?: string;

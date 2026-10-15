@@ -21,6 +21,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompany, requirePolicyWriter } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { blackoutRefusal } from "@/lib/holidays/blackout-data";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import type { Answers, FormSchema } from "@/lib/form-schema";
@@ -1355,6 +1356,12 @@ export async function completeAssignedForm(
     formKey === "holiday_requests" ? isoOrNull(answers["end_date_of_holiday"]) : null;
   if (formKey === "holiday_requests" && (!holidayStart || !holidayEnd)) {
     return { error: "Enter the start and end dates of your holiday." };
+  }
+  /* BLACKOUT DATES (0477): asked before anything is filed, so a refused holiday leaves no Evidence
+     and the assignment stays open. The database makes the same check again on the holiday. */
+  if (formKey === "holiday_requests" && holidayStart && holidayEnd) {
+    const blocked = await blackoutRefusal(supabase, assignment.company_id as string, person?.branch_id ?? null, holidayStart, holidayEnd);
+    if (blocked) return { error: blocked };
   }
 
   // Pin the form's currently published version.

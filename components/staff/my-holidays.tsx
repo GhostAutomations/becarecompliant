@@ -29,6 +29,7 @@ import {
   withdrawHolidayChange,
 } from "@/lib/holidays/actions";
 import { carerHolidayOptions, holidayStatusLabel, londonTodayIso } from "@/lib/holidays/changes";
+import { blackoutDates, type Blackout } from "@/lib/holidays/blackouts";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -209,11 +210,15 @@ function MyRequestActions({ request, today }: { request: HolidayRequestRow; toda
 export default function MyHolidays({
   holidays,
   requestSchema,
+  blackouts = [],
 }: {
   holidays: HolidayRequestRow[];
   requestSchema: FormSchema | null;
+  /** Blackout dates for their branch (0477), as the database lets them see them. */
+  blackouts?: Blackout[];
 }) {
   const today = londonTodayIso();
+  const comingBlackouts = blackouts.filter((b) => b.end >= today).sort((a, b) => a.start.localeCompare(b.start));
   const current = holidays.filter(
     (h) => (h.status === "pending" || h.status === "approved") && h.end_date >= today,
   );
@@ -238,6 +243,19 @@ export default function MyHolidays({
           />
         ) : null}
       </div>
+      {/* BLACKOUT DATES (0477, Phil popup): shown before they try, so nobody is surprised. */}
+      {comingBlackouts.length > 0 ? (
+        <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+          <p className="font-semibold">Holidays can&rsquo;t be booked:</p>
+          <ul className="mt-1 space-y-0.5 text-xs">
+            {comingBlackouts.map((b) => (
+              <li key={b.id}>
+                {blackoutDates(b.start, b.end)}, {b.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {current.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">

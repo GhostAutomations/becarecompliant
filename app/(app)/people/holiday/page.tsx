@@ -7,6 +7,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
 import { listActivePeople } from "@/lib/absence/data";
 import { listHolidayRequests } from "@/lib/holidays/data";
+import { listBlackouts } from "@/lib/holidays/blackout-data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import HolidayView from "@/components/holidays/holiday-view";
 import { isCompanyWideRole, isHolidayApprover } from "@/lib/notifications/roles";
@@ -45,19 +46,23 @@ export default async function HolidayPage() {
   // returns exactly their branches, and every branch for a company wide role.
   const companyWideApprover = isCompanyWideRole(profile.role) || profile.role === "platform_admin";
   const canBookForPerson = canApprove || profile.role === "supervisor" || profile.role === "recruiter";
-  const [branches, requests, people, requestForm] = await Promise.all([
+  const [branches, requests, people, requestForm, blackouts] = await Promise.all([
     listBranches(companyId, profile),
     listHolidayRequests(companyId, null),
     canBookForPerson ? listActivePeople(companyId) : Promise.resolve([]),
     getCompanyFormByKey(companyId, "holiday_requests"),
+    listBlackouts(companyId),
   ]);
+  /* BLACKOUT DATES (0477): set by the Company Admin, Responsible Individual or Registered
+     Manager (and the Founder), who may also "Book anyway" inside one. The database enforces both. */
+  const managesBlackouts = companyWideApprover;
 
   const requestSchema: FormSchema | null =
     requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <RealtimeRefresh tables={["holiday_requests"]} channel="holiday" />
+      <RealtimeRefresh tables={["holiday_requests", "holiday_blackouts"]} channel="holiday" />
       <BackLink href="/people" label="Back to People" />
       <HolidayView
         requests={requests}
@@ -68,6 +73,8 @@ export default async function HolidayPage() {
         canApprove={canApprove}
         approvableBranchIds={companyWideApprover ? null : branches.map((b) => b.id)}
         canBookForPerson={canBookForPerson}
+        blackouts={blackouts}
+        managesBlackouts={managesBlackouts}
       />
     </div>
   );

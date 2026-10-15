@@ -15,6 +15,7 @@ import {
 } from "@/lib/assignments/data";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
+import { listBlackouts } from "@/lib/holidays/blackout-data";
 import HolidayNotices from "@/components/staff/holiday-notices";
 import { disabledModules } from "@/lib/auth/module-access";
 import { canUsePortalForm } from "@/lib/auth/portal-forms";
@@ -115,6 +116,8 @@ export default async function MyAreaPage() {
     moneyForm && isFormSchema(moneyForm.schema) ? (moneyForm.schema as FormSchema) : null;
 
   const holidays = record ? await getMyHolidays(record.id) : [];
+  /* Blackout dates (0477): the database returns only theirs (their branch, and All branches). */
+  const blackouts = await listBlackouts(profile.company_id);
   // What the office has done to their holidays and they have not seen yet (0438).
   const holidayNotices = await getMyHolidayNotices(holidays.map((h) => h.id));
   // Return to Work questions waiting for their answers (0331). Their own, through
@@ -163,7 +166,7 @@ export default async function MyAreaPage() {
 
   return (
     <div className="page-shell space-y-8">
-      <RealtimeRefresh tables={["holiday_requests"]} channel="my-holidays" />
+      <RealtimeRefresh tables={["holiday_requests", "holiday_blackouts"]} channel="my-holidays" />
 
       <div>
         <h1 className="page-title">
@@ -213,7 +216,7 @@ export default async function MyAreaPage() {
             </p>
           </section>
 
-          <MyHolidays holidays={holidays} requestSchema={requestSchema} />
+          <MyHolidays holidays={holidays} requestSchema={requestSchema} blackouts={blackouts} />
         </>
       )}
 
