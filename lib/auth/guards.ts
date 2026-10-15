@@ -7,7 +7,8 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { decodeSessionId } from "@/lib/auth/jwt";
+import { decodeSessionId, decodeUserClaims } from "@/lib/auth/jwt";
+import { VERIFIED_USER_HEADER, trustedUserId } from "@/lib/auth/verified-user";
 import {
   RESET_FORM_PATH,
   amrFromAccessToken,
@@ -113,13 +114,32 @@ export const requireUser = cache(requireUserUncached);
 async function requireUserUncached(): Promise<User> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await timed("guard.getUser", supabase.auth.getUser());
-  if (!user) redirect(await signInHere());
-
-  const {
     data: { session },
   } = await supabase.auth.getSession();
+
+  /* SIGN IN CHECKED ONCE (speed plan, Phil 2026-10-15; lib/auth/verified-user.ts). Middleware has
+     already asked Supabase Auth who this is, in this same request, and passes the answer on in a
+     header no browser can set. When it matches the session's own token, that answer is used and
+     Auth is not asked a second time; otherwise Auth is asked here, exactly as before. */
+  const claims = session ? decodeUserClaims(session.access_token) : null;
+  const trusted = trustedUserId((await headers()).get(VERIFIED_USER_HEADER), claims?.sub);
+  let user: User | null = null;
+  if (trusted && claims) {
+    user = {
+      id: claims.sub,
+      email: claims.email,
+      phone: claims.phone,
+      aud: claims.aud ?? "authenticated",
+      role: claims.role,
+      app_metadata: claims.app_metadata ?? {},
+      user_metadata: claims.user_metadata ?? {},
+      created_at: "",
+    } as User;
+  } else {
+    const { data } = await timed("guard.getUser", supabase.auth.getUser());
+    user = data.user;
+  }
+  if (!user) redirect(await signInHere());
 
   if (session) {
     /* A SESSION MADE BY A RESET LINK CAN ONLY SET A PASSWORD (Phil, popup 2026-09-23). Every page

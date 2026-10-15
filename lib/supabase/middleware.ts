@@ -7,6 +7,7 @@ import { amrFromAccessToken, isRecoverySession } from "@/lib/auth/password-reset
 import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
 import { isCarerLogin, seniorPathRedirect } from "@/lib/auth/carer-login";
 import { sessionIdFromAuthCookies } from "@/lib/auth/cookie-session";
+import { VERIFIED_USER_HEADER } from "@/lib/auth/verified-user";
 
 /**
  * Paths reachable without a session. Webhook paths MUST be added here
@@ -123,6 +124,8 @@ export async function updateSession(request: NextRequest) {
   /* The path, for the guards. A Server Component cannot read the URL it is rendering, and
      requireUser has to know where somebody was headed when it sends them to sign in. */
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  // Never from the browser: only set below, once Auth has confirmed the user (verified-user.ts).
+  requestHeaders.delete(VERIFIED_USER_HEADER);
 
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
@@ -165,6 +168,22 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await timed("mw.getUser", supabase.auth.getUser());
+
+  /* SIGN IN CHECKED ONCE (speed plan, Phil 2026-10-15; lib/auth/verified-user.ts). Pass Auth's
+     answer on to the page so its guard need not ask again. Built from the request as it now stands
+     (a refreshed session's cookies included), with any copy of the header a browser sent removed,
+     and the response cookies carried over. */
+  {
+    const forwarded = new Headers(request.headers);
+    forwarded.set("x-nonce", nonce);
+    forwarded.set("Content-Security-Policy", csp);
+    forwarded.set("x-pathname", request.nextUrl.pathname);
+    forwarded.delete(VERIFIED_USER_HEADER);
+    if (user) forwarded.set(VERIFIED_USER_HEADER, user.id);
+    const next = NextResponse.next({ request: { headers: forwarded } });
+    for (const c of supabaseResponse.cookies.getAll()) next.cookies.set(c);
+    supabaseResponse = next;
+  }
 
   const { pathname } = request.nextUrl;
 

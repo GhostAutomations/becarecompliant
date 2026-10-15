@@ -130,3 +130,14 @@ Popup "A and B now" (C, sign-in checked once per page, left for its own careful 
   the same day) made every click slow again and was taken out. 0483 adds the live signal to the
   tables behind Planner, policies, invoicing, whistleblowing, inspections and record updates, so a
   change there is never missed. Your own saves clear the memory (revalidatePath).
+
+## Sign in checked once per request (C, Phil 2026-10-15)
+
+- Middleware asks Supabase Auth who the person is (auth.getUser) on every request, as before, and
+  passes the confirmed user id on to the page in the request header `x-bcc-verified-user`
+  (`lib/auth/verified-user.ts`). It deletes any copy of that header a browser sends, before setting
+  its own, and only sets it once Auth has said yes.
+- The page guard (`requireUser`) uses it only when it matches the session in the same request's
+  cookie; otherwise it asks Auth itself, exactly as before. The single session slot check, the
+  reset link check and the disabled login check are unchanged.
+- Saves one Auth round trip per page, server action and live refresh (about 50 to 100ms).
