@@ -46,7 +46,10 @@ Each check: Pass, Fail or Not tested.
 ## Sidebar (A and B)
 
 - S1 Opening a page no longer fetches every sidebar page in the background (network: no burst of
-  page requests). Not tested.
-- S2 Resting the pointer on a sidebar item fetches that page; the click then shows it quickly. Not tested.
-- S3 Going back to a page visited in the last 30 seconds is instant, and a change made meanwhile
-  appears a moment later. Not tested.
+  page requests). Pass (Claude in Phil's Chrome, 2026-10-15: one click made only its own request).
+- S2 Resting the pointer on a sidebar item fetches that page; the click then shows it quickly. Pass
+  (Claude: Service Users 0.32s and Training 0.40s with the pointer rested first, against 0.75 to 1.0s
+  without).
+- S3 Going back to a page visited recently is instant, and a change made meanwhile appears a moment
+  later. Instant part Pass at 30 seconds (Claude: 0.02 to 0.03s; Phil saw the same). Memory then set
+  to five minutes at Phil's popup; the five minute version and the catch up are Not tested.

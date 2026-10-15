@@ -122,7 +122,9 @@ Popup "A and B now" (C, sign-in checked once per page, left for its own careful 
   per page opened, each running the sign-in checks). Resting the pointer on a link for 120ms, or
   focusing or touching it, fetches that whole page (`components/nav-link.tsx`, used by all three
   sidebars).
-- A: a page visited or fetched in the last 30 seconds comes back at once (`staleTimes` in
-  next.config.ts, the shortest Next allows). `components/route-memory.tsx` listens on the company's
-  live channel all the time; back on a remembered page after something changed, the page is quietly
-  brought up to date. Your own saves clear the memory (revalidatePath), so they are never hidden.
+- A: a page visited or fetched in the last five minutes comes back at once (`staleTimes` in
+  next.config.ts; 30 seconds at first, five minutes at Phil's popup the same day).
+  `components/route-memory.tsx` listens on the company's live channel all the time. Back within 30
+  seconds, the page is quietly brought up to date only if something changed; back after longer, it
+  is always quietly brought up to date (some tables send no live signal). Your own saves clear the
+  memory (revalidatePath), so they are never hidden.

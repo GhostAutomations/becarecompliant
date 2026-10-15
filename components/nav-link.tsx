@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, type ComponentProps } from "react";
+import { notePageFetched } from "@/components/route-memory";
 
 const HOVER_MS = 120;
 
@@ -28,7 +29,10 @@ export default function NavLink({
 }: Omit<ComponentProps<typeof Link>, "href" | "prefetch"> & { href: string }) {
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fetchPage = () => router.prefetch(href);
+  const fetchPage = () => {
+    router.prefetch(href);
+    notePageFetched(href);
+  };
   return (
     <Link
       href={href}
