@@ -43,6 +43,9 @@
 - [stated] Black shows "Unlimited" on the dashboard tile and in Billing while any credit is left
   (popup); texts are still counted and credits still taken. At zero it shows 0 in red. Black has no
   top up button.
+- [stated 2026-10-15] On the dashboard SMS tile the Left half of a Black company is a green
+  infinity sign at figure size, captioned "Unlimited" (the word at figure size ran out of the
+  tile). Billing keeps the words "Unlimited texts".
 
 ## Test companies
 

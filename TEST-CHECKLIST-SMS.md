@@ -19,5 +19,6 @@ sign in to review."; ticket (four lines, with the link); trial request (one line
 | S4 | Founder console: the five top tiles on one line, the same height; the Twilio tile with the live balance and credits held (no checked time or Refresh, Phil 2026-10-15); console no slower | PASS (Phil 2026-10-15: five tiles at 78 px, £25.42, 1,991 credits held). Timing: whole site slower at the time of the check (sign in 761 ms, Usage 525 ms against 214); the console's gap over Usage 90 ms against 140 at baseline, so no slowdown from the change |
 | S5 | Every SMS figure the same on the dashboard tile, Billing, Settings Usage, Founder console and Founder usage | PASS. Bevan: dashboard 1 Sent, Unlimited; Billing Unlimited texts; Settings Usage 1 message, 1 segment; Founder usage 1 event, 1 segment; ledger 4,014 = balance. Founder console Usage 19 SMS = Thistle 18 + Bevan 1 |
 | S6 | Thistle dashboard: SMS tile reads Unlimited | PASS (checked in Chrome in support mode: 9 Sent, Unlimited in green) |
+| S7 | Dashboard SMS tile on Black: a green infinity sign captioned Unlimited, inside the tile at every width (the word spilled out, Phil 2026-10-15) | |
 
 Not tested live: the overdue chaser (the morning job needs its secret, and a test company's chaser would go to managers, who are not the Founder's mobile, so it is skipped). Its wording is proven by the unit tests.

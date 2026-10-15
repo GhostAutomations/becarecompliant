@@ -1142,11 +1142,12 @@ export default async function DashboardPage() {
               iconTone="blue"
               pairs={[
                 { value: spend.sms.sent, caption: "Sent" },
-                /* BLACK IS UNLIMITED (Phil's popup, 2026-10-15): "Unlimited" while any credit is
-                   left, the texts still counted. At zero it shows 0 in red, never a promise the
-                   sender would not keep. */
+                /* BLACK IS UNLIMITED (Phil's popup, 2026-10-15): an infinity sign captioned
+                   "Unlimited" while any credit is left, the texts still counted (the word at figure
+                   size ran out of the tile, so Phil chose the sign the same day). At zero it shows
+                   0 in red, never a promise the sender would not keep. */
                 spend.sms.unlimited && (spend.sms.remaining ?? 0) > 0
-                  ? { value: "Unlimited", caption: "Left", tone: "green" as const }
+                  ? { value: "∞", caption: "Unlimited", tone: "green" as const }
                   : {
                       value: spend.sms.remaining ?? "n/a",
                       caption: "Left",
