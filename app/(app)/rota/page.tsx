@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { requireRotaOffice } from "@/lib/rota/access";
 
-export const metadata: Metadata = { title: "Rota" };
+/* The title is only given once the guard passes: a fixed title would name the module in the
+   browser tab even on the Not Found page of a company that does not have it. */
+export async function generateMetadata(): Promise<Metadata> {
+  await requireRotaOffice();
+  return { title: "Rota" };
+}
 
 /**
  * Be Care Compliant: the Rota department (Rota and Visits beta, Stage 0, Phil 2026-10-15).
