@@ -4618,7 +4618,9 @@ sent, no second POST), old and new identical for all 15 logins, merged to main a
 2026-10-15. Push 1b (0480): the 11 SELECT policies on people, checks, training and service users use
 once per query lists instead of per row helpers (proved equal for all 78 profiles; fingerprint
 IDENTICAL for 15 logins); Supervisor and Senior reads from 250 to 1,275ms down to 7 to 80ms. Live
-2026-10-15. Tests: TEST-CHECKLIST-SPEED.md. Push 2 not started.
+2026-10-15. Push 2: live updates were already on Broadcast (0418); 0481 empties the old Realtime
+publication so the old change polling cannot return; idle Realtime cost measured at 0. Live
+2026-10-15. Tests: TEST-CHECKLIST-SPEED.md.
 
 ### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)
 

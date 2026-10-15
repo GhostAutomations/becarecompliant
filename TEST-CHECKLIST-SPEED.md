@@ -31,3 +31,12 @@ Each check: Pass, Fail or Not tested.
 - P1b.2 Security advisor no ERROR. Pass (Claude; 7 expected WARN, one per new helper).
 - P1b.3 A Supervisor or Senior opens People, Service Users, Training and the Dashboard and sees the
   same as before, faster. Not tested.
+
+## Push 2 (live, 0481)
+
+- P2.0 Idle Realtime cost under 0.5s per 30s. Pass (Claude: 0 calls, 0ms in 60 seconds).
+- P2.1 Old publication empty; Broadcast publication and slot untouched. Pass (Claude).
+- P2.2 A live update still sends after 0481. Pass (Claude: no-op update on Bevan's test blackout
+  sent its message on Bevan's private channel at 08:18:55).
+- P2.3 Fingerprint after 0481, 15 logins. Pass (Claude; only real activity in between, matched by
+  the no-RLS control).

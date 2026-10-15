@@ -99,3 +99,18 @@ Not done tonight, and why:
   per new helper, the same accepted pattern as the 0415 `my_*` helpers (each returns only the
   caller's own lists).
 - A restore script for the 11 policies as they were was kept (outside the repo).
+
+## Push 2 (live): migration 0481 (Phil, 2026-10-15)
+
+- Found already done on 2026-10-07: live updates use Broadcast (0418, `lib/realtime/live-bus.ts`,
+  `realtime.send` into `realtime.messages`, read through `supabase_realtime_messages_publication`).
+  No code subscribes to postgres_changes. The 2.6 million Realtime poller calls are from before
+  then; measured idle cost now 0 calls and 0ms in 60 seconds (target under 0.5s per 30s).
+- 0481 empties the old `supabase_realtime` publication (18 tables nothing read) so the old per
+  subscriber change polling cannot come back by accident. The publication itself is kept, empty.
+- Checked after applying: Broadcast's publication (7 tables) and replication slot untouched and
+  active; a no-op update on Bevan's test blackout sent its live update message at once.
+- Fingerprint after 0481: identical for all 15 logins apart from real activity in between (a
+  Thistle user's audit row and profile update, matched by the no-RLS control).
+- Live traffic under 0480 and 0481 (checks completed, Training, Planner, Service Users): no
+  errors or warnings in the production logs.
