@@ -360,6 +360,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
      now, so a form that will not file is said out loud below rather than undoing the add. */
   const docFailed: string[] = [];
   const docNotes: string[] = [];
+  let filing: Promise<unknown> = Promise.resolve();
   if (!supportMode) {
     const personRow = {
       branch_id,
@@ -371,35 +372,41 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     const toFile: Array<{ key: string; form: NonNullable<typeof rtwForm>; answers: Answers; prefix: string }> = [];
     if (dbs?.kind === "details" && dbsForm) toFile.push({ key: DBS_FORM_KEY, form: dbsForm, answers: dbs.answers as Answers, prefix: "dbs_file:" });
     if (rtw && rtwForm) toFile.push({ key: RTW_FORM_KEY, form: rtwForm, answers: rtw, prefix: "rtw_file:" });
-    for (const doc of toFile) {
-      const files: EvidenceFileInput[] = [];
-      for (const [key, value] of formData.entries()) {
-        if (key.startsWith(doc.prefix) && value instanceof File && value.size > 0) {
-          files.push({
-            fieldKey: key.slice(doc.prefix.length),
-            kind: "upload",
-            fileName: value.name,
-            contentType: value.type || "application/octet-stream",
-            bytes: Buffer.from(await value.arrayBuffer()),
-          });
+    /* Side by side, not one after another (speed, Phil's rule 8): they write different
+       columns and different Evidence, so neither waits for the other. */
+    filing = Promise.all(toFile.map(async (doc) => {
+      try {
+        const files: EvidenceFileInput[] = [];
+        for (const [key, value] of formData.entries()) {
+          if (key.startsWith(doc.prefix) && value instanceof File && value.size > 0) {
+            files.push({
+              fieldKey: key.slice(doc.prefix.length),
+              kind: "upload",
+              fileName: value.name,
+              contentType: value.type || "application/octet-stream",
+              bytes: Buffer.from(await value.arrayBuffer()),
+            });
+          }
         }
+        const spec = TRACKER_FORMS[doc.key];
+        const filed = await fileTrackerForm({
+          user,
+          profile,
+          supabase,
+          personId: person.id,
+          person: personRow,
+          formKey: doc.key,
+          spec,
+          form: doc.form,
+          answers: doc.answers,
+          files,
+        });
+        if (!filed.ok) docFailed.push(`${spec.title}: ${filed.error}`);
+        else if (filed.note) docNotes.push(filed.note);
+      } catch (e) {
+        docFailed.push(`${TRACKER_FORMS[doc.key].title}: ${(e as Error).message}`);
       }
-      const spec = TRACKER_FORMS[doc.key];
-      const filed = await fileTrackerForm({
-        user,
-        profile,
-        supabase,
-        personId: person.id,
-        person: personRow,
-        formKey: doc.key,
-        spec,
-        form: doc.form,
-        answers: doc.answers,
-        files,
-      });
-      if (!filed.ok) docFailed.push(`${spec.title}: ${filed.error}`);
-      else if (filed.note) docNotes.push(filed.note);
-    }
+    }));
   }
 
   /* NO DBS YET (Phil's popup, 2026-10-15): the person who added them and the line manager are
@@ -422,8 +429,8 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     } else {
       const url = `${siteUrl()}/people/${person.id}/tracker/dbs_pending/complete`;
       const subject = dbsRiskAssessmentSubject(full_name);
-      const outcomes: string[] = [];
-      for (const r of recipients) {
+      // Both recipients at once, and alongside the filing above; all of it awaited before replying.
+      const outcomes = await Promise.all(recipients.map(async (r): Promise<string> => {
         try {
           const logId = await claimNotification({
             companyId,
@@ -436,22 +443,19 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
             subject,
             metadata: { person_id: person.id },
           });
-          if (!logId) {
-            outcomes.push("sent");
-            continue;
-          }
+          if (!logId) return "sent";
           const result = await sendEmail({
             to: r.email!,
             subject,
             html: dbsRiskAssessmentEmailHtml({ recipientName: r.name, personName: full_name, url }),
           });
           await settleNotification(logId, result.sent ? "sent" : result.skippedReason ? "skipped" : "failed", result.error ?? result.skippedReason);
-          outcomes.push(result.sent ? "sent" : result.skippedReason?.includes("RESEND") ? "not_configured" : "failed");
+          return result.sent ? "sent" : result.skippedReason?.includes("RESEND") ? "not_configured" : "failed";
         } catch (e) {
           console.error("[people] DBS risk assessment email:", (e as Error).message);
-          outcomes.push("failed");
+          return "failed";
         }
-      }
+      }));
       riskEmail = outcomes.every((o) => o === "sent")
         ? "sent"
         : outcomes.includes("not_configured")
@@ -459,6 +463,8 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
           : "failed";
     }
   }
+
+  await filing;
 
   // Their Team Member login goes out automatically as soon as an email is on the
   // record (Phil, 2026-07-26). Best effort: a failed invite must never undo the
