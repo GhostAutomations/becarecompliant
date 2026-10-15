@@ -4610,7 +4610,8 @@ People > Holidays > Blackout dates: periods when holidays can't be booked, set b
 Responsible Individual or Registered Manager per branch or all branches, with a reason staff see.
 Refused at every entry point by one database check (0477), with "Book anyway" and a reason for
 Admin, RI and RM; existing holidays untouched; shaded on the calendar and listed in /my. Decision:
-docs/decisions/holiday-blackouts.md. Tests: TEST-CHECKLIST-HOLIDAY-BLACKOUTS.md. IN PROGRESS.
+docs/decisions/holiday-blackouts.md. Tests: TEST-CHECKLIST-HOLIDAY-BLACKOUTS.md, B0 to B5 pass (B3 to
+B5 tested by Claude at Phil's request). DONE, live 2026-10-15 (commit 0772e1a8).
 
 ### 2026-10-14 — Per person notifications: Recent activity and Email (Phase 13, Thistle)
 
