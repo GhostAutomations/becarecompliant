@@ -204,9 +204,10 @@ function VisitPicker({ picker, onDone }: { picker: Picker; onDone: () => void })
   const [error, setError] = useState<string | null>(null);
   const [showRefused, setShowRefused] = useState(false);
 
+  const movingId = picker.mode === "move" ? picker.assignment.id : undefined;
   useEffect(() => {
     let live = true;
-    getVisitCandidatesAction(picker.visit.id).then((r) => {
+    getVisitCandidatesAction(picker.visit.id, movingId).then((r) => {
       if (!live) return;
       if (r.error) setError(r.error);
       else setList(r.candidates ?? []);
@@ -214,7 +215,7 @@ function VisitPicker({ picker, onDone }: { picker: Picker; onDone: () => void })
     return () => {
       live = false;
     };
-  }, [picker.visit.id]);
+  }, [picker.visit.id, movingId]);
 
   if (error) return <p className="form-error">{error}</p>;
   if (!list) return <p className="text-sm text-white/60" role="status">Working out who is best placed…</p>;

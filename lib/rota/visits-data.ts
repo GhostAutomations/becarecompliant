@@ -162,10 +162,13 @@ export async function visitWarningsFor(companyId: string, visitId: string, perso
 }
 
 /** The recommendation for a visit: everyone in the caller's branches, ranked best first. */
-export async function getVisitCandidates(companyId: string, visitId: string): Promise<VisitCandidate[]> {
+export async function getVisitCandidates(companyId: string, visitId: string, movingAssignmentId?: string): Promise<VisitCandidate[]> {
   const supabase = await createClient();
   const [{ data: rows, error }, { data: visit }, { data: branches }] = await Promise.all([
-    supabase.rpc("rota_visit_candidates", { p_visit: visitId }),
+    // Moving a carer: the list is judged as if their place were free, and leaves them off it.
+    movingAssignmentId
+      ? supabase.rpc("rota_visit_candidates", { p_visit: visitId, p_moving: movingAssignmentId })
+      : supabase.rpc("rota_visit_candidates", { p_visit: visitId }),
     supabase.from("rota_visits").select("id, visit_date, starts_at, ends_at, service_users(address)").eq("id", visitId).maybeSingle(),
     supabase.from("branches").select("id, name").eq("company_id", companyId),
   ]);

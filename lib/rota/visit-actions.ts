@@ -132,12 +132,13 @@ export async function removePrefAction(_prev: ActionState, fd: FormData): Promis
 
 /* --------------------------------- Visits ------------------------------------ */
 
-export async function getVisitCandidatesAction(visitId: string): Promise<{ candidates?: VisitCandidate[]; error?: string }> {
+export async function getVisitCandidatesAction(visitId: string, movingAssignmentId?: string): Promise<{ candidates?: VisitCandidate[]; error?: string }> {
   const g = await office();
   if ("error" in g) return { error: g.error };
   if (!UUID.test(visitId)) return { error: "That visit could not be found." };
+  if (movingAssignmentId !== undefined && !UUID.test(movingAssignmentId)) return { error: "That carer is not on this visit." };
   try {
-    return { candidates: await getVisitCandidates(g.companyId, visitId) };
+    return { candidates: await getVisitCandidates(g.companyId, visitId, movingAssignmentId) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "The list could not be loaded." };
   }
