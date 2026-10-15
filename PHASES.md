@@ -2540,7 +2540,7 @@ Out of scope: invoicing and payroll.
 - [x] Stage 1 (DONE 2026-10-15, migrations 0489, 0490; commits 208ea00d, 60176926, 0a34b876; closed by Phil on the evidence for the few buttons not pressed on screen, to be pressed at the start of Stage 2): rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
   availability, working time warnings, the DBS / Right to Work / training rules on every
   assignment, published to the carer portal, changes by text).
-- [ ] Stage 2 (BUILT 2026-10-15, migrations 0491 and 0492; R2.4 to R2.7, R2.10, R2.11 passed in the screen test, Move picker fixed in 0492; awaiting Phil: carer My visits on the phone (R2.8) and the Paused screen (R2.9)): visits and runs (visit patterns, idempotent generation, runs per carer, drag between
+- [x] Stage 2 (DONE 2026-10-16, migrations 0491 and 0492; R2.1 to R2.11 passed, R2.8 and R2.9 on Phil's phone; Move picker fault found in the screen test and fixed in 0492; Phil closed it before the first real 02:45 nightly run, which is still to be read): visits and runs (visit patterns, idempotent generation, runs per carer, drag between
   carers, cover, hospital and respite pauses, carer recommendation, Europe/London dates).
 - [ ] Stage 3: clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
   and accuracy rules, offline to the agreed design, no tracking between taps).
