@@ -79,18 +79,19 @@ export default function RotaWeek({
       </div>
 
       <CentreDialog open={adding !== null} onClose={() => setAdding(null)} label={adding ? `Add a shift on ${dayLabel(adding)}` : "Add a shift"}>
-        {adding ? <AddShift day={adding} branchId={branchId} templates={templates} onDone={() => setAdding(null)} /> : null}
+        <div className="p-5">{adding ? <AddShift day={adding} branchId={branchId} templates={templates} onDone={() => setAdding(null)} /> : null}</div>
       </CentreDialog>
 
       <CentreDialog open={editing !== null} onClose={() => setEditing(null)} label="Change shift">
-        {editing ? <ShiftForm branchId={branchId} shift={editing} day={editing.shiftDate} onDone={() => setEditing(null)} /> : null}
+        <div className="p-5">{editing ? <ShiftForm branchId={branchId} shift={editing} day={editing.shiftDate} onDone={() => setEditing(null)} /> : null}</div>
       </CentreDialog>
 
       <CentreDialog open={picker !== null} onClose={() => setPicker(null)} label={pickerTitle(picker)}>
-        {picker ? <PersonPicker picker={picker} onDone={() => setPicker(null)} /> : null}
+        <div className="p-5">{picker ? <PersonPicker picker={picker} onDone={() => setPicker(null)} /> : null}</div>
       </CentreDialog>
 
       <CentreDialog open={swapping !== null} onClose={() => setSwapping(null)} label="Swap with another shift">
+        <div className="p-5">
         {swapping ? (
           <SwapForm
             from={swapping}
@@ -98,6 +99,7 @@ export default function RotaWeek({
             onDone={() => setSwapping(null)}
           />
         ) : null}
+        </div>
       </CentreDialog>
     </>
   );
@@ -376,7 +378,8 @@ function PersonPicker({ picker, onDone }: { picker: Picker; onDone: () => void }
             <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
               {cannot.map((c) => (
                 <li key={c.personId} className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/55">
-                  <span className="font-medium text-white/75">{c.name}</span>: {c.refusal}
+                  {/* The reason already names the person (the database's own words). */}
+                  {c.refusal}
                 </li>
               ))}
             </ul>
