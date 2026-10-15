@@ -54,3 +54,36 @@ export function trialRequestText(opts: { companyName: string; contactName: strin
     ],
   );
 }
+
+/** The rota for a week has been published, to each carer on it (Rota and Visits, Stage 1). */
+export function rotaPublishedText(opts: { firstName: string; companyName: string; weekLabel: string; link: string }): FittedSms {
+  return fitSms(
+    (v) => `Hi ${v.first || "there"}, ${v.company} has published your rota for the week of ${opts.weekLabel}. See your shifts: ${opts.link}`,
+    [
+      { key: "company", value: opts.companyName || "Your employer", min: 12 },
+      { key: "first", value: opts.firstName, min: 2 },
+    ],
+  );
+}
+
+/** A published shift of theirs has changed (times, cancelled, taken off, put on). */
+export function rotaChangedText(opts: { firstName: string; companyName: string; link: string }): FittedSms {
+  return fitSms(
+    (v) => `Hi ${v.first || "there"}, ${v.company} has changed your rota. See your shifts: ${opts.link}`,
+    [
+      { key: "company", value: opts.companyName || "Your employer", min: 12 },
+      { key: "first", value: opts.firstName, min: 2 },
+    ],
+  );
+}
+
+/** The office offers an open shift to a carer they picked. */
+export function rotaOfferText(opts: { firstName: string; companyName: string; when: string; link: string }): FittedSms {
+  return fitSms(
+    (v) => `Hi ${v.first || "there"}, ${v.company} has an open shift on ${opts.when}. Ask for it here: ${opts.link}`,
+    [
+      { key: "company", value: opts.companyName || "Your employer", min: 12 },
+      { key: "first", value: opts.firstName, min: 2 },
+    ],
+  );
+}

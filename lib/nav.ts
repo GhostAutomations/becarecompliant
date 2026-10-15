@@ -229,6 +229,11 @@ export const NAV_ENTRIES: NavEntry[] = [
     group: "Departments",
     roles: [...ROTA_OFFICE_ROLES] as Role[],
     activeMatch: ["^/rota"],
+    children: [
+      { href: "/rota", label: "Week", icon: "rota" },
+      { href: "/rota/templates", label: "Templates", icon: "rota" },
+      { href: "/rota/availability", label: "Availability", icon: "rota" },
+    ],
   },
   {
     href: "/invoicing",

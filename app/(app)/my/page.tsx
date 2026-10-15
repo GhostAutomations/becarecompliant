@@ -24,6 +24,9 @@ import MySection from "@/components/staff/my-section";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import { recordFinancialTransaction } from "@/lib/staff/financial-actions";
 import { bookingSortKey, longDate } from "@/lib/training/booking";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
+import MyRota from "@/components/rota/my-rota";
 
 /**
  * A Team Member's own area, and the only page a staff login has.
@@ -163,6 +166,10 @@ export default async function MyAreaPage() {
       : null;
   const ackSchema: FormSchema | null =
     ackForm && isFormSchema(ackForm.schema) ? (ackForm.schema as FormSchema) : null;
+  /* ROTA AND VISITS (beta, 0487): their shifts, only where the Founder has switched the module on.
+     Read from the company row this request has already loaded (React cache), so a company without
+     the module runs no extra query at all. */
+  const rotaOn = moduleOnInRow(await getCompanyRow(profile.company_id), "rota_visits");
 
   return (
     <div className="page-shell space-y-8">
@@ -215,6 +222,8 @@ export default async function MyAreaPage() {
               {record.branch_name ? ` · ${record.branch_name}` : ""}
             </p>
           </section>
+
+          {rotaOn ? <MyRota personId={record.id} /> : null}
 
           <MyHolidays holidays={holidays} requestSchema={requestSchema} blackouts={blackouts} />
         </>

@@ -87,3 +87,32 @@ information, never their screens, wording or templates.
   user is recorded (shown in the beta banner on the Rota page).
 - DPIA and staff notice for location recording, completed by each company (templates in
   `~/Projects/BCC Documents/Rota and Visits/`).
+
+## Stage 1 decisions: rota for shifts (popups, 2026-10-15)
+
+1. Who edits, publishes and approves: Admin, Responsible Individual and Registered Manager on every
+   branch; Branch Managers and Supervisors on their own branches (the same list approves open
+   shift requests and records swaps and handovers).
+2. Draft, then Publish: the office builds a week in draft and presses Publish; carers see only
+   published shifts. Publish texts each affected carer once; a later change to a published shift
+   texts that carer once more.
+3. Availability is recorded by the **office only** (weekly pattern plus dates someone cannot work).
+   Approved holiday, absence, parental leave and long term sick are unavailable automatically.
+   Nobody is rostered while unavailable (refused).
+4. Working time: four warnings, never a block (GOV.UK, checked 2026-10-15): over 48 hours a week
+   averaged over 17 weeks; under 11 hours rest between working days; a shift over 6 hours with no
+   20 minute break; no 24 hours off in the week (or 48 in the fortnight). A "Signed the 48 hour opt
+   out" tick per person, set **once** by the office and kept (`[stated]` "they should only have to
+   tick the 48 opt out once, as they will sign the opt out"), silences the weekly hours warning;
+   the office unticks it only if the person withdraws.
+5. Open shifts show in the carer's app to request (office approves); no automatic text. The office
+   can **pick carers and text them the shift** (`[stated]` "office staff can select carers to text
+   and offer the shift out"). One credit per text.
+6. Carers do **not** see colleagues' shifts. Swaps and handovers are recorded by the office on the
+   rota (no swap requests from carers). A carer sees only their own published shifts and open
+   shifts in their branch.
+7. Reading of the DBS rule (Stage 0, 3a) on a shift: the person's latest DBS Pending Risk
+   Assessment must say they may start (decision "start", review not missed), and the shift must
+   need two or more people with another person on it whose DBS is clear. Someone on the adults'
+   barred list (DBS Disclosure Risk Assessment) is always refused. Removing the last clear DBS
+   colleague from such a shift is refused.
