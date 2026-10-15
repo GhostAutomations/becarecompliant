@@ -28,6 +28,7 @@ import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import DemoHeartbeat from "@/components/demo/demo-heartbeat";
 import { formatDemoDate, DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 import { getCompanyRow } from "@/lib/companies/row";
+import RouteMemory from "@/components/route-memory";
 
 export default async function AppLayout({
   children,
@@ -180,6 +181,8 @@ export default async function AppLayout({
 
   return (
     <LiveTopicProvider topic={liveTopic}>
+    {/* Pages just visited come back at once and catch up if something changed (2026-10-15). */}
+    <RouteMemory />
     <div className="app-bg flex h-dvh overflow-hidden">
       {/* Acme-only: far-left icon rail + collapsible drawer (mirrors the demo). */}
       {navy ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { usePathname } from "next/navigation";
 import type { NavEntry } from "@/lib/nav";
 import { NavIcon } from "@/components/nav-icon";
@@ -91,7 +91,7 @@ export default function NavyNav({
         }}
         onMouseLeave={scheduleClose}
       >
-        <Link href={homeHref} className="navy-logo" aria-label="Home">
+        <NavLink href={homeHref} className="navy-logo" aria-label="Home">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M12 2.5 4 6v6c0 4.4 3.2 7.6 8 9.5 4.8-1.9 8-5.1 8-9.5V6l-8-3.5Z"
@@ -106,7 +106,7 @@ export default function NavyNav({
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+        </NavLink>
         {entries.map((e) => (
           <button
             key={e.href}
@@ -141,7 +141,7 @@ export default function NavyNav({
             const parentOn = isActive(entry.href) && !activeChild;
             return (
               <div key={entry.href}>
-                <Link
+                <NavLink
                   href={entry.href}
                   data-href={entry.href}
                   className={`navy-wi parent ${parentOn ? "on" : ""}`}
@@ -149,17 +149,17 @@ export default function NavyNav({
                 >
                   <NavIcon icon={entry.icon} className="h-4 w-4" />
                   {entry.label}
-                </Link>
+                </NavLink>
                 {showKids
                   ? children.map((c) => (
-                      <Link
+                      <NavLink
                         key={c.href}
                         href={c.href}
                         className={`navy-wi child ${isActive(c.href) ? "on" : ""}`}
                         onClick={() => setOpen(false)}
                       >
                         {c.label}
-                      </Link>
+                      </NavLink>
                     ))
                   : null}
               </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { usePathname } from "next/navigation";
 import type { NavEntry } from "@/lib/nav";
 import { splitMobileNav } from "@/lib/nav";
@@ -34,20 +34,20 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
         const active = inSection && !childActive;
         return (
           <div key={entry.href}>
-            <Link
+            <NavLink
               href={entry.href}
               className={`dock-link ${active ? "dock-link-active" : ""}`}
               aria-current={active ? "page" : undefined}
             >
               <NavIcon icon={entry.icon} className="h-5 w-5" />
               {entry.label}
-            </Link>
+            </NavLink>
             {children.length > 0 && inSection && (
               <div className="mt-1 flex flex-col gap-1 pl-4">
                 {children.map((child) => {
                   const cActive = child.href === activeChildHref;
                   return (
-                    <Link
+                    <NavLink
                       key={child.href}
                       href={child.href}
                       className={`dock-link py-1.5 text-[13px] ${cActive ? "dock-link-active" : ""}`}
@@ -55,7 +55,7 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
                     >
                       <NavIcon icon={child.icon} className="h-4 w-4" />
                       {child.label}
-                    </Link>
+                    </NavLink>
                   );
                 })}
               </div>
@@ -120,7 +120,7 @@ export function MobileDock({
           {primary.map((entry) => {
             const active = isActive(entry.href);
             return (
-              <Link
+              <NavLink
                 key={entry.href}
                 href={entry.href}
                 aria-current={active ? "page" : undefined}
@@ -134,7 +134,7 @@ export function MobileDock({
                   <NavIcon icon={entry.icon} className="h-5 w-5" />
                 </span>
                 <span className="max-w-full truncate">{entry.label}</span>
-              </Link>
+              </NavLink>
             );
           })}
 
@@ -246,7 +246,7 @@ function MoreSheet({
             const selfActive = isActive(entry.href) && !children.some((c) => c.href !== entry.href && isActive(c.href));
             return (
               <div key={entry.href} className="rounded-2xl border border-white/10 bg-white/5 p-2">
-                <Link
+                <NavLink
                   href={entry.href}
                   onClick={onClose}
                   aria-current={selfActive ? "page" : undefined}
@@ -256,7 +256,7 @@ function MoreSheet({
                 >
                   <NavIcon icon={entry.icon} className="h-5 w-5 shrink-0" />
                   <span className="min-w-0 truncate">{entry.label}</span>
-                </Link>
+                </NavLink>
                 {children.length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1.5 pl-9">
                     {children.map((child) => {
@@ -268,7 +268,7 @@ function MoreSheet({
                         ? true
                         : child.href === entry.href && selfActive;
                       return (
-                        <Link
+                        <NavLink
                           key={`${entry.href}-${child.href}-${child.label}`}
                           href={child.href}
                           onClick={onClose}
@@ -280,7 +280,7 @@ function MoreSheet({
                           }`}
                         >
                           {child.label}
-                        </Link>
+                        </NavLink>
                       );
                     })}
                   </div>

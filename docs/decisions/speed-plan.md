@@ -114,3 +114,15 @@ Not done tonight, and why:
   Thistle user's audit row and profile update, matched by the no-RLS control).
 - Live traffic under 0480 and 0481 (checks completed, Training, Planner, Service Users): no
   errors or warnings in the production logs.
+
+## Sidebar: pages fetched on hover, and just visited pages remembered (Phil, 2026-10-15)
+
+Popup "A and B now" (C, sign-in checked once per page, left for its own careful job):
+- B: sidebar links no longer fetch every page on screen in the background (about twenty requests
+  per page opened, each running the sign-in checks). Resting the pointer on a link for 120ms, or
+  focusing or touching it, fetches that whole page (`components/nav-link.tsx`, used by all three
+  sidebars).
+- A: a page visited or fetched in the last 30 seconds comes back at once (`staleTimes` in
+  next.config.ts, the shortest Next allows). `components/route-memory.tsx` listens on the company's
+  live channel all the time; back on a remembered page after something changed, the page is quietly
+  brought up to date. Your own saves clear the memory (revalidatePath), so they are never hidden.

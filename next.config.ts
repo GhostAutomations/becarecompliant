@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
     // Server Actions default to a 1 MB body; logo/policy/care-plan uploads can be
     // larger. Allow up to 4 MB so a normal logo (validated <=2 MB) never 413s.
     serverActions: { bodySizeLimit: "4mb" },
+    // SPEED (Phil, 2026-10-15, popup "A and B now"): a page visited, or fetched by pointing at it
+    // in the sidebar, in the last 30 seconds comes back at once instead of being rebuilt.
+    // components/route-memory.tsx brings it up to date if anything changed since. 30 is the
+    // shortest Next allows for fetched pages.
+    staleTimes: { dynamic: 30, static: 30 },
   },
   // Baseline security response headers (Final Testing Part 2, 17 Aug 2026).
   // The pen-test found these absent: a compliance app that approves and completes

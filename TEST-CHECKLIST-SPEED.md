@@ -42,3 +42,11 @@ Each check: Pass, Fail or Not tested.
   sent its message on Bevan's private channel at 08:18:55).
 - P2.3 Fingerprint after 0481, 15 logins. Pass (Claude; only real activity in between, matched by
   the no-RLS control).
+
+## Sidebar (A and B)
+
+- S1 Opening a page no longer fetches every sidebar page in the background (network: no burst of
+  page requests). Not tested.
+- S2 Resting the pointer on a sidebar item fetches that page; the click then shows it quickly. Not tested.
+- S3 Going back to a page visited in the last 30 seconds is instant, and a change made meanwhile
+  appears a moment later. Not tested.
