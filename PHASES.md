@@ -4604,6 +4604,16 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — Speed plan, Push 0 and Push 1 (Phase 13, Thistle)
+
+Overnight, Phil asleep. Push 0: a who-sees-what fingerprint of 15 logins across Thistle, Bevan and
+Demo (every table and view, plus Readiness per branch) saved as the baseline; fresh timings of the
+slow reads per role; the 30,408 rollup calls traced to the old Dashboard (removed 2026-09-28, so
+history). Push 1, migration 0478: 201 policies now work out is_platform_admin() and the other zero
+argument helpers once per query instead of once per row; 21 foreign key indexes. Fingerprint
+IDENTICAL for all 15. Decision: docs/decisions/speed-plan.md. Live 2026-10-15, waiting for Phil's
+screen check. Push 2 not started; Push 3 and 4 on branch speed-overnight (preview only).
+
 ### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)
 
 People > Holidays > Blackout dates: periods when holidays can't be booked, set by the Company Admin,
