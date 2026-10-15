@@ -6,12 +6,13 @@
  *
  * The browser now keeps a page you opened in the last five minutes (Phil, popup "5 minutes"), so
  * going back to it is instant. To be sure nothing done meanwhile is missed ("show it, then update",
- * the figures on screen staying until the new ones arrive):
- *  - back within 30 seconds: brought up to date only if something changed in the company since you
- *    left (this listens on the company's live channel the whole time);
- *  - back after longer: always quietly brought up to date, because some tables (Planner bookings,
- *    policies, invoicing) send no live signal.
- * Your own saves already clear the memory (revalidatePath), so they are never hidden.
+ * the figures on screen staying until the new ones arrive), this listens on the company's live
+ * channel the whole time; back on a remembered page after something in the company changed, the
+ * page is quietly brought up to date. Only then: an update makes Next forget every remembered page
+ * (found 2026-10-15, when updating every return after 30 seconds made every click slow again), so
+ * it must not happen when nothing changed. The tables behind Planner, policies, invoicing and the
+ * rest send the live signal too since 0483. Your own saves already clear the memory
+ * (revalidatePath), so they are never hidden.
  */
 
 import { useEffect, useRef, useTransition } from "react";
@@ -21,8 +22,6 @@ import { subscribeLive } from "@/lib/realtime/live-bus";
 
 /** Keep in step with staleTimes.dynamic in next.config.ts. */
 const REMEMBERED_MS = 5 * 60_000;
-/** Back within this, a page is only refreshed if a live signal says something changed. */
-const QUIET_MS = 30_000;
 
 /** When the sidebar fetched a page by pointing at it (components/nav-link.tsx), so a page fetched
  *  minutes before it is opened is treated like a page left at that moment. */
@@ -62,7 +61,7 @@ export default function RouteMemory() {
     const left = known.length ? Math.min(...known) : NaN;
     // Back on a remembered page: bring it up to date if it may be out of date.
     const away = Number.isFinite(left) ? now - left : Infinity;
-    if (away < REMEMBERED_MS && (away >= QUIET_MS || lastChange.current > left)) {
+    if (away < REMEMBERED_MS && lastChange.current > left) {
       const t = setTimeout(() => startTransition(() => router.refresh()), 300);
       return () => clearTimeout(t);
     }

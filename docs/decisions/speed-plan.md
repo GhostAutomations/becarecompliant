@@ -124,7 +124,9 @@ Popup "A and B now" (C, sign-in checked once per page, left for its own careful 
   sidebars).
 - A: a page visited or fetched in the last five minutes comes back at once (`staleTimes` in
   next.config.ts; 30 seconds at first, five minutes at Phil's popup the same day).
-  `components/route-memory.tsx` listens on the company's live channel all the time. Back within 30
-  seconds, the page is quietly brought up to date only if something changed; back after longer, it
-  is always quietly brought up to date (some tables send no live signal). Your own saves clear the
-  memory (revalidatePath), so they are never hidden.
+  `components/route-memory.tsx` listens on the company's live channel all the time; back on a
+  remembered page after something changed, the page is quietly brought up to date. Only then: an
+  update makes Next forget every remembered page, so updating every return after 30 seconds (tried
+  the same day) made every click slow again and was taken out. 0483 adds the live signal to the
+  tables behind Planner, policies, invoicing, whistleblowing, inspections and record updates, so a
+  change there is never missed. Your own saves clear the memory (revalidatePath).
