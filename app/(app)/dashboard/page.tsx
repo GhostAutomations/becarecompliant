@@ -1147,7 +1147,14 @@ export default async function DashboardPage() {
                    size ran out of the tile, so Phil chose the sign the same day). At zero it shows
                    0 in red, never a promise the sender would not keep. */
                 spend.sms.unlimited && (spend.sms.remaining ?? 0) > 0
-                  ? { value: "∞", caption: "Unlimited", tone: "green" as const }
+                  ? {
+                      // The sign draws at x height, far shorter than a digit, so it is drawn half as
+                      // large again to stand as tall as the figure beside it (Phil, same day). A
+                      // scale, not a bigger font, so the tile's line and caption do not move.
+                      value: <span className="inline-block origin-center scale-150">∞</span>,
+                      caption: "Unlimited",
+                      tone: "green" as const,
+                    }
                   : {
                       value: spend.sms.remaining ?? "n/a",
                       caption: "Left",
