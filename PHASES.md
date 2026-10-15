@@ -2537,7 +2537,7 @@ Out of scope: invoicing and payroll.
   templates for location recording; TEST-CHECKLIST-ROTA.md. DONE 2026-10-15 (commits 0c802de5,
   b0090442): switched on for Bevan only; R0.1 to R0.10 pass (R0.6 and R0.7 on the evidence, at
   Phil's choice); fingerprint, timings and advisors unchanged apart from the new objects.
-- [ ] Stage 1 (BUILT 2026-10-15, migrations 0489, 0490; awaiting Phil's screen checks R1.5 to R1.13): rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
+- [x] Stage 1 (DONE 2026-10-15, migrations 0489, 0490; commits 208ea00d, 60176926, 0a34b876; closed by Phil on the evidence for the few buttons not pressed on screen, to be pressed at the start of Stage 2): rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
   availability, working time warnings, the DBS / Right to Work / training rules on every
   assignment, published to the carer portal, changes by text).
 - [ ] Stage 2: visits and runs (visit patterns, idempotent generation, runs per carer, drag between
