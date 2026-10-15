@@ -2532,9 +2532,11 @@ Kickoff prompt: ROTA-VISITS-KICKOFF-PROMPT.md. Decisions: docs/decisions/rota-vi
 TEST-CHECKLIST-ROTA.md. Additive only, no slower pages, one stage at a time with Phil's approval.
 Out of scope: invoicing and payroll.
 
-- [ ] Stage 0: decisions and groundwork. 15 decisions taken by popup; module switch (0487), Founder
-  console control, empty Rota department; offline recording design; DPIA and staff notice
-  templates for location recording; TEST-CHECKLIST-ROTA.md.
+- [x] Stage 0: decisions and groundwork. 15 decisions taken by popup; module switch (0487, 0488),
+  Founder console control, empty Rota department; offline recording design; DPIA and staff notice
+  templates for location recording; TEST-CHECKLIST-ROTA.md. DONE 2026-10-15 (commits 0c802de5,
+  b0090442): switched on for Bevan only; R0.1 to R0.10 pass (R0.6 and R0.7 on the evidence, at
+  Phil's choice); fingerprint, timings and advisors unchanged apart from the new objects.
 - [ ] Stage 1: rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
   availability, working time warnings, the DBS / Right to Work / training rules on every
   assignment, published to the carer portal, changes by text).
