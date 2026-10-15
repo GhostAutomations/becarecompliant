@@ -30,7 +30,9 @@ Each check: Pass, Fail or Not tested.
 - P1b.1 Fingerprint just before and after applying, 15 logins. Pass (Claude, all IDENTICAL).
 - P1b.2 Security advisor no ERROR. Pass (Claude; 7 expected WARN, one per new helper).
 - P1b.3 A Supervisor or Senior opens People, Service Users, Training and the Dashboard and sees the
-  same as before, faster. Not tested.
+  same as before, faster. Pass (on the evidence, at Phil's choice 2026-10-15: fingerprint identical
+  for every Supervisor and Senior login, and a Thistle Supervisor used the app that morning under the
+  new policies with no errors or warnings in the production logs).
 
 ## Push 2 (live, 0481)
 

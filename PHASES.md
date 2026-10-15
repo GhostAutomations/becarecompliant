@@ -4620,7 +4620,7 @@ once per query lists instead of per row helpers (proved equal for all 78 profile
 IDENTICAL for 15 logins); Supervisor and Senior reads from 250 to 1,275ms down to 7 to 80ms. Live
 2026-10-15. Push 2: live updates were already on Broadcast (0418); 0481 empties the old Realtime
 publication so the old change polling cannot return; idle Realtime cost measured at 0. Live
-2026-10-15. Tests: TEST-CHECKLIST-SPEED.md.
+2026-10-15. Tests: TEST-CHECKLIST-SPEED.md, all pass. DONE 2026-10-15 (Pushes 0, 1, 1b, 2, 3, 4).
 
 ### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)
 
