@@ -4610,7 +4610,11 @@ Phil: Admin pages did not feel faster; the time was many trips one after another
 Every Dashboard tile now comes from the person's saved copy, rebuilt at :00, :10, :20 ...; something
 done is a push: the database notes which table changed per company (0482) and only the tiles that
 read it are worked out again before the page is drawn. An old copy is shown then updated; every
-role. Decision: docs/decisions/dashboard-copy.md. Tests: TEST-CHECKLIST-DASHBOARD-COPY.md.
+role. Decision: docs/decisions/dashboard-copy.md. Tests: TEST-CHECKLIST-DASHBOARD-COPY.md, all pass
+(D2 and D4 on the evidence at Phil's choice). Same day: sidebar pages fetched on hover instead of all
+at once; pages visited in the last five minutes come back at once and update only when something
+changed (0483 adds the live signal to Planner, policies, invoicing and more); sign in checked once
+per request. DONE, live 2026-10-15 (commits 7b0764af, 5c94d824, e24b4c8e, 4dd4c1ef).
 
 ### 2026-10-15 — Speed plan, Push 0 and Push 1 (Phase 13, Thistle)
 

@@ -52,7 +52,8 @@ Each check: Pass, Fail or Not tested.
   without).
 - S3 Going back to a page visited recently is instant, and a change made meanwhile appears a moment
   later. Instant part Pass (Claude: 0.02 to 0.03s at 30 seconds and again at five minutes after the
-  e24b4c8e fix; Phil saw the same). The catch up after someone else's change is Not tested.
+  e24b4c8e fix; Phil saw the same). The catch up after someone else's change: Pass on the evidence, at Phil's choice 2026-10-15
+  (live signals proved sending after 0481 and 0483; the update rule is the one shown working).
 
 ## Sign in checked once (C)
 
@@ -62,4 +63,5 @@ Each check: Pass, Fail or Not tested.
   none since the deploy; guard sign in step 28 to 64ms, was 78 to 156ms; slot check still runs).
 - C3 A request with no sign in, faking the header with a real user id, is still sent to sign in. Pass
   (Claude: /dashboard and /people both redirected to /login, no company data returned).
-- C4 A login signed in elsewhere (displaced session) is still signed out with the message. Not tested.
+- C4 A login signed in elsewhere (displaced session) is still signed out with the message. Pass on the evidence, at Phil's choice 2026-10-15
+  (that check's code is unchanged and still runs on every page: guard.sessions in the logs).
