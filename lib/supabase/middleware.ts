@@ -33,6 +33,8 @@ export const PUBLIC_PATHS = [
   // The demo survey (0356): the emailed link reaches somebody whose demo has ended and who can
   // no longer sign in. The token in the path is the key, and it answers once.
   "/demo-feedback",
+  // Short links in texts (0486): /s/<code> only redirects; the page it opens keeps its own sign in.
+  "/s",
 ];
 
 export function isPublicPath(pathname: string): boolean {

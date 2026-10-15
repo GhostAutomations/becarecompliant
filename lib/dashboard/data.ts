@@ -522,7 +522,8 @@ export async function getPendingHolidayApprovals(companyId: string): Promise<num
  */
 export type SpendThisMonth = {
   /** `remaining` is null when the balance cannot be read, never 0 as a stand in. */
-  sms: { sent: number; segments: number; remaining: number | null; monthlyGrant: number | null };
+  /** unlimited: a Black company shows "Unlimited" (Phil's popup, 2026-10-15); texts are still counted. */
+  sms: { sent: number; segments: number; remaining: number | null; monthlyGrant: number | null; unlimited?: boolean };
   ai: { used: number; remaining: number | null; monthlyGrant: number | null };
 };
 
@@ -601,6 +602,7 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
         ? null
         : ((smsBalanceRes.data as { balance: number } | null)?.balance ?? null),
       monthlyGrant: smsMonthlyGrant,
+      unlimited: tier === "black",
     },
     ai: {
       used: Math.max(0, -ledger.reduce((n, r) => n + Number(r.delta ?? 0), 0)),

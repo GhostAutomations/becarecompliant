@@ -4,6 +4,9 @@ import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billi
 import { isOptedOut, SMS_OPTED_OUT } from "@/lib/sms/opt-out";
 import { DEMO_NO_SMS, isDemoCompanyAnyContext } from "@/lib/demo/data";
 import { TEST_COMPANY_NO_MESSAGES, isMessagingMuted } from "@/lib/email/muted";
+import { oneSms } from "@/lib/sms/segments";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { ukMobileToE164 } from "@/lib/absence/rtw-questions";
 
 /**
  * Twilio SMS sender (REST API, no SDK dependency, mirroring lib/email/resend.ts).
@@ -24,9 +27,27 @@ import { TEST_COMPANY_NO_MESSAGES, isMessagingMuted } from "@/lib/email/muted";
  * NOBODY WHO SAID STOP IS TEXTED AGAIN (2026-08-01). The opt out list is consulted before the
  * allowance, so a blocked send never costs a credit either. See lib/sms/opt-out.ts.
  *
- * ONE CREDIT PER MESSAGE, not per segment. Segments are still metered into usage_events for
- * billing, but a customer should not lose three credits because a manager's branch name is long.
+ * ONE CREDIT PER MESSAGE, AND EVERY MESSAGE IS ONE SMS (Phil, 2026-10-15). Every text, whoever
+ * built it, is made plain GSM 7 and checked to be one segment (lib/sms/segments.ts) BEFORE a credit
+ * is claimed; anything longer is refused with a clear error, never sent as two. usage_events still
+ * records the segment count Twilio returns, so any drift shows.
+ *
+ * A TEST COMPANY TEXTS ONLY THE FOUNDER (Phil's popup, 2026-10-15): it may text the mobile on a
+ * Founder profile and nothing else, so a test can be seen on a real phone while no real person is
+ * ever texted from a test company.
  */
+
+/** The mobiles on Founder profiles, in E.164. Read past RLS: a send may have no signed in user. */
+async function founderMobiles(): Promise<string[]> {
+  try {
+    const { data } = await createServiceClient().from("profiles").select("phone").eq("role", "platform_admin");
+    return ((data as Array<{ phone: string | null }> | null) ?? [])
+      .map((p) => ukMobileToE164(p.phone))
+      .filter((m): m is string => Boolean(m));
+  } catch {
+    return [];
+  }
+}
 
 export type SmsResult = {
   sent: boolean;
@@ -75,10 +96,17 @@ export async function sendSms(opts: {
   if (await isDemoCompanyAnyContext(opts.companyId)) {
     return { sent: false, skippedReason: DEMO_NO_SMS };
   }
-  // A test company texts nobody (Phil, 2026-10-02; lib/email/muted.ts).
+  // A test company texts nobody but the Founder (Phil, 2026-10-02 and 2026-10-15; lib/email/muted.ts).
   if (await isMessagingMuted(opts.companyId)) {
-    return { sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES };
+    const to = ukMobileToE164(opts.to) ?? opts.to;
+    if (!(await founderMobiles()).includes(to)) {
+      return { sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES };
+    }
   }
+
+  // One SMS, always: refused here, before any credit is claimed.
+  const fitted = oneSms(opts.body);
+  if (!fitted.ok) return { sent: false, error: fitted.error };
 
   const optedOut = await isOptedOut(opts.to);
   if (optedOut === null) {
@@ -111,7 +139,7 @@ export async function sendSms(opts: {
           Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ To: opts.to, From: from, Body: opts.body }),
+        body: new URLSearchParams({ To: opts.to, From: from, Body: fitted.text }),
       },
     );
 
@@ -132,12 +160,13 @@ export async function sendSms(opts: {
 
     accepted = true;
     const segments = Number(payload.num_segments ?? "1") || 1;
+    // AWAITED, so the row is written before the response (a frozen function writes nothing).
     await recordUsage({
       companyId: opts.companyId,
       kind: "sms",
       units: segments,
       ref: payload.sid ?? null,
-      metadata: { to: opts.to, ...(opts.metadata ?? {}) },
+      metadata: { to: opts.to, length: fitted.length, ...(opts.metadata ?? {}) },
     });
 
     return { sent: true, sid: payload.sid, segments, creditsRemaining: spent.remaining };
@@ -170,6 +199,9 @@ export async function sendPlatformSms(opts: { to: string; body: string }): Promi
   const optedOut = await isOptedOut(opts.to);
   if (optedOut === null) return { sent: false, error: "Could not check the SMS opt out list" };
   if (optedOut) return { sent: false, skippedReason: SMS_OPTED_OUT };
+  // One SMS, always, for the Founder's texts too.
+  const fitted = oneSms(opts.body);
+  if (!fitted.ok) return { sent: false, error: fitted.error };
 
   try {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
@@ -178,7 +210,7 @@ export async function sendPlatformSms(opts: { to: string; body: string }): Promi
         Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: opts.to, From: from, Body: opts.body }),
+      body: new URLSearchParams({ To: opts.to, From: from, Body: fitted.text }),
     });
     const payload = (await res.json().catch(() => ({}))) as {
       sid?: string;

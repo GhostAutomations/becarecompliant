@@ -329,13 +329,27 @@ export default async function BillingPage() {
       {/* SMS allowance */}
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">SMS</h2>
+        {/* BLACK IS UNLIMITED (Phil's popup, 2026-10-15), while any credit is left. */}
         <p className="mt-2 text-3xl font-bold text-white">
-          {smsCredits} <span className="text-base font-medium text-white/55">texts left</span>
+          {tier === "black" && smsCredits > 0 ? (
+            <>
+              Unlimited <span className="text-base font-medium text-white/55">texts</span>
+            </>
+          ) : (
+            <>
+              {smsCredits} <span className="text-base font-medium text-white/55">texts left</span>
+            </>
+          )}
         </p>
         {/* A Business company cannot SEND an SMS at all: escalation is a Pro feature and the
             digest refuses it on tier before it ever reaches the sender. Offering them a top up
             would be taking money for texts they can never use. */}
-        {smsMonthly > 0 ? (
+        {tier === "black" && smsCredits > 0 ? (
+          <p className="mt-2 text-sm text-white/60">
+            Your plan includes unlimited texts. Each text we send for you is still counted, and
+            shown on your dashboard.
+          </p>
+        ) : smsMonthly > 0 ? (
           <p className="mt-2 text-sm text-white/60">
             One text is used each time we escalate an overdue check by SMS. Your plan includes{" "}
             {smsMonthly} texts a month and any unused ones carry over. Top ups are{" "}
@@ -354,7 +368,7 @@ export default async function BillingPage() {
         )}
         {/* No button when there is no Stripe price behind it either: a button that always errors
             is worse than no button. */}
-        {smsMonthly > 0 && smsTopupReady ? (
+        {smsMonthly > 0 && smsTopupReady && tier !== "black" ? (
           <div className="mt-4">
             <TopUpSmsButton />
           </div>

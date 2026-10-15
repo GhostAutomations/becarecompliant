@@ -13,6 +13,7 @@
  * not set up.
  */
 
+import { ticketText } from "@/lib/sms/texts";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireCompany, requirePlatformAdmin } from "@/lib/auth/guards";
@@ -36,7 +37,7 @@ import {
   ticketEmail,
   ticketProblem,
   ticketRef,
-  ticketSmsText,
+  ragOf,
 } from "@/lib/tickets/options";
 
 function safeName(name: string): string {
@@ -128,17 +129,9 @@ export async function raiseTicket(_prev: ActionState, formData: FormData): Promi
   if (mobiles.length === 0) {
     textError = "No mobile on the founder's profile.";
   } else {
-    const body = ticketSmsText({
-      number,
-      company: companyName,
-      raisedBy: profile.full_name || profile.email,
-      kind,
-      rag,
-      subject,
-      department,
-      area,
-      url: `${siteUrl()}/founder/tickets/${id}`,
-    });
+    // One SMS, no link (Phil's popups, 2026-10-15; lib/sms/texts.ts). A subject too long to fit is cut.
+    const fitted = ticketText({ number, rating: ragOf(rag).label, companyName, subject });
+    const body = fitted.ok ? fitted.text : "";
     const problems: string[] = [];
     for (const to of mobiles) {
       const r = await sendPlatformSms({ to, body });

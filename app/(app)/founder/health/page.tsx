@@ -25,7 +25,7 @@ export default async function FounderHealthPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: failures }, { data: events }, { data: lastLog }, { data: companies }] =
+  const [{ data: failures }, { data: events }, { data: lastLog }, { data: companies }, mismatchRes] =
     await Promise.all([
       supabase
         .from("notification_log")
@@ -45,7 +45,11 @@ export default async function FounderHealthPage() {
         .order("created_at", { ascending: false })
         .limit(1),
       supabase.from("companies").select("id, name"),
+      /* EVERY CREDIT BALANCE AGAINST ITS LEDGER (0486, Phil 2026-10-15). SMS balances can only move
+         with a ledger row now; this shows any company where SMS or AI does not match. */
+      supabase.rpc("credit_ledger_mismatches"),
     ]);
+  const mismatches = (mismatchRes.data as Array<{ company_name: string; kind: string; balance: number; ledger_sum: number }> | null) ?? [];
 
   const companyName = new Map((companies ?? []).map((c) => [c.id, c.name]));
 
@@ -116,6 +120,28 @@ export default async function FounderHealthPage() {
           see platform health without digging through logs.
         </p>
       </div>
+
+      <section aria-label="Credit balances" className="glass-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white/80">Credit balances against their ledgers</h2>
+          <span className={`pill ${mismatchRes.error ? "pill-amber" : mismatches.length === 0 ? "pill-green" : "pill-red"}`}>
+            {mismatchRes.error ? "Could not check" : mismatches.length === 0 ? "All match" : `${mismatches.length} do not match`}
+          </span>
+        </div>
+        {mismatchRes.error ? (
+          <p className="text-sm text-white/60">The check could not be read: {mismatchRes.error.message}</p>
+        ) : mismatches.length === 0 ? (
+          <p className="text-sm text-white/60">Every company&rsquo;s SMS and AI credit balance equals the sum of its ledger.</p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            {mismatches.map((m) => (
+              <p key={`${m.company_name}-${m.kind}`} className="text-white/80">
+                {m.company_name}, {m.kind === "sms" ? "SMS" : "AI"}: balance {m.balance}, ledger {m.ledger_sum}
+              </p>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section aria-label="Dependencies" className="glass-card p-5">
         <div className="mb-3 flex items-center justify-between">

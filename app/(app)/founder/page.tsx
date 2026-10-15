@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/founder/stat-card";
+import { Suspense } from "react";
+import { TwilioBalancePlaceholder, TwilioBalanceTile } from "@/components/founder/twilio-balance-tile";
 import { SignupsChart } from "@/components/founder/signups-chart";
 import {
   computeSeatUsage,
@@ -258,6 +260,11 @@ export default async function FounderPage() {
             sub={`${aiUnits.toLocaleString("en-GB")} AI units`}
             href="/founder/usage"
           />
+          {/* THE TWILIO BALANCE (Phil, 2026-10-15): streamed in on its own, so the console never
+              waits for Twilio. */}
+          <Suspense fallback={<TwilioBalancePlaceholder />}>
+            <TwilioBalanceTile smsSegmentsThisMonth={smsUnits} />
+          </Suspense>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

@@ -4604,6 +4604,15 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — SMS: one text, one SMS, one credit; the Twilio balance (Phase 13)
+
+Every text is made plain GSM 7 and must be one SMS before a credit is taken, refused if longer;
+short links becarecompliant.com/s/<code>; new wording agreed by popup. SMS balances move only
+through the ledger (0486) with a health page check; Thistle corrected to 1,991 SMS and 950 AI. Black
+shows Unlimited. A test company texts only the Founder. Text costs read back from Twilio each morning.
+The Twilio balance tile on the Founder console. Decision: docs/decisions/sms-one-segment.md. Tests:
+TEST-CHECKLIST-SMS.md. IN PROGRESS.
+
 ### 2026-10-15 — DBS and Right to Work on Add a person (Phase 13)
 
 Add a person asks for DBS (the details, or "No DBS yet", which emails the adder and the line manager a

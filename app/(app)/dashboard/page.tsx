@@ -1142,23 +1142,28 @@ export default async function DashboardPage() {
               iconTone="blue"
               pairs={[
                 { value: spend.sms.sent, caption: "Sent" },
-                {
-                  value: spend.sms.remaining ?? "n/a",
-                  caption: "Left",
-                  // Against the tier's OWN grant, so "running low" means the same on Pro (100 a
-                  // month) as on Black (2000). A tier with no allowance at all is not "running
-                  // low", it is simply not on the plan, so it stays uncoloured.
-                  tone:
-                    spend.sms.remaining == null ||
-                    (spend.sms.monthlyGrant === 0 && spend.sms.sent === 0)
-                      ? "none"
-                      : spend.sms.remaining === 0
-                        ? "red"
-                        : spend.sms.monthlyGrant &&
-                            spend.sms.remaining < spend.sms.monthlyGrant * 0.25
-                          ? "amber"
-                          : "green",
-                },
+                /* BLACK IS UNLIMITED (Phil's popup, 2026-10-15): "Unlimited" while any credit is
+                   left, the texts still counted. At zero it shows 0 in red, never a promise the
+                   sender would not keep. */
+                spend.sms.unlimited && (spend.sms.remaining ?? 0) > 0
+                  ? { value: "Unlimited", caption: "Left", tone: "green" as const }
+                  : {
+                      value: spend.sms.remaining ?? "n/a",
+                      caption: "Left",
+                      // Against the tier's OWN grant, so "running low" means the same on Pro (100 a
+                      // month) as on Black (2000). A tier with no allowance at all is not "running
+                      // low", it is simply not on the plan, so it stays uncoloured.
+                      tone:
+                        spend.sms.remaining == null ||
+                        (spend.sms.monthlyGrant === 0 && spend.sms.sent === 0)
+                          ? "none"
+                          : spend.sms.remaining === 0
+                            ? "red"
+                            : spend.sms.monthlyGrant &&
+                                spend.sms.remaining < spend.sms.monthlyGrant * 0.25
+                              ? "amber"
+                              : "green",
+                    },
               ]}
             />
           ) : null}

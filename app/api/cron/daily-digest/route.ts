@@ -41,6 +41,8 @@ import {
   sendBriefingChases,
 } from "@/lib/notifications/briefings";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
+import { overdueChaserText } from "@/lib/sms/texts";
+import { fillSmsCosts } from "@/lib/sms/costs";
 import { isOptedOut } from "@/lib/sms/opt-out";
 import { getTrainingAttention } from "@/lib/notifications/training";
 import { getScwAttention } from "@/lib/notifications/scw";
@@ -476,11 +478,17 @@ export async function GET(request: NextRequest) {
           if (logId) smsClaims.push(logId);
         }
         if (smsClaims.length > 0) {
-          const noun = smsClaims.length === 1 ? "check is" : "checks are";
+          // One SMS, always (Phil, 2026-10-15; lib/sms/texts.ts). A text that cannot fit is refused
+          // by the sender and settled as failed below, never sent as two.
+          const chaser = overdueChaserText({
+            companyName: company.name,
+            count: smsClaims.length,
+            days: company.settings.smsOverdueDays,
+          });
           const result = await sendSms({
             to: recipient.phone,
             companyId: company.id,
-            body: `Be Care Compliant: ${smsClaims.length} compliance ${noun} ${company.settings.smsOverdueDays} or more days overdue at ${company.name}. Please sign in to review.`,
+            body: chaser.ok ? chaser.text : "",
             metadata: { kind: "sms_overdue", recipient: recipient.profileId },
           });
           const outOfCredits = result.skippedReason === OUT_OF_SMS_CREDITS;
@@ -514,6 +522,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  /* WHAT EACH TEXT COST (Phil, 2026-10-15): Twilio prices a text after it is delivered, so the
+     morning run reads back the last week's unpriced texts and records the cost (lib/sms/costs.ts).
+     Never fails the run: a price not there yet is tried again tomorrow. */
+  const smsCosts = await fillSmsCosts();
+
   // A failed background job answers 500, never 200 (standing rule; audit F74).
-  return NextResponse.json(summary, { status: summary.failures.length > 0 ? 500 : 200 });
+  return NextResponse.json({ ...summary, smsCosts }, { status: summary.failures.length > 0 ? 500 : 200 });
 }

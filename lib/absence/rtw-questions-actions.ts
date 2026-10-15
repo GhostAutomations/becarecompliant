@@ -19,13 +19,13 @@ import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_OPTED_OUT } from "@/lib/sms/opt-out";
 import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { resendStaffInviteByEmail } from "@/lib/invites";
-import { siteUrl } from "@/lib/site";
+import { createSmsLink } from "@/lib/sms/links";
+import { rtwQuestionsText } from "@/lib/sms/texts";
 import { toAiQuestions, type ActionState } from "@/lib/forms";
 import {
   RTW_LINK_DAYS,
   lastFour,
   rtwPortalPath,
-  rtwSmsBody,
   ukMobileToE164,
 } from "@/lib/absence/rtw-questions";
 import { RTW_ROLE_REFUSAL, canRecordReturnToWork } from "./rtw-roles";
@@ -120,11 +120,22 @@ export async function sendRtwQuestions(
 
   const companyName =
     ((person as { companies?: { name?: string } | null }).companies?.name as string | undefined) ?? "Your employer";
-  const link = `${siteUrl()}${rtwPortalPath(q.id as string)}`;
+  /* ONE SMS (Phil, 2026-10-15): a short link that runs out with the questions (the same 7 days),
+     and the words fitted into one SMS (lib/sms/texts.ts). The questions page keeps its own sign
+     in; the link only leads there. */
+  const linkExpires = new Date(Date.now() + RTW_LINK_DAYS * 86_400_000);
+  const link = await createSmsLink({
+    companyId,
+    targetPath: rtwPortalPath(q.id as string),
+    expiresAt: linkExpires.toISOString(),
+  });
+  if (!link) return { error: "The link for the text could not be made, so nothing was sent. Please try again." };
+  const text = rtwQuestionsText({ firstName: firstName(name), companyName, link });
+  if (!text.ok) return { error: text.error };
   const sms = await sendSms({
     to,
     companyId,
-    body: rtwSmsBody({ firstName: firstName(name), companyName, link }),
+    body: text.text,
     metadata: { kind: "rtw_questions", absence_event_id: absenceId, rtw_questionnaire_id: q.id },
   });
   if (!sms.sent) {
@@ -149,7 +160,7 @@ export async function sendRtwQuestions(
       sent_by_name: profile.full_name,
       sent_to_last4: lastFour(to),
       send_count: Number(q.send_count ?? 0) + 1,
-      expires_at: new Date(now.getTime() + RTW_LINK_DAYS * 86_400_000).toISOString(),
+      expires_at: linkExpires.toISOString(),
     })
     .eq("id", q.id as string)
     .in("status", ["drafted", "sent"])
