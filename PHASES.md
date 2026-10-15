@@ -4612,8 +4612,9 @@ through the ledger (0486) with a health page check; Thistle corrected to 1,991 S
 shows Unlimited. A test company texts only the Founder. Text costs read back from Twilio each morning.
 The Twilio balance tile on the Founder console; the five top tiles on one line at the same height,
 no Checked at or Refresh (Phil, same day). Decision: docs/decisions/sms-one-segment.md. Tests:
-TEST-CHECKLIST-SMS.md, S0 to S6 pass (S2 and S4 by Phil; S3 by rolled back proof; the overdue
-chaser not run live, unit tested). DONE, live 2026-10-15 (commits 08f7fbfc, 448ce46f).
+TEST-CHECKLIST-SMS.md, S0 to S7 pass (S2 and S4 by Phil; S3 by rolled back proof; the overdue
+chaser not run live, unit tested). Black's dashboard SMS tile shows a green infinity sign captioned Unlimited (the word spilled out).
+DONE, live 2026-10-15 (commits 08f7fbfc, 448ce46f, 8b1600fd, a72d10ba).
 
 ### 2026-10-15 — DBS and Right to Work on Add a person (Phase 13)
 
