@@ -4604,6 +4604,16 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — The Whiteboard matches My Planner (Phase 13, Thistle report)
+
+"Things are correct on the Planner but not pulling through to the Whiteboard, and some things
+disappear off the Whiteboard." Every planned booking on My Planner is now on the Whiteboard: a
+multi task visit is a line under each task's heading; anything with no heading (One to One, ad hoc,
+Probation Review, absence meetings) under Other; checks matched by key, not name; an Overdue block in
+front of this week so nothing falls off on a Monday; the resumed date filters and places the same.
+No migration. Decision: docs/decisions/planner.md. Tests: TEST-CHECKLIST-WHITEBOARD-MATCH.md.
+IN PROGRESS.
+
 ### 2026-10-15 — Staff on Parental Leave or Long Term Sick: checks paused (Phase 13, Thistle)
 
 Staff on Parental Leave (the new label for mat_leave, badge PL) or Long Term Sick (badge LTS) have

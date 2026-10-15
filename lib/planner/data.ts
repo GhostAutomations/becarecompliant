@@ -1,9 +1,9 @@
 import "server-only";
-import { effectiveDue } from "@/lib/service-users/hospital-pause";
 import { meetingChipLabel } from "@/lib/absence/meeting-name";
 import { visitLabel } from "@/lib/planner/visit";
 import { earliestDue } from "@/lib/planner/due-tone";
-import { boardSpan, boardWeekIndex } from "@/lib/planner/week";
+import { boardSpan } from "@/lib/planner/week";
+import { onToBookStrip, toBookPlacement, whiteboardLines, type WhiteboardLine } from "@/lib/planner/whiteboard";
 import { createClient } from "@/lib/supabase/server";
 import { profilesById, listStaff } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -28,79 +28,56 @@ export type BoardToBook = {
   population: "people" | "service_users";
   recordName: string;
   checkName: string;
+  /** The definition key: what decides the heading, never the name (lib/planner/whiteboard.ts). */
+  checkKey: string;
   dueDate: string;
   branchId: string | null;
-  /** 0..3: which of the four Monday to Sunday weeks it falls in (lib/planner/week.ts). */
+  /** -1 for the Overdue block, 0..3 for the four Monday to Sunday weeks (lib/planner/week.ts). */
   block: number;
-};
-export type BoardBooked = {
-  bookingId: string;
-  population: "people" | "service_users";
-  recordName: string;
-  checkName: string;
-  date: string; // scheduled date ISO
-  /** When the check is due (earliest across the visit's tasks), so the board keeps it once booked. */
-  dueDate: string | null;
-  startTime: string | null;
-  durationMinutes: number | null;
-  /** WHO, by id. The name is for reading; the id is what decides whose it is, because two
-   *  colleagues can share a name and a filter that matched on one would quietly include both. */
-  conductorId: string;
-  conductorName: string | null;
-  branchId: string | null;
 };
 export type WhiteboardBoard = {
   toBook: BoardToBook[];
-  booked: BoardBooked[];
-  peopleHeadings: string[];
-  suHeadings: string[];
+  /** Every planned booking and booked absence meeting, one line per task under its heading
+   *  (lib/planner/whiteboard.ts). WHO is by id: two colleagues can share a name. */
+  booked: WhiteboardLine[];
 };
 
 /**
- * The Whiteboard board view. Above the board: checks not yet booked that fall due this
- * week or the three after it, in four fixed Monday to Sunday weeks (2026-09-24; they were four
- * rolling seven day blocks from today). A check due earlier this week is included, overdue. On the board: planned bookings grouped
- * by population and by their check heading. Headings are the company's active check
- * definitions (plus any heading a booking already uses). RLS scopes every read.
+ * The Whiteboard board view. Above the board: checks not yet booked that fall due this week or
+ * the three after it, in four fixed Monday to Sunday weeks (2026-09-24), and in front of them an
+ * Overdue block for anything due before this Monday and still not booked or done (Phil,
+ * 2026-10-15). On the board: every planned booking, one line per task under its heading, and
+ * anything with no heading under Other (lib/planner/whiteboard.ts). RLS scopes every read.
  */
 export async function getWhiteboardBoard(companyId: string, todayIso: string): Promise<WhiteboardBoard> {
   const supabase = await createClient();
-  // This Monday to the fourth Sunday. Not from today: this week's overdue checks belong in it.
+  // This Monday to the fourth Sunday. Anything due before it and still open is overdue.
   const span = boardSpan(todayIso) ?? { from: todayIso, to: addDaysIso(todayIso, 27) };
 
-  const [defsRes, bookedRows, instRes] = await Promise.all([
-    supabase
-      .from("check_definitions")
-      .select("name, population, active, sort_order")
-      .eq("company_id", companyId)
-      .eq("active", true)
-      .order("sort_order", { ascending: true }),
+  const [bookedRows, instRes, meetings] = await Promise.all([
     supabase
       .from("planner_bookings")
       .select(SELECT)
       .eq("status", "planned"),
     supabase
       .from("check_instances")
+      /* NO LOWER BOUND (2026-10-15): a check overdue from an earlier week used to fall off the
+         strip every Monday. The resumed date can only move a due date later, so every instance
+         that can be on the strip has its own due date on or before the last day; the date that
+         places it is worked out below (toBookPlacement), the same one it is filtered on. */
       .select(
-        "id, record_type, person_id, service_user_id, due_date, resume_due_date, branch_id, active, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)",
+        "id, record_type, person_id, service_user_id, due_date, resume_due_date, last_completed_on, branch_id, active, check_definitions(name, key, active, recurring), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)",
       )
       .eq("company_id", companyId)
       .eq("active", true)
       .not("due_date", "is", null)
-      .gte("due_date", span.from)
       .lte("due_date", span.to),
+    /* Booked absence meetings are on My Planner, so they are on the Whiteboard too, under Other
+       (Phil's popup). Every one still to be held, whatever its date, as for planned bookings. */
+    listAbsenceMeetingsForPlanner("1900-01-01", "9999-12-31", companyId),
   ]);
 
-  const peopleHeadings: string[] = [];
-  const suHeadings: string[] = [];
-  for (const d of defsRes.data ?? []) {
-    if (d.population === "people") peopleHeadings.push(d.name as string);
-    else if (d.population === "service_users") suHeadings.push(d.name as string);
-  }
-
-  // Booked (planned) bookings, and the set of booked check instances so the
-  // to-book list can exclude anything already booked.
-  const booked: BoardBooked[] = [];
+  // The set of booked check instances, so the to book list can exclude anything already booked.
   const bookedInstanceIds = new Set<string>();
   /*
    * The board is the DEFAULT Whiteboard view and the calendar is opt in, so filling the names in
@@ -111,70 +88,84 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     ((bookedRows.data as Row[] | null) ?? []).filter(checkStillBookable).map(toView),
     companyId,
   );
-  for (const v of bookedViews) {
-    /* EVERY task on the visit, not just the first. A spot check booked as the second job
-       of a three-task visit is booked, and offering it again in the to-book list is how
-       the same job gets put in two diaries. */
-    for (const t of v.tasks) if (t.checkInstanceId) bookedInstanceIds.add(t.checkInstanceId);
-    booked.push({
-      bookingId: v.id,
-      population: (v.population ?? "people") as "people" | "service_users",
-      recordName: v.subjectName ?? "—",
-      checkName: v.label,
-      date: v.scheduledDate,
-      dueDate: v.dueDate,
+  /* EVERY task on the visit, not just the first. A spot check booked as the second job of a
+     three-task visit is booked, and offering it again in the to-book list is how the same job
+     gets put in two diaries. */
+  for (const v of bookedViews) for (const t of v.tasks) if (t.checkInstanceId) bookedInstanceIds.add(t.checkInstanceId);
+  const booked = whiteboardLines(
+    [...bookedViews, ...meetings].map((v) => ({
+      id: v.id,
+      population: v.population,
+      subjectName: v.subjectName,
+      title: v.title ?? null,
+      label: v.label,
+      tasks: v.tasks.map((t) => ({ checkKey: t.checkKey, label: t.label, status: t.status, dueDate: t.dueDate })),
+      status: v.status,
+      scheduledDate: v.scheduledDate,
       startTime: v.startTime,
-      durationMinutes: v.durationMinutes,
+      dueDate: v.dueDate,
       conductorId: v.conductorId,
       conductorName: v.conductorName,
-      branchId: v.branchId,
-    });
-    if (v.population === "people" && !peopleHeadings.includes(v.label)) peopleHeadings.push(v.label);
-    if (v.population === "service_users" && !suHeadings.includes(v.label)) suHeadings.push(v.label);
-  }
+      branchId: v.branchId || null,
+      source: v.source,
+      href: v.href,
+    })),
+  );
 
   const toBook: BoardToBook[] = [];
+  type Def = { name: string; key: string; active: boolean; recurring: boolean };
   for (const raw of instRes.data ?? []) {
     if (bookedInstanceIds.has(raw.id as string)) continue;
-    const def = relOne((raw as { check_definitions: { name: string }[] | { name: string } | null }).check_definitions);
-    if (!def) continue;
-    const dueDate = raw.due_date as string;
-    if (raw.record_type === "person") {
+    const def = relOne((raw as { check_definitions: Def[] | Def | null }).check_definitions);
+    // A check whose definition is turned off is not bookable (as the booking form).
+    if (!def || def.active === false) continue;
+    const population = raw.record_type === "person" ? "people" : raw.record_type === "service_user" ? "service_users" : null;
+    if (!population || !onToBookStrip(population, def.key)) continue;
+    /* The resumed date after hospital, respite or leave (0461, 0462, 0484) both decides whether
+       it is on the strip and places it; done is never outstanding. */
+    const placed = toBookPlacement({
+      dueDate: raw.due_date as string,
+      resumeDueDate: (raw as { resume_due_date?: string | null }).resume_due_date ?? null,
+      recurring: def.recurring !== false,
+      lastCompletedOn: (raw as { last_completed_on?: string | null }).last_completed_on ?? null,
+      todayIso,
+    });
+    if (!placed) continue;
+    if (population === "people") {
       const p = relOne((raw as { people: { full_name: string; employment_status: string; archived_at: string | null }[] | { full_name: string; employment_status: string; archived_at: string | null } | null }).people);
+      // Active only: leavers, archived and staff on Parental Leave or Long Term Sick are left out.
       if (!p || p.employment_status !== "active" || p.archived_at) continue;
-      // Back from Parental Leave or Long Term Sick (0484): the resumed date counts, as for service users.
-      const personDue = effectiveDue(dueDate, (raw as { resume_due_date?: string | null }).resume_due_date ?? null) ?? dueDate;
       toBook.push({
         instanceId: raw.id as string,
         subjectId: raw.person_id as string,
-        population: "people",
+        population,
         recordName: p.full_name,
         checkName: def.name,
-        dueDate: personDue,
+        checkKey: def.key,
+        dueDate: placed.due,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: boardWeekIndex(todayIso, personDue),
+        block: placed.block,
       });
-    } else if (raw.record_type === "service_user") {
+    } else {
       const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);
+      // Active only: cancelled, archived, in hospital and on respite are left out.
       if (!su || su.service_status !== "active" || su.archived_at) continue;
-      // Back from hospital or respite (0461, 0462): the resumed date counts, never the one that fell while away.
-      const suDue = effectiveDue(dueDate, (raw as { resume_due_date?: string | null }).resume_due_date ?? null) ?? dueDate;
       toBook.push({
         instanceId: raw.id as string,
         subjectId: raw.service_user_id as string,
-        population: "service_users",
+        population,
         recordName: su.full_name,
         checkName: def.name,
-        dueDate: suDue,
+        checkKey: def.key,
+        dueDate: placed.due,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: boardWeekIndex(todayIso, suDue),
+        block: placed.block,
       });
     }
   }
 
   toBook.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  booked.sort((a, b) => a.date.localeCompare(b.date));
-  return { toBook, booked, peopleHeadings, suHeadings };
+  return { toBook, booked };
 }
 
 /**
@@ -198,6 +189,8 @@ export type PlannerBookingTask = {
   status: BookingStatus;
   /** The task's check due date, when it is a check (not a tracker form or an ad-hoc job). */
   dueDate: string | null;
+  /** The task's check definition key, for the Whiteboard heading (never matched by name). */
+  checkKey: string | null;
 };
 
 export type PlannerBookingView = {
@@ -218,6 +211,8 @@ export type PlannerBookingView = {
   trackerFormKey: string | null;
   /** The label to show: ad-hoc title, or the first task, or "3 tasks". */
   label: string;
+  /** The title typed on the booking, if any (the Whiteboard prints it under Other). */
+  title?: string | null;
   conductorId: string;
   conductorName: string | null;
   scheduledDate: string; // ISO date
@@ -242,7 +237,7 @@ type TaskRow = {
   check_kind: string | null;
   status: BookingStatus;
   position: number | null;
-  instance: { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null }[] | { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null } | null;
+  instance: { due_date?: string | null; definition: { active: boolean; key?: string | null }[] | { active: boolean; key?: string | null } | null }[] | { due_date?: string | null; definition: { active: boolean; key?: string | null }[] | { active: boolean; key?: string | null } | null } | null;
 };
 
 type Row = {
@@ -276,7 +271,7 @@ type Row = {
 const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter"];
 
 const SELECT =
-  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(due_date, definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(due_date, definition:check_definitions(active)))";
+  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(due_date, definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(due_date, definition:check_definitions(active, key)))";
 
 /**
  * Fill in the conductor names the embedded join could not read.
@@ -336,6 +331,7 @@ function toTasks(r: Row): PlannerBookingTask[] {
       label: t.check_kind?.trim() || "Task",
       status: t.status,
       dueDate: relOne(t.instance)?.due_date ?? null,
+      checkKey: relOne(relOne(t.instance)?.definition)?.key ?? null,
     }));
 }
 
@@ -359,6 +355,7 @@ function toView(r: Row): PlannerBookingView {
     checkInstanceId: first?.checkInstanceId ?? null,
     trackerFormKey: first?.trackerFormKey ?? null,
     label,
+    title: r.title,
     conductorId: r.conductor_profile_id,
     conductorName: r.conductor?.full_name ?? null,
     scheduledDate: r.scheduled_date,

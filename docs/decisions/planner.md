@@ -150,3 +150,31 @@ any path).
 See [phase6-built](phase6-built.md), [permission-boundaries](permission-boundaries.md), [look-at-the-artefact](../process/look-at-the-artefact.md).
 
 - [built] 0444 (audit F50, 11 Oct 2026): office roles read the bookings of the branches they belong to, plus their own as conductor or creator; carers, Seniors, Viewers and On Call no longer read the branch's bookings. A Recruiter booked as a check's conductor may complete that check.
+
+## The Whiteboard matches My Planner (Phil, 2026-10-15, Thistle report)
+
+Thistle: "Things are correct on the Planner but not pulling through to the Whiteboard, and some
+things disappear off the Whiteboard." Fixed in lib/planner/whiteboard.ts (pure, tested):
+
+- [stated] Every booking still planned on My Planner is on the Whiteboard, in All and, for your
+  own, in My whiteboard: past dated ones still planned, multi task visits, custom titles, ad hoc
+  jobs, tracker forms and booked absence meetings. Nothing booked is ever invisible.
+- [stated] Popup "A line under each heading": a visit with several tasks is one line under each
+  task's heading. Cancelling it from any line cancels the whole visit, and the question says so.
+- [stated] Popup "Yes, both in Other": anything with no heading of its own (One to One, Audit,
+  Mentoring, an undated Lead the Leader, Platform Audit, a Probation Review, an ad hoc job, a
+  booked absence meeting) goes under "Other" on its side, with what it is printed on the line. An
+  absence meeting is shown only; it opens the Absence page.
+- [stated] Popup "Overdue block first": the to book strip has an Overdue block in front of this
+  week (red, oldest first, counted) for anything due before this Monday and still not booked or
+  done, so nothing falls off on a Monday. Done is never outstanding (reportableCheck rule).
+- Checks are matched to a heading by definition KEY (spot_check, supervision, appraisal,
+  competency, manual_handling, a dated lead_the_leader under Supervision; setup and
+  care_plan_review), never by name. Headings, wording and order on screen unchanged.
+- The resumed date after hospital, respite or leave both decides whether a check is on the strip
+  and places it (it used to filter on the due date and place on the resumed one).
+- Exclusions as before: leavers, archived, cancelled, staff on Parental Leave or Long Term Sick,
+  service users in hospital or on respite, inactive checks and definitions.
+- Not changed: the Planner, the booking flow, the Outlook feed, RLS.
+- Checked 2026-10-15: every Thistle supervision, Lead the Leader and appraisal due date the
+  Whiteboard uses equals the register's (37 staff, no differences).

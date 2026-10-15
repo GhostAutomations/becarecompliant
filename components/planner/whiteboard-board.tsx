@@ -8,29 +8,27 @@ import { createBooking, cancelBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { WhiteboardBoard, BoardToBook } from "@/lib/planner/data";
 import { dueTone } from "@/lib/planner/due-tone";
+import {
+  OTHER,
+  OTHER_LABEL,
+  OVERDUE_BLOCK,
+  PEOPLE_LEFT,
+  PEOPLE_RIGHT,
+  SU_LEFT,
+  SU_RIGHT,
+  onToBookStrip,
+  type WhiteboardHeading,
+} from "@/lib/planner/whiteboard";
 
 function fmtShort(iso: string): string {
   // See lib/dates.ts: one spelling of a month across the whole app.
   return ukShortDayMonth(iso);
 }
 
-// The whiteboard shows only these checks, in this order and column layout. Any
-// other check (MAR Audit, DBS, etc.) is not shown here.
-const PEOPLE_LEFT = ["Spot Check", "Supervision", "Annual Appraisal"];
-const PEOPLE_RIGHT = ["Medication Competency", "Manual Handling"];
-/* MATCHED BY NAME: renaming a check in the database drops it off this board unless the
-   name here moves with it. "Setup" became "Setup Visit" on 2026-09-04. */
-const SU_LEFT = ["Setup Visit"];
-const SU_RIGHT = ["Care Plan Review"];
-/* THE OFFICE MATRIX (0468, Phil's popup 2026-10-14: "Their LTLs instead"). For people ticked onto
-   the Office matrix Lead the Leader takes the place of supervision, so their LTL sits under the
-   Supervision heading. Only a ticked person's LTL ever carries a due date, so an ad hoc one is
-   never drawn. */
-const LTL = "Lead the Leader";
-const ALLOWED: Record<"people" | "service_users", string[]> = {
-  people: [...PEOPLE_LEFT, ...PEOPLE_RIGHT, LTL],
-  service_users: [...SU_LEFT, ...SU_RIGHT],
-};
+/* The headings, their wording and order are as before; they are matched by the check's KEY now,
+   not its name, so renaming a check cannot drop it off (2026-10-15). Everything booked with no
+   heading of its own goes under Other on its side, so nothing on My Planner is missing here; a
+   visit with several tasks is a line under each of their headings (lib/planner/whiteboard.ts). */
 
 export default function WhiteboardBoard({
   board,
@@ -77,24 +75,32 @@ export default function WhiteboardBoard({
   const inBranch = <T extends { branchId: string | null }>(x: T) => !branchId || x.branchId === branchId;
   const booked = board.booked.filter(inBranch);
   // Only the whiteboard checks appear above (and only their to-book items are clickable).
-  const toBook = board.toBook.filter(inBranch).filter((t) => ALLOWED[t.population].includes(t.checkName));
-  // Four fixed Monday to Sunday weeks, this one first (Phil, 2026-09-24). They move on Mondays.
-  const weeks = boardWeeks(todayIso);
+  const toBook = board.toBook.filter(inBranch).filter((t) => onToBookStrip(t.population, t.checkKey));
+  /* Four fixed Monday to Sunday weeks, this one first (Phil, 2026-09-24). They move on Mondays.
+     In front of them the Overdue block (Phil, 2026-10-15): due before this Monday and still not
+     booked or done, oldest first, so nothing falls off the strip on a Monday. */
+  const blocks = [
+    { key: "overdue", index: OVERDUE_BLOCK, label: "Overdue", empty: "Nothing overdue." },
+    ...boardWeeks(todayIso).map((w, i) => ({ key: w.start, index: i, label: w.label, empty: "Nothing due." })),
+  ];
 
-  function headingBlock(population: "people" | "service_users", h: string) {
-      const items = booked.filter(
-        (b) => b.population === population && (b.checkName === h || (h === "Supervision" && b.checkName === LTL && !!b.dueDate)),
-      );
+  function headingBlock(population: "people" | "service_users", h: WhiteboardHeading) {
+      const items = booked.filter((b) => b.population === population && b.heading === h.key);
+      const other = h.key === OTHER;
       return (
-        <div key={h} className="mb-3">
-          <h4 className="text-xs font-bold uppercase tracking-wide text-amber-600">{h}</h4>
+        <div key={h.key} className="mb-3">
+          <h4 className="text-xs font-bold uppercase tracking-wide text-amber-600">{h.label}</h4>
           {items.length === 0 ? (
             <p className="text-[11px] text-slate-400">—</p>
           ) : (
             <div className="mt-1 space-y-0.5">
               {items.map((b) => (
-                <div key={b.bookingId} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
-                  <span className="min-w-0 truncate font-semibold text-slate-800">{b.recordName}</span>
+                <div key={b.lineId} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
+                  <span className="min-w-0 truncate font-semibold text-slate-800">
+                    {b.recordName}
+                    {/* Under Other the heading cannot say what it is, so the line does. */}
+                    {other ? <span className="ml-1.5 font-normal text-slate-500">{b.what}</span> : null}
+                  </span>
                   {/*
                     THE DUE DATE STAYS ONCE IT IS BOOKED (Thistle, via Phil 2026-10-05: "once
                     something is added to the Whiteboard it loses the due date"). LINED UP, not
@@ -141,10 +147,26 @@ export default function WhiteboardBoard({
                         </span>
                       );
                     })()}
-                    <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
-                      <input type="hidden" name="booking_id" value={b.bookingId} />
-                      <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>
-                    </form>
+                    {b.cancellable ? (
+                      <form
+                        action={(fd) => {
+                          /* A visit with several tasks is one booking: cancelling it from any of
+                             its lines cancels the whole visit, so the question says so. */
+                          const ask =
+                            b.taskCount > 1
+                              ? `Cancel this visit? All ${b.taskCount} of its tasks move back to 'to book'.`
+                              : "Cancel this booking? It moves back to 'to book'.";
+                          if (!confirm(ask)) return;
+                          run(cancelBooking, fd);
+                        }}
+                      >
+                        <input type="hidden" name="booking_id" value={b.bookingId} />
+                        <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>
+                      </form>
+                    ) : (
+                      /* A booked absence meeting: shown here, managed on the Absence page. */
+                      <a href={b.href ?? "/people/absence"} className="text-slate-400 hover:text-slate-700" aria-label="Open on the Absence page" title="Open on the Absence page">↗</a>
+                    )}
                   </span>
                 </div>
               ))}
@@ -154,7 +176,7 @@ export default function WhiteboardBoard({
       );
   }
 
-  function half(population: "people" | "service_users", left: string[], right: string[]) {
+  function half(population: "people" | "service_users", left: readonly WhiteboardHeading[], right: readonly WhiteboardHeading[]) {
     return (
       /* TWO HEADING COLUMNS ONLY WHERE A ROW FITS (Phil, 2026-10-05: an iPad screenshot showed
          names gone and due dates spilling out; "I don't want to change the way it looks on
@@ -165,6 +187,8 @@ export default function WhiteboardBoard({
       <div className="grid grid-cols-1 gap-x-6 min-[1900px]:grid-cols-2">
         <div>{left.map((h) => headingBlock(population, h))}</div>
         <div>{right.map((h) => headingBlock(population, h))}</div>
+        {/* OTHER, across the side: everything booked with no heading of its own (Phil, 2026-10-15). */}
+        <div className="min-[1900px]:col-span-2">{headingBlock(population, { key: OTHER, label: OTHER_LABEL })}</div>
       </div>
     );
   }
@@ -173,18 +197,18 @@ export default function WhiteboardBoard({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {/* To book: this week and the next three, Monday to Sunday. Click a check to book it. */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-white/80">To book, this week and the next three</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {weeks.map((w, i) => {
-            const items = toBook.filter((t) => t.block === i);
+        <h3 className="mb-2 text-sm font-semibold text-white/80">To book: overdue, this week and the next three</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {blocks.map((w) => {
+            const items = toBook.filter((t) => t.block === w.index);
             return (
-              <div key={w.start} className="glass-card p-3">
+              <div key={w.key} className="glass-card p-3">
                 <p className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/50">
-                  <span>{w.label}</span>
+                  <span className={w.index === OVERDUE_BLOCK && items.length > 0 ? "text-red-300" : undefined}>{w.label}</span>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">{items.length}</span>
                 </p>
                 {items.length === 0 ? (
-                  <p className="text-[11px] text-white/30">Nothing due.</p>
+                  <p className="text-[11px] text-white/30">{w.empty}</p>
                 ) : (
                   <div className="max-h-[150px] space-y-1 overflow-y-auto pr-1">
                     {items.map((t) => (
