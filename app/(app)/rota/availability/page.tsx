@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
 import { getAvailability, getRotaBranches } from "@/lib/rota/data";
-import ActionForm from "@/components/action-form";
+import ActionForm from "@/components/rota/rota-action";
 import BackLink from "@/components/back-link";
 import RotaTabs from "@/components/rota/rota-tabs";
 import { addPatternAction, addUnavailableAction, removePatternAction, removeUnavailableAction, setOptOutAction } from "@/lib/rota/actions";

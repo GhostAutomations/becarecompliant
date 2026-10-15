@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import ActionForm from "@/components/action-form";
+import ActionForm from "@/components/rota/rota-action";
 import { CentreDialog } from "@/components/panel-dialog";
 import {
   addFromTemplateAction,

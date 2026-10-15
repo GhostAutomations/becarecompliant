@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import ActionForm from "@/components/action-form";
+import ActionForm from "@/components/rota/rota-action";
 import { requestOpenShiftAction, withdrawOpenRequestAction } from "@/lib/rota/actions";
 import { addDaysIso } from "@/lib/rota/working-time";
 import { dayLabel, hhmm } from "@/lib/rota/types";

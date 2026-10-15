@@ -4,7 +4,7 @@ import { requireRotaOffice } from "@/lib/rota/access";
 import { getPendingRequests, getRotaBranches, getRotaTemplates, getRotaWeek } from "@/lib/rota/data";
 import { addDaysIso, mondayOfIso } from "@/lib/rota/working-time";
 import { dayLabel } from "@/lib/rota/types";
-import ActionForm from "@/components/action-form";
+import ActionForm from "@/components/rota/rota-action";
 import RotaWeek from "@/components/rota/rota-week";
 import RotaTabs from "@/components/rota/rota-tabs";
 import RotaBetaNotice from "@/components/rota/rota-beta-notice";

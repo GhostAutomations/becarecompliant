@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -38,9 +37,11 @@ function str(fd: FormData, k: string): string {
   return String(fd.get(k) ?? "").trim();
 }
 
+/* No revalidatePath here on purpose: redrawing the page inside the action's reply was the step
+   that intermittently came back 503 after the save had gone through, leaving the button stuck.
+   The screens refresh themselves after a success (components/rota/rota-action.tsx), and other
+   people's screens catch up through the live channel the rota tables broadcast on. */
 function done(ok: string): ActionState {
-  revalidatePath("/rota", "layout");
-  revalidatePath("/my");
   return { ok };
 }
 
@@ -464,7 +465,6 @@ export async function requestOpenShiftAction(_prev: ActionState, fd: FormData): 
   const supabase = await createClient();
   const { error } = await supabase.rpc("rota_request_open_shift", { p_shift: str(fd, "shift_id") });
   if (error) return { error: error.message };
-  revalidatePath("/my");
   return { ok: "Asked. The office will let you know." };
 }
 
@@ -474,6 +474,5 @@ export async function withdrawOpenRequestAction(_prev: ActionState, fd: FormData
   const supabase = await createClient();
   const { error } = await supabase.rpc("rota_withdraw_open_request", { p_request: str(fd, "request_id") });
   if (error) return { error: error.message };
-  revalidatePath("/my");
   return { ok: "Withdrawn." };
 }

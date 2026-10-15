@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
 import { getRotaBranches, getRotaTemplates } from "@/lib/rota/data";
-import ActionForm from "@/components/action-form";
+import ActionForm from "@/components/rota/rota-action";
 import BackLink from "@/components/back-link";
 import RotaTabs from "@/components/rota/rota-tabs";
 import { archiveTemplateAction, saveTemplateAction } from "@/lib/rota/actions";
