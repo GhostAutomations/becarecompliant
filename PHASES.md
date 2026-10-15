@@ -4610,7 +4610,8 @@ Add a person asks for DBS (the details, or "No DBS yet", which emails the adder 
 button to the DBS Pending Risk Assessment) and Right to Work, using the company's own forms and saved
 through the same code, Evidence and audit as the record's cards. "They already work here" no longer
 asks for them. One form makes one person (0485). Decision: docs/decisions/add-person-documents.md.
-Tests: TEST-CHECKLIST-ADD-PERSON-DOCUMENTS.md. IN PROGRESS.
+Tests: TEST-CHECKLIST-ADD-PERSON-DOCUMENTS.md, A0 to A11 pass (A9 and A11 tested by Claude at Phil's
+request, A10 by Phil). DONE, live 2026-10-15 (commits 44af1aab, 8ded961e).
 
 ### 2026-10-15 — The Whiteboard matches My Planner (Phase 13, Thistle report)
 
