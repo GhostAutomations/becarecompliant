@@ -4613,7 +4613,7 @@ and DBS never paused. They stay on the main Matrix, dimmed; the "LTS & Mat Leave
 Coming back asks the date; paused work falls due 7 days after it. 0484 (person_check_paused, the
 views, rollups, register function, Readiness, senior register, date and resume triggers); the four
 already on leave have leave_since 15 October 2026. Decision: docs/decisions/leave-pause.md. Tests:
-TEST-CHECKLIST-LEAVE-PAUSE.md. IN PROGRESS.
+TEST-CHECKLIST-LEAVE-PAUSE.md, L0 to L10 pass (L8 to L10 by Phil). DONE, live 2026-10-15 (commit e4b9f996).
 
 ### 2026-10-15 — The Dashboard from each person's saved copy, updated by push (Phase 13, Thistle)
 
