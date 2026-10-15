@@ -4615,6 +4615,9 @@ IDENTICAL for all 15. Decision: docs/decisions/speed-plan.md. Live 2026-10-15 (c
 screens checked by Claude at Phil's request. Push 3 and 4 (0479 new status functions; the registers
 read them and work the rollup out from those rows; Readiness stores its daily scores after the page is
 sent, no second POST), old and new identical for all 15 logins, merged to main at Phil's go
+2026-10-15. Push 1b (0480): the 11 SELECT policies on people, checks, training and service users use
+once per query lists instead of per row helpers (proved equal for all 78 profiles; fingerprint
+IDENTICAL for 15 logins); Supervisor and Senior reads from 250 to 1,275ms down to 7 to 80ms. Live
 2026-10-15. Tests: TEST-CHECKLIST-SPEED.md. Push 2 not started.
 
 ### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)

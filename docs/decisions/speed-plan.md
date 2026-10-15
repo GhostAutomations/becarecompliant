@@ -77,3 +77,25 @@ Not done tonight, and why:
   (for a Supervisor, every other company's people are run through the slow permission functions
   before being turned away). A SECURITY INVOKER function cannot avoid that, and changing policies
   was not allowed tonight. Proposed instead as a Push 1b policy change, proved by the fingerprint.
+
+## Push 1b (live): migration 0480 (Phil, 2026-10-15)
+
+- The slow part for Supervisors and Seniors: for every row in their own company they may not see,
+  each per row permission helper ran one at a time before the row was turned away. (A "same
+  company" restrictive policy was tried first in a rolled back test and did not help; not used.)
+- Fix: seven once per query list helpers (`my_on_call_company_id`, `my_team_branch_ids`,
+  `my_supervised_person_ids`, `my_supervised_service_user_ids`, `my_booked_person_ids`,
+  `my_booked_service_user_ids`, `my_senior_instance_ids`) and the 11 SELECT policies on people,
+  check_instances, person_training and service_users rewritten to use them, with the existing
+  `my_admin_company_id`, `my_wide_company_id` and `my_lead_branch_ids`. The old helpers are
+  unchanged and still used everywhere else.
+- Proof before applying: for all 78 profiles, every list equals exactly what its old helper says
+  yes to, over every company, branch, person, service user and check instance (0 mismatches; 4
+  Seniors, 256 instances true). Anon is refused before and after.
+- Rolled back timing: Bevan Supervisor training 607 to 15ms, checks 257 to 10ms, Readiness 299 to
+  66ms; Bevan Senior training 1,275 to 12ms, checks 763 to 17ms, Readiness 799 to 44ms.
+- Fingerprint: fresh baseline taken just before applying; after applying, all 15 logins IDENTICAL.
+- Security advisor: no ERROR; 7 new WARN "authenticated may run a SECURITY DEFINER function", one
+  per new helper, the same accepted pattern as the 0415 `my_*` helpers (each returns only the
+  caller's own lists).
+- A restore script for the 11 policies as they were was kept (outside the repo).
