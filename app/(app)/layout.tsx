@@ -28,6 +28,7 @@ import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import DemoHeartbeat from "@/components/demo/demo-heartbeat";
 import { formatDemoDate, DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
 import RouteMemory from "@/components/route-memory";
 
 export default async function AppLayout({
@@ -62,6 +63,8 @@ export default async function AppLayout({
     : [true, true, true, true, true];
   // Inspection Readiness is a per-company beta flag (hidden unless switched on).
   let readinessEnabled = false;
+  // Rota and Visits (beta) is a Founder switch per company (0487), read from the same row.
+  let rotaEnabled = false;
   let uiTheme = "classic";
   let companyName = "";
   let onCallName = "On Call";
@@ -77,6 +80,7 @@ export default async function AppLayout({
       branch_word_plural?: string | null;
     } | null;
     readinessEnabled = !!c?.framework_enabled;
+    rotaEnabled = moduleOnInRow(co, "rota_visits");
     uiTheme = c?.ui_theme ?? "classic";
     companyName = c?.name ?? "";
     // What this company calls the On Call department (0276). Null means the default.
@@ -149,6 +153,7 @@ export default async function AppLayout({
     .filter((e) => e.href !== "/planner" || plannerEnabled)
     .filter((e) => e.href !== "/on-call" || onCallEnabled)
     .filter((e) => e.href !== "/readiness" || readinessEnabled)
+    .filter((e) => e.href !== "/rota" || rotaEnabled)
     // Outcomes + Satisfaction are Pro sub-departments under Service Users.
     .map((e) =>
       e.href === "/service-users" && !outcomesSatisfactionEnabled

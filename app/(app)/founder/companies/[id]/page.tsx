@@ -37,6 +37,8 @@ import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras
 import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { setTestCompany } from "@/lib/founder/test-company-actions";
+import { setCompanyModule } from "@/lib/founder/module-actions";
+import { moduleOnInRow, MODULE_LABELS } from "@/lib/modules/switch";
 import { saveCompanyDeal } from "@/lib/founder/deal-actions";
 import { getDeal } from "@/lib/billing/deal-store";
 import { branchWord, dealIntervals, dealMonthlyParts, lower } from "@/lib/billing/deal";
@@ -90,7 +92,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test, branch_word, branch_word_plural, historic_outcomes_until")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test, branch_word, branch_word_plural, historic_outcomes_until, company_modules(module, enabled)")
     .eq("id", id)
     .maybeSingle();
 
@@ -564,6 +566,46 @@ export default async function FounderCompanyPage({
             </table>
           </div>
         )}
+      </section>
+
+      {/* MODULES (0487, Phil 2026-10-15): parts of the product switched on company by company,
+          off by default, not on any price plan yet. Off hides the module and keeps its data. */}
+      <section aria-label="Modules" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Modules</h2>
+        <p className="mb-3 text-sm text-white/60">
+          Switched on company by company, off for everyone by default. Switching one off hides it from
+          the company and keeps all of its data; switching it on again brings it all back.
+        </p>
+        {(() => {
+          const rotaOn = moduleOnInRow(company, "rota_visits");
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="text-white/80">{MODULE_LABELS.rota_visits}</span>{" "}
+                {rotaOn ? (
+                  <span className="pill pill-green">On</span>
+                ) : (
+                  <span className="pill pill-neutral">Off</span>
+                )}
+                <p className="mt-1 text-xs text-white/45">
+                  Rota, visits and runs, clocking in and out, care plans, care notes and the MAR. In
+                  beta: switch it on for test companies only.
+                </p>
+              </div>
+              <ActionForm
+                action={setCompanyModule}
+                hidden={{ company_id: company.id, module: "rota_visits", on: rotaOn ? "no" : "yes" }}
+                label={rotaOn ? "Switch off" : "Switch on"}
+                buttonClassName="btn-ghost px-2 py-1 text-xs"
+                confirm={
+                  rotaOn
+                    ? `Switch ${MODULE_LABELS.rota_visits} off for ${company.name}? It disappears for them straight away. All of its data is kept.`
+                    : undefined
+                }
+              />
+            </div>
+          );
+        })()}
       </section>
 
       <section aria-label="Company settings" className="glass-card p-5">

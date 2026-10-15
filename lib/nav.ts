@@ -3,6 +3,7 @@ import { COMPLAINTS_ROLES, INCIDENTS_ROLES } from "@/lib/auth/module-roles";
 import { canUseModule } from "@/lib/auth/module-catalogue";
 import { moduleForPath } from "@/lib/auth/module-paths";
 import { ON_CALL_ROLES } from "@/lib/on-call/rota-access";
+import { ROTA_OFFICE_ROLES } from "@/lib/rota/roles";
 
 export type Role =
   | "platform_admin"
@@ -50,6 +51,7 @@ export type NavEntry = {
     | "outcomes"
     | "satisfaction"
     | "planner"
+    | "rota"
     | "whiteboard"
     | "onCall"
     | "readiness"
@@ -216,6 +218,17 @@ export const NAV_ENTRIES: NavEntry[] = [
       { href: "/planner", label: "My Planner", icon: "planner" },
       { href: "/planner/whiteboard", label: "Whiteboard", icon: "whiteboard" },
     ],
+  },
+  {
+    /* Rota and Visits (beta, Phil 2026-10-15). Shown only where the Founder has switched the
+       module on for the company (0487); the layout drops it otherwise. Office roles only:
+       carers get their shifts and visits in the carer portal. */
+    href: "/rota",
+    label: "Rota",
+    icon: "rota",
+    group: "Departments",
+    roles: [...ROTA_OFFICE_ROLES] as Role[],
+    activeMatch: ["^/rota"],
   },
   {
     href: "/invoicing",

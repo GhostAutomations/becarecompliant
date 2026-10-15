@@ -38,13 +38,22 @@ export type CompanyRow = {
   outcomes_review_months: number | null;
   amber_days_default: number | null;
   trial_ends_at: string | null;
+  /** The Founder's per company module switches (0487), embedded in this same read. Ask
+   *  moduleOnInRow (lib/modules/switch.ts), never this array directly. */
+  company_modules?: { module: string; enabled: boolean }[] | null;
   [key: string]: unknown;
 };
 
 export const getCompanyRow = cache(async (companyId: string | null | undefined): Promise<CompanyRow | null> => {
   if (!companyId) return null;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
+  // The module switches (0487) come in the same request as an embed, so no page ever makes a
+  // second round trip to learn whether a module is on.
+  const { data, error } = await supabase
+    .from("companies")
+    .select("*, company_modules(module, enabled)")
+    .eq("id", companyId)
+    .maybeSingle();
   if (error) {
     console.error("[company-row] read failed:", error.message);
     return null;

@@ -2223,7 +2223,7 @@ happens to Acme once Thistle is real.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
-## Phase 14 — Scheduling, care recording and the staff app  ⬜ NOT STARTED
+## Phase 14 — Scheduling, care recording and the staff app  🟡 STARTED EARLY (Rota and Visits module, Bevan only, behind a Founder switch, 2026-10-15)
 
 **BCC grows from tracking compliance ABOUT care into recording the care itself.**
 
@@ -2520,6 +2520,39 @@ Planner and Birdie on a small group of service users first.
 **Do not start any of this until Operation Thistle has signed off.** A platform that schedules
 care on top of a compliance product nobody has yet run in anger is a much worse bet than one
 built on a product a real agency already trusts.
+
+**CHANGED 2026-10-15 (Phil, popup): "I want to do it now."** Phase 14 starts now with the Rota and
+Visits module below, built early on Bevan (test company) only, behind a per company Founder
+switch that is off for everyone else. Real service users still wait for the Clinical Safety
+Officer review and the Welsh record keeping research.
+
+### Phase 14, part 1: Rota and Visits module (beta, Bevan only) 🟡 IN PROGRESS (started 2026-10-15)
+
+Kickoff prompt: ROTA-VISITS-KICKOFF-PROMPT.md. Decisions: docs/decisions/rota-visits.md. Tests:
+TEST-CHECKLIST-ROTA.md. Additive only, no slower pages, one stage at a time with Phil's approval.
+Out of scope: invoicing and payroll.
+
+- [ ] Stage 0: decisions and groundwork. 15 decisions taken by popup; module switch (0487), Founder
+  console control, empty Rota department; offline recording design; DPIA and staff notice
+  templates for location recording; TEST-CHECKLIST-ROTA.md.
+- [ ] Stage 1: rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
+  availability, working time warnings, the DBS / Right to Work / training rules on every
+  assignment, published to the carer portal, changes by text).
+- [ ] Stage 2: visits and runs (visit patterns, idempotent generation, runs per carer, drag between
+  carers, cover, hospital and respite pauses, carer recommendation, Europe/London dates).
+- [ ] Stage 3: clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
+  and accuracy rules, offline to the agreed design, no tracking between taps).
+- [ ] Stage 4: care plans and tasks (versioned plan on the forms engine, tasks per visit, required
+  tasks before clock out; Care Plan Review stays the review cycle).
+- [ ] Stage 5: care notes (per visit, never edited, stored as Evidence, handover notes, concern
+  straight into Incidents and Safeguarding).
+- [ ] Stage 6: MAR (dm+d medicines, two person check, record only, competency rule, missed and late
+  alerts, printable MAR and rota; date of birth and GP practice added to every company's Service
+  User Manage record panel).
+- [ ] Stage 7: live attendance and alerts (today's visits, late and missed job behind CRON_SECRET).
+- [ ] Stage 8: travel and mileage (own OpenRouteService server, postcode pair cache, short gap
+  warnings, mileage and travel time totals).
+- [ ] Stage 9: reports (17 reports, PDF and CSV, filters, leavers and paused records left out).
 
 # WORK LOG — dated entries
 

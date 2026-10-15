@@ -157,6 +157,14 @@ export function NavIcon({
           <path d="M12 12v2.5l1.6 1" />
         </svg>
       );
+    case "rota":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+          <path d="M3.5 9h17M8 3v3M16 3v3" />
+          <path d="M7 12.5h3M7 16h3M13 12.5h4M13 16h4" />
+        </svg>
+      );
     case "whiteboard":
       return (
         <svg {...common}>

@@ -116,6 +116,7 @@ right file (or a new file listed here) in the same session.
 - [reg73](reg73.md): Regulation 73 (RISCA Wales) Responsible Individual branch visit report, pre-filled from site data
 - [reg80](reg80.md): Regulation 80 (RISCA Wales) six-monthly Quality of Care Review report, built on the Reg 73 engine
 - [retention](retention.md): Item 18, evidence retention actually enforced (built 2026-08-11): the clock, the nightly cron, the hold, the settings page, and the FOUR bugs live testing found in it
+- [rota-visits](rota-visits.md): Rota and Visits module (beta, Phase 14 part 1, Bevan only behind a Founder switch, 2026-10-15): the 15 Stage 0 decisions (DBS rule with risk assessment and double up, Right to Work block, radius 200 m, GPS QR NFC, late alert 15 min, own OpenRouteService, mileage 55p, MAR in this build, DOB and GP in Manage record), the module switch (0487) and the additive only rules. Read before any rota, visit, clock in, care plan, care note or MAR work.
 - [roles-overhaul](roles-overhaul.md): BCC roles/permissions redesign — confirmed matrix, ALL FOUR STAGES BUILT 2026-07-16; notification gap closed 2026-07-27; only per-role live testing outstanding
 - [rtw-ai-questions](rtw-ai-questions.md): Phil wants the Return to Work QUESTIONS generated per absence by the AI, not fixed schema fields — the conflict with immutable Evidence and the way round it
 - [rtw-form-v2-spec](rtw-form-v2-spec.md): Return to Work form v2 — FULLY SPECIFIED AND DECIDED 2026-07-27, ready to build with no further questions for Phil; item 1 on [the-list](the-list.md)

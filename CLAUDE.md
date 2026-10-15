@@ -55,6 +55,7 @@ identifier without asking. Our words:
 - Check: a recurring compliance requirement on a record
 - Form: the document completed to satisfy a check
 - Evidence: a completed, stored form, immutable
+- Rota and Visits (Phil, 2026-10-15): Rota, Shift, Visit, Run, Clock in, Clock out. Never "check in"
 
 People (staff) and Service Users (clients) always stay distinct. "Founder" is Phil (platform admin);
 "Admin" is the Company Admin role. Confirm any new vocabulary with Phil before it ships.
