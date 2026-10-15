@@ -51,12 +51,15 @@ Each check: Pass, Fail or Not tested.
   (Claude: Service Users 0.32s and Training 0.40s with the pointer rested first, against 0.75 to 1.0s
   without).
 - S3 Going back to a page visited recently is instant, and a change made meanwhile appears a moment
-  later. Instant part Pass at 30 seconds (Claude: 0.02 to 0.03s; Phil saw the same). Memory then set
-  to five minutes at Phil's popup; the five minute version and the catch up are Not tested.
+  later. Instant part Pass (Claude: 0.02 to 0.03s at 30 seconds and again at five minutes after the
+  e24b4c8e fix; Phil saw the same). The catch up after someone else's change is Not tested.
 
 ## Sign in checked once (C)
 
-- C1 Pages, saves and live updates still work signed in (Phil's Thistle login). Not tested.
-- C2 The page guard no longer asks Auth again (logs: no guard.getUser on page loads). Not tested.
-- C3 A request with no sign in, faking the header with a real user id, is still sent to sign in. Not tested.
+- C1 Pages, saves and live updates still work signed in (Phil's Thistle login). Pages Pass (Claude in
+  Phil's Chrome, 2026-10-15: Dashboard, People, Service Users, Readiness, Planner all 200, no errors).
+- C2 The page guard no longer asks Auth again (logs: no guard.getUser on page loads). Pass (Claude:
+  none since the deploy; guard sign in step 28 to 64ms, was 78 to 156ms; slot check still runs).
+- C3 A request with no sign in, faking the header with a real user id, is still sent to sign in. Pass
+  (Claude: /dashboard and /people both redirected to /login, no company data returned).
 - C4 A login signed in elsewhere (displaced session) is still signed out with the message. Not tested.
