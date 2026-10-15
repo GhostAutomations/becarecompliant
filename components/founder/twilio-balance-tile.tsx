@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { balanceTone, getTwilioBalance } from "@/lib/sms/balance";
-import { TwilioRefreshButton } from "@/components/founder/twilio-refresh-button";
 
 /**
  * The Twilio balance on the Founder console (Phil, 2026-10-15; docs/decisions/sms-one-segment.md).
- * Streamed in on its own (the console never waits for it), read on the server, kept 15 minutes.
- * Beside it, what that money has to cover: SMS segments sent this month across every company, and
- * the credits customers hold (test companies left out). Founder only: rendered on the Founder
- * console, which requires a platform admin.
+ * Streamed in on its own (the console never waits for it), read on the server, kept 15 minutes and
+ * then read again on the next visit. Shaped like the other headline tiles so the five sit on one
+ * line at the same height (Phil, 2026-10-15): the balance, and beneath it the credits customers
+ * hold (test companies left out); SMS sent this month is on the Usage tile beside it. Founder
+ * only: rendered on the Founder console, which requires a platform admin.
  */
 
 const SYMBOL: Record<string, string> = { GBP: "£", USD: "$", EUR: "€" };
@@ -18,11 +18,7 @@ function money(amount: number, currency: string): string {
   return symbol ? `${symbol}${n}` : `${n} ${currency}`;
 }
 
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-}
-
-export async function TwilioBalanceTile({ smsSegmentsThisMonth }: { smsSegmentsThisMonth: number }) {
+export async function TwilioBalanceTile() {
   const supabase = await createClient();
   const [balance, { data: held }] = await Promise.all([
     getTwilioBalance(),
@@ -40,14 +36,11 @@ export async function TwilioBalanceTile({ smsSegmentsThisMonth }: { smsSegmentsT
           {balance.ok ? money(balance.balance, balance.currency) : "Unknown"}
         </p>
       </div>
-      {balance.ok ? null : <p className="mt-1 text-xs text-red-300">{balance.reason}</p>}
-      <p className="mt-1 text-xs text-white/50">
-        {smsSegmentsThisMonth.toLocaleString("en-GB")} SMS sent this month. {creditsHeld.toLocaleString("en-GB")} credits held by customers.
-      </p>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-xs text-white/40">Checked at {timeOf(balance.checkedAt)}</span>
-        <TwilioRefreshButton />
-      </div>
+      {balance.ok ? (
+        <p className="mt-1 text-xs text-white/50">{creditsHeld.toLocaleString("en-GB")} credits held by customers</p>
+      ) : (
+        <p className="mt-1 text-xs text-red-300">{balance.reason}</p>
+      )}
     </div>
   );
 }

@@ -52,18 +52,21 @@
 ## Cost
 
 - Twilio prices a text after delivery (sometimes up to a day). lib/sms/costs.ts reads back the last
-  week's unpriced texts each morning (and on Refresh on the Twilio tile): cost_pence when the account
+  45 days' unpriced texts each morning: cost_pence when the account
   bills in pounds, and the price, currency and Twilio's segment count in the row's metadata.
 - billing_usage_runs exists (0056) but nothing writes or reads it: Diamond usage is not invoiced by
   any code today.
 
 ## The Twilio balance (Founder console)
 
-- [stated] A tile beside Usage: the balance in its own currency, the time checked and Refresh, from
-  Twilio's Balance resource with the account's own SID and Auth Token, read on the server only,
-  kept 15 minutes, streamed in on its own with a placeholder, 5 second limit, plain words when it
-  cannot be read. Beside it: SMS segments sent this month across every company, and the credits held
-  by customers (test companies left out). Amber below 20, red below 10 (popup). Founder only.
+- [stated] A tile beside Usage: the balance in its own currency, from Twilio's Balance resource
+  with the account's own SID and Auth Token, read on the server only, kept 15 minutes, streamed in
+  on its own with a placeholder, 5 second limit, plain words when it cannot be read. Beneath it the
+  credits held by customers (test companies left out); SMS sent this month is on the Usage tile
+  beside it. Amber below 20, red below 10 (popup). Founder only.
+- [stated 2026-10-15] The top line of the Founder console is one line of five tiles (Companies,
+  Committed MRR, Active users, Usage, Twilio balance), all the same height. No "Checked at" and no
+  Refresh on the Twilio tile: it reads Twilio again every 15 minutes on its own.
 - Twilio alerts stay off.
 
 ## Every place a text is sent

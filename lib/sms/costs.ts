@@ -7,11 +7,11 @@ import { createServiceClient } from "@/lib/supabase/admin";
  * Twilio does not know a message's price when it accepts it: the price is filled in once the
  * network reports back, usually within minutes, in rare cases up to a day later (Twilio's own
  * guidance: fetch the Message resource after it is delivered, and reconcile daily). So the cost is
- * not written at send time. This reads back the texts of the last seven days that have no price
+ * not written at send time. This reads back the texts of the last 45 days that have no price
  * yet and records what Twilio charged: cost_pence when the account is billed in pounds, and always
  * the price, its currency and the segment count Twilio settled on in the row's metadata.
  *
- * Run by the morning job and by Refresh on the Founder's Twilio tile. Never throws; never logs the
+ * Run by the morning job. Never throws; never logs the
  * credentials or the address that carries them.
  */
 
@@ -23,7 +23,7 @@ export async function fillSmsCosts(limit = 60): Promise<{ checked: number; price
   const out = { checked: 0, priced: 0, failed: 0 };
   if (!sid || !token) return out;
   const service = createServiceClient();
-  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const since = new Date(Date.now() - 45 * 86_400_000).toISOString();
   const { data, error } = await service
     .from("usage_events")
     .select("id, ref, metadata")

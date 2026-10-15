@@ -16,6 +16,6 @@ sign in to review."; ticket (four lines, with the link); trial request (one line
 | S1 | Rolled back proof of 0486: Thistle 1,991 and 950; every balance equals its ledger; spend, refund, top up (twice with one reference: once), monthly grant again (nothing); a direct balance change refused | PASS (before applying) |
 | S2 | Bevan: one Return to Work text to the Founder's mobile: one credit, usage units 1, SID recorded, cost recorded later, short link opens the questions after sign in | |
 | S3 | Bevan: a forced failure gives the credit back | |
-| S4 | Founder console: the Twilio tile with the live balance, checked time and Refresh; console no slower | |
+| S4 | Founder console: the five top tiles on one line, the same height; the Twilio tile with the live balance and credits held (no checked time or Refresh, Phil 2026-10-15); console no slower | |
 | S5 | Every SMS figure the same on the dashboard tile, Billing, Settings Usage, Founder console and Founder usage | |
 | S6 | Thistle dashboard: SMS tile reads Unlimited | |

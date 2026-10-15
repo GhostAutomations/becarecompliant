@@ -235,7 +235,7 @@ export default async function FounderPage() {
       </div>
 
       <section aria-label="Platform statistics" className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Companies"
             value={list.length}
@@ -261,9 +261,9 @@ export default async function FounderPage() {
             href="/founder/usage"
           />
           {/* THE TWILIO BALANCE (Phil, 2026-10-15): streamed in on its own, so the console never
-              waits for Twilio. */}
+              waits for Twilio. One line of five tiles, all the same height. */}
           <Suspense fallback={<TwilioBalancePlaceholder />}>
-            <TwilioBalanceTile smsSegmentsThisMonth={smsUnits} />
+            <TwilioBalanceTile />
           </Suspense>
         </div>
 
