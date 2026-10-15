@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — The Dashboard from each person's saved copy, updated by push (Phase 13, Thistle)
+
+Phil: Admin pages did not feel faster; the time was many trips one after another, not slow reads.
+Every Dashboard tile now comes from the person's saved copy, rebuilt at :00, :10, :20 ...; something
+done is a push: the database notes which table changed per company (0482) and only the tiles that
+read it are worked out again before the page is drawn. An old copy is shown then updated; every
+role. Decision: docs/decisions/dashboard-copy.md. Tests: TEST-CHECKLIST-DASHBOARD-COPY.md.
+
 ### 2026-10-15 — Speed plan, Push 0 and Push 1 (Phase 13, Thistle)
 
 Overnight, Phil asleep. Push 0: a who-sees-what fingerprint of 15 logins across Thistle, Bevan and

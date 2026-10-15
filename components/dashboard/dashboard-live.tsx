@@ -12,10 +12,12 @@
  * tab. Now:
  *  - a change to anything the live tiles count settles for a moment, then router.refresh() runs in
  *    a transition, so React swaps only the numbers that moved and nothing flashes;
- *  - the slow figures come from the ten minute snapshot on the server, so a push only re-reads the
- *    quick tiles;
+ *  - since 2026-10-15 every tile comes from this person's saved copy (lib/dashboard/tiles.ts, 0482),
+ *    so a push re-reads only the tiles the change affects;
  *  - at least MIN_GAP_MS between pushes, nothing while the tab is hidden, one push on coming back;
- *  - every ten minutes while it is being looked at, a refresh picks up the new snapshot;
+ *  - at each ten minute mark (:00, :10 ...) while it is being looked at, and straight away when the
+ *    page opened on a copy older than the last mark, the whole copy is brought up to date, with
+ *    the old figures on screen until the new ones arrive;
  *  - Refresh clears this person's snapshot and redraws quietly, with a small spinner.
  * The signal is the company's private live channel (0418, lib/realtime/live-bus.ts), joined only
  * once signed in; a poll stands in while the channel is down.
@@ -25,7 +27,8 @@ import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveTopic } from "@/components/live-topic";
 import { rejoinLive, subscribeLive } from "@/lib/realtime/live-bus";
-import { refreshDashboardFigures } from "@/app/(app)/dashboard/actions";
+import { refreshDashboardFigures, requestDashboardRebuild } from "@/app/(app)/dashboard/actions";
+import { msToNextSlot, slotStart } from "@/lib/dashboard/tiles";
 
 const TABLES = [
   "people",
@@ -41,11 +44,15 @@ const TABLES = [
   "incidents",
   // The personal Recent activity tile (0473): the broadcast carries the table name only.
   "user_notifications",
+  // The due tiles count training too, and the urgent follow ups come from the Out of Hours log
+  // (2026-10-15: every tile is pushed when something it shows is done).
+  "person_training",
+  "training_courses",
+  "on_call_logs",
 ];
 const SETTLE_MS = 1_500;
 const MIN_GAP_MS = 10_000;
 const POLL_MS = 30_000;
-const SNAPSHOT_MS = 10 * 60 * 1000;
 
 function timeLabel(iso: string): string {
   try {
@@ -59,18 +66,51 @@ function timeLabel(iso: string): string {
   }
 }
 
-export default function DashboardLive({ builtAt }: { builtAt: string }) {
+export default function DashboardLive({ builtAt, copyOld = false }: { builtAt: string; copyOld?: boolean }) {
   const router = useRouter();
   const topic = useLiveTopic();
   const [pending, startTransition] = useTransition();
   const refreshRef = useRef<() => void>(() => {});
   refreshRef.current = () => startTransition(() => router.refresh());
+  /* THE TEN MINUTE MARK (Phil, 2026-10-15): bring the whole copy up to date. The action redraws the
+     page in the same reply, inside a transition, so the figures on screen stay until the new ones
+     arrive. */
+  const rebuildRef = useRef<() => void>(() => {});
+  rebuildRef.current = () =>
+    startTransition(async () => {
+      await requestDashboardRebuild();
+    });
+
+  /* A copy older than the last ten minute mark is shown at once, then brought up to date
+     ("show it, then update"). */
+  useEffect(() => {
+    if (copyOld) rebuildRef.current();
+  }, [copyOld, builtAt]);
 
   useEffect(() => {
     const visible = () => document.visibilityState === "visible";
     let lastRefresh = Date.now();
-    let lastFull = Date.now();
+    // The ten minute slot this screen last brought the copy up to date in.
+    let lastSlot = slotStart(Date.now());
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let markTimer: ReturnType<typeof setTimeout> | null = null;
+    const atMark = () => {
+      if (!visible()) return;
+      const slot = slotStart(Date.now());
+      if (slot <= lastSlot) return;
+      lastSlot = slot;
+      lastRefresh = Date.now();
+      rebuildRef.current();
+    };
+    // Just after each :00, :10, :20 ..., spread over a few seconds so every open screen in a
+    // company does not rebuild at the same instant.
+    const scheduleMark = () => {
+      markTimer = setTimeout(() => {
+        atMark();
+        scheduleMark();
+      }, msToNextSlot(Date.now()) + 2_000 + Math.floor(Math.random() * 8_000));
+    };
+    scheduleMark();
     const refreshNow = () => {
       timer = null;
       if (!visible()) return;
@@ -100,25 +140,22 @@ export default function DashboardLive({ builtAt }: { builtAt: string }) {
 
     const interval = setInterval(() => {
       if (!visible()) return;
-      // Ten minutes on: pick up the new snapshot.
-      if (Date.now() - lastFull >= SNAPSHOT_MS) {
-        lastFull = Date.now();
-        push();
-        return;
-      }
       if (!connected) push();
     }, POLL_MS);
 
     const onVisible = () => {
       if (!visible()) return;
       if (topic && !connected) rejoinLive(topic);
-      push();
+      // Away past a ten minute mark: the whole copy; otherwise just what was done meanwhile.
+      if (slotStart(Date.now()) > lastSlot) atMark();
+      else push();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
 
     return () => {
       if (timer) clearTimeout(timer);
+      if (markTimer) clearTimeout(markTimer);
       stop();
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);

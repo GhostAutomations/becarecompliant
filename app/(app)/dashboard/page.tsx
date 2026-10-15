@@ -7,7 +7,10 @@ import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import DashboardLive from "@/components/dashboard/dashboard-live";
-import { readSnapshot, writeSnapshot } from "@/lib/dashboard/snapshot";
+import { readCompanyChanges, readDashboardCopy, writeSnapshot } from "@/lib/dashboard/snapshot";
+import { DASH_REBUILD_COOKIE, LIVE_TILES, copyIsOld, outOfDateTiles, type LiveTile } from "@/lib/dashboard/tiles";
+import { after } from "next/server";
+import { cookies } from "next/headers";
 import PreviewTile from "@/components/dashboard/preview-tile";
 import type { PreviewLine } from "@/lib/dashboard/due-preview";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
@@ -779,7 +782,6 @@ export default async function DashboardPage() {
     pqsScopes: Awaited<ReturnType<typeof getPqsScopes>>;
     branchReadiness: BranchReadiness[];
   };
-  const snap = await timed("dash.readSnapshot", readSnapshot<Heavy>(user.id, companyId, profile.role));
   const workOutHeavy = async (): Promise<Heavy> => {
     const [score, trainingPct, policyCoverage, auditsPct, pqs] = await Promise.all([
       companyWide
@@ -811,34 +813,105 @@ export default async function DashboardPage() {
     return { score, trainingPct, policyCoverage, auditsPct, pqs, pqsScopes, branchReadiness };
   };
 
-  const [heavy, live] = await Promise.all([
-    snap ? Promise.resolve(snap.payload) : timed("dash.heavy", workOutHeavy),
-    Promise.all([
-      timed("dash.due", getDuePreview(companyId)),
-      canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
+  /* THE WHOLE DASHBOARD FROM THE SAVED COPY (Phil, 2026-10-15; 0482; lib/dashboard/tiles.ts).
+     Every tile comes from this person's copy, rebuilt in full every ten minutes on the clock. In
+     between, something done is a push: the database notes which table changed for the company, and
+     only the tiles that read it are worked out again here, before the page is drawn, so something
+     done is never shown as outstanding. A copy older than the last ten minute mark is shown at once
+     and brought up to date straight after (DashboardLive asks for the rebuild). */
+  const isSpendViewer = profile.role === "company_admin" || profile.role === "platform_admin";
+  const workOutTile = {
+    due: () => timed("dash.due", getDuePreview(companyId)),
+    planner: () => (canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([] as Awaited<ReturnType<typeof getPlannerWeek>>)),
+    complaints: () =>
       canSeeComplaints
         ? timed("dash.complaints", getComplaintCounts(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
+    incidents: () =>
       canSeeIncidents
         ? timed("dash.incidents", getIncidentActions(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getIncidentActions>> | null),
-      timed("dash.absence", getAbsenceActions(companyId)),
-      timed("dash.holidays", getPendingHolidayApprovals(companyId)),
-      // Admin only: both sources are Admin only by RLS, and a Manager reading them would get
-      // zeros that look like "nothing spent" rather than "not your business".
-      profile.role === "company_admin" || profile.role === "platform_admin"
+    absence: () => timed("dash.absence", getAbsenceActions(companyId)),
+    holidays: () => timed("dash.holidays", getPendingHolidayApprovals(companyId)),
+    // Admin only: both sources are Admin only by RLS, and a Manager reading them would get
+    // zeros that look like "nothing spent" rather than "not your business".
+    spend: () =>
+      isSpendViewer
         ? timed("dash.spend", getSpendThisMonth(companyId))
         : Promise.resolve(null as Awaited<ReturnType<typeof getSpendThisMonth>> | null),
-      // PERSONAL since 0473 (Phil, 2026-10-14, popup "Replace it with the personal one"): this
-      // person's own notifications, not the company's audit lines, which only Admins could read.
-      timed("dash.activity", getMyNotifications(user.id)),
-      canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
+    // PERSONAL since 0473 (Phil, 2026-10-14, popup "Replace it with the personal one"): this
+    // person's own notifications, not the company's audit lines, which only Admins could read.
+    activity: () => timed("dash.activity", getMyNotifications(user.id)),
+    onCall: () => (canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([] as Awaited<ReturnType<typeof getUrgentFollowUps>>)),
+  } satisfies Record<LiveTile, () => Promise<unknown>>;
+  type Live = { [K in LiveTile]: Awaited<ReturnType<(typeof workOutTile)[K]>> };
+  type Copy = { v: 2; sig: string; heavy: Heavy; live: Live; tileAt: Partial<Record<LiveTile, string>> };
+  const workOutLive = async (tiles: readonly LiveTile[]): Promise<Partial<Live>> => {
+    const values = await Promise.all(tiles.map((t) => workOutTile[t]()));
+    return Object.fromEntries(tiles.map((t, i) => [t, values[i]])) as Partial<Live>;
+  };
+  // What this person may see on the page; a copy built for anything else is not used.
+  const sig = JSON.stringify([profile.role, companyWide, canSeePlanner, canSeeComplaints, canSeeIncidents, canSeeOnCall, canSeePqs, isSpendViewer]);
+
+  const [copy, changes, rebuildAskedAt] = await timed(
+    "dash.readCopy",
+    Promise.all([
+      readDashboardCopy<Copy>(user.id, companyId),
+      readCompanyChanges(companyId),
+      cookies().then((c) => Number(c.get(DASH_REBUILD_COOKIE)?.value ?? 0) || 0),
     ]),
-  ]);
+  );
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const usable =
+    copy !== null &&
+    copy.role === profile.role &&
+    copy.payload?.v === 2 &&
+    copy.payload.sig === sig &&
+    !(rebuildAskedAt > Date.parse(copy.builtAt));
+
+  let heavy: Heavy;
+  let live: Live;
+  let builtAt: string;
+  let copyOld = false;
+  if (!usable) {
+    // No copy yet, a copy for another role, or the ten minute rebuild: everything, now.
+    const [h, l] = await Promise.all([timed("dash.heavy", workOutHeavy), workOutLive(LIVE_TILES)]);
+    heavy = h;
+    live = l as Live;
+    builtAt = nowIso;
+    const tileAt = Object.fromEntries(LIVE_TILES.map((t) => [t, nowIso])) as Record<LiveTile, string>;
+    const saved: Copy = { v: 2, sig, heavy, live, tileAt };
+    after(() => writeSnapshot(user.id, companyId, profile.role, saved, nowIso).then(() => undefined));
+  } else {
+    const payload = copy.payload;
+    heavy = payload.heavy;
+    live = { ...payload.live };
+    builtAt = copy.builtAt;
+    // The tiles something done has made out of date (all of them if the notes could not be read).
+    const toDo = changes === null ? [...LIVE_TILES] : outOfDateTiles(payload.tileAt, changes);
+    if (toDo.length > 0) {
+      Object.assign(live, await timed("dash.tiles", workOutLive(toDo)));
+      const tileAt = { ...payload.tileAt };
+      for (const t of toDo) tileAt[t] = nowIso;
+      const saved: Copy = { v: 2, sig, heavy, live, tileAt };
+      after(() => writeSnapshot(user.id, companyId, profile.role, saved, builtAt).then(() => undefined));
+    }
+    copyOld = copyIsOld(builtAt, nowMs);
+  }
   console.log(`[perf] dash.data ${Date.now() - perfStart}`);
-  const builtAt = snap ? snap.builtAt : await writeSnapshot(user.id, companyId, profile.role, heavy);
   const { score, trainingPct, policyCoverage, auditsPct, pqs, pqsScopes, branchReadiness } = heavy;
-  const [duePreview, plannerWeek, complaints, incidentActions, absenceActions, holidaysPending, spend, activity, onCallUrgent] = live;
+  const {
+    due: duePreview,
+    planner: plannerWeek,
+    complaints,
+    incidents: incidentActions,
+    absence: absenceActions,
+    holidays: holidaysPending,
+    spend,
+    activity,
+    onCall: onCallUrgent,
+  } = live;
 
   const pqsWindow = defaultOnTimeWindow();
   /* Each due tile opens its own report (Phil, 2026-10-05). A role that cannot open the due
@@ -870,7 +943,7 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* LIVE BY PUSH, NOT BY RELOAD: the quiet refresh and the "Figures from" time sit here. */}
-          <DashboardLive builtAt={builtAt} />
+          <DashboardLive builtAt={builtAt} copyOld={copyOld} />
           {/* The date range chip is gone (Phil, 2026-07-30): every figure on this page is live and
               nothing was ever going to filter by period. "Reports" rather than "Export report",
               because the button opens the Reports page, it does not export anything. */}
