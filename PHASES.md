@@ -4611,8 +4611,9 @@ disappear off the Whiteboard." Every planned booking on My Planner is now on the
 multi task visit is a line under each task's heading; anything with no heading (One to One, ad hoc,
 Probation Review, absence meetings) under Other; checks matched by key, not name; an Overdue block in
 front of this week so nothing falls off on a Monday; the resumed date filters and places the same.
-No migration. Decision: docs/decisions/planner.md. Tests: TEST-CHECKLIST-WHITEBOARD-MATCH.md.
-IN PROGRESS.
+No migration. Decision: docs/decisions/planner.md. Tests: TEST-CHECKLIST-WHITEBOARD-MATCH.md,
+W0 to W6 pass (W4 to W6 tested by Claude in Phil's Chrome at his request). DONE, live 2026-10-15
+(commit 72cb1da4).
 
 ### 2026-10-15 — Staff on Parental Leave or Long Term Sick: checks paused (Phase 13, Thistle)
 
