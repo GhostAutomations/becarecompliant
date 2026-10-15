@@ -12,7 +12,7 @@ import { twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 import NotificationGrid, { type GridDefinition, type GridPerson } from "@/components/settings/notification-grid";
-import MorningEmailGrid from "@/components/settings/morning-email-grid";
+import MorningEmailGrid, { type MorningPart } from "@/components/settings/morning-email-grid";
 import { NOTIFIABLE_ROLES } from "@/lib/notifications/activity";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -122,13 +122,16 @@ export default async function NotificationSettingsPage() {
   // Who gets the morning emails (0475): each person's four ticks, the default filled in by the database.
   const morningResults = await Promise.all(ids.map((id) => supabase.rpc("get_morning_email_preferences", { p_profile: id })));
   const morningInitial: Record<string, Record<string, boolean>> = {};
+  let morningParts: MorningPart[] = [];
   let morningError: string | null = null;
   morningResults.forEach((r, i) => {
     if (r.error) {
       morningError = r.error.message;
       return;
     }
-    morningInitial[ids[i]] = Object.fromEntries(((r.data ?? []) as Array<{ email_key: string; receive: boolean }>).map((x) => [x.email_key, x.receive]));
+    const rows = (r.data ?? []) as Array<{ email_key: string; part: string; part_name: string; receive: boolean }>;
+    if (morningParts.length === 0) morningParts = rows.map((x) => ({ key: x.email_key, part: x.part, name: x.part_name }));
+    morningInitial[ids[i]] = Object.fromEntries(rows.map((x) => [`${x.email_key}|${x.part}`, x.receive]));
   });
   const gridBranches = ((branchRows ?? []) as Array<{ id: string; name: string }>).map((b) => ({ id: b.id, name: b.name }));
   const activeBranchIds = new Set(gridBranches.map((b) => b.id));
@@ -207,6 +210,7 @@ export default async function NotificationSettingsPage() {
         ) : (
           <MorningEmailGrid
             people={gridPeople}
+            parts={morningParts}
             initial={morningInitial}
             branches={gridBranches}
             digestOn={settings?.email_digest_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.emailDigestEnabled}

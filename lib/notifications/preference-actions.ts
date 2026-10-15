@@ -55,14 +55,19 @@ export async function addNotificationBranch(_prev: ActionState, formData: FormDa
 /** Who gets the morning emails (0475): saves the people whose ticks changed. */
 export async function saveMorningEmailGrid(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireCompanyAdmin();
-  const { MORNING_EMAILS } = await import("@/lib/notifications/morning");
   const changed = [...new Set(formData.getAll("changed").map(String))].filter((x) => UUID.test(x));
   if (changed.length === 0) return { ok: "Nothing changed" };
+  // Every part on the grid ("key~part"), and the ticked ones ("person~key~part"). The database
+  // checks each part belongs to this company.
+  const allParts = [...new Set(formData.getAll("part").map(String))];
   const receive = new Set(formData.getAll("receive").map(String));
   const supabase = await createClient();
   const failed: string[] = [];
   for (const pid of changed) {
-    const prefs = MORNING_EMAILS.map((m) => ({ key: m.key, receive: receive.has(`${pid}:${m.key}`) }));
+    const prefs = allParts.map((kp) => {
+      const [key, ...rest] = kp.split("~");
+      return { key, part: rest.join("~"), receive: receive.has(`${pid}~${kp}`) };
+    });
     const { error } = await supabase.rpc("set_morning_email_preferences", { p_profile: pid, p_prefs: prefs });
     if (error) failed.push(error.message);
   }

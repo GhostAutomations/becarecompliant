@@ -90,3 +90,14 @@ the morning emails only, as branch scoped recipients holding every branch, so th
 the invoicing chase never pick them up. A Supervisor given the reports or Briefings overdue gets
 their branches only (scopeReporting and overdueForRecipient now scope Supervisors like Managers).
 
+**The reports in parts (0476, Phil 2026-10-15, after looking at the grid: "Lucy needs something
+from People, but only training, DBS and right to work").** The People report splits into one part
+per People check type plus Training, Social Care Wales, DBS and Right to Work; the Service User
+report into one part per Service User check type. Each report is a bold band with an "all" box per
+person (ticked only when every part is); the Branch digest and Briefings overdue stay one row each.
+A person's report carries only their ticked parts and is not sent when none is. Everyone starts
+with every part ticked where their role got the report before, so applying 0476 changed nothing
+(proved: everyone who got a report has every part, and it goes unfiltered exactly as before).
+Rows of the report carry their part (check rows their check type, training, scw; DBS and Right to
+Work are the report's own sections).
+

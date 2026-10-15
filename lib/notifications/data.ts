@@ -231,6 +231,8 @@ export type ReportingCheck = {
   branchId: string | null;
   branchName: string;
   checkName: string;
+  /** The check type, for a People or Service User check (the morning report's parts, 0476). */
+  definitionId?: string;
   dueDate: string; // ISO date
   /**
    * The next visit booked for this check on the Planner, or null where nothing is in the diary
@@ -548,13 +550,13 @@ export async function getReportingData(companyId: string): Promise<ReportingData
     await Promise.all([
       supabase
         .from("person_check_status")
-        .select("person_id, branch_id, check_name, due_date, recurring, last_completed_on")
+        .select("person_id, branch_id, definition_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
         .lte("due_date", horizon),
       supabase
         .from("service_user_check_status")
-        .select("service_user_id, branch_id, check_name, due_date, recurring, last_completed_on")
+        .select("service_user_id, branch_id, definition_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
         // In hospital or on respite (0461, 0462): paused checks are not reported or chased.
@@ -605,6 +607,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
       branchId: r.branch_id,
       branchName: branchName.get(r.branch_id) ?? "",
       checkName: r.check_name,
+      definitionId: r.definition_id as string,
       dueDate: r.due_date as string,
       planned: plannedFor(planned, r.person_id, r.check_name),
     }));
@@ -617,6 +620,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
       branchId: r.branch_id,
       branchName: branchName.get(r.branch_id) ?? "",
       checkName: r.check_name,
+      definitionId: r.definition_id as string,
       dueDate: r.due_date as string,
       planned: plannedFor(planned, r.service_user_id, r.check_name),
     }));
@@ -657,6 +661,6 @@ export async function getMorningChoices(companyId: string): Promise<import("@/li
   const { choicesFrom } = await import("@/lib/notifications/morning");
   const { data, error } = await createServiceClient().rpc("morning_email_choices", { p_company: companyId });
   if (error) throw new Error(`morning email choices: ${error.message}`);
-  return choicesFrom((data ?? []) as Array<{ profile_id: string; email_key: string; receive: boolean }>);
+  return choicesFrom((data ?? []) as import("@/lib/notifications/morning").MorningRow[]);
 }
 

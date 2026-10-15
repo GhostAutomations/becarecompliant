@@ -32,7 +32,7 @@ import {
   isLondonSendHour,
 } from "@/lib/notifications/digest";
 import { claimNotification, settleNotification, releaseNotification } from "@/lib/notifications/log";
-import { wantsMorningEmail, type MorningEmailKey } from "@/lib/notifications/morning";
+import { checkPart, keepPart, reportPartsFor, wantsMorningEmail, type MorningEmailKey } from "@/lib/notifications/morning";
 import {
   getOutstandingBriefings,
   managerOutstandingHtml,
@@ -199,6 +199,14 @@ export async function GET(request: NextRequest) {
       }
 
       const peopleChecks = [...reporting.people, ...trainingDue, ...scwDue];
+      /* THE REPORT'S PARTS (0476, Phil 2026-10-15): each row knows which part it belongs to, so a
+         person given only some parts gets only those rows. Someone with every part ticked gets the
+         report exactly as before, unfiltered (reportPartsFor says "all"). */
+      const partOf = new Map<ReportingCheck, string>();
+      for (const c of reporting.people) if (c.definitionId) partOf.set(c, checkPart(c.definitionId));
+      for (const c of reporting.serviceUsers) if (c.definitionId) partOf.set(c, checkPart(c.definitionId));
+      for (const c of trainingDue) partOf.set(c, "training");
+      for (const c of scwDue) partOf.set(c, "scw");
       summary.trainingDue += trainingDue.length;
 
       if (company.settings.emailDigestEnabled) {
@@ -284,19 +292,20 @@ export async function GET(request: NextRequest) {
         for (const recipient of reportRecipients) {
           for (const pop of populations) {
             if (!pop.has) continue;
-            if (!wants(recipient, pop.key === "people" ? "people_report" : "service_user_report")) continue;
-            const scoped = scopeReporting(recipient, pop.checks);
+            const parts = reportPartsFor(morning, recipient.profileId, pop.key === "people" ? "people_report" : "service_user_report");
+            if (!parts) continue;
+            const scoped = scopeReporting(recipient, pop.checks.filter((c) => keepPart(parts, partOf.get(c))));
             const { overdue, dueSoon } = splitReporting(scoped);
             /* DBS renewals ride in the People report, scoped exactly like everything else, in a
                section of their own (2026-09-22). They amber at ninety days, so they cannot sit
                under a heading that says fourteen. */
             const dbsRenewals =
-              pop.key === "people"
+              pop.key === "people" && keepPart(parts, "dbs")
                 ? scopeReporting(recipient, reporting.dbsRenewals).map(toRow)
                 : [];
             /* Right to Work expiries ride the same way (DEF-071, 2026-09-24). */
             const rtwExpiries =
-              pop.key === "people"
+              pop.key === "people" && keepPart(parts, "rtw")
                 ? scopeReporting(recipient, reporting.rtwExpiries).map(toRow)
                 : [];
             const overdueRecords = new Set(overdue.map((c) => c.recordId)).size;
