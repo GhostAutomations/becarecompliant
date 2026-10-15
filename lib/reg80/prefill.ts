@@ -1,5 +1,6 @@
 import "server-only";
 import { pausedLabel } from "@/lib/service-users/hospital-pause";
+import { leavePausedLabel } from "@/lib/people/leave-pause";
 
 /**
  * Be Care Compliant — Regulation 80 (RISCA Wales) Quality of Care Review prefill.
@@ -161,7 +162,8 @@ async function readLateChecks(
         recordName: i.recordName,
         checkName: i.checkName,
         dueDate: i.dueDate,
-        label: pausedLabel(i.pausedSince, i.pausedWhere),
+        label:
+          i.population === "people" ? leavePausedLabel(i.pausedSince, i.pausedWhere) : pausedLabel(i.pausedSince, i.pausedWhere),
         action: null,
         paused: true,
       });

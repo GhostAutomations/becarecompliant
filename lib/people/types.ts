@@ -9,7 +9,9 @@ export type EmploymentStatus = "active" | "mat_leave" | "lts" | "leaver";
 
 export const WORKING_STATUS_LABELS: Record<EmploymentStatus, string> = {
   active: "Active",
-  mat_leave: "Mat Leave",
+  // Shown as Parental Leave, for men and women alike (Phil, 2026-10-15). The stored value stays
+  // mat_leave.
+  mat_leave: "Parental Leave",
   lts: "LTS",
   leaver: "Leaver",
 };
@@ -39,6 +41,10 @@ export type PersonRecord = {
   /** Social Care Wales registered or last renewed on (0362). */
   scw_registered_on?: string | null;
   archived_at: string | null;
+  /** The day their Parental Leave or Long Term Sick began this time (0484). */
+  leave_since?: string | null;
+  /** The day they last came back to Active from leave (0484). */
+  leave_returned_on?: string | null;
   /** Retention hold (item 18): while true, this record's evidence is never anonymised by
    *  the retention rule, whatever its date. For an ongoing tribunal, safeguarding
    *  investigation or insurance claim. */
@@ -92,7 +98,13 @@ export type CheckStatus = {
   expiry_date: string | null;
   last_evidence_id: string | null;
   effective_amber: number;
-  rag: Rag | "none";
+  /** "paused" while the person is on Parental Leave or Long Term Sick (0484). */
+  rag: Rag | "none" | "paused";
+  /** The check's own due date; due_date is the date that counts (the resumed one after leave). */
+  scheduled_due_date?: string | null;
+  paused?: boolean;
+  leave_since?: string | null;
+  employment_status?: string | null;
 };
 
 /** Record-level rollup (worst RAG across a Record's checks). */
@@ -104,7 +116,8 @@ export type PersonRollup = {
   red_count: number;
   amber_count: number;
   green_count: number;
-  rag: Rag | "none";
+  /** "paused" when every check still to do is paused (on leave, 0484). */
+  rag: Rag | "none" | "paused";
 };
 
 export type RtwLimit = "none" | "20hrs_term" | "20hrs_2nd_job" | "visa_expires";

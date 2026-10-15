@@ -688,10 +688,21 @@
     @apply bg-white/5 text-white/45;
   }
 
-  /* Paused: the service user is in hospital or on respite (0461, 0462). Grey, but readable, unlike an empty cell. */
+  /* Paused: the service user is in hospital or on respite (0461, 0462), or the person is on
+     Parental Leave or Long Term Sick (0484). Grey, but readable, unlike an empty cell. */
   .rag-cell-paused {
     background: rgba(148, 163, 184, 0.18);
     color: #cbd5e1;
+  }
+
+  /* A person on Parental Leave or Long Term Sick on the People Matrix (0484): their cells are
+     dimmed, except the name, the status and the legal expiries (DBS, Right to Work), which keep
+     their full colour. The badge beside the name reads PL or LTS. */
+  .cell-on-leave {
+    opacity: 0.5;
+  }
+  .leave-badge {
+    @apply ml-2 inline-block rounded-full border border-white/20 bg-white/10 px-1.5 py-px align-middle text-[10px] font-bold tracking-wide text-white/80;
   }
 
   /* A COMPLETED date in the Supervision, Appraisal and Care Plan Review columns.

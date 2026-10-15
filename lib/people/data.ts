@@ -36,17 +36,19 @@ export type ProfileLite = { id: string; full_name: string; email: string; role: 
 export async function getRollupCounts(
   companyId: string,
   branchId?: string | null,
-): Promise<{ compliant: number; dueSoon: number; overdue: number; total: number }> {
+): Promise<{ compliant: number; dueSoon: number; overdue: number; paused: number; total: number }> {
   const supabase = await createClient();
   let query = supabase.from("person_rollup").select("rag, branch_id").eq("company_id", companyId);
   if (branchId) query = query.eq("branch_id", branchId);
   const { data } = await query;
-  const counts = { compliant: 0, dueSoon: 0, overdue: 0, total: 0 };
+  const counts = { compliant: 0, dueSoon: 0, overdue: 0, paused: 0, total: 0 };
   for (const r of (data as Array<{ rag: string }> | null) ?? []) {
     counts.total += 1;
     if (r.rag === "red") counts.overdue += 1;
     else if (r.rag === "amber") counts.dueSoon += 1;
     else if (r.rag === "green") counts.compliant += 1;
+    // On Parental Leave or Long Term Sick (0484): their checks are paused, so none of the three.
+    else if (r.rag === "paused") counts.paused += 1;
   }
   return counts;
 }
@@ -213,7 +215,8 @@ export async function getPerson(personId: string, client?: SupabaseClient): Prom
 }
 
 /** Which population the register is showing. active = Main; leaver = Leavers (not yet
- *  archived); lts_mat = Long Term Sick & Maternity Leave; archived = the Archive view;
+ *  archived); lts_mat = Parental Leave and Long Term Sick only (no screen asks for it since 0484,
+ *  when they joined the Matrix dimmed); archived = the Archive view;
  *  all = every status (loaded once so the client can switch views instantly). */
 export type RegisterScope = "active" | "leaver" | "lts_mat" | "archived" | "all";
 

@@ -23,6 +23,7 @@ export default function CycleBox({
   ragClass,
   href,
   todayIso,
+  paused = false,
 }: {
   title: string;
   due: string | null;
@@ -33,6 +34,9 @@ export default function CycleBox({
   href: string | null;
   /** Today's London calendar date, for the countdown. */
   todayIso: string;
+  /** The person is on Parental Leave or Long Term Sick (0484): the box says Paused, not a
+   *  countdown or a coloured date. It can still be completed. */
+  paused?: boolean;
 }) {
   const live = !!href;
   const body = (
@@ -47,11 +51,11 @@ export default function CycleBox({
              countdown on a deadline that has already gone would be the most misleading thing
              on the record. */
           <span className="text-[17px] font-bold text-navy-950">
-            {dueCountdown(due, todayIso) ?? "Not scheduled"}
+            {paused && !comp ? "Paused" : dueCountdown(due, todayIso) ?? "Not scheduled"}
           </span>
         ) : (
-          <span className={`rag-cell text-[16px] ${ragClass}`}>
-            {comp ? "Done" : due ? formatDisplayDate(due) : "—"}
+          <span className={`rag-cell text-[16px] ${paused && !comp && due ? "rag-cell-paused" : ragClass}`}>
+            {comp ? "Done" : paused && due ? "Paused" : due ? formatDisplayDate(due) : "—"}
           </span>
         )}
       </div>

@@ -87,7 +87,9 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
   type P = { person_id: string; check_name: string | null; due_date: string | null; rag: string | null };
   type S = { service_user_id: string; check_name: string | null; due_date: string | null; rag: string | null };
   const rows: DueRow[] = [
-    ...((pc.data as P[] | null) ?? []).map((r) => ({
+    // On Parental Leave or Long Term Sick (0484): paused the same way, in no tile or report. Their
+    // DBS and Right to Work (tracker dates, below) are never paused.
+    ...((pc.data as P[] | null) ?? []).filter((r) => r.rag !== "paused").map((r) => ({
       kind: "person" as const,
       recordId: r.person_id,
       name: names.get(`person:${r.person_id}`) ?? "Unnamed",
@@ -146,14 +148,15 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
   for (const p of training.people) {
     for (const c of training.courses) {
       const cell = p.cells[c.id];
-      if (!cell || cell.status === "missing" || !cell.expiryOn) continue;
+      // On Parental Leave or Long Term Sick (0484): paused, so not due.
+      if (!cell || cell.paused || cell.status === "missing" || !cell.expiryOn) continue;
       const red = cell.status === "expired";
       rows.push({
         kind: "training",
         recordId: p.id,
         name: p.full_name,
         checkName: c.name,
-        dueDate: cell.expiryOn,
+        dueDate: cell.dueOn ?? cell.expiryOn,
         rag: red ? "red" : cell.rag,
         branchId: p.branch_id,
       });

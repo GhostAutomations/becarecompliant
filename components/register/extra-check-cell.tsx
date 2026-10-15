@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { formatDisplayDate } from "@/lib/people/logic";
 import { pausedLabel } from "@/lib/service-users/hospital-pause";
+import { leavePausedLabel } from "@/lib/people/leave-pause";
 
 /** Minimal status shape shared by People + Service User rows (both carry these). */
 export type ExtraCellStatus = {
@@ -21,6 +22,8 @@ export type ExtraCellStatus = {
   rag: string;
   /** Service users only: where they are, so a paused cell can say so (0462). */
   service_status?: string | null;
+  /** People only: Parental Leave or Long Term Sick, so a paused cell can say so (0484). */
+  employment_status?: string | null;
 };
 
 function ragClass(rag: string): string {
@@ -62,11 +65,14 @@ export default function ExtraCheckCell({
           : ""
         : text;
 
+  const pausedWords = status.employment_status
+    ? leavePausedLabel(null, status.employment_status)
+    : pausedLabel(null, status.service_status);
   const inner = (
     <span
       className={`rag-cell ${ragClass(status.rag)}`}
-      title={status.rag === "paused" ? pausedLabel(null, status.service_status) : shown || undefined}
-      aria-label={status.rag === "paused" ? pausedLabel(null, status.service_status) : undefined}
+      title={status.rag === "paused" ? pausedWords : shown || undefined}
+      aria-label={status.rag === "paused" ? pausedWords : undefined}
     >
       {shown || "—"}
     </span>

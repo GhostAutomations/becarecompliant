@@ -17,6 +17,7 @@ import {
 } from "@/lib/framework/case-handling";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { effectiveDue, isPausedCheck } from "@/lib/service-users/hospital-pause";
+import { isPausedPersonCheck } from "@/lib/people/leave-pause";
 import { amberWindow, isDueSoon } from "@/lib/framework/due-soon";
 import { cache } from "react";
 import { assessGap, gapInHand, isLateReason, isSafetyCheck, type GapAction, type GapRisk, type GapUpdate } from "@/lib/framework/gaps";
@@ -93,9 +94,10 @@ export type FrameworkItem = {
   safety: boolean;
   action: GapAction;
   risk: GapRisk | null;
-  /** In hospital or on respite since (0461, 0462), for a paused service user check; null when not known. */
+  /** In hospital or on respite since (0461, 0462), for a paused service user check, or on Parental
+   *  Leave or Long Term Sick since (0484) for a person; null when not known. */
   pausedSince?: string | null;
-  /** Where they are: "hospital" or "respite" (0462). */
+  /** Where they are: "hospital" or "respite" (0462), or "mat_leave" or "lts" for a person (0484). */
   pausedWhere?: string | null;
 };
 
@@ -512,7 +514,7 @@ async function getFrameworkItemsUncached(
 
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, resume_due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, key, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id, hospital_since)")
+    .select("id, definition_id, due_date, resume_due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, key, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id, leave_since), service_users(full_name, service_status, archived_at, branch_id, hospital_since)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -524,7 +526,7 @@ async function getFrameworkItemsUncached(
       id: string; definition_id: string; due_date: string; resume_due_date: string | null; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
       check_definitions: { name: string; key: string | null; recurring: boolean; amber_days: number | null } | { name: string; key: string | null; recurring: boolean; amber_days: number | null }[] | null;
-      people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }[] | null;
+      people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null; leave_since: string | null } | { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null; leave_since: string | null }[] | null;
       service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null; hospital_since: string | null }[] | null;
     };
     const def = relOne(r.check_definitions);
@@ -544,6 +546,10 @@ async function getFrameworkItemsUncached(
       if (!p || p.employment_status === "leaver" || p.archived_at) continue;
       if (branchId && p.branch_id !== branchId) continue;
       recordName = p.full_name; recordId = r.person_id; population = "people";
+      // On Parental Leave or Long Term Sick (0484): paused, as a service user in hospital.
+      paused = isPausedPersonCheck({ employmentStatus: p.employment_status, recurring: def?.recurring ?? true, lastCompletedOn: r.last_completed_on, dueDate: r.due_date });
+      pausedSince = p.leave_since ?? null;
+      pausedWhere = p.employment_status;
     } else {
       const su = relOne(r.service_users);
       if (!su || su.service_status === "cancelled" || su.archived_at) continue;

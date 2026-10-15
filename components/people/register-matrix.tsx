@@ -29,6 +29,7 @@ import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/compon
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import { cycleCheckKey } from "@/lib/people/office-cycle";
+import { isOnLeave, leaveBadge, leavePausedLabel, leaveSlot } from "@/lib/people/leave-pause";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -70,10 +71,21 @@ function ragClass(rag: string): string {
       ? "rag-cell-amber"
       : rag === "green"
         ? "rag-cell-green"
-        : "rag-cell-none";
+        : rag === "paused"
+          ? "rag-cell-paused"
+          : "rag-cell-none";
 }
 
-function RagDate({ date, rag }: { date: string | null; rag: string }) {
+function RagDate({ date, rag, status = null }: { date: string | null; rag: string; status?: string | null }) {
+  // On Parental Leave or Long Term Sick (0484): the check is paused, so the cell says so.
+  if (rag === "paused") {
+    const label = leavePausedLabel(null, status);
+    return (
+      <span className="rag-cell rag-cell-paused" title={label} aria-label={label}>
+        Paused
+      </span>
+    );
+  }
   if (!date) return <span className="rag-cell rag-cell-none">—</span>;
   return <span className={`rag-cell ${ragClass(rag)}`}>{formatDisplayDate(date)}</span>;
 }
@@ -297,12 +309,31 @@ export default function RegisterMatrix({
                   : missingDocuments(t ?? null, row.person.start_date, today);
               const dbsGap = gaps.some((g) => g.kind === "dbs_renewal");
               const rtwGap = gaps.some((g) => g.kind === "right_to_work");
+              /* PARENTAL LEAVE AND LONG TERM SICK (Phil, 2026-10-15, 0484): on the Matrix, dimmed,
+                 with a PL or LTS badge. Their checks arrive paused from the database; the
+                 supervision and appraisal slots are worked out here, so they are paused here, and
+                 after coming back an outstanding one is due no sooner than return + 7. The legal
+                 expiries (DBS, Right to Work) are never paused and stay at full strength. */
+              const status = row.person.employment_status;
+              const onLeave = isOnLeave(status);
+              const badge = leaveBadge(status);
+              const leave = { employmentStatus: status, leaveReturnedOn: row.person.leave_returned_on };
+              const slot = (due: string | null, rag: string) =>
+                leaveSlot(due, rag, leave, (d) => dateRag(d, config.supAmber));
+              const supDue = sup.map((s) => slot(s.due, s.rag));
+              const aaDue = slot(aaSlot.nextDue, aaSlot.nextDueRag);
+              const dim = onLeave ? "cell-on-leave" : undefined;
               return (
-                <tr key={row.person.id}>
+                <tr key={row.person.id} className={onLeave ? "row-on-leave" : undefined}>
                   <td className="col-carer">
                     <Link href={`/people/${row.person.id}${fromQuery}`} className="font-semibold text-white hover:text-gold-300">
                       {row.person.full_name}
                     </Link>
+                    {badge ? (
+                      <span className="leave-badge" title={leavePausedLabel(row.person.leave_since, status)}>
+                        {badge}
+                      </span>
+                    ) : null}
                   </td>
                   {/* READ ONLY (Phil, 2026-09-17), for the same reason as Job Title beside it.
                       Working status decides which VIEW a record lives in, so a stray click on a
@@ -314,10 +345,10 @@ export default function RegisterMatrix({
                       where the judging is shown. Read only is the other half of that argument:
                       a stray click on a compliance matrix should not quietly change what a
                       carer is judged on. It is still changed on Edit person, deliberately. */}
-                  <td><span>{row.person.job_title || "—"}</span></td>
-                  <td><Plain date={row.person.start_date} /></td>
-                  {has("manual_handling") ? <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td> : null}
-                  {has("competency") ? <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td> : null}
+                  <td className={dim}><span>{row.person.job_title || "—"}</span></td>
+                  <td className={dim}><Plain date={row.person.start_date} /></td>
+                  {has("manual_handling") ? <td className={dim}><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} status={status} /></td> : null}
+                  {has("competency") ? <td className={dim}><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} status={status} /></td> : null}
                   {/* THE CERTIFICATE DATE IS A FACT, so it is drawn plainly: it happened, it
                       cannot come due, and colouring it would say something about it that is not
                       true. */}
@@ -379,7 +410,7 @@ export default function RegisterMatrix({
                       "—"
                     )}
                   </td>
-                  <td>
+                  <td className={dim}>
                     {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE (Phil, 2026-09-16: "why
                         are all the probation end due dates red?"). This cell was coloured on
                         the date alone, so a probation that passed months ago drew red for
@@ -396,8 +427,8 @@ export default function RegisterMatrix({
                       }
                     />
                   </td>
-                  <td><Plain date={t?.probation_end_actual ?? null} /></td>
-                  <td>
+                  <td className={dim}><Plain date={t?.probation_end_actual ?? null} /></td>
+                  <td className={dim}>
                     {/* Read-only: probation status only changes by completing the
                         Probation Review form (Phil, 2026-07-18), never inline. */}
                     {t?.probation_status ? (
@@ -412,29 +443,29 @@ export default function RegisterMatrix({
                       "—"
                     )}
                   </td>
-                  <td>
+                  <td className={dim}>
                     <RagDate
                       date={t?.probation_extension_date ?? null}
                       rag={dateRag(t?.probation_extension_date ?? null, config.probationAmber)}
                     />
                   </td>
-                  {has("spot_check") ? <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td> : null}
-                  {has("spot_check") ? <td><Plain date={sc?.last_completed_on ?? null} /></td> : null}
+                  {has("spot_check") ? <td className={dim}><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} status={status} /></td> : null}
+                  {has("spot_check") ? <td className={dim}><Plain date={sc?.last_completed_on ?? null} /></td> : null}
                   {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE. An outstanding slot's Due
                       carries the pill - green over 14 days away, amber inside 14, red past.
                       Once the slot is done the Due is plain text, because the verdict has
                       moved to the Done cell: green on time, amber late. Same rule as the
                       probation end date (Phil, 2026-09-16). */}
-                  <td>{sup[0].comp ? <CycleDate date={sup[0].due} /> : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
-                  <td>{sup[0].comp ? <DoneDate date={sup[0].comp} late={sup[0].rag === "red"} /> : <CycleDate date={null} />}</td>
-                  <td>{sup[1].comp ? <CycleDate date={sup[1].due} /> : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
-                  <td>{sup[1].comp ? <DoneDate date={sup[1].comp} late={sup[1].rag === "red"} /> : <CycleDate date={null} />}</td>
-                  <td>{sup[2].comp ? <CycleDate date={sup[2].due} /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
-                  <td>{sup[2].comp ? <DoneDate date={sup[2].comp} late={sup[2].rag === "red"} /> : <CycleDate date={null} />}</td>
+                  <td className={dim}>{sup[0].comp ? <CycleDate date={sup[0].due} /> : <RagDate date={supDue[0].due} rag={supDue[0].rag} status={status} />}</td>
+                  <td className={dim}>{sup[0].comp ? <DoneDate date={sup[0].comp} late={sup[0].rag === "red"} /> : <CycleDate date={null} />}</td>
+                  <td className={dim}>{sup[1].comp ? <CycleDate date={sup[1].due} /> : <RagDate date={supDue[1].due} rag={supDue[1].rag} status={status} />}</td>
+                  <td className={dim}>{sup[1].comp ? <DoneDate date={sup[1].comp} late={sup[1].rag === "red"} /> : <CycleDate date={null} />}</td>
+                  <td className={dim}>{sup[2].comp ? <CycleDate date={sup[2].due} /> : <RagDate date={supDue[2].due} rag={supDue[2].rag} status={status} />}</td>
+                  <td className={dim}>{sup[2].comp ? <DoneDate date={sup[2].comp} late={sup[2].rag === "red"} /> : <CycleDate date={null} />}</td>
                   {fourSup ? (
                     <>
-                      <td>{sup[3].comp ? <CycleDate date={sup[3].due} /> : <RagDate date={sup[3].due} rag={sup[3].rag} />}</td>
-                      <td>{sup[3].comp ? <DoneDate date={sup[3].comp} late={sup[3].rag === "red"} /> : <CycleDate date={null} />}</td>
+                      <td className={dim}>{sup[3].comp ? <CycleDate date={sup[3].due} /> : <RagDate date={supDue[3].due} rag={supDue[3].rag} status={status} />}</td>
+                      <td className={dim}>{sup[3].comp ? <DoneDate date={sup[3].comp} late={sup[3].rag === "red"} /> : <CycleDate date={null} />}</td>
                     </>
                   ) : (
                     <>
@@ -442,11 +473,11 @@ export default function RegisterMatrix({
                           comp is the LAST one, so the Due normally carries the outstanding pill.
                           NOT when the stored due date is one the last appraisal already met: that
                           cycle is closed and the cell reads like a completed supervision slot. */}
-                      <td>{aaSlot.nextDueMet ? <CycleDate date={aaSlot.nextDue} /> : <RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} />}</td>
-                      <td><DoneDate date={aaSlot.doneShown} late={aaSlot.compRag === "red"} /></td>
+                      <td className={dim}>{aaSlot.nextDueMet ? <CycleDate date={aaSlot.nextDue} /> : <RagDate date={aaDue.due} rag={aaDue.rag} status={status} />}</td>
+                      <td className={dim}><DoneDate date={aaSlot.doneShown} late={aaSlot.compRag === "red"} /></td>
                     </>
                   )}
-                  {has("audit") ? <td>
+                  {has("audit") ? <td className={dim}>
                     <ExtraCheckCell
                       status={row.statusByKey["audit"]}
                       recordId={row.person.id}
@@ -456,7 +487,7 @@ export default function RegisterMatrix({
                     />
                   </td> : null}
                   {extraColumns.map((c) => (
-                    <td key={c.id}>
+                    <td key={c.id} className={dim}>
                       <ExtraCheckCell
                         status={row.statusByKey[c.key]}
                         recordId={row.person.id}

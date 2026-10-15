@@ -63,6 +63,8 @@ import {
 import { seedPersonHistory } from "@/lib/people/history";
 import { advancePersonCheck } from "@/lib/people/advance-check";
 import { parseLeaving, leavingTakesEffectNow } from "@/lib/people/leaving";
+import { isOnLeave, leaveReturnDateProblem, leaveWords } from "@/lib/people/leave-pause";
+import { longDate } from "@/lib/service-users/hospital-pause";
 import { applyLeaving } from "@/lib/people/leaving-apply";
 import { ukDate } from "@/lib/dates";
 import { completionMovesCheck } from "@/lib/evidence/completion-date";
@@ -896,9 +898,16 @@ export async function setEmploymentStatus(
 
   const { data: person } = await supabase
     .from("people")
-    .select("id, company_id, employment_status, start_date, profile_id")
+    .select("id, company_id, employment_status, start_date, profile_id, leave_since")
     .eq("id", personId)
-    .maybeSingle<{ id: string; company_id: string; employment_status: string; start_date: string | null; profile_id: string | null }>();
+    .maybeSingle<{
+      id: string;
+      company_id: string;
+      employment_status: string;
+      start_date: string | null;
+      profile_id: string | null;
+      leave_since: string | null;
+    }>();
   if (!person) return { error: "That record could not be found." };
   const companyId = person.company_id;
   const { data: planned } = await supabase
@@ -991,11 +1000,28 @@ export async function setEmploymentStatus(
   }
   const wasLeaver = person.employment_status === "leaver";
 
+  /* COMING BACK TO ACTIVE from Parental Leave or Long Term Sick (0484, Phil 2026-10-15): the date
+     they came back is asked for, and their paused checks and training fall due 7 days after it. A
+     move straight between the two keeps the pause and asks nothing. The database records the dates
+     and moves the checks (people_leave_dates / people_leave_resume), whatever changes the status;
+     this says it plainly first. */
+  const comingBack = isOnLeave(person.employment_status) && status === "active";
+  const returnedOn = comingBack ? String(formData.get("leave_returned_on") ?? "").trim() : "";
+  if (comingBack) {
+    const problem = leaveReturnDateProblem(returnedOn, todayIso(), person.leave_since, person.employment_status);
+    if (problem) return { error: problem };
+  }
+
   // Setting a working status also un-archives: changing the Status pill (e.g. back to
   // Active) brings an archived person back into the relevant view, not stuck in Archive.
   const { data, error } = await supabase
     .from("people")
-    .update({ employment_status: status, leaver_date: null, archived_at: null })
+    .update({
+      employment_status: status,
+      leaver_date: null,
+      archived_at: null,
+      ...(comingBack ? { leave_returned_on: returnedOn } : {}),
+    })
     .eq("id", personId)
     .select("id");
   if (error) return { error: error.message };
@@ -1044,11 +1070,15 @@ export async function setEmploymentStatus(
     entityId: personId,
     summary: wasLeaver
       ? `Back from leaver to ${status}`
-      : planned
+      : comingBack
+        ? `Set working status to ${status}, back from ${leaveWords(person.employment_status).replace(/^on /, "")} on ${longDate(returnedOn)}`
+        : planned
         ? `Set working status to ${status}; planned leaving on ${planned.leaving_date} cancelled`
         : `Set working status to ${status}`,
     metadata: {
       status,
+      previous_status: person.employment_status,
+      ...(comingBack ? { leave_returned_on: returnedOn } : {}),
       retention_rows_updated: retention.updated,
       ...(planned ? { cancelled_leaving_id: planned.id } : {}),
       ...(retention.error ? { retention_error: retention.error } : {}),

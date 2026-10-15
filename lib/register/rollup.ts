@@ -4,9 +4,10 @@
  * service_user_rollup_all (speed plan, Push 4, 2026-10-15; docs/decisions/speed-plan.md).
  *
  * The rules are the views' own, line for line:
- * - person_rollup_all: red if any red, else amber if any amber, else "none" when there are no
- *   checks, else green.
- * - service_user_rollup_all: the same, with "paused" after amber (0461, 0462).
+ * - person_rollup_all: red if any red, else amber if any amber, else "paused" when a check is
+ *   paused (Parental Leave or Long Term Sick, 0484), else "none" when there are no checks, else
+ *   green.
+ * - service_user_rollup_all: the same, "paused" after amber (hospital or respite, 0461, 0462).
  * total_checks counts every check; the colour counts count only that colour.
  * Importless so it runs under node --test.
  */
@@ -34,9 +35,10 @@ export function rollupCounts(statuses: StatusLike[]): RollupCounts {
 }
 
 /** person_rollup_all's rag. */
-export function personRollupRag(c: RollupCounts): "red" | "amber" | "green" | "none" {
+export function personRollupRag(c: RollupCounts): "red" | "amber" | "green" | "none" | "paused" {
   if (c.red_count > 0) return "red";
   if (c.amber_count > 0) return "amber";
+  if (c.paused_count > 0) return "paused";
   if (c.total_checks === 0) return "none";
   return "green";
 }

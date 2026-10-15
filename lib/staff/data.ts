@@ -192,7 +192,7 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
        assistant looking at her own training must not be shown four supervisor courses as
        outstanding: this page is the one place the person being chased can look, and chasing
        somebody for training that is not theirs is worse here than anywhere. */
-    supabase.from("people").select("job_title").eq("id", personId).maybeSingle(),
+    supabase.from("people").select("job_title, employment_status, leave_returned_on").eq("id", personId).maybeSingle(),
   ]);
 
   const byCourse = new Map<string, RecordRow>();
@@ -200,7 +200,8 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 
-  const myTitle = (me as { job_title: string | null } | null)?.job_title ?? null;
+  const mine = me as { job_title: string | null; employment_status: string | null; leave_returned_on: string | null } | null;
+  const myTitle = mine?.job_title ?? null;
 
   return ((courses as TrainingCourse[] | null) ?? [])
     .filter((course) => courseAppliesToTitle(course.job_titles, myTitle))
@@ -208,6 +209,9 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
       courseId: course.id,
       courseName: course.name,
       mandatory: course.mandatory,
-      cell: cellFor(course, byCourse.get(course.id), today),
+      cell: cellFor(course, byCourse.get(course.id), today, {
+        employmentStatus: mine?.employment_status,
+        leaveReturnedOn: mine?.leave_returned_on,
+      }),
     }));
 }

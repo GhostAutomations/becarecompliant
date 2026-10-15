@@ -28,6 +28,7 @@ import { listRegister as listServiceUserRegister } from "@/lib/service-users/dat
 import { reviewSlots } from "@/lib/service-users/logic";
 import { SERVICE_STATUS_LABELS, type SuCheckStatus, type ServiceUserRow } from "@/lib/service-users/types";
 import { pausedLabel } from "@/lib/service-users/hospital-pause";
+import { leavePausedLabel } from "@/lib/people/leave-pause";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportBlock, ReportDoc } from "@/lib/export/pdf";
 import { fmtDate, generatedAt, ragLabel, ragTone } from "@/lib/export/format";
@@ -99,10 +100,15 @@ function splitChecks(
        Visit) was listed as Overdue on every export, for every company. The same rule the Dashboard
        and the daily report use. */
     if (!reportableCheck({ recurring: c.recurring, dueDate: due, lastCompletedOn: c.last_completed_on })) continue;
-    // In hospital or on respite (0461, 0462): listed as paused, never as overdue or due.
-    if ((c as SuCheckStatus).rag === "paused") {
-      const su = c as SuCheckStatus;
-      paused?.push({ record: recordName, check: c.check_name, label: pausedLabel(su.hospital_since, su.service_status) });
+    // In hospital or on respite (0461, 0462), or on Parental Leave or Long Term Sick (0484):
+    // listed as paused, never as overdue or due.
+    if (c.rag === "paused") {
+      if ("person_id" in c) {
+        paused?.push({ record: recordName, check: c.check_name, label: leavePausedLabel(c.leave_since, c.employment_status) });
+      } else {
+        const su = c as SuCheckStatus;
+        paused?.push({ record: recordName, check: c.check_name, label: pausedLabel(su.hospital_since, su.service_status) });
+      }
       continue;
     }
     if (win.from && due < win.from) continue;
@@ -332,7 +338,13 @@ export async function buildPeopleRegisterReport(
       r.person.full_name,
       r.person.branch_name ?? input.branchName ?? "",
       WORKING_STATUS_LABELS[r.person.employment_status],
-      r.rollup ? (r.rollup.rag === "none" ? "No checks" : ragLabel(r.rollup.rag)) : "No checks",
+      r.rollup
+        ? r.rollup.rag === "none"
+          ? "No checks"
+          : r.rollup.rag === "paused"
+            ? leavePausedLabel(r.person.leave_since, r.person.employment_status, false)
+            : ragLabel(r.rollup.rag)
+        : "No checks",
       overdue.length,
       dueSoon.length,
       t?.probation_status ? PROBATION_STATUS_LABELS[t.probation_status] : "",

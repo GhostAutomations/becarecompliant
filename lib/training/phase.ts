@@ -26,7 +26,8 @@ export type PhaseProgress = { done: number; total: number; pct: number } | null;
 export function phaseProgress(
   cells: ReadonlyArray<{ rag: string } | undefined>,
 ): PhaseProgress {
-  const present = cells.filter((c): c is { rag: string } => !!c);
+  // A paused cell (on Parental Leave or Long Term Sick, 0484) counts nowhere.
+  const present = cells.filter((c): c is { rag: string } => !!c && c.rag !== "paused");
   if (present.length === 0) return null;
   const done = present.filter((c) => c.rag === "green" || c.rag === "amber").length;
   // ROUNDED DOWN, never up: 12 of 13 is 92%, and a bar that rounds to 100 before the last

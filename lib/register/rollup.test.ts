@@ -32,6 +32,13 @@ test("paused sits after amber and before green for a Service User", () => {
   assert.equal(rollupCounts(rows("paused", "paused", "green")).paused_count, 2);
 });
 
+test("paused sits after amber and before green for a Person on leave (0484)", () => {
+  assert.equal(personRollupRag(rollupCounts(rows("green", "paused"))), "paused");
+  assert.equal(personRollupRag(rollupCounts(rows("paused", "none"))), "paused");
+  assert.equal(personRollupRag(rollupCounts(rows("amber", "paused"))), "amber");
+  assert.equal(personRollupRag(rollupCounts(rows("red", "paused"))), "red");
+});
+
 test("groupByRecord keeps every row under its Record", () => {
   const g = groupByRecord([{ id: "a", rag: "red" }, { id: "b", rag: "green" }, { id: "a", rag: "amber" }], (r) => r.id);
   assert.equal(g.get("a")?.length, 2);

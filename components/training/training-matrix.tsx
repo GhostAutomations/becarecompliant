@@ -103,7 +103,9 @@ function ragClass(rag: Rag): string {
       ? "rag-cell-amber"
       : rag === "red"
         ? "rag-cell-red"
-        : "rag-cell-none";
+        : rag === "paused"
+          ? "rag-cell-paused"
+          : "rag-cell-none";
 }
 
 export default function TrainingMatrix({
@@ -273,7 +275,8 @@ export default function TrainingMatrix({
     for (const p of inBranch) {
       for (const c of courses) {
         const cell = p.cells[c.id];
-        if (!cell) continue;
+        // On leave (0484): grey, counted nowhere.
+        if (!cell || cell.paused) continue;
         if (cell.rag === "green") green += 1;
         else if (cell.rag === "amber") amber += 1;
         else if (cell.rag === "red") red += 1;

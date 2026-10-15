@@ -553,6 +553,9 @@ export async function getReportingData(companyId: string): Promise<ReportingData
         .select("person_id, branch_id, definition_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
+        // On Parental Leave or Long Term Sick (0484): paused checks are not reported or chased.
+        // Their DBS and Right to Work are tracker dates, chased above, and never paused.
+        .neq("rag", "paused")
         .lte("due_date", horizon),
       supabase
         .from("service_user_check_status")

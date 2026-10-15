@@ -9,6 +9,10 @@
  * score out of ten for attitude, attendance, lateness, professionalism, privacy and team work.
  * The server checks the same things with the same function (lib/people/leaving.ts), so what the
  * screen accepts is what the save accepts.
+ *
+ * Coming back to Active from Parental Leave or Long Term Sick asks the date they came back (0484,
+ * as a service user back from hospital): their paused checks and training fall due 7 days after
+ * it. A move straight between the two asks nothing: the pause carries on.
  */
 
 import { useState } from "react";
@@ -16,16 +20,20 @@ import ActionForm from "@/components/action-form";
 import { setEmploymentStatus } from "@/lib/people/actions";
 import { WORKING_STATUS_LABELS, type EmploymentStatus } from "@/lib/people/types";
 import { COMPETITOR_ANSWERS, LEAVING_REASONS, LEAVING_SCORES } from "@/lib/people/leaving";
+import { isOnLeave, leaveReturnQuestion } from "@/lib/people/leave-pause";
 
 export default function WorkingStatusForm({
   personId,
   current,
   todayIso,
   dismissedOn,
+  leaveSince = null,
 }: {
   personId: string;
   current: EmploymentStatus;
   todayIso: string;
+  /** The day their current leave began (0484), the earliest return date allowed. */
+  leaveSince?: string | null;
   /** Opened from a dismissal (Phil, 2026-10-08): Leaver chosen, the leaving date the last day of
    *  employment and the reason Dismissed, ready to finish and save. Nothing is saved until then. */
   dismissedOn?: string | null;
@@ -35,6 +43,7 @@ export default function WorkingStatusForm({
   const [reason, setReason] = useState(fromDismissal ? "dismissed" : "");
   const [competitor, setCompetitor] = useState("");
   const asking = status === "leaver" && current !== "leaver";
+  const comingBack = isOnLeave(current) && status === "active";
 
   return (
     <ActionForm
@@ -63,6 +72,23 @@ export default function WorkingStatusForm({
           ))}
         </select>
       </div>
+
+      {comingBack ? (
+        <div>
+          <label htmlFor="leave_returned_on" className="form-label">{leaveReturnQuestion(current)}</label>
+          <input
+            id="leave_returned_on"
+            name="leave_returned_on"
+            type="date"
+            required
+            max={todayIso}
+            min={leaveSince ?? undefined}
+            defaultValue={todayIso}
+            className="max-w-xs"
+          />
+          <p className="form-hint">Their paused checks and training fall due 7 days after this date.</p>
+        </div>
+      ) : null}
 
       {asking ? (
         <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">

@@ -10,14 +10,14 @@ const VIEW_PATHS: Record<string, string> = {
   main: "/people",
   summary: "/people/summary",
   leavers: "/people?view=leavers",
-  lts_mat: "/people?view=lts_mat",
   archive: "/people?view=archive",
 };
 
 /**
  * The People area nav: a Branches dropdown and a View dropdown (Main, Compliance
- * Summary, Leavers, LTS & Mat Leave, Archive). Both navigate on change and preserve
- * the selected branch.
+ * Summary, Leavers, Archive). Both navigate on change and preserve the selected branch.
+ * Staff on Parental Leave or Long Term Sick are on the Matrix, dimmed (0484), so they have no
+ * view of their own any more.
  */
 export default function ViewNav({
   current,
@@ -86,7 +86,6 @@ export default function ViewNav({
           <option value="main">Matrix</option>
           <option value="summary">Compliance</option>
           <option value="leavers">Leavers</option>
-          <option value="lts_mat">LTS & Mat Leave</option>
           <option value="archive">Archive</option>
         </select>
         <span

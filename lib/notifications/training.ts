@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { trainingStatus, daysUntilRenewal } from "@/lib/training/renewal";
 import { REPORTING_HORIZON_DAYS, type ReportingCheck } from "@/lib/notifications/data";
+import { trainingLeave } from "@/lib/people/leave-pause";
 
 /**
  * Training expiry for the daily People report.
@@ -42,7 +43,12 @@ type Row = {
   completed_on: string | null;
   expiry_on: string | null;
   status: string;
-  people: { full_name: string; employment_status: string | null; archived_at: string | null } | null;
+  people: {
+    full_name: string;
+    employment_status: string | null;
+    archived_at: string | null;
+    leave_returned_on: string | null;
+  } | null;
   training_courses: { name: string; amber_days: number; renewal_months: number | null; active: boolean } | null;
 };
 
@@ -70,7 +76,7 @@ export async function getTrainingAttention(companyId: string): Promise<Reporting
     const { data, error } = await supabase
       .from("person_training")
       .select(
-        "person_id, branch_id, completed_on, expiry_on, status, people(full_name, employment_status, archived_at), training_courses(name, amber_days, renewal_months, active)",
+        "person_id, branch_id, completed_on, expiry_on, status, people(full_name, employment_status, archived_at, leave_returned_on), training_courses(name, amber_days, renewal_months, active)",
       )
       .eq("company_id", companyId)
       .eq("status", "completed")
@@ -96,18 +102,30 @@ export async function getTrainingAttention(companyId: string): Promise<Reporting
       // Leavers and archived people are nobody's problem any more.
       if (person.employment_status === "leaver" || person.archived_at) continue;
       if (!r.expiry_on) continue;
+      /* PARENTAL LEAVE AND LONG TERM SICK (0484): paused, so not chased; after coming back a
+         renewal is due no sooner than return + 7. The same rule as the matrix (cellFor). */
+      const away = trainingLeave({
+        employmentStatus: person.employment_status,
+        leaveReturnedOn: person.leave_returned_on,
+        done: true,
+        oneOff: course.renewal_months == null,
+        expiryOn: r.expiry_on,
+        todayIso: today,
+      });
+      if (away.paused) continue;
+      const expiryOn = away.expiryOn ?? r.expiry_on;
 
       const state = trainingStatus({
         // The query already filters to status 'completed' and a non null expiry.
         recorded: true,
-        expiryOn: r.expiry_on,
+        expiryOn,
         amberDays: course.amber_days,
         oneOff: course.renewal_months == null,
         todayIso: today,
       });
       if (state !== "expired" && state !== "due_soon") continue;
       // The email's own horizon wins for anything not yet due. Expired always goes.
-      const days = daysUntilRenewal(r.expiry_on, today);
+      const days = daysUntilRenewal(expiryOn, today);
       if (state === "due_soon" && days !== null && days > REPORTING_HORIZON_DAYS) continue;
 
       out.push({
@@ -118,7 +136,7 @@ export async function getTrainingAttention(companyId: string): Promise<Reporting
         branchName: r.branch_id ? branchNames.get(r.branch_id) ?? "Unassigned" : "Unassigned",
         // Named so a manager reading the report can tell a course from a compliance check.
         checkName: `Training: ${course.name}`,
-        dueDate: r.expiry_on,
+        dueDate: expiryOn,
       });
     }
     if (rows.length < PAGE) break;

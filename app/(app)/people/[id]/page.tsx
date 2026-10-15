@@ -56,6 +56,7 @@ import {
   transferPerson,
 } from "@/lib/people/actions";
 import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots, TRACKER_FORMS } from "@/lib/people/logic";
+import { isOnLeave, leavePausedLabel, leaveSlot } from "@/lib/people/leave-pause";
 import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
 import DbsCardButtons from "@/components/people/dbs-complete-menu";
@@ -90,12 +91,16 @@ export const metadata: Metadata = { title: "Record" };
    drift is how a tile ends up showing HR sensitive detail to somebody the section itself
    would turn away. */
 const COMPLAINT_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
-const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
+/* Paused (on Parental Leave or Long Term Sick, 0484) sits between amber and green, as on the
+   Service User record: a record whose outstanding checks are all paused reads Paused, never
+   Compliant. A lapsed DBS or Right to Work is never paused, so it still turns the pill red. */
+const RAG_RANK: Record<string, number> = { red: 0, amber: 1, paused: 1.5, green: 2, none: 3 };
 
-function ragPill(rag: string, size = "") {
+function ragPill(rag: string, size = "", since: string | null = null, status: string | null = null) {
   if (rag === "red") return <span className={`pill-red ${size}`}><span className="pill-dot" /> Overdue</span>;
   if (rag === "amber") return <span className={`pill-amber ${size}`}><span className="pill-dot" /> Due soon</span>;
   if (rag === "green") return <span className={`pill-green ${size}`}><span className="pill-dot" /> Compliant</span>;
+  if (rag === "paused") return <span className={`pill-neutral ${size}`}>{leavePausedLabel(since, status)}</span>;
   return <span className={`pill-neutral ${size}`}>Not scheduled</span>;
 }
 
@@ -110,7 +115,15 @@ const PILL_SIZE = "px-4 py-2 text-base";
 
 function slotPill(rag: string) {
   const cls =
-    rag === "red" ? "rag-cell-red" : rag === "amber" ? "rag-cell-amber" : rag === "green" ? "rag-cell-green" : "rag-cell-none";
+    rag === "red"
+      ? "rag-cell-red"
+      : rag === "amber"
+        ? "rag-cell-amber"
+        : rag === "green"
+          ? "rag-cell-green"
+          : rag === "paused"
+            ? "rag-cell-paused"
+            : "rag-cell-none";
   return cls;
 }
 
@@ -365,6 +378,13 @@ export default async function PersonPage({
      Both now derive it the same way, from the same function and the same inputs, so they
      cannot disagree. Untouched in four-supervisions mode, where there is no appraisal. */
   const aaSlot = appraisalSlot(appraisalCompDates, supCompDates, supInterval, supAmber, undefined, slots[2]?.comp ?? null);
+  /* PARENTAL LEAVE AND LONG TERM SICK (0484): the boxes worked out here are paused while on
+     leave, and after coming back an outstanding one is due no sooner than return + 7, the same
+     rule the Matrix draws (lib/people/leave-pause.ts). */
+  const onLeave = isOnLeave(person.employment_status);
+  const leave = { employmentStatus: person.employment_status, leaveReturnedOn: person.leave_returned_on };
+  const slotShown = (due: string | null, rag: string) => leaveSlot(due, rag, leave, (d) => dateRag(d, supAmber));
+  const aaShown = slotShown(aaSlot.nextDue, aaSlot.nextDueRag);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === cycleCheckKey(office.ticked)) ?? null;
@@ -665,7 +685,7 @@ export default async function PersonPage({
             <h3 className="text-[15px] font-semibold text-white">{def.name}</h3>
             <p className="text-[12px] text-white/45">{recurrenceLabel(def)}</p>
           </div>
-          {st ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
+          {st ? ragPill(rag, "", null, person.employment_status) : <span className="pill-neutral">Not applied</span>}
         </div>
         <dl className="mt-3 space-y-1 text-[13px] text-white/60">
           {/* A finished one-off has no next due, so the row goes rather than printing a dash
@@ -689,9 +709,10 @@ export default async function PersonPage({
   const appraisalBox = appraisalTileDef ? (
     <CycleBox
       title="Annual Appraisal"
-      due={aaSlot.nextDue}
+      due={aaSlot.nextDueMet ? aaSlot.nextDue : aaShown.due}
       comp={aaSlot.doneShown}
-      ragClass={slotPill(aaSlot.nextDueRag)}
+      ragClass={slotPill(aaSlot.nextDueMet ? aaSlot.nextDueRag : aaShown.rag)}
+      paused={onLeave && !aaSlot.nextDueMet}
       href={
         /* Offered while the next appraisal is due and not yet done. This was "no appraisal on file",
            which hid the button from anybody appraised before, however overdue the next one was. */
@@ -713,7 +734,7 @@ export default async function PersonPage({
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className={`page-title ${NAME_SIZE}`}>{person.full_name}</h1>
-            {ragPill(worstRag, PILL_SIZE)}
+            {ragPill(worstRag, PILL_SIZE, person.leave_since ?? null, person.employment_status)}
             {person.employment_status !== "active" ? (
               <span className="pill-neutral">{WORKING_STATUS_LABELS[person.employment_status]}</span>
             ) : null}
@@ -859,9 +880,10 @@ export default async function PersonPage({
                      to mean anything, and the card is now headed "Supervision and Annual
                      Appraisal", so the number on its own read as a count of nothing. */
                   title={`${cycle} ${s.n}`}
-                  due={s.due}
+                  due={s.comp ? s.due : slotShown(s.due, s.rag).due}
                   comp={s.comp}
-                  ragClass={slotPill(s.rag)}
+                  ragClass={slotPill(s.comp ? s.rag : slotShown(s.due, s.rag).rag)}
+                  paused={onLeave && !s.comp}
                   href={
                     supStatus && cycleFormId && canComplete(supStatus.instance_id) && s.n === dueSupN
                       ? office.ticked
@@ -1274,6 +1296,7 @@ export default async function PersonPage({
                 current={person.employment_status}
                 todayIso={formatCivilDate(todayInLondon())}
                 dismissedOn={leaverDate}
+                leaveSince={person.leave_since ?? null}
               />
               {/* Archive is only offered once a person is a Leaver; Restore shows for
                   an archived record. Active/LTS/Mat Leave staff cannot be archived. */}

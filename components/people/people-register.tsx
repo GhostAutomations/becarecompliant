@@ -3,7 +3,7 @@
 /**
  * Client register shell. The server loads EVERY person once (all statuses, all the
  * viewer's branches); this component switches Branches and View (Main / Leavers /
- * LTS & Mat Leave / Archive) by filtering on the client, so those changes are
+ * Archive) by filtering on the client, so those changes are
  * instant with no server round trip. Compliance Summary is a separate page, so that
  * option navigates. The URL is kept in sync (history.replaceState) for refresh/back.
  */
@@ -22,6 +22,7 @@ import type { SortMode } from "@/lib/register/name-sort-pref";
 import { useBranchWord } from "@/components/branches/branch-word";
 import { useRememberBranch } from "@/components/register/use-remember-branch";
 import { mayOfferCheckComplete } from "@/lib/register/complete-offer";
+import { isOnLeave, leaveBadge, leavePausedLabel } from "@/lib/people/leave-pause";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; dbsAmber: number; cycleMode: "appraisal" | "four_supervisions"; present?: string[] };
 
@@ -33,25 +34,25 @@ const VIEW_META: Record<
   string,
   { title: string; subtitle: string; scope: string; match: (r: RegisterRow) => boolean }
 > = {
+  /* Staff on Parental Leave or Long Term Sick stay on the Matrix, dimmed with a PL or LTS badge
+     and their checks paused (Phil, 2026-10-15, 0484). The old "LTS & Mat Leave" view is gone; a
+     saved link to it opens the Matrix. */
   main: {
     title: "Compliance",
-    subtitle: "Every active person with their compliance checks, due dates and RAG status.",
+    subtitle:
+      "Every active person with their compliance checks, due dates and RAG status. Staff on Parental Leave or Long Term Sick are shown dimmed, with their checks paused.",
     scope: "active",
-    match: (r) => r.person.employment_status === "active" && !r.person.archived_at,
+    match: (r) =>
+      !r.person.archived_at &&
+      (r.person.employment_status === "active" ||
+        r.person.employment_status === "mat_leave" ||
+        r.person.employment_status === "lts"),
   },
   leavers: {
     title: "Leavers",
     subtitle: "People who have left. Kept for records and excluded from active compliance.",
     scope: "leaver",
     match: (r) => r.person.employment_status === "leaver" && !r.person.archived_at,
-  },
-  lts_mat: {
-    title: "LTS & Mat Leave",
-    subtitle: "People on long term sick or maternity leave, paused from active compliance.",
-    scope: "lts_mat",
-    match: (r) =>
-      !r.person.archived_at &&
-      (r.person.employment_status === "lts" || r.person.employment_status === "mat_leave"),
   },
   archive: {
     title: "Archive",
@@ -197,7 +198,6 @@ export default function PeopleRegister({
             <option value="main">Matrix</option>
             <option value="summary">Compliance</option>
             <option value="leavers">Leavers</option>
-            <option value="lts_mat">LTS & Mat Leave</option>
             <option value="archive">Archive</option>
           </select>
         </label>
@@ -303,15 +303,22 @@ function PeopleCards({ rows, returnTo }: { rows: RegisterRow[]; returnTo: string
         const p = row.person;
         const { red, amber } = ragCounts(row);
         const meta = [p.job_title, p.branch_name, p.team].filter(Boolean);
+        // On Parental Leave or Long Term Sick (0484): dimmed, with the PL or LTS badge.
+        const badge = leaveBadge(p.employment_status);
         return (
           <Link
             key={p.id}
             href={`/people/${p.id}${fromQuery}`}
-            className="record-card glass-card-hover"
+            className={`record-card glass-card-hover${isOnLeave(p.employment_status) ? " opacity-60" : ""}`}
           >
             <div className="flex items-start justify-between gap-3">
               <span className="min-w-0 truncate text-base font-semibold text-white">
                 {p.full_name}
+                {badge ? (
+                  <span className="leave-badge" title={leavePausedLabel(p.leave_since, p.employment_status)}>
+                    {badge}
+                  </span>
+                ) : null}
               </span>
               <span className={toneClass(workingTone(p.employment_status))}>
                 {WORKING_STATUS_LABELS[p.employment_status as keyof typeof WORKING_STATUS_LABELS] ??

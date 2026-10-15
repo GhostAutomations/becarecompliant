@@ -4604,6 +4604,17 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — Staff on Parental Leave or Long Term Sick: checks paused (Phase 13, Thistle)
+
+Staff on Parental Leave (the new label for mat_leave, badge PL) or Long Term Sick (badge LTS) have
+their checks and training paused, as service users in hospital: grey "Paused", out of overdue and
+due counts, every rollup, the Dashboard, Readiness, the daily report and reminders; Right to Work
+and DBS never paused. They stay on the main Matrix, dimmed; the "LTS & Mat Leave" view is gone.
+Coming back asks the date; paused work falls due 7 days after it. 0484 (person_check_paused, the
+views, rollups, register function, Readiness, senior register, date and resume triggers); the four
+already on leave have leave_since 15 October 2026. Decision: docs/decisions/leave-pause.md. Tests:
+TEST-CHECKLIST-LEAVE-PAUSE.md. IN PROGRESS.
+
 ### 2026-10-15 — The Dashboard from each person's saved copy, updated by push (Phase 13, Thistle)
 
 Phil: Admin pages did not feel faster; the time was many trips one after another, not slow reads.

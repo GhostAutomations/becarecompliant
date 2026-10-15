@@ -142,15 +142,17 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     if (raw.record_type === "person") {
       const p = relOne((raw as { people: { full_name: string; employment_status: string; archived_at: string | null }[] | { full_name: string; employment_status: string; archived_at: string | null } | null }).people);
       if (!p || p.employment_status !== "active" || p.archived_at) continue;
+      // Back from Parental Leave or Long Term Sick (0484): the resumed date counts, as for service users.
+      const personDue = effectiveDue(dueDate, (raw as { resume_due_date?: string | null }).resume_due_date ?? null) ?? dueDate;
       toBook.push({
         instanceId: raw.id as string,
         subjectId: raw.person_id as string,
         population: "people",
         recordName: p.full_name,
         checkName: def.name,
-        dueDate,
+        dueDate: personDue,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: boardWeekIndex(todayIso, dueDate),
+        block: boardWeekIndex(todayIso, personDue),
       });
     } else if (raw.record_type === "service_user") {
       const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);

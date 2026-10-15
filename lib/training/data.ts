@@ -15,6 +15,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { trainingStatus, type TrainingStatus } from "@/lib/training/renewal";
 import { bookingState, bookingCaption, type BookingState } from "@/lib/training/booking";
+import { trainingLeave } from "@/lib/people/leave-pause";
 
 export type TrainingCourse = {
   id: string;
@@ -31,7 +32,9 @@ export type TrainingCourse = {
   phase: number | null;
 };
 
-export type Rag = "green" | "amber" | "red" | "none";
+/** "paused" while the person is on Parental Leave or Long Term Sick (0484): grey, and counted
+ *  nowhere, as a paused check. */
+export type Rag = "green" | "amber" | "red" | "none" | "paused";
 
 export type TrainingCell = {
   rag: Rag;
@@ -60,6 +63,11 @@ export type TrainingCell = {
   expiryOn?: string | null; // ISO, for the edit panel
   recordId?: string | null; // person_training id, when a record exists
   hasCertificate?: boolean;
+  /** On Parental Leave or Long Term Sick (0484): grey, left out of every count and reminder. */
+  paused?: boolean;
+  /** The renewal date that counts, when it is not expiryOn: after coming back from leave, a
+   *  renewal before return + 7 counts as return + 7 (0484). */
+  dueOn?: string | null;
 };
 
 export type TrainingPerson = {
@@ -78,6 +86,8 @@ export type TrainingPerson = {
   scw_renewal_date: string | null;
   scw_registered_on: string | null;
   start_date: string | null;
+  /** 'active', 'mat_leave' or 'lts' (leavers are not in the matrix). */
+  employment_status?: string | null;
   cells: Record<string, TrainingCell>; // keyed by course id
 };
 
@@ -131,6 +141,8 @@ type PersonRow = {
   scw_renewal_date: string | null;
   scw_registered_on: string | null;
   start_date: string | null;
+  employment_status: string | null;
+  leave_returned_on: string | null;
   branches: { name: string } | null;
   /** A carer has at most one tracker row; PostgREST types the embed as an array. */
   person_trackers: { probation_status: string | null } | { probation_status: string | null }[] | null;
@@ -197,6 +209,9 @@ export function cellFor(
   course: TrainingCourse,
   rec: RecordRow | undefined,
   todayIso: string,
+  /** Their working status and the day they last came back from leave (0484): paused while on
+   *  Parental Leave or Long Term Sick, and due no sooner than 7 days after coming back. */
+  leave?: { employmentStatus: string | null | undefined; leaveReturnedOn: string | null | undefined },
 ): TrainingCell {
   /*
    * Worked out here and carried on every cell below, but fed into NOTHING that follows. The
@@ -214,6 +229,22 @@ export function cellFor(
   };
   const done = rec && rec.status === "completed";
   const oneOff = course.renewal_months == null;
+  const away = trainingLeave({
+    employmentStatus: leave?.employmentStatus ?? "active",
+    leaveReturnedOn: leave?.leaveReturnedOn ?? null,
+    done: Boolean(done),
+    oneOff,
+    expiryOn: done ? rec!.expiry_on : null,
+    todayIso,
+  });
+  if (away.paused) {
+    const label = done && rec!.expiry_on ? fmtDMY(rec!.expiry_on) : done ? "Done" : "Not done";
+    return { rag: "paused", label, sub: "Paused", status: "valid", paused: true, ...meta };
+  }
+  if (away.graceUntil) {
+    // Back from leave, never done: due on return + 7, amber until then (0484).
+    return { rag: "amber", label: "Not done", sub: `Due ${fmtDMY(away.graceUntil)}`, status: "due_soon", ...meta };
+  }
 
   /*
    * ONE RULE, in lib/training/renewal.ts, shared with the daily digest.
@@ -226,7 +257,7 @@ export function cellFor(
     // The RECORD is what makes it done, not the dates on it. A one off course imported from a
     // spreadsheet is marked completed with no dates whatsoever.
     recorded: Boolean(done),
-    expiryOn: done ? rec!.expiry_on : null,
+    expiryOn: done ? away.expiryOn : null,
     amberDays: course.amber_days,
     oneOff,
     todayIso,
@@ -239,10 +270,11 @@ export function cellFor(
   if (!rec!.expiry_on)
     return { rag: "amber", label: "Done", sub: "No renewal date", status, needsRenewalDate: true, ...meta };
 
-  const disp = fmtDMY(rec!.expiry_on);
-  if (status === "expired") return { rag: "red", label: disp, sub: "Expired", status, ...meta };
-  if (status === "due_soon") return { rag: "amber", label: disp, sub: "Due soon", status, ...meta };
-  return { rag: "green", label: disp, status, ...meta };
+  const disp = fmtDMY(away.expiryOn ?? rec!.expiry_on);
+  const dueOn = away.expiryOn && away.expiryOn !== rec!.expiry_on ? { dueOn: away.expiryOn } : {};
+  if (status === "expired") return { rag: "red", label: disp, sub: "Expired", status, ...meta, ...dueOn };
+  if (status === "due_soon") return { rag: "amber", label: disp, sub: "Due soon", status, ...meta, ...dueOn };
+  return { rag: "green", label: disp, status, ...meta, ...dueOn };
 }
 
 /** All courses for the company (active and inactive), for the config screen. */
@@ -316,7 +348,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     .from("people")
     /* person_trackers carries the probation status, which groups the matrix: a new starter
        is red on nearly every course and that is not the same fact as a lapse. */
-    .select("id, full_name, job_title, branch_id, scw_registration_number, scw_renewal_date, scw_registered_on, start_date, branches(name), person_trackers(probation_status)")
+    .select("id, full_name, job_title, branch_id, scw_registration_number, scw_renewal_date, scw_registered_on, start_date, employment_status, leave_returned_on, branches(name), person_trackers(probation_status)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
@@ -370,8 +402,13 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
          a care assistant against supervisor training and drag mandatory compliance and the
          PQS measure down for training she is not meant to hold. */
       if (!courseAppliesToTitle(c.job_titles, p.job_title)) continue;
-      const cell = cellFor(c, recs?.get(c.id), todayIso);
+      const cell = cellFor(c, recs?.get(c.id), todayIso, {
+        employmentStatus: p.employment_status,
+        leaveReturnedOn: p.leave_returned_on,
+      });
       cells[c.id] = cell;
+      // On leave (0484): shown grey, counted nowhere, as a paused check.
+      if (cell.paused) continue;
       if (cell.rag === "green") green += 1;
       else if (cell.rag === "amber") amber += 1;
       else if (cell.rag === "red") red += 1;
@@ -397,6 +434,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
       scw_renewal_date: p.scw_renewal_date ?? null,
       scw_registered_on: p.scw_registered_on ?? null,
       start_date: p.start_date ?? null,
+      employment_status: p.employment_status ?? null,
       cells,
     };
   });

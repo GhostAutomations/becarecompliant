@@ -54,7 +54,8 @@ export async function buildTrainingReport(input: {
     let total = 0;
     for (const p of matrix.people) {
       const cell = p.cells[c.id];
-      if (!cell) continue;
+      // On leave (0484): counted nowhere.
+      if (!cell || cell.paused) continue;
       total += 1;
       if (cell.rag === "green" || cell.rag === "amber") ok += 1;
     }
