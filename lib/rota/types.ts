@@ -12,6 +12,19 @@ export type RotaAssignment = {
   warnings: RotaWarning[];
 };
 
+/** One clock in or out as the office sees it (Stage 3). */
+export type ClockRecord = {
+  id: string;
+  personId: string;
+  kind: "in" | "out";
+  at: string; // ISO, the corrected time it happened
+  method: string;
+  location: string;
+  words: string; // "At the home", "640 m away: Poor signal", "Added by the office"...
+  flags: string[];
+  addedReason: string | null;
+};
+
 export type RotaShift = {
   id: string;
   branchId: string;
@@ -27,6 +40,8 @@ export type RotaShift = {
   status: "draft" | "published" | "cancelled";
   templateId: string | null;
   assignments: RotaAssignment[];
+  /** Clock ins and outs on this shift (Stage 3). */
+  clocks?: ClockRecord[];
 };
 
 export type RotaTemplate = {
@@ -101,6 +116,8 @@ export type RotaVisit = {
   paused: boolean;
   scheduleChanged: boolean;
   assignments: RotaAssignment[];
+  /** Clock ins and outs on this visit (Stage 3). */
+  clocks?: ClockRecord[];
 };
 
 export type VisitCandidate = RotaCandidate & {

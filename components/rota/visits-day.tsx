@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
+import ClockLines from "@/components/rota/clock-lines";
 import { CentreDialog } from "@/components/panel-dialog";
 import {
   cancelVisitAction,
@@ -171,6 +172,16 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
                   {w.text}
                 </p>
               ))}
+              <ClockLines
+                targetKind="visit"
+                targetId={visit.id}
+                personId={a.personId}
+                personName={a.name}
+                clocks={visit.clocks ?? []}
+                published={visit.status === "published"}
+                startsAt={visit.startsAt}
+                endsAt={visit.endsAt}
+              />
             </li>
           ))}
         </ul>

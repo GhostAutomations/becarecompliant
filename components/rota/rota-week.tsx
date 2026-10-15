@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
+import ClockLines from "@/components/rota/clock-lines";
 import { CentreDialog } from "@/components/panel-dialog";
 import {
   addFromTemplateAction,
@@ -188,6 +189,16 @@ function ShiftCard({
                 ))}
               </ul>
             ) : null}
+            <ClockLines
+              targetKind="shift"
+              targetId={shift.id}
+              personId={a.personId}
+              personName={a.name}
+              clocks={shift.clocks ?? []}
+              published={shift.status === "published"}
+              startsAt={shift.startsAt}
+              endsAt={shift.endsAt}
+            />
           </li>
         ))}
         {Array.from({ length: Math.max(0, open) }).map((_, i) => (

@@ -3,7 +3,8 @@ import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
  * Nightly: make the next four weeks of visits from each Care Schedule, for every company with
- * Rota and Visits switched on (Stage 2, Phil 2026-10-15). Idempotent: a visit already made is
+ * Rota and Visits switched on (Stage 2, Phil 2026-10-15), and clear clock in positions older than
+ * 12 months (Stage 3). Idempotent: a visit already made is
  * never made twice, and an allocated or published visit is flagged, never overwritten.
  *
  * Same auth as the other crons: fails CLOSED in production without CRON_SECRET (503), 401 on a
@@ -42,5 +43,15 @@ export async function GET(request: NextRequest) {
       results[c.company_id] = (data as unknown[] | null)?.[0] ?? null;
     }
   }
-  return NextResponse.json({ from: todayIso, to: toIso, companies: results }, { status: failed ? 500 : 200 });
+  // Raw clock in positions are kept 12 months, then cleared; the clock record stays (Stage 0
+  // decision 10, built in Stage 3).
+  const { data: purged, error: purgeError } = await service.rpc("rota_purge_positions");
+  if (purgeError) {
+    failed = true;
+    console.error("[cron rota-visits] purge positions", purgeError.message);
+  }
+  return NextResponse.json(
+    { from: todayIso, to: toIso, companies: results, positions_cleared: purgeError ? { error: purgeError.message } : purged },
+    { status: failed ? 500 : 200 },
+  );
 }

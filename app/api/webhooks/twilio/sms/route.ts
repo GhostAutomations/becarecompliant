@@ -13,6 +13,8 @@ import {
   type SmsKeyword,
 } from "@/lib/sms/inbound";
 import { recordOptOut, clearOptOut } from "@/lib/sms/opt-out";
+import { parseClockText } from "@/lib/rota/clock";
+import { clockByText } from "@/lib/rota/text-clock";
 
 /**
  * Twilio inbound SMS webhook. Where a reply to one of our escalation texts lands.
@@ -292,7 +294,13 @@ export async function POST(request: NextRequest) {
     console.error("[twilio-in] insert failed:", insertError.message);
   }
 
-  if (!keyword) return xml(twiml());
+  if (!keyword) {
+    // Clock in by text (Rota and Visits Stage 3): "IN <code>" or "OUT <code>". After the filing
+    // above, so it runs once per message; the database keys the clock record on the message id too.
+    const clock = parseClockText(body);
+    if (clock) await clockByText(from, clock, sid);
+    return xml(twiml());
+  }
 
   // STEP 2: carry out the instruction.
   const applied = await applyKeyword(keyword, from, matched);

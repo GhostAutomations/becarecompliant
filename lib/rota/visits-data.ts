@@ -6,6 +6,7 @@ import { postcodePoints } from "@/lib/rota/postcodes";
 import { mandatoryTrainingRed, shiftsAround } from "@/lib/rota/data";
 import { workingTimeWarnings } from "@/lib/rota/working-time";
 import { hhmm, type CallServiceUser, type RotaVisit, type RotaWarning, type VisitCandidate } from "@/lib/rota/types";
+import { getClockRecords } from "@/lib/rota/clock-data";
 
 /**
  * Be Care Compliant: what the visit screens read (Rota and Visits Stage 2, 2026-10-15). Under the
@@ -95,6 +96,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     list.push({ id: a.id, personId: a.person_id, name: a.people?.full_name ?? "Someone from another branch", via: a.via, warnings: Array.isArray(a.warnings) ? a.warnings : [] });
     byVisit.set(a.visit_id, list);
   }
+  const clocks = await getClockRecords("visit", rows.map((r) => r.id));
   return rows.map((r) => ({
     id: r.id,
     branchId: r.branch_id,
@@ -112,6 +114,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     paused: isAway(r.service_users?.service_status ?? null, r.service_users?.hospital_since ?? null, r.visit_date),
     scheduleChanged: r.schedule_changed,
     assignments: byVisit.get(r.id) ?? [],
+    clocks: clocks.get(r.id) ?? [],
   }));
 }
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import ActionForm from "@/components/rota/rota-action";
 import { requestOpenShiftAction, withdrawOpenRequestAction } from "@/lib/rota/actions";
@@ -41,6 +42,12 @@ export default async function MyRota({ personId }: { personId: string }) {
 
   return (
     <>
+      {shifts.length || visits.length ? (
+        // Clock in and out (Stage 3): its own page, so it can open with no signal.
+        <Link href="/clock" className="btn-primary flex w-full items-center justify-center px-4 py-3 text-base">
+          Clock in or out
+        </Link>
+      ) : null}
       <section className="space-y-3" aria-label="My shifts">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">My shifts</h2>
         {shifts.length === 0 ? (

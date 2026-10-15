@@ -138,3 +138,34 @@ information, never their screens, wording or templates.
 8. "Nearest" until Stage 8: **straight line miles** from postcode map points looked up once through
    postcodes.io (only postcodes sent; bulk lookup up to 100 per request) and stored per postcode.
    Carers' postcodes are read from their home address text.
+
+## Stage 3 decisions: clock in and out with location (popups, 2026-10-16)
+
+1. The offline recording design (`docs/project/rota-offline-design.md`) is **approved** as written:
+   every tap saved on the phone first with its own id, sent when there is signal, kept once by
+   the server, refusals kept on the phone and shown to the office.
+2. A home's map point starts from its postcode and can be set **both** ways: by dragging a pin on
+   a map in the office, and by pressing "Set from where I am standing" at the home.
+3. The map is **our own map file** (a UK basemap built from OpenStreetMap data by Protomaps,
+   stored in our own storage, OpenStreetMap credited on the map) shown with a free open source
+   map library. Phil approved the new library with this choice. No map supplier, no monthly fee.
+   Ruled out (checked 2026-10-16): OpenStreetMap's public tiles (policy: commercial access "may be
+   withdrawn at any point", no SLA, operations.osmfoundation.org/policies/tiles) and MapTiler
+   ($30 a month Flex, a new subprocessor, maptiler.com/cloud/pricing).
+4. A **shift** clock in is checked against its **branch office**: each branch has its own map
+   point and radius, set the same two ways as a home; outside it asks for a reason and flags.
+5. Carers without a smartphone clock in **by text**: each home has a short code on its printed
+   sheet; the carer texts `IN <code>` or `OUT <code>` from their own mobile to our Twilio number,
+   handled as a new branch of the existing inbound text route; a reply confirms it (one text).
+6. Outside the radius, the carer picks one of: **GPS is wrong, I am at the home** / **Met the
+   service user elsewhere (appointment or outing)** / **Poor signal** / **Other** (typed reason).
+   The visit is flagged; care is never blocked.
+7. Setting a point (map or "from where I am standing") is for **office roles only** (Supervisor,
+   Manager, Registered Manager, RI, Admin, Founder). Carers cannot move a point. Every change is
+   recorded.
+8. Accuracy worse than the place's radius, or no position: the clock in saves and is marked
+   **Location unclear**. A QR code (or NFC sticker) scan at the home counts as proof instead.
+9. A missed clock in or out can be **added by the office with a reason**: marked "Added by the
+   office", shows who, never replaces anything the carer recorded.
+10. Clock in opens **30 minutes before** the start. Late is always allowed (Stage 7 marks it late).
+    A carer clocks in only to their own published visits and shifts.

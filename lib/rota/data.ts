@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTrainingMatrix } from "@/lib/training/data";
 import { addDaysIso, mondayOfIso, workingTimeWarnings, type ShiftSpan } from "@/lib/rota/working-time";
 import { hhmm, type RotaCandidate, type RotaRequest, type RotaShift, type RotaTemplate, type RotaWarning } from "@/lib/rota/types";
+import { getClockRecords } from "@/lib/rota/clock-data";
 
 /**
  * Be Care Compliant: what the rota screens read (Rota and Visits Stage 1, 2026-10-15). Every read
@@ -66,6 +67,7 @@ export async function getRotaWeek(branchId: string, mondayIso: string): Promise<
     });
     byShift.set(a.shift_id, list);
   }
+  const clocks = await getClockRecords("shift", rows.map((r) => r.id));
   return rows.map((r) => ({
     id: r.id,
     branchId: r.branch_id,
@@ -81,6 +83,7 @@ export async function getRotaWeek(branchId: string, mondayIso: string): Promise<
     status: r.status,
     templateId: r.template_id,
     assignments: byShift.get(r.id) ?? [],
+    clocks: clocks.get(r.id) ?? [],
   }));
 }
 
