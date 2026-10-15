@@ -753,6 +753,33 @@ export async function getCompanyFormByKey(
   return { formId: form.id as string, versionId: version.id, schema: version.schema };
 }
 
+/**
+ * Several company Forms' current published versions in ONE read (Add a person loads the DBS and
+ * Right to Work forms beside its other reads, Phil 2026-10-15: no waterfalls). The same answer as
+ * getCompanyFormByKey for each key, keyed by form key; a key with no published version is absent.
+ */
+export async function getCompanyFormsByKeys(
+  companyId: string,
+  keys: string[],
+): Promise<Record<string, { formId: string; versionId: string; schema: unknown }>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("form_versions")
+    .select("id, version, schema, form:forms!inner(id, key, company_id)")
+    .eq("status", "published")
+    .eq("form.company_id", companyId)
+    .in("form.key", keys)
+    .order("version", { ascending: false });
+  type Row = { id: string; version: number; schema: unknown; form: { id: string; key: string } | { id: string; key: string }[] };
+  const out: Record<string, { formId: string; versionId: string; schema: unknown }> = {};
+  for (const r of (data as Row[] | null) ?? []) {
+    const f = Array.isArray(r.form) ? r.form[0] : r.form;
+    if (!f || out[f.key]) continue;
+    out[f.key] = { formId: f.id, versionId: r.id, schema: r.schema };
+  }
+  return out;
+}
+
 /** The current published version (id + schema) of a company Form. */
 export async function getPublishedFormVersion(
   formId: string,

@@ -5,7 +5,13 @@ import Link from "next/link";
 import { canBeLineManager } from "@/lib/people/roles";
 
 import { startTransition, useActionState, useRef, useState } from "react";
-import { dbsWarnings } from "@/lib/people/dbs-check";
+import { dbsWarnings, followDbsRenewal } from "@/lib/people/dbs-check";
+import FormRenderer from "@/components/forms/form-renderer";
+import type { AnswerValue, Answers, FormSchema } from "@/lib/form-schema";
+import { validateAnswers, type FieldError } from "@/lib/form-validate";
+import { describeValidationErrors } from "@/lib/forms/validation-message";
+import { focusFirstError } from "@/components/forms/focus-first-error";
+import { NO_DBS_FIELD, NO_DBS_LABEL, hasAnyAnswer } from "@/lib/people/add-person-docs";
 import DbsWarning from "@/components/people/dbs-warning";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -26,6 +32,9 @@ export default function CreatePersonForm({
   historyBoxes,
   showScw = false,
   canOpenSettings = true,
+  dbsSchema = null,
+  rtwSchema = null,
+  supportMode = false,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
@@ -39,6 +48,12 @@ export default function CreatePersonForm({
   showScw?: boolean;
   /** Can this person open Settings? If not, the empty line manager box asks them to tell an Admin. */
   canOpenSettings?: boolean;
+  /** The company's own DBS and Right to Work forms, the ones behind Complete on the record's cards
+   *  (Phil, 2026-10-15). Filled in here, saved through the same code as on the record. */
+  dbsSchema?: FormSchema | null;
+  rtwSchema?: FormSchema | null;
+  /** Founder in support mode: Evidence cannot be signed, so the sections are a note (DEF-006). */
+  supportMode?: boolean;
 }) {
   const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
@@ -47,10 +62,82 @@ export default function CreatePersonForm({
   const managers = users.filter((u) => canBeLineManager(u.role));
   const supervisors = users.filter((u) => u.role === "supervisor");
 
-  /* DBS dates typed into "They already work here" that look wrong ask once (DEF-059). */
+  /* DBS dates that look wrong ask once (DEF-059), now from the DBS section. */
   const formRef = useRef<HTMLFormElement | null>(null);
   const confirmedRef = useRef(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+
+  /* DBS AND RIGHT TO WORK (Phil, 2026-10-15). The company's own two forms, drawn by the same
+     renderer as on the record. DBS is one or the other: the details, or the "No DBS yet" tick,
+     which clears and hides the details. Right to Work is required (Phil's popup). One token per
+     form, so pressing Add person twice can only ever make one person (0485). */
+  const showDocs = !supportMode && !!dbsSchema && !!rtwSchema;
+  const [token] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "",
+  );
+  const [noDbs, setNoDbs] = useState(false);
+  const [dbsAnswers, setDbsAnswers] = useState<Answers>({});
+  const [dbsFiles, setDbsFiles] = useState<Record<string, File | null>>({});
+  const [dbsVersion, setDbsVersion] = useState(0);
+  const [dbsErrors, setDbsErrors] = useState<FieldError[]>([]);
+  const [dbsProblem, setDbsProblem] = useState<string | null>(null);
+  const [rtwAnswersState, setRtwAnswers] = useState<Answers>({});
+  const [rtwFiles, setRtwFiles] = useState<Record<string, File | null>>({});
+  const [rtwErrors, setRtwErrors] = useState<FieldError[]>([]);
+  const [rtwProblem, setRtwProblem] = useState<string | null>(null);
+  // Enhanced DBS follows the date of issue, exactly as on the record's DBS form.
+  const deriveDbs = (prev: Answers, key: string, value: AnswerValue): Answers => {
+    const next: Answers = { ...prev, [key]: value };
+    if (key !== "dbs_date") return next;
+    const str = (v: AnswerValue | undefined) => (typeof v === "string" ? v : "");
+    next.enhanced_dbs_date = followDbsRenewal(str(prev.dbs_date), str(prev.enhanced_dbs_date), str(value));
+    return next;
+  };
+
+  /** Check the two sections as the server will. True when they are fine to send. */
+  function docsReady(): boolean {
+    if (!showDocs) return true;
+    let ok = true;
+    if (noDbs) {
+      setDbsErrors([]);
+      setDbsProblem(null);
+    } else if (!hasAnyAnswer(dbsAnswers)) {
+      setDbsErrors([]);
+      setDbsProblem(`Fill in the DBS details, or tick "${NO_DBS_LABEL}".`);
+      ok = false;
+    } else {
+      const r = validateAnswers(dbsSchema!, dbsAnswers);
+      setDbsErrors(r.ok ? [] : r.errors);
+      setDbsProblem(r.ok ? null : `DBS: ${describeValidationErrors(dbsSchema!, r.errors)}`);
+      if (!r.ok) {
+        focusFirstError(r.errors);
+        ok = false;
+      }
+    }
+    const rr = validateAnswers(rtwSchema!, rtwAnswersState);
+    setRtwErrors(rr.ok ? [] : rr.errors);
+    setRtwProblem(rr.ok ? null : `Right to Work: ${describeValidationErrors(rtwSchema!, rr.errors)}`);
+    if (!rr.ok) {
+      if (ok) focusFirstError(rr.errors);
+      ok = false;
+    }
+    return ok;
+  }
+
+  /** The two sections onto the form being sent. */
+  function withDocs(fd: FormData): FormData {
+    if (token) fd.set("create_token", token);
+    if (!showDocs) return fd;
+    if (noDbs) {
+      fd.set(NO_DBS_FIELD, "1");
+    } else {
+      fd.set("dbs_answers", JSON.stringify(dbsAnswers));
+      for (const [key, file] of Object.entries(dbsFiles)) if (file) fd.append(`dbs_file:${key}`, file);
+    }
+    fd.set("rtw_answers", JSON.stringify(rtwAnswersState));
+    for (const [key, file] of Object.entries(rtwFiles)) if (file) fd.append(`rtw_file:${key}`, file);
+    return fd;
+  }
 
   /* WHAT THEY TYPED SURVIVES A REFUSAL (the DEF-091 rule, found again here 2026-10-01). React 19
      resets a form after an action passed to action={} finishes, error or not, so a refused Add
@@ -58,16 +145,20 @@ export default function CreatePersonForm({
      form alone; a success redirects to the new record, so there is nothing to clear. */
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // A second press while the first is still saving sends nothing more.
+    if (pending) return;
     const fd = new FormData(e.currentTarget);
+    if (!docsReady()) return;
     if (confirmedRef.current) {
       confirmedRef.current = false;
-      startTransition(() => formAction(fd));
+      startTransition(() => formAction(withDocs(fd)));
       return;
     }
-    if (fd.get(historyFlag)) {
+    if (showDocs && !noDbs) {
+      const str = (v: unknown) => (typeof v === "string" ? v : "");
       const found = dbsWarnings({
-        certificateDate: String(fd.get("t_dbs_date") ?? ""),
-        renewalDate: String(fd.get("t_enhanced_dbs_date") ?? ""),
+        certificateDate: str(dbsAnswers.dbs_date),
+        renewalDate: str(dbsAnswers.enhanced_dbs_date),
         startDate: String(fd.get("start_date") ?? ""),
       });
       if (found.length > 0) {
@@ -75,7 +166,7 @@ export default function CreatePersonForm({
         return;
       }
     }
-    startTransition(() => formAction(fd));
+    startTransition(() => formAction(withDocs(fd)));
   }
 
   const [branchId, setBranchId] = useState("");
@@ -232,6 +323,88 @@ export default function CreatePersonForm({
           <p className="form-hint">Auto filled from the {bw.oneLower}. Tick or untick as needed.</p>
         </div>
       </div>
+
+      {/* DBS AND RIGHT TO WORK (Phil, 2026-10-15): the company's own forms, the same questions as
+          Complete on the record's cards, saved as Evidence the same way. */}
+      {supportMode ? (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/70">
+          DBS and Right to Work are completed from their record by someone at the company. In
+          support mode they cannot be saved here, because Evidence is always signed by the company.
+        </div>
+      ) : showDocs ? (
+        <>
+          <section className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white">DBS *</h3>
+              <p className="text-xs text-white/50">
+                Enter their DBS certificate, or tick the box if they do not have one yet.
+              </p>
+            </div>
+            <label className="flex items-start gap-2 text-sm text-white/85">
+              <input
+                type="checkbox"
+                checked={noDbs}
+                onChange={(e) => {
+                  setNoDbs(e.target.checked);
+                  setDbsProblem(null);
+                  setDbsErrors([]);
+                  if (e.target.checked) {
+                    // Not both: ticking it clears whatever was typed in the details.
+                    setDbsAnswers({});
+                    setDbsFiles({});
+                    setDbsVersion((v) => v + 1);
+                  }
+                }}
+                className="mt-1"
+              />
+              <span>
+                {NO_DBS_LABEL}
+                <span className="block text-xs text-white/50">
+                  Once they are added, you and their line manager are emailed a link to their DBS
+                  Pending Risk Assessment.
+                </span>
+              </span>
+            </label>
+            {noDbs ? null : (
+              <FormRenderer
+                key={`dbs-${dbsVersion}`}
+                schema={dbsSchema!}
+                idPrefix="add_dbs"
+                errors={dbsErrors}
+                derive={deriveDbs}
+                onChange={(next) => {
+                  setDbsAnswers(next);
+                  setDbsProblem(null);
+                  setWarnings([]);
+                }}
+                onFileSelect={(key, file) => setDbsFiles((prev) => ({ ...prev, [key]: file }))}
+              />
+            )}
+            {dbsProblem ? <p className="form-error">{dbsProblem}</p> : null}
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Right to Work *</h3>
+              <p className="text-xs text-white/50">
+                For a British or Irish citizen, or someone with settled status, choose that basis:
+                there is no expiry date to enter.
+              </p>
+            </div>
+            <FormRenderer
+              schema={rtwSchema!}
+              idPrefix="add_rtw"
+              errors={rtwErrors}
+              onChange={(next) => {
+                setRtwAnswers(next);
+                setRtwProblem(null);
+              }}
+              onFileSelect={(key, file) => setRtwFiles((prev) => ({ ...prev, [key]: file }))}
+            />
+            {rtwProblem ? <p className="form-error">{rtwProblem}</p> : null}
+          </section>
+        </>
+      ) : null}
 
       {/* Everything above is who they are. This is what they have already done, and it is the
           last thing on the form because most adds are new starters and never open it. */}

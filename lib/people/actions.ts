@@ -81,6 +81,24 @@ import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
+import { validateAnswers } from "@/lib/form-validate";
+import { describeValidationErrors } from "@/lib/forms/validation-message";
+import { profilesById } from "@/lib/auth/company-profiles";
+import { sendEmail } from "@/lib/email/resend";
+import { dbsRiskAssessmentEmailHtml, dbsRiskAssessmentSubject } from "@/lib/email/templates";
+import { claimNotification, settleNotification } from "@/lib/notifications/log";
+import { siteUrl } from "@/lib/site";
+import {
+  DBS_FORM_KEY,
+  NO_DBS_FIELD,
+  RTW_FORM_KEY,
+  createToken,
+  dbsChoice,
+  riskEmailRecipients,
+  rtwAnswers,
+  type DbsChoice,
+} from "@/lib/people/add-person-docs";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -154,9 +172,56 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   }
 
   const supabase = await createClient();
+
+  /* ONE FORM, ONE PERSON (0485, Phil 2026-10-15). The form carries a token made when it opened; a
+     second press of the same form (a double click, a resubmit) opens the person the first press
+     made instead of making another, so there is never a second Evidence row or a second email. */
+  const token = createToken(String(formData.get("create_token") ?? ""));
+  const alreadyMade = async (): Promise<string | null> => {
+    if (!token) return null;
+    const { data } = await supabase.from("people").select("id").eq("create_token", token).maybeSingle();
+    return (data?.id as string | undefined) ?? null;
+  };
+
+  /* DBS AND RIGHT TO WORK (Phil, 2026-10-15; docs/decisions/add-person-documents.md). The company's
+     own DBS and Right to Work forms, filled in on this page and checked here BEFORE the person is
+     made, so a refusal saves nothing. DBS is one or the other: the details, or "No DBS yet".
+     Evidence is never signed in support mode (DEF-006), so there the sections are a note on the
+     form and nothing is asked here (Phil's popup: "Note instead of sections"). */
+  // One batch: the token, support mode and both forms are looked up together, not one by one.
+  const [made, acting, dbsFound, rtwFound] = await Promise.all([
+    alreadyMade(),
+    profile.role === "platform_admin" ? readActingCompanyId() : Promise.resolve(null),
+    getCompanyFormByKey(companyId, DBS_FORM_KEY),
+    getCompanyFormByKey(companyId, RTW_FORM_KEY),
+  ]);
+  if (made) redirect(`/people/${made}`);
+  const supportMode = profile.role === "platform_admin" && Boolean(acting);
+  let dbs: DbsChoice | null = null;
+  let rtw: Answers | null = null;
+  const dbsForm = supportMode ? null : dbsFound;
+  const rtwForm = supportMode ? null : rtwFound;
+  // Asked only where the page asks it: both forms set up for the company, and not support mode.
+  if (dbsForm && rtwForm) {
+    dbs = dbsChoice({ none: formData.get(NO_DBS_FIELD) as string | null, answers: formData.get("dbs_answers") as string | null });
+    if (dbs.kind === "error") return { error: dbs.error };
+    const rtwPosted = rtwAnswers(formData.get("rtw_answers") as string | null);
+    if (!rtwPosted.ok) return { error: rtwPosted.error };
+    rtw = rtwPosted.answers as Answers;
+    for (const [what, form, answers] of [
+      ["DBS", dbsForm, dbs.kind === "details" ? dbs.answers : null],
+      ["Right to Work", rtwForm, rtw],
+    ] as const) {
+      if (!form || !answers || !isFormSchema(form.schema)) continue;
+      const checked = validateAnswers(form.schema as FormSchema, answers as Answers);
+      if (!checked.ok) return { error: `${what}: ${describeValidationErrors(form.schema as FormSchema, checked.errors)}` };
+    }
+  }
+
   const { data: person, error } = await supabase
     .from("people")
     .insert({
+      create_token: token,
       scw_registration_number: scw.value,
       scw_registered_on: scwDates.issue,
       scw_renewal_date: scwDates.renewal,
@@ -179,7 +244,14 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    // The same form pressed twice at once: the other press made the person, so open it.
+    if (error.code === "23505") {
+      const other = await alreadyMade();
+      if (other) redirect(`/people/${other}`);
+    }
+    return { error: error.message };
+  }
 
   // Their folder in the company's cloud drive, when one is connected (0437).
   await queueCloudCopy({ companyId, kind: "record_folder", sourceId: `person:${person.id}` });
@@ -210,6 +282,10 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     for (const [k, v] of formData.entries()) {
       if (typeof v === "string" && (k.startsWith("done_") || k.startsWith("t_"))) typed[k] = v;
     }
+    /* ONE PLACE EACH (Phil's popup, 2026-10-15): DBS and Right to Work are entered in their own
+       sections now and saved as Evidence, so these boxes are no longer on the panel and are never
+       read from it. */
+    for (const k of ["t_dbs_date", "t_enhanced_dbs_date", "t_rtw_expiry_date", "t_rtw_limits"]) delete typed[k];
   }
   const tracker: Record<string, string> = alreadyHere ? trackerPatch(typed) : {};
   // Enhanced DBS left blank is worked out from the date of issue (Phil, 2026-10-05).
@@ -279,6 +355,111 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     );
   }
 
+  /* DBS AND RIGHT TO WORK, FILED THROUGH THE SAME CODE AS THE RECORD'S CARDS (fileTrackerForm):
+     the same Evidence, the same dates on the record, the same audit line. The person exists by
+     now, so a form that will not file is said out loud below rather than undoing the add. */
+  const docFailed: string[] = [];
+  const docNotes: string[] = [];
+  if (!supportMode) {
+    const personRow = {
+      branch_id,
+      company_id: companyId,
+      full_name,
+      work_email: trimOrNull(formData.get("work_email")),
+      start_date,
+    };
+    const toFile: Array<{ key: string; form: NonNullable<typeof rtwForm>; answers: Answers; prefix: string }> = [];
+    if (dbs?.kind === "details" && dbsForm) toFile.push({ key: DBS_FORM_KEY, form: dbsForm, answers: dbs.answers as Answers, prefix: "dbs_file:" });
+    if (rtw && rtwForm) toFile.push({ key: RTW_FORM_KEY, form: rtwForm, answers: rtw, prefix: "rtw_file:" });
+    for (const doc of toFile) {
+      const files: EvidenceFileInput[] = [];
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith(doc.prefix) && value instanceof File && value.size > 0) {
+          files.push({
+            fieldKey: key.slice(doc.prefix.length),
+            kind: "upload",
+            fileName: value.name,
+            contentType: value.type || "application/octet-stream",
+            bytes: Buffer.from(await value.arrayBuffer()),
+          });
+        }
+      }
+      const spec = TRACKER_FORMS[doc.key];
+      const filed = await fileTrackerForm({
+        user,
+        profile,
+        supabase,
+        personId: person.id,
+        person: personRow,
+        formKey: doc.key,
+        spec,
+        form: doc.form,
+        answers: doc.answers,
+        files,
+      });
+      if (!filed.ok) docFailed.push(`${spec.title}: ${filed.error}`);
+      else if (filed.note) docNotes.push(filed.note);
+    }
+  }
+
+  /* NO DBS YET (Phil's popup, 2026-10-15): the person who added them and the line manager are
+     told a DBS Pending Risk Assessment is needed, with a button that opens it for this person.
+     AWAITED here, never left running after the response (the 0275 lesson). Once each, however
+     often this runs (the notification log's dedupe key). It goes for test companies too (Phil's
+     popup, the same exception as the completed emails), so sendEmail is called without the
+     company. Failure never undoes the add: the record says plainly that it did not go. */
+  let riskEmail: "sent" | "not_configured" | "no_recipient" | "failed" | null = null;
+  if (dbs?.kind === "none") {
+    const managerId = trimOrNull(formData.get("manager_id"));
+    const byId = await profilesById([managerId], companyId);
+    const manager = managerId ? byId.get(managerId) ?? null : null;
+    const recipients = riskEmailRecipients(
+      { profileId: user.id, email: profile.email ?? null, name: profile.full_name ?? null },
+      manager ? { profileId: manager.id, email: manager.email, name: manager.name } : null,
+    );
+    if (recipients.length === 0) {
+      riskEmail = "no_recipient";
+    } else {
+      const url = `${siteUrl()}/people/${person.id}/tracker/dbs_pending/complete`;
+      const subject = dbsRiskAssessmentSubject(full_name);
+      const outcomes: string[] = [];
+      for (const r of recipients) {
+        try {
+          const logId = await claimNotification({
+            companyId,
+            branchId: branch_id,
+            recipientProfileId: r.profileId,
+            channel: "email",
+            kind: "dbs_pending_risk_assessment",
+            dedupeKey: `dbs_pending_risk_assessment:${person.id}:${r.profileId}`,
+            toAddress: r.email!,
+            subject,
+            metadata: { person_id: person.id },
+          });
+          if (!logId) {
+            outcomes.push("sent");
+            continue;
+          }
+          const result = await sendEmail({
+            to: r.email!,
+            subject,
+            html: dbsRiskAssessmentEmailHtml({ recipientName: r.name, personName: full_name, url }),
+          });
+          await settleNotification(logId, result.sent ? "sent" : result.skippedReason ? "skipped" : "failed", result.error ?? result.skippedReason);
+          outcomes.push(result.sent ? "sent" : result.skippedReason?.includes("RESEND") ? "not_configured" : "failed");
+        } catch (e) {
+          console.error("[people] DBS risk assessment email:", (e as Error).message);
+          outcomes.push("failed");
+        }
+      }
+      riskEmail = outcomes.every((o) => o === "sent")
+        ? "sent"
+        : outcomes.includes("not_configured")
+          ? "not_configured"
+          : "failed";
+    }
+  }
+
   // Their Team Member login goes out automatically as soon as an email is on the
   // record (Phil, 2026-07-26). Best effort: a failed invite must never undo the
   // Person being added, so the outcome is audited rather than surfaced as an error.
@@ -318,6 +499,9 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       standing_policies: standingPolicies,
       already_here: alreadyHere,
       history_recorded: historySeeded,
+      dbs: supportMode ? "support_mode" : dbs?.kind ?? null,
+      dbs_risk_assessment_email: riskEmail,
+      documents_failed: docFailed,
       /* A date the database refused is reported, never swallowed. The record was created, so
          this cannot fail the add — but an add that quietly wrote none of the history would
          look exactly like one that wrote all of it. */
@@ -342,6 +526,18 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     };
   }
 
+  /* A DBS OR RIGHT TO WORK THAT DID NOT FILE IS SAID OUT LOUD, as the history above is. The
+     person exists; pressing Add person again only opens them (0485). */
+  if (docFailed.length > 0 || docNotes.length > 0) {
+    return {
+      error:
+        `${full_name} has been added` +
+        (docFailed.length > 0
+          ? `, but this could not be saved: ${docFailed.join("; ")}. Open ${full_name} from the People register and complete it from the card on their record.`
+          : `. ${docNotes.join(" ")}`),
+    };
+  }
+
   /*
    * A LOGIN THAT COULD NOT BE MADE IS SAID ON THE RECORD (2026-09-21).
    *
@@ -357,7 +553,11 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     inviteOutcome.skipped !== "demo_email" &&
     inviteOutcome.skipped !== "demo";
 
-  redirect(`/people/${person.id}${loginFailed ? "?login=failed" : ""}`);
+  const query = new URLSearchParams();
+  if (loginFailed) query.set("login", "failed");
+  if (riskEmail && riskEmail !== "sent") query.set("dbs_email", riskEmail);
+  const qs = query.toString();
+  redirect(`/people/${person.id}${qs ? `?${qs}` : ""}`);
 }
 
 
@@ -1686,57 +1886,30 @@ export async function updateTracker(
  * through the shared pipeline, then stamp the mapped dates (and any status) into
  * person_trackers so the register shows them. Managers/Admins only (RLS).
  */
-export async function completeTrackerForm(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
-  if (!profile.company_id) return { error: "No company context." };
-  const personId = String(formData.get("person_id") ?? "");
-  const formKey = String(formData.get("form_key") ?? "");
-  const spec = TRACKER_FORMS[formKey];
-  if (!personId || !spec) return { error: "Unknown form." };
-
-  let answers: Answers;
-  try {
-    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Answers;
-  } catch {
-    return { error: "Could not read the form answers." };
-  }
-
-  const supabase = await createClient();
-  const { data: person } = await supabase
-    .from("people")
-    .select("branch_id, company_id, full_name, work_email, start_date")
-    .eq("id", personId)
-    .maybeSingle();
-  if (!person) return { error: "That record could not be found." };
-
-  const form = await getCompanyFormByKey(profile.company_id, formKey);
-  if (!form) return { error: "This form is not available for your company." };
-
-  const files: EvidenceFileInput[] = [];
-  for (const [key, value] of formData.entries()) {
-    if (key.startsWith("file:") && value instanceof File && value.size > 0) {
-      files.push({
-        fieldKey: key.slice(5),
-        kind: "upload",
-        fileName: value.name,
-        contentType: value.type || "application/octet-stream",
-        bytes: Buffer.from(await value.arrayBuffer()),
-      });
-    }
-  }
-
-  /* NOT BEFORE THEY STARTED (snag S19): a probation that ended, or was extended to, a date before
-     the start date is refused before anything is stored. Read the answers the person could see. */
-  if (formKey === "probation_review") {
-    const seen = isFormSchema(form.schema) ? cleanAnswers(form.schema as FormSchema, answers) : answers;
-    const start = (person.start_date as string | null) ?? null;
-    for (const [key, what] of [["probation_end_actual", "probation end"], ["probation_extension_date", "probation extension"]] as const) {
-      const v = seen[key];
-      const problem = beforeStartProblem(what, typeof v === "string" ? v : null, start);
-      if (problem) return { error: problem };
-    }
-  }
-
+/**
+ * FILE A DOCUMENT FORM (DBS, Right to Work, Probation, the DBS risk assessments) for a person: the
+ * Evidence, the dates it stamps on their record, the planner and draft tidy up, and the audit line.
+ *
+ * ONE PATH (Phil, 2026-10-15): completing the form from the record's card and filling it in on Add
+ * a person both come through here, so a DBS entered on Add a person is saved exactly as one
+ * completed on the record, with the same Evidence and the same audit. Lifted out of
+ * completeTrackerForm unchanged.
+ */
+async function fileTrackerForm(input: {
+  user: { id: string };
+  profile: Awaited<ReturnType<typeof requireCompany>>["profile"];
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  personId: string;
+  person: { branch_id: unknown; company_id: unknown; full_name: unknown; work_email: unknown; start_date: unknown };
+  formKey: string;
+  spec: (typeof TRACKER_FORMS)[string];
+  form: { formId: string; versionId: string; schema: unknown };
+  answers: Answers;
+  files: EvidenceFileInput[];
+}): Promise<{ ok: true; evidenceId: string; note: string | null } | { ok: false; error: string }> {
+  const { user, profile, supabase, personId, person, formKey, spec, form, files } = input;
+  let answers = input.answers;
+  if (!profile.company_id) return { ok: false, error: "No company context." };
   /* THE REGULATOR COMES FROM THE COMPANY, NOT THE BROWSER (Phil, 2026-10-05). It decides which
      safeguards the DBS risk assessments ask for, so the Evidence must record the company's own
      regulator whatever was sent, and the form is refused while none is set. */
@@ -1744,7 +1917,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     const company = await getCompanyRow(profile.company_id);
     const regulator = company?.regulator === "cqc" || company?.regulator === "ciw" ? company.regulator : null;
     if (!regulator) {
-      return { error: "Your company does not have a regulator set (CQC or CIW). Please ask Be Care Compliant support to set it." };
+      return { ok: false, error: "Your company does not have a regulator set (CQC or CIW). Please ask Be Care Compliant support to set it." };
     }
     answers = { ...answers, regulator };
   }
@@ -1767,7 +1940,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     recordType: "person",
     recordId: personId,
   });
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { ok: false, error: result.error };
 
   /* Stamp the mapped tracker dates (+ status) from the answers. Only touch a column when
      the form actually captured that field: a form that omits a date (e.g. probation end
@@ -1881,11 +2054,68 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   // Filed: discard the part-finished copy.
   await dropDraft(trackerDraftKey(personId, formKey));
 
+  return { ok: true, evidenceId: result.evidenceId, note: [scheduleNote, emailNote].filter(Boolean).join(" ") || null };
+}
+
+export async function completeTrackerForm(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const personId = String(formData.get("person_id") ?? "");
+  const formKey = String(formData.get("form_key") ?? "");
+  const spec = TRACKER_FORMS[formKey];
+  if (!personId || !spec) return { error: "Unknown form." };
+
+  let answers: Answers;
+  try {
+    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Answers;
+  } catch {
+    return { error: "Could not read the form answers." };
+  }
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("branch_id, company_id, full_name, work_email, start_date")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person) return { error: "That record could not be found." };
+
+  const form = await getCompanyFormByKey(profile.company_id, formKey);
+  if (!form) return { error: "This form is not available for your company." };
+
+  const files: EvidenceFileInput[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("file:") && value instanceof File && value.size > 0) {
+      files.push({
+        fieldKey: key.slice(5),
+        kind: "upload",
+        fileName: value.name,
+        contentType: value.type || "application/octet-stream",
+        bytes: Buffer.from(await value.arrayBuffer()),
+      });
+    }
+  }
+
+  /* NOT BEFORE THEY STARTED (snag S19): a probation that ended, or was extended to, a date before
+     the start date is refused before anything is stored. Read the answers the person could see. */
+  if (formKey === "probation_review") {
+    const seen = isFormSchema(form.schema) ? cleanAnswers(form.schema as FormSchema, answers) : answers;
+    const start = (person.start_date as string | null) ?? null;
+    for (const [key, what] of [["probation_end_actual", "probation end"], ["probation_extension_date", "probation extension"]] as const) {
+      const v = seen[key];
+      const problem = beforeStartProblem(what, typeof v === "string" ? v : null, start);
+      if (problem) return { error: problem };
+    }
+  }
+
+  const filed = await fileTrackerForm({ user, profile, supabase, personId, person, formKey, spec, form, answers, files });
+  if (!filed.ok) return { error: filed.error };
+
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
   /* A copy that did not send is worth stopping for. The Evidence is saved either way, so
      this is a message on the form rather than an error that loses their work. */
-  if (scheduleNote || emailNote) return { error: [scheduleNote, emailNote].filter(Boolean).join(" ") };
+  if (filed.note) return { error: filed.note };
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
   // to a URL with a query string trips Next.js issue #78396 (React #310).
   return { ok: "completed", redirectTo: `/people/${personId}?completed=${encodeURIComponent(spec.title)}` };

@@ -4604,6 +4604,14 @@ cycle on the appraisal date (lib/people/appraisal-cycle.ts, 9 unit tests). 11 pe
 changes (on time or late), Supervisions 1 to 3 unchanged. Bevan "ZZ Appraisal Test". Checks A2 to A4
 pass (A4 by Phil). DONE, live 2026-10-14, commit 9010a364.
 
+### 2026-10-15 — DBS and Right to Work on Add a person (Phase 13)
+
+Add a person asks for DBS (the details, or "No DBS yet", which emails the adder and the line manager a
+button to the DBS Pending Risk Assessment) and Right to Work, using the company's own forms and saved
+through the same code, Evidence and audit as the record's cards. "They already work here" no longer
+asks for them. One form makes one person (0485). Decision: docs/decisions/add-person-documents.md.
+Tests: TEST-CHECKLIST-ADD-PERSON-DOCUMENTS.md. IN PROGRESS.
+
 ### 2026-10-15 — The Whiteboard matches My Planner (Phase 13, Thistle report)
 
 "Things are correct on the Planner but not pulling through to the Whiteboard, and some things

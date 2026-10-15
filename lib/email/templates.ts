@@ -596,6 +596,29 @@ export function checkCompletedEmailHtml(opts: {
   });
 }
 
+/**
+ * A person was added with "No DBS yet" ticked (Phil, 2026-10-15; docs/decisions/add-person-documents.md):
+ * a DBS Pending Risk Assessment must be completed for them. Criminal records data, so the email says
+ * only who it is for and gives the button; everything else stays in the app, behind a login.
+ */
+export function dbsRiskAssessmentSubject(personName: string): string {
+  return `DBS Pending Risk Assessment needed for ${personName}`;
+}
+
+export function dbsRiskAssessmentEmailHtml(opts: { recipientName: string | null; personName: string; url: string }): string {
+  const heading = "DBS Pending Risk Assessment needed";
+  const hello = opts.recipientName ? `Hello ${escapeHtml(opts.recipientName)}.` : "Hello.";
+  return noticeEmailHtml({
+    preheader: `${heading} for ${opts.personName}`,
+    heading,
+    bodyHtml: `<p style="margin:0 0 12px 0;">${hello}</p>
+    <p style="margin:0;">A DBS Pending Risk Assessment must be completed for <strong style="color:#ffffff;">${escapeHtml(opts.personName)}</strong>.</p>`,
+    ctaLabel: "Open the risk assessment",
+    ctaUrl: opts.url,
+    footerNote: "You receive this email because you added this person, or you are their line manager, on Be Care Compliant.",
+  });
+}
+
 /** Subject of the email sent when somebody is @mentioned in an Update. */
 export function mentionEmailSubject(authorName: string): string {
   return `${authorName} mentioned you in an update`;

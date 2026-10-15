@@ -57,6 +57,7 @@ import {
 } from "@/lib/people/actions";
 import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots, TRACKER_FORMS } from "@/lib/people/logic";
 import { isOnLeave, leavePausedLabel, leaveSlot } from "@/lib/people/leave-pause";
+import { riskEmailNotice } from "@/lib/people/add-person-docs";
 import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
 import DbsCardButtons from "@/components/people/dbs-complete-menu";
@@ -149,6 +150,8 @@ export default async function PersonPage({
     from?: string;
     /** "failed" when their Team Member login could not be created as they were added. */
     login?: string;
+    /** Why the DBS Pending Risk Assessment email did not go as they were added (0485 job). */
+    dbs_email?: string;
     /** yyyy-mm-dd: opened from a dismissal to make them a leaver on that date (Phil, 2026-10-08). */
     leaver?: string;
     /** Why a Complete page sent them back (lib/register/complete-offer.ts). Only our own words show. */
@@ -157,7 +160,7 @@ export default async function PersonPage({
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, history, from, login: loginBanner, leaver: leaverParam, refused } = await searchParams;
+  const { completed, recorded, history, from, login: loginBanner, leaver: leaverParam, refused, dbs_email: dbsEmail } = await searchParams;
   const refusedText = completeRefusedText(refused);
   const leaverDate = leaverParam && /^\d{4}-\d{2}-\d{2}$/.test(leaverParam) ? leaverParam : null;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
@@ -827,6 +830,15 @@ export default async function PersonPage({
           {person.full_name} has been added, but their carer login could not be created.
           Nothing has been emailed to them. Press Invite them on this record to try again. If
           it refuses a second time, tell us rather than adding them again.
+        </div>
+      ) : null}
+
+      {/* THE RISK ASSESSMENT EMAIL THAT DID NOT GO (Phil, 2026-10-15). Added with "No DBS yet", the
+          adder and line manager are emailed; when that could not happen the record says so and
+          what to do. Our own words only, chosen by a known code. */}
+      {riskEmailNotice(dbsEmail, person.full_name) ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
+          {riskEmailNotice(dbsEmail, person.full_name)}
         </div>
       ) : null}
 
