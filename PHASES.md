@@ -4611,8 +4611,11 @@ Demo (every table and view, plus Readiness per branch) saved as the baseline; fr
 slow reads per role; the 30,408 rollup calls traced to the old Dashboard (removed 2026-09-28, so
 history). Push 1, migration 0478: 201 policies now work out is_platform_admin() and the other zero
 argument helpers once per query instead of once per row; 21 foreign key indexes. Fingerprint
-IDENTICAL for all 15. Decision: docs/decisions/speed-plan.md. Live 2026-10-15, waiting for Phil's
-screen check. Push 2 not started; Push 3 and 4 on branch speed-overnight (preview only).
+IDENTICAL for all 15. Decision: docs/decisions/speed-plan.md. Live 2026-10-15 (commit afe22866);
+screens checked by Claude at Phil's request. Push 3 and 4 (0479 new status functions; the registers
+read them and work the rollup out from those rows; Readiness stores its daily scores after the page is
+sent, no second POST), old and new identical for all 15 logins, merged to main at Phil's go
+2026-10-15. Tests: TEST-CHECKLIST-SPEED.md. Push 2 not started.
 
 ### 2026-10-15 — Holiday blackout dates (Phase 13, Thistle)
 
