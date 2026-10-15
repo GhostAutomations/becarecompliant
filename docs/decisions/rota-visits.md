@@ -116,3 +116,25 @@ information, never their screens, wording or templates.
    need two or more people with another person on it whose DBS is clear. Someone on the adults'
    barred list (DBS Disclosure Risk Assessment) is always refused. Removing the last clear DBS
    colleague from such a shift is refused.
+
+## Stage 2 decisions: visits and runs (popups, 2026-10-15)
+
+1. Visits are built on the existing weekly **Care Schedule** (`care_plan_entries`, which Invoicing
+   bills from), not a second pattern list. Each call gets a start time stored alongside it
+   (`rota_call_times`); the Care Schedule itself is not altered.
+2. Tasks per visit come in Stage 4 (care plan on the forms engine), not Stage 2.
+3. Hospital or respite: visits from the day they went are **Paused** (greyed, not sent, not counted
+   late or missed) and keep their carers; back to Active, they resume with the same carers.
+   Worked out from the service user's status, so nothing is stored or changed on service_users.
+4. New permission, agreed: a carer sees the **name, address and time** of their own published
+   visits only, nothing else about the service user.
+5. Visits follow the shifts rule: draft until the week is published; one Publish covers shifts and
+   visits; a change to a published visit texts the carer.
+6. Visits are made **4 weeks ahead**, nightly and straight after a start time changes; never
+   duplicated; allocated or published visits are never overwritten (a schedule change flags them
+   for the office instead).
+7. Per service user: **preferred carers** (rank higher) and **not to send** (refused, reason shown),
+   kept by the office.
+8. "Nearest" until Stage 8: **straight line miles** from postcode map points looked up once through
+   postcodes.io (only postcodes sent; bulk lookup up to 100 per request) and stored per postcode.
+   Carers' postcodes are read from their home address text.

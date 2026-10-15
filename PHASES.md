@@ -2540,7 +2540,7 @@ Out of scope: invoicing and payroll.
 - [x] Stage 1 (DONE 2026-10-15, migrations 0489, 0490; commits 208ea00d, 60176926, 0a34b876; closed by Phil on the evidence for the few buttons not pressed on screen, to be pressed at the start of Stage 2): rota for shifts (templates, copy a week, open shifts, requests, swaps and handovers,
   availability, working time warnings, the DBS / Right to Work / training rules on every
   assignment, published to the carer portal, changes by text).
-- [ ] Stage 2: visits and runs (visit patterns, idempotent generation, runs per carer, drag between
+- [ ] Stage 2 (BUILT 2026-10-15, migration 0491; awaiting screen checks R2.4 to R2.11): visits and runs (visit patterns, idempotent generation, runs per carer, drag between
   carers, cover, hospital and respite pauses, carer recommendation, Europe/London dates).
 - [ ] Stage 3: clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
   and accuracy rules, offline to the agreed design, no tracking between taps).

@@ -80,3 +80,53 @@ export function dayLabel(iso: string): string {
 }
 
 export const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/* ------------------------------- Visits (Stage 2) ------------------------------- */
+
+export type RotaVisit = {
+  id: string;
+  branchId: string;
+  serviceUserId: string;
+  serviceUserName: string;
+  postcode: string | null;
+  visitDate: string;
+  startTime: string;
+  endTime: string;
+  startsAt: string;
+  endsAt: string;
+  service: string | null;
+  carersNeeded: number;
+  status: "draft" | "published" | "cancelled";
+  /** In hospital or respite on that date: shown greyed, not sent. */
+  paused: boolean;
+  scheduleChanged: boolean;
+  assignments: RotaAssignment[];
+};
+
+export type VisitCandidate = RotaCandidate & {
+  miles: number | null;
+  preferred: boolean;
+  continuity: number;
+};
+
+/** One call of a service user's Care Schedule, with its start time on the rota. */
+export type CallRow = {
+  dayOfWeek: number;
+  service: string;
+  slotKey: string;
+  occurrence: number;
+  minutes: number | null;
+  carers: number;
+  startTime: string | null;
+  lengthMinutes: number | null;
+};
+
+export type CallServiceUser = {
+  id: string;
+  name: string;
+  postcode: string | null;
+  away: boolean;
+  calls: CallRow[];
+  preferred: { personId: string; name: string }[];
+  notToSend: { personId: string; name: string }[];
+};

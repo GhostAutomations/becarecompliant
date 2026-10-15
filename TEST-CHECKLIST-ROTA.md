@@ -58,3 +58,21 @@ baseline below. Each check: Pass, Fail or Not tested.
 - STUCK BUTTON, FOUND AND FIXED (2026-10-15, commit 0a34b876): about 1 save in 10 came back 503 from Vercel while redrawing the page inside the action's reply, after the save itself had gone through (the database showed it), so the button stayed on Saving / Publishing / Copying. No error was logged. Fix: rota actions no longer call revalidatePath; each replies with its result only (about 150 bytes) and the screen refreshes itself afterwards (components/rota/rota-action.tsx). After the fix: Copy pressed 5 times, Publish once, all 200 in 0.3 to 1.0 s, none stuck.
 - Testing note: when Phil's Chrome window is behind other windows, Chrome slows the tab right down (document hidden), so pages take a long time to become clickable and automated clicks can be lost. Not an app fault.
 - Office Approve and Decline buttons: approval proven through the same function (R1.11); to be pressed on screen at the start of Stage 2 (Phil's choice, 2026-10-15).
+
+## Stage 2: visits and runs (migration 0491)
+
+| # | Check | Result |
+|---|-------|--------|
+| R2.1 | Unit tests: call lengths from the Care Schedule; occurrence numbering; visit keys identical across a Care Schedule re-save (idempotent); postcodes normalised and read from a home address; straight line miles; distance bands; the ranking (can go, compliant, nearest band, preferred, continuity) | PASS (Claude: 12 new tests, suite 2,128) |
+| R2.2 | 0491 proved on Bevan, undone afterwards: Thistle cannot set a call time; 56 visits made for two Swansea service users (28 days each), made again adds 0; a carer on two clients at the same time refused; a time change moves 7 unallocated visits and flags the 1 allocated one, which keeps its time; not to send, no DBS and no Right to Work refused; move run moves what it can and lists the not to send one; candidates listed; the carer sees nothing before Publish and cannot read visits directly, then sees name, postcode and time; hospital makes it Paused; 24 Oct 12:00 is 11:00 UTC and 25 Oct 12:00 is 12:00 UTC; Thistle sees no visits or call times; a direct write refused; nothing left behind | PASS (Claude, 2026-10-15) |
+| R2.3 | Nothing else changed after 0491: 328 policies, 498 functions, 403 triggers identical; realtime publication empty; no rota function runnable signed out; security advisor no ERROR (new WARN only on the guarded visit functions; rota_postcode_points has no policy on purpose, server only); fingerprint identical for every Thistle and Demo login | PASS (Claude) |
+| R2.4 | Bevan as Admin: Rota, Call times: set 12:00 on a service user's calls; the line says how many visits were added | |
+| R2.5 | Rota, Visits: that day shows the visits under Needing a carer; Add carer lists people best placed first with distance (where postcodes are known), preferred and visits to them, and folded who cannot with the reason | |
+| R2.6 | Add a carer: the visit moves into their run; Move, Move run, Take off, Cancel visit each work | |
+| R2.7 | Preferred and not to send: add a not to send carer; they appear under who cannot do it | |
+| R2.8 | Publish the week (shifts and visits together); the Bevan Care Assistant sees My visits with name, address and time on their phone | |
+| R2.9 | A service user in hospital: their visits show Paused (office) and Paused: do not go (carer) | |
+| R2.10 | Nightly job /api/cron/rota-visits: runs at 02:45, makes visits for Bevan only, fails closed without CRON_SECRET | |
+| R2.11 | Page timings and fingerprint after the deploy unchanged for existing pages | |
+
+Known gaps (not in this stage): the Care Schedule has no alternate weeks (a known gap from before); drag and drop between carers is done with Move and Move run buttons instead (works on a phone); no Bevan person has a postcode in their home address yet, so distance shows as not known until addresses include postcodes.

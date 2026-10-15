@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
 import { getPendingRequests, getRotaBranches, getRotaTemplates, getRotaWeek } from "@/lib/rota/data";
+import { countDraftVisits } from "@/lib/rota/visits-data";
 import { addDaysIso, mondayOfIso } from "@/lib/rota/working-time";
 import { dayLabel } from "@/lib/rota/types";
 import ActionForm from "@/components/rota/rota-action";
@@ -47,12 +48,14 @@ export default async function RotaPage({
     );
   }
 
-  const [shifts, templates, requests] = await Promise.all([
+  const [shifts, templates, requests, draftVisits] = await Promise.all([
     getRotaWeek(branch.id, monday),
     getRotaTemplates(branch.id),
     getPendingRequests(branch.id),
+    countDraftVisits(branch.id, monday, addDaysIso(monday, 6)),
   ]);
-  const drafts = shifts.filter((s) => s.status === "draft").length;
+  const draftShifts = shifts.filter((s) => s.status === "draft").length;
+  const drafts = draftShifts + draftVisits;
   const href = (b: string, w: string) => `/rota?branch=${b}&week=${w}`;
 
   return (
@@ -97,14 +100,14 @@ export default async function RotaPage({
           <ActionForm
             action={publishWeekAction}
             hidden={{ branch_id: branch.id, monday }}
-            label={drafts ? `Publish ${drafts} draft shift${drafts === 1 ? "" : "s"}` : "Nothing to publish"}
+            label={drafts ? `Publish ${drafts} draft${drafts === 1 ? "" : "s"}` : "Nothing to publish"}
             savingLabel="Publishing…"
             savedLabel="Published"
             buttonClassName="btn-primary px-3 py-1.5 text-xs"
             className=""
             disabled={drafts === 0}
             showOk
-            confirm={`Publish ${drafts} draft shift${drafts === 1 ? "" : "s"} for the week of ${dayLabel(monday)}? Each carer on them gets one text.`}
+            confirm={`Publish ${draftShifts} draft shift${draftShifts === 1 ? "" : "s"} and ${draftVisits} draft visit${draftVisits === 1 ? "" : "s"} for the week of ${dayLabel(monday)}? Each carer on them gets one text.`}
           />
         </div>
       </div>

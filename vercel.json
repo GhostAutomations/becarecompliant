@@ -46,6 +46,10 @@
     {
       "path": "/api/cron/cloud-copies",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/rota-visits",
+      "schedule": "45 2 * * *"
     }
   ]
 }

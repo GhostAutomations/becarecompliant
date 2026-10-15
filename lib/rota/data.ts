@@ -131,25 +131,44 @@ export async function mandatoryTrainingRed(companyId: string): Promise<Map<strin
 }
 
 /** The other shifts these people work around a date (17 weeks back, 1 forward), for the warnings. */
-async function shiftsAround(companyId: string, personIds: string[], shiftDate: string): Promise<Map<string, ShiftSpan[]>> {
+/** The other shifts and visits these people work around a date (17 weeks back, 2 forward), for
+ *  the working time warnings. Visits count as working time like shifts (Stage 2). */
+export async function shiftsAround(companyId: string, personIds: string[], aroundDate: string): Promise<Map<string, ShiftSpan[]>> {
   const out = new Map<string, ShiftSpan[]>();
   if (personIds.length === 0) return out;
   const supabase = await createClient();
-  const from = addDaysIso(mondayOfIso(shiftDate), -17 * 7);
-  const to = addDaysIso(mondayOfIso(shiftDate), 13);
-  const { data } = await supabase
-    .from("rota_assignments")
-    .select("person_id, rota_shifts!inner(id, shift_date, starts_at, ends_at, break_minutes, status)")
-    .eq("company_id", companyId)
-    .eq("status", "active")
-    .in("person_id", personIds)
-    .gte("rota_shifts.shift_date", from)
-    .lte("rota_shifts.shift_date", to)
-    .neq("rota_shifts.status", "cancelled");
+  const from = addDaysIso(mondayOfIso(aroundDate), -17 * 7);
+  const to = addDaysIso(mondayOfIso(aroundDate), 13);
+  const [{ data }, { data: visits }] = await Promise.all([
+    supabase
+      .from("rota_assignments")
+      .select("person_id, rota_shifts!inner(id, shift_date, starts_at, ends_at, break_minutes, status)")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .in("person_id", personIds)
+      .gte("rota_shifts.shift_date", from)
+      .lte("rota_shifts.shift_date", to)
+      .neq("rota_shifts.status", "cancelled"),
+    supabase
+      .from("rota_visit_assignments")
+      .select("person_id, rota_visits!inner(id, visit_date, starts_at, ends_at, status)")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .in("person_id", personIds)
+      .gte("rota_visits.visit_date", from)
+      .lte("rota_visits.visit_date", to)
+      .neq("rota_visits.status", "cancelled"),
+  ]);
   type R = { person_id: string; rota_shifts: { id: string; shift_date: string; starts_at: string; ends_at: string; break_minutes: number } };
   for (const r of (data as unknown as R[] | null) ?? []) {
     const list = out.get(r.person_id) ?? [];
     list.push({ id: r.rota_shifts.id, shiftDate: r.rota_shifts.shift_date, startsAt: r.rota_shifts.starts_at, endsAt: r.rota_shifts.ends_at, breakMinutes: r.rota_shifts.break_minutes });
+    out.set(r.person_id, list);
+  }
+  type V = { person_id: string; rota_visits: { id: string; visit_date: string; starts_at: string; ends_at: string } };
+  for (const r of (visits as unknown as V[] | null) ?? []) {
+    const list = out.get(r.person_id) ?? [];
+    list.push({ id: r.rota_visits.id, shiftDate: r.rota_visits.visit_date, startsAt: r.rota_visits.starts_at, endsAt: r.rota_visits.ends_at, breakMinutes: 0 });
     out.set(r.person_id, list);
   }
   return out;
