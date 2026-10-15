@@ -12,7 +12,9 @@ import {
   type FrameworkItem,
 } from "@/lib/framework/data";
 import AssistantPanel from "@/components/framework/assistant-panel";
-import SnapshotOnLoad from "@/components/framework/snapshot-on-load";
+import { after } from "next/server";
+import { cookies } from "next/headers";
+import { clientFromCookies, storeReadinessSnapshot } from "@/lib/framework/snapshot";
 import NoticesPanel, { type NoticeRow } from "@/components/framework/notices-panel";
 import { waitingSentence } from "@/lib/framework/waiting";
 import DownloadButton from "@/components/download-button";
@@ -24,7 +26,7 @@ import OwnRating from "@/components/framework/own-rating";
 import AddAction from "@/components/framework/add-action";
 import { getSelfRatings } from "@/lib/framework/self-ratings";
 import { GAP_RISK_LABEL, actionText, metricGap } from "@/lib/framework/gaps";
-import { READINESS_ROLES } from "@/lib/framework/roles";
+import { READINESS_ROLES, maySnapshotReadiness } from "@/lib/framework/roles";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -140,6 +142,15 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
     timed("rd.selfRatings", getSelfRatings(profile.company_id, regulator, branchId)),
   ]);
   console.log(`[perf] rd.data ${Date.now() - perfStart}`);
+  /* Today's scores for the trend, stored after the page has been sent from the figures just worked
+     out (speed plan, 2026-10-15): the browser used to post back once the page had drawn, and the
+     server worked the whole of readiness out a second time to store them. Same rule as before:
+     only the roles that may store them, the first open of the day kept. */
+  if (maySnapshotReadiness(profile.role, branchId)) {
+    const jar = (await cookies()).getAll();
+    const companyId = profile.company_id;
+    after(() => storeReadinessSnapshot(clientFromCookies(jar), companyId, regulator, branchId, allRequirements));
+  }
   /* Who may rate a theme and add an action: the people who record an inspection, not the founder
      looking in support mode. Adding an action is an Update, which the record's own rules decide. */
   const canRate = RECORDERS.includes(profile.role) && !profile.actingAsCompanyId;
@@ -151,8 +162,6 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="page-shell space-y-6">
-      <SnapshotOnLoad key={branchId ?? "all"} branchId={branchId} />
-
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">

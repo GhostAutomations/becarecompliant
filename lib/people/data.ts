@@ -18,6 +18,8 @@ import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-dat
 import { ltlCycleDates, onOffice, type OfficePeriod } from "@/lib/people/office-cycle";
 import { callerBranchIds } from "@/lib/auth/branches";
 import { getCompanyRow } from "@/lib/companies/row";
+import { allPages } from "@/lib/supabase/all-pages";
+import { groupByRecord, personRollupRag, rollupCounts } from "@/lib/register/rollup";
 import type {
   CheckDefinition,
   CheckStatus,
@@ -260,7 +262,6 @@ export async function listRegister(
 
   const [
     { data: statusData },
-    { data: rollupData },
     { data: trackerData },
     { data: supEvidence },
     { data: supMigrated },
@@ -268,8 +269,15 @@ export async function listRegister(
     { data: appraisalMigrated },
     { data: dbsRiskEvidence },
   ] = await Promise.all([
-    supabase.from("person_check_status_all").select("*").in("person_id", ids),
-    supabase.from("person_rollup_all").select("*").in("person_id", ids),
+    /* SPEED PLAN (Push 3 and 4, docs/decisions/speed-plan.md): one company hinted read of the
+       same rows person_check_status_all gave (0479, proved identical for every test login), and
+       the rollup worked out below from those rows instead of reading person_rollup_all too. */
+    allPages<CheckStatus>((from, to) =>
+      supabase.rpc("register_person_status", { p_company: companyId }).order("instance_id").range(from, to),
+    ).then((data) => {
+      const wanted = new Set(ids);
+      return { data: data.filter((s) => wanted.has(s.person_id)) };
+    }),
     supabase.from("person_trackers").select("*").in("person_id", ids),
     supFormId
       ? supabase
@@ -343,10 +351,27 @@ export async function listRegister(
   ]);
 
   const statuses = (statusData as CheckStatus[]) ?? [];
-  const rollups = (rollupData as PersonRollup[]) ?? [];
   const trackers = (trackerData as PersonTracker[]) ?? [];
   const defKeyById = new Map(definitions.map((d) => [d.id, d.key]));
-  const rollupByPerson = new Map(rollups.map((r) => [r.person_id, r]));
+  const statusesByPerson = groupByRecord(statuses, (s) => s.person_id);
+  const rollupByPerson = new Map<string, PersonRollup>(
+    people.map((p) => {
+      const c = rollupCounts(statusesByPerson.get(p.id) ?? []);
+      return [
+        p.id,
+        {
+          person_id: p.id,
+          company_id: p.company_id,
+          branch_id: p.branch_id,
+          total_checks: c.total_checks,
+          red_count: c.red_count,
+          amber_count: c.amber_count,
+          green_count: c.green_count,
+          rag: personRollupRag(c),
+        },
+      ];
+    }),
+  );
   const trackerByPerson = new Map(trackers.map((t) => [t.person_id, t]));
 
   const statusByPerson = new Map<string, Record<string, CheckStatus>>();

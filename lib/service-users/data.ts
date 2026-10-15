@@ -22,6 +22,8 @@ import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { carersOf } from "./care-plan-consts";
 import type { CheckDefinition } from "@/lib/people/types";
 import { getCompanyRow } from "@/lib/companies/row";
+import { allPages } from "@/lib/supabase/all-pages";
+import { groupByRecord, rollupCounts, serviceUserRollupRag } from "@/lib/register/rollup";
 import type {
   ServiceUserRecord,
   ServiceUserRollup,
@@ -579,13 +581,19 @@ export async function listRegister(
 
   const [
     { data: statusData },
-    { data: rollupData },
     { data: trackerData },
     { data: reviewEvidence },
     { data: reviewMigrated },
   ] = await Promise.all([
-    supabase.from("service_user_check_status_all").select("*").in("service_user_id", ids),
-    supabase.from("service_user_rollup_all").select("*").in("service_user_id", ids),
+    /* SPEED PLAN (Push 3 and 4, docs/decisions/speed-plan.md): one company hinted read of the
+       same rows service_user_check_status_all gave (0479, proved identical for every test login),
+       and the rollup worked out below from those rows instead of reading service_user_rollup_all. */
+    allPages<SuCheckStatus>((from, to) =>
+      supabase.rpc("register_service_user_status", { p_company: companyId }).order("instance_id").range(from, to),
+    ).then((data) => {
+      const wanted = new Set(ids);
+      return { data: data.filter((s) => wanted.has(s.service_user_id)) };
+    }),
     supabase
       .from("service_user_trackers")
       .select("*, reviewer:planned_reviewer_id(full_name)")
@@ -682,9 +690,27 @@ export async function listRegister(
   for (const [, list] of reviewCompsBySu) list.sort();
 
   const statuses = (statusData as SuCheckStatus[]) ?? [];
-  const rollups = (rollupData as ServiceUserRollup[]) ?? [];
   const defKeyById = new Map(definitions.map((d) => [d.id, d.key]));
-  const rollupBySu = new Map(rollups.map((r) => [r.service_user_id, r]));
+  const statusesBySu = groupByRecord(statuses, (s) => s.service_user_id);
+  const rollupBySu = new Map<string, ServiceUserRollup>(
+    serviceUsers.map((su) => {
+      const c = rollupCounts(statusesBySu.get(su.id) ?? []);
+      return [
+        su.id,
+        {
+          service_user_id: su.id,
+          company_id: su.company_id,
+          branch_id: su.branch_id,
+          total_checks: c.total_checks,
+          red_count: c.red_count,
+          amber_count: c.amber_count,
+          green_count: c.green_count,
+          rag: serviceUserRollupRag(c),
+          paused_count: c.paused_count,
+        },
+      ];
+    }),
+  );
 
   type TrackerRow = ServiceUserTracker & { reviewer: { full_name: string | null } | null };
   const trackerRows = (trackerData as TrackerRow[] | null) ?? [];

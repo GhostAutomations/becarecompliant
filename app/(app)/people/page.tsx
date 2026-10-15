@@ -58,8 +58,9 @@ export default async function PeoplePage({
 
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
-  const nameSort = await getRegisterNameSort(user.id);
-  const [branches, register, columnLabels, checkColumns, cycleMode, primaryBranchId, rememberedBranch] = await Promise.all([
+  // The name sort joins the rest rather than going first (speed plan, 2026-10-15): nothing waits on it.
+  const [nameSort, branches, register, columnLabels, checkColumns, cycleMode, primaryBranchId, rememberedBranch] = await Promise.all([
+    getRegisterNameSort(user.id),
     listBranches(companyId, profile),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),

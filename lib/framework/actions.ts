@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness } from "@/lib/framework/data";
 import { maySnapshotReadiness } from "@/lib/framework/roles";
+import { storeReadinessSnapshot } from "@/lib/framework/snapshot";
 
 /** Store today's readiness score per requirement (once per London day) so the
  *  trend builds. Safe to call on every page load; the unique key makes it idempotent.
@@ -32,15 +33,5 @@ export async function captureReadinessSnapshot(branchId: string | null = null): 
     if (!b) return;
   }
   const { requirements } = await getFrameworkReadiness(companyId, regulator, branchId);
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const rows = requirements
-    .filter((r) => r.score != null)
-    .map((r) => ({ company_id: companyId, regulator, branch_id: branchId, requirement_code: r.code, score: r.score, captured_on: today }));
-  if (rows.length === 0) return;
-  const { error } = await supabase
-    .from("framework_readiness_snapshots")
-    .upsert(rows, { onConflict: "company_id,regulator,branch_id,requirement_code,captured_on", ignoreDuplicates: true });
-  /* Nobody is waiting on this (it fires from the page after it has drawn), so a refusal, such as
-     a page opened just before midnight and stored just after, is logged rather than shown. */
-  if (error) console.error("[readiness] snapshot not stored:", error.code, error.message);
+  await storeReadinessSnapshot(supabase, companyId, regulator, branchId, requirements);
 }

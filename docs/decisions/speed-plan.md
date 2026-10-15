@@ -51,3 +51,29 @@ under 300ms; no slow read above 50ms mean; realtime idle under 0.5s of database 
   to 90 (the 21 new ones, unused until queried); multiple permissive policies 135 unchanged.
 - Security advisor: no ERROR.
 - A restore script for the 328 policies as they were was kept (outside the repo) in case of trouble.
+
+## Push 3 and 4 (branch speed-overnight, preview only, not merged)
+
+Push 3, migration 0479 (added to production as new functions only; nothing live calls them):
+- `register_person_status(company)` and `register_service_user_status(company)`: the same rows
+  as `person_check_status_all` / `service_user_check_status_all`, with the company said up front.
+- `readiness_check_counts(company, regulator, branch)`: the same answer as
+  `get_framework_check_readiness`, but no faster (the time goes in check level row security, not
+  the joins), so the code stays on the old function. Recorded rather than wired in.
+- Old path against new path, all 15 logins: every row the same (people status, service user
+  status, Readiness for the company and every branch, both rollups).
+
+Push 4, the code on the branch:
+- People and Service User registers read the new functions (paged, 1000 at a time, in a fixed
+  order) and work the rollup out from those rows (`lib/register/rollup.ts`, the views' own rule,
+  unit tested) instead of reading the rollup views as well.
+- The register's name sort is read alongside the rest instead of first.
+- Readiness stores today's scores after the page is sent, from the figures the page has just
+  worked out (`lib/framework/snapshot.ts`, next/server `after`). The browser no longer posts back
+  for a second full readiness calculation; the old client component is removed.
+
+Not done tonight, and why:
+- Dashboard tiles, training and absence summary functions: their time is row level security
+  (for a Supervisor, every other company's people are run through the slow permission functions
+  before being turned away). A SECURITY INVOKER function cannot avoid that, and changing policies
+  was not allowed tonight. Proposed instead as a Push 1b policy change, proved by the fingerprint.

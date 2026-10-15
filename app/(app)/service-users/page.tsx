@@ -57,8 +57,9 @@ export default async function ServiceUsersPage({
 
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
-  const nameSort = await timed("su.nameSort", getRegisterNameSort(user.id));
-  const [branches, register, columnLabels, reviewIntervalDays, checkColumns, primaryBranchId, rememberedBranch] = await Promise.all([
+  // The name sort joins the rest rather than going first (speed plan, 2026-10-15): nothing waits on it.
+  const [nameSort, branches, register, columnLabels, reviewIntervalDays, checkColumns, primaryBranchId, rememberedBranch] = await Promise.all([
+    timed("su.nameSort", getRegisterNameSort(user.id)),
     timed("su.branches", listAccessibleBranchTypes(companyId, profile.role, user.id)),
     timed("su.register", listRegister(companyId, null, "all")),
     timed("su.columnLabels", getServiceUserColumnLabels(companyId)),
