@@ -169,3 +169,12 @@ information, never their screens, wording or templates.
    office", shows who, never replaces anything the carer recorded.
 10. Clock in opens **30 minutes before** the start. Late is always allowed (Stage 7 marks it late).
     A carer clocks in only to their own published visits and shifts.
+11. The map file is the **full detail UK map** (zoom 15, 3.0 GB; Phil chose it over the 1.5 GB
+    version, 2026-10-16), measured with the official go-pmtiles tool from the 15 October 2026
+    Protomaps build, stored as `uk.pmtiles` in the private `maps` bucket (0495) and read through a
+    one hour signed link. Libraries: MapLibre GL 6.11.2, pmtiles 4.5.0, @protomaps/basemaps 5.7.2.
+    Fonts and icons are kept in `public/map` (SIL Open Font License; MIT icons). Supabase Pro
+    includes 100 GB of storage (supabase.com/pricing, checked 2026-10-16), so no extra cost.
+12. On My area, today's and tomorrow's visits and shifts open Clock in when tapped, and before
+    Clock in opens the visit shows a greyed "Clock in opens at" button (Phil's phone test: tapping
+    a visit seemed to do nothing).
