@@ -51,6 +51,9 @@ export default function PlaceMap({
       }
       const [maplibregl, pmtiles, basemaps] = await Promise.all([import("maplibre-gl"), import("pmtiles"), import("@protomaps/basemaps")]);
       if (cancelled || !box.current) return;
+      // MapLibre 6's worker is a separate file the app bundle does not carry: served from
+      // public/map/maplibre (lib/rota/map-worker.test.ts keeps it in step with the installed one).
+      maplibregl.setWorkerUrl(`${location.origin}/map/maplibre/maplibre-gl-worker.mjs`);
       const protocol = new pmtiles.Protocol();
       const archive = new pmtiles.PMTiles(link.url);
       protocol.add(archive);
@@ -141,7 +144,8 @@ export default function PlaceMap({
     <div className="space-y-3">
       <p className="text-sm text-white/70">Drag the pin, or tap the map, to put it on the front door. The circle is the clock in radius ({radius} m).</p>
       <div className="relative h-[60vh] min-h-72 w-full overflow-hidden rounded-xl border border-white/10">
-        <div ref={box} className="absolute inset-0" />
+        {/* MapLibre sets its own position on this box, so it is sized directly, not by inset. */}
+        <div ref={box} className="h-full w-full" />
         {status ? <p className="absolute inset-x-0 top-1/2 text-center text-sm text-white/60" role="status">{status}</p> : null}
       </div>
       {error ? <p className="form-error">{error}</p> : null}
