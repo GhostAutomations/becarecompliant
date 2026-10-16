@@ -38,6 +38,9 @@ export default async function MyRota({ personId }: { personId: string }) {
     .map((m) => m.rota_shifts)
     .sort((a, b) => (a.shift_date + a.start_time).localeCompare(b.shift_date + b.start_time));
   const openShifts = (open as O[] | null) ?? [];
+  // Today's and tomorrow's open Clock in when tapped (Phil, 2026-10-16: tapping a visit did
+  // nothing); the Clock in page covers yesterday to tomorrow.
+  const clockable = (d: string) => d === todayIso || d === addDaysIso(todayIso, 1);
   const requestFor = new Map(((requests as { id: string; shift_id: string }[] | null) ?? []).map((r) => [r.shift_id, r.id]));
 
   return (
@@ -54,17 +57,31 @@ export default async function MyRota({ personId }: { personId: string }) {
           <div className="glass-card p-4 text-sm text-white/60">No shifts published for you in the next four weeks.</div>
         ) : (
           <div className="glass-card divide-y divide-white/10">
-            {shifts.map((s) => (
-              <div key={s.id} className="p-4">
-                <p className="text-sm font-semibold text-white">
-                  {dayLabel(s.shift_date)}, {hhmm(s.start_time)} to {hhmm(s.end_time)}
-                </p>
-                <p className="text-xs text-white/55">
-                  {[s.location, s.break_minutes ? `${s.break_minutes} minute break` : null].filter(Boolean).join(" · ")}
-                </p>
-                {s.notes ? <p className="mt-1 text-xs text-white/60">{s.notes}</p> : null}
-              </div>
-            ))}
+            {shifts.map((s) => {
+              const body = (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">
+                      {dayLabel(s.shift_date)}, {hhmm(s.start_time)} to {hhmm(s.end_time)}
+                    </p>
+                    {clockable(s.shift_date) ? <span className="btn-primary px-3 py-1 text-xs">Clock in</span> : null}
+                  </div>
+                  <p className="text-xs text-white/55">
+                    {[s.location, s.break_minutes ? `${s.break_minutes} minute break` : null].filter(Boolean).join(" · ")}
+                  </p>
+                  {s.notes ? <p className="mt-1 text-xs text-white/60">{s.notes}</p> : null}
+                </>
+              );
+              return clockable(s.shift_date) ? (
+                <Link key={s.id} href="/clock" className="block p-4 hover:bg-white/5">
+                  {body}
+                </Link>
+              ) : (
+                <div key={s.id} className="p-4">
+                  {body}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -73,21 +90,34 @@ export default async function MyRota({ personId }: { personId: string }) {
         <section className="space-y-3" aria-label="My visits">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">My visits</h2>
           <div className="glass-card divide-y divide-white/10">
-            {visits.map((v) => (
-              <div key={v.visit_id} className={`p-4 ${v.paused ? "opacity-70" : ""}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white">
-                    {dayLabel(v.visit_date)}, {hhmm(v.start_time)} to {hhmm(v.end_time)}
+            {visits.map((v) => {
+              const canClock = clockable(v.visit_date) && !v.paused;
+              const body = (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">
+                      {dayLabel(v.visit_date)}, {hhmm(v.start_time)} to {hhmm(v.end_time)}
+                    </p>
+                    {v.paused ? <span className="pill pill-amber">Paused: do not go</span> : null}
+                    {canClock ? <span className="btn-primary px-3 py-1 text-xs">Clock in</span> : null}
+                  </div>
+                  <p className="text-sm text-white/80">{v.service_user_name}</p>
+                  <p className="text-xs text-white/55">
+                    {[v.address?.line1, v.address?.line2, v.address?.city, v.address?.postcode].filter(Boolean).join(", ") || "No address on file: ask the office"}
                   </p>
-                  {v.paused ? <span className="pill pill-amber">Paused: do not go</span> : null}
+                  {v.colleagues > 0 ? <p className="text-xs text-white/45">Double up: {v.colleagues + 1} carers</p> : null}
+                </>
+              );
+              return canClock ? (
+                <Link key={v.visit_id} href="/clock" className="block p-4 hover:bg-white/5">
+                  {body}
+                </Link>
+              ) : (
+                <div key={v.visit_id} className={`p-4 ${v.paused ? "opacity-70" : ""}`}>
+                  {body}
                 </div>
-                <p className="text-sm text-white/80">{v.service_user_name}</p>
-                <p className="text-xs text-white/55">
-                  {[v.address?.line1, v.address?.line2, v.address?.city, v.address?.postcode].filter(Boolean).join(", ") || "No address on file: ask the office"}
-                </p>
-                {v.colleagues > 0 ? <p className="text-xs text-white/45">Double up: {v.colleagues + 1} carers</p> : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}

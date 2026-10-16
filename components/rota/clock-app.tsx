@@ -393,7 +393,16 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                       {busy === `${r.target_id}:${kind}` ? "Finding your position…" : kind === "in" ? "Clock in" : "Clock out"}
                     </button>
                   ) : wait > 0 ? (
-                    <p className="text-xs text-white/45">Clock in opens in {wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min` : `${wait} min`}.</p>
+                    // Shown as a greyed button, so it is clear where Clock in will be (Phil,
+                    // 2026-10-16: tapping the visit before it opened seemed to do nothing).
+                    <>
+                      <button type="button" className="btn-outline w-full px-4 py-3 text-base" disabled>
+                        Clock in opens at {hhmm(new Date(Date.parse(r.starts_at) - 30 * 60_000).toISOString())}
+                      </button>
+                      <p className="text-xs text-white/45">
+                        That is 30 minutes before the start ({wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min from now` : `${wait} min from now`}).
+                      </p>
+                    </>
                   ) : (
                     <p className="text-xs text-white/45">Clock in has closed. Call the office to add the time.</p>
                   )
