@@ -106,7 +106,9 @@ export default function PlaceMap({
       const map = new mapkit.Map(box.current, {
         region: new mapkit.CoordinateRegion(
           new mapkit.Coordinate(centre.lat, centre.lng),
-          start ? new mapkit.CoordinateSpan(0.006, 0.01) : new mapkit.CoordinateSpan(10, 12),
+          // About 2 km across, so the main roads and the area show too (Phil, 2026-10-16); the
+          // whole UK when there is no point yet.
+          start ? new mapkit.CoordinateSpan(0.018, 0.029) : new mapkit.CoordinateSpan(10, 12),
         ),
         showsMapTypeControl: false,
         showsCompass: mapkit.FeatureVisibility.Hidden,
