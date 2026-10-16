@@ -2542,7 +2542,7 @@ Out of scope: invoicing and payroll.
   assignment, published to the carer portal, changes by text).
 - [x] Stage 2 (DONE 2026-10-16, migrations 0491 and 0492; R2.1 to R2.11 passed, R2.8 and R2.9 on Phil's phone; Move picker fault found in the screen test and fixed in 0492; Phil closed it before the first real 02:45 nightly run, which is still to be read): visits and runs (visit patterns, idempotent generation, runs per carer, drag between
   carers, cover, hospital and respite pauses, carer recommendation, Europe/London dates).
-- [ ] Stage 3: clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
+- [x] Stage 3 (DONE 2026-10-16, migrations 0493 to 0496; R3.1 to R3.11 passed, clock in, flight mode, QR and text tested on Phil's phone; map pin on Apple Maps after our own map file was too slow and Norton blocked Mapbox; QR scans far from the home flagged; office alert for unsent records waits for Stage 7): clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
   and accuracy rules, offline to the agreed design, no tracking between taps).
 - [ ] Stage 4: care plans and tasks (versioned plan on the forms engine, tasks per visit, required
   tasks before clock out; Care Plan Review stays the review cycle).
