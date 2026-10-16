@@ -48,9 +48,9 @@ test("the record: clocks in time order, the latest task outcome, corrections lin
   // one row for the task: its latest outcome
   assert.equal(tables[1].rows.length, 1);
   assert.equal(tables[1].rows[0][1].text, "Refused: Service user declined");
-  const notes = doc.blocks.filter((b) => b.kind === "keyvalues") as Array<{ kind: "keyvalues"; pairs: { label: string; value: string }[] }>;
-  assert.match(notes[0].pairs[0].label, /corrected at 13:40/);
-  assert.match(notes[1].pairs[0].label, /correction to the 13:30 note/);
+  // the notes table: the first note marked corrected, the correction says which note
+  assert.match(tables[2].rows[0][2].text, /Corrected at 13:40\./);
+  assert.match(tables[2].rows[1][2].text, /Correction to the 13:30 note\./);
   const all = JSON.stringify(doc);
   assert.ok(!/\s[-–—]\s/.test(all), "no dashes as punctuation");
 });
@@ -59,7 +59,7 @@ test("an empty visit says so rather than printing nothing", () => {
   const doc = buildVisitRecord({ ...base, clocks: [], tasks: [], notes: [] });
   const tables = doc.blocks.filter((b) => b.kind === "table") as Array<{ kind: "table"; emptyText?: string }>;
   assert.equal(tables[0].emptyText, "No clock in or out recorded.");
-  assert.ok(doc.blocks.some((b) => b.kind === "paragraph" && b.text === "No note was written at this visit."));
+  assert.equal(tables[2].emptyText, "No note was written at this visit.");
 });
 
 test("file names: the start time and initials, a later version says when it was updated", () => {

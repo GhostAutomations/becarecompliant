@@ -170,29 +170,40 @@ export function buildVisitRecord(v: VisitRecordInput): VisitRecordDoc {
     emptyText: "No tasks were recorded at this visit.",
   });
 
-  // Notes, oldest first; a correction says which note it corrects, and a corrected note says so.
+  // Notes, oldest first, full width; a correction says which note it corrects, and a corrected note says so.
   blocks.push({ kind: "heading", text: "Care notes" });
   const notes = [...v.notes].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const byId = new Map(notes.map((n) => [n.id, n]));
-  if (notes.length === 0) blocks.push({ kind: "paragraph", text: "No note was written at this visit." });
-  for (const n of notes) {
-    const corrects = n.correctsNoteId ? byId.get(n.correctsNoteId) : null;
-    const correctedBy = notes.find((x) => x.correctsNoteId === n.id);
-    const label = [
-      `${londonTime(n.at)}, ${n.author}`,
-      n.forNextCarer ? "for the next carer" : "",
-      corrects ? `correction to the ${londonTime(corrects.at)} note` : "",
-      correctedBy ? `corrected at ${londonTime(correctedBy.at)}` : "",
-      flagList(n.flags),
-    ].filter(Boolean).join(", ");
-    blocks.push({ kind: "keyvalues", pairs: [{ label, value: n.body }] });
-  }
+  blocks.push({
+    kind: "table",
+    columns: [{ header: "Time", width: "10%" }, { header: "Carer", width: "20%" }, { header: "Note", width: "70%" }],
+    rows: notes.map((n) => {
+      const corrects = n.correctsNoteId ? byId.get(n.correctsNoteId) : null;
+      const correctedBy = notes.find((x) => x.correctsNoteId === n.id);
+      const tags = [
+        n.forNextCarer ? "For the next carer." : "",
+        corrects ? `Correction to the ${londonTime(corrects.at)} note.` : "",
+        correctedBy ? `Corrected at ${londonTime(correctedBy.at)}.` : "",
+        n.flags.length ? `${flagList(n.flags)}.` : "",
+      ].filter(Boolean).join(" ");
+      return [
+        { text: londonTime(n.at) },
+        { text: n.author },
+        { text: tags ? `${tags}\n${n.body}` : n.body, rag: correctedBy ? "neutral" : undefined },
+      ];
+    }),
+    emptyText: "No note was written at this visit.",
+  });
 
   if (v.concerns.length) {
     blocks.push({ kind: "heading", text: "Concerns raised" });
-    for (const c of [...v.concerns].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
-      blocks.push({ kind: "keyvalues", pairs: [{ label: `${londonTime(c.at)}, ${c.author}, ${c.category}`, value: c.body }] });
-    }
+    blocks.push({
+      kind: "table",
+      columns: [{ header: "Time", width: "10%" }, { header: "Carer", width: "20%" }, { header: "Concern", width: "70%" }],
+      rows: [...v.concerns]
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+        .map((c) => [{ text: londonTime(c.at) }, { text: c.author }, { text: `${c.category}.\n${c.body}`, rag: "red" as const }]),
+    });
   }
 
   const ref = `${v.visitDate} ${v.startTime.replace(":", ".")}${v.version > 1 ? ` v${v.version}` : ""}`;
