@@ -14,7 +14,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { mapLinkAction, setPlaceMapAction } from "@/lib/rota/clock-actions";
+import { setPlaceMapAction } from "@/lib/rota/clock-actions";
 import { circleRing, type Point } from "@/lib/rota/clock";
 
 const UK_CENTRE: Point = { lat: 54.0, lng: -2.5 };
@@ -42,29 +42,18 @@ export default function PlaceMap({
     let cancelled = false;
     let cleanup: (() => void) | null = null;
     (async () => {
-      const link = await mapLinkAction();
-      if (cancelled) return;
-      if (!link.url) {
-        setStatus(null);
-        setError(link.error ?? "The map could not be loaded.");
-        return;
-      }
       // MapLibre is loaded from its own files in public/map/maplibre (with its worker beside it),
-      // not through the app bundle: bundled, its main code and its worker did not cooperate and the
-      // map hung on "Loading" (found in the screen test, 2026-10-16). lib/rota/map-worker.test.ts
-      // keeps these files in step with the installed maplibre-gl.
+      // not through the app bundle: bundled, its main code and its worker did not cooperate
+      // (found in the screen test, 2026-10-16). lib/rota/map-worker.test.ts keeps these files in
+      // step with the installed maplibre-gl. The map squares come from our own server
+      // (app/api/rota/map-tile), which reads them from our UK map file.
       const libUrl = `${location.origin}/map/maplibre/maplibre-gl.mjs`;
-      const [maplibregl, pmtiles, basemaps] = await Promise.all([
+      const [maplibregl, basemaps] = await Promise.all([
         import(/* webpackIgnore: true */ libUrl) as Promise<typeof import("maplibre-gl")>,
-        import("pmtiles"),
         import("@protomaps/basemaps"),
       ]);
       if (cancelled || !box.current) return;
       maplibregl.setWorkerUrl(`${location.origin}/map/maplibre/maplibre-gl-worker.mjs`);
-      const protocol = new pmtiles.Protocol();
-      const archive = new pmtiles.PMTiles(link.url);
-      protocol.add(archive);
-      maplibregl.addProtocol("pmtiles", protocol.tile);
       const centre = start ?? UK_CENTRE;
       const map = new maplibregl.Map({
         container: box.current,
@@ -75,7 +64,10 @@ export default function PlaceMap({
           sources: {
             protomaps: {
               type: "vector",
-              url: `pmtiles://${link.url}`,
+              tiles: [`${location.origin}/api/rota/map-tile/{z}/{x}/{y}`],
+              minzoom: 0,
+              maxzoom: 15,
+              bounds: [-8.65, 49.86, 1.77, 60.86],
               attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">&copy; OpenStreetMap</a>',
             },
           },
@@ -136,7 +128,6 @@ export default function PlaceMap({
       cleanup = () => {
         window.clearTimeout(slow);
         map.remove();
-        maplibregl.removeProtocol("pmtiles");
       };
     })().catch(() => {
       if (!cancelled) {

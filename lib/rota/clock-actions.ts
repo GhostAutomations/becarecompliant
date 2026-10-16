@@ -7,7 +7,6 @@ import type { ActionState } from "@/lib/forms";
 import { rotaModuleOn } from "@/lib/rota/access";
 import { isRotaOfficeRole } from "@/lib/rota/roles";
 import { londonWallToUtc } from "@/lib/rota/working-time";
-import { mapLink } from "@/lib/rota/map";
 
 /**
  * Be Care Compliant: the office's clock in actions (Rota and Visits Stage 3, Phil 2026-10-16).
@@ -177,9 +176,3 @@ export async function resolveClockProblemAction(_prev: ActionState, fd: FormData
   return { ok: "Cleared." };
 }
 
-/** A one hour link to our own UK map file, for the office map pin. */
-export async function mapLinkAction(): Promise<{ url?: string; error?: string }> {
-  const g = await office();
-  if ("error" in g) return { error: g.error };
-  return mapLink();
-}
