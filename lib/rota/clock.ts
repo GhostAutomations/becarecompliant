@@ -137,6 +137,7 @@ const FLAG_WORDS: Record<string, string> = {
   no_clock_in: "Clock out with no clock in",
   repeat: "Recorded more than once",
   wrong_code: "QR code did not match",
+  code_far: "Scanned away from the home",
   no_map_point: "No map point for the place yet",
   no_reason: "Outside with no reason",
   phone_clock: "Phone clock was wrong (corrected)",
@@ -153,6 +154,7 @@ export function locationWords(e: {
   reason_code: string | null;
   reason_text: string | null;
   method: string;
+  flags?: string[] | null;
 }): string {
   switch (e.location) {
     case "inside":
@@ -162,8 +164,11 @@ export function locationWords(e: {
       const why = e.reason_code === "other" ? e.reason_text || "Other" : reasonLabel(e.reason_code);
       return why ? `${away}: ${why}` : away;
     }
-    case "proved":
-      return e.method === "nfc" ? "NFC sticker" : "QR code";
+    case "proved": {
+      const how = e.method === "nfc" ? "NFC sticker" : "QR code";
+      // Scanned where the phone's accurate position was well away (Phil, 2026-10-16): say how far.
+      return e.flags?.includes("code_far") && e.distance_m != null ? `${how}, ${e.distance_m.toLocaleString("en-GB")} m from the home` : how;
+    }
     case "text":
       return "By text";
     case "office":

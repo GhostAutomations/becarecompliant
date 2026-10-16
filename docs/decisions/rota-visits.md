@@ -208,3 +208,7 @@ information, never their screens, wording or templates.
 16. The map pin opens about **2 km across** around the home (Phil, 2026-10-16: "start a bit more
     zoomed out so they can get a better idea where they are"), not about 700 m; the whole UK when
     a place has no point yet.
+17. A QR code or NFC scan whose phone position is accurate (within the place's radius) but outside
+    the radius is still kept as proof and is **flagged to the office** as "Scanned away from the
+    home", with the distance (Phil's popup, 2026-10-16, after his own test scanned a sheet on a
+    computer screen 54 km away). Migration 0496.

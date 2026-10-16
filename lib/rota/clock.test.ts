@@ -112,6 +112,9 @@ test("the office's words for where a clock in happened", () => {
   assert.equal(locationWords({ location: "outside", distance_m: 400, reason_code: "other", reason_text: "Road closed", method: "gps" }), "400 m away: Road closed");
   assert.equal(locationWords({ location: "proved", distance_m: null, reason_code: null, reason_text: null, method: "nfc" }), "NFC sticker");
   assert.equal(locationWords({ location: "unclear", distance_m: null, reason_code: null, reason_text: null, method: "gps" }), "Location unclear");
+  // a QR scan whose accurate position was far from the home says how far (Phil, 2026-10-16)
+  assert.equal(locationWords({ location: "proved", distance_m: 54479, reason_code: null, reason_text: null, method: "qr", flags: ["code_far"] }), "QR code, 54,479 m from the home");
+  assert.equal(locationWords({ location: "proved", distance_m: 30, reason_code: null, reason_text: null, method: "qr", flags: [] }), "QR code");
 });
 
 test("a scanned link gives its code; anything else does not", () => {
