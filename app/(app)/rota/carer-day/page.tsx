@@ -6,12 +6,12 @@ import { getDayVisits } from "@/lib/rota/visits-data";
 import { getDayShifts } from "@/lib/rota/timeline-data";
 import { addDaysIso } from "@/lib/rota/working-time";
 import { dayLabel } from "@/lib/rota/types";
-import { clockInWords, toMinutes, visitTone } from "@/lib/rota/timeline";
+import { TONE_WORDS, clockInWords, toMinutes, visitTone } from "@/lib/rota/timeline";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import RotaTabs from "@/components/rota/rota-tabs";
 import CarerDay, { type DropMeta } from "@/components/rota/carer-day";
-import { TONE_WORDS, type TimelineBlock, type TimelineRow } from "@/components/rota/timeline";
+import type { TimelineBlock, TimelineRow } from "@/components/rota/timeline";
 
 export async function generateMetadata(): Promise<Metadata> {
   await requireRotaOffice();

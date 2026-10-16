@@ -5,11 +5,11 @@ import { getRotaBranches } from "@/lib/rota/data";
 import { getDayVisits } from "@/lib/rota/visits-data";
 import { addDaysIso } from "@/lib/rota/working-time";
 import { dayLabel, type RotaVisit } from "@/lib/rota/types";
-import { toMinutes, visitTone, type VisitTone } from "@/lib/rota/timeline";
+import { TONE_WORDS, toMinutes, visitTone, type VisitTone } from "@/lib/rota/timeline";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import RotaTabs from "@/components/rota/rota-tabs";
-import Timeline, { TONE_WORDS, type TimelineRow } from "@/components/rota/timeline";
+import Timeline, { type TimelineRow } from "@/components/rota/timeline";
 
 export async function generateMetadata(): Promise<Metadata> {
   await requireRotaOffice();

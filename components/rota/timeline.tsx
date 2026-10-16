@@ -13,9 +13,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DAY_MINUTES, dragStart, fromMinutes, lanes, type VisitTone } from "@/lib/rota/timeline";
+import { DAY_MINUTES, TONE_WORDS, dragStart, fromMinutes, lanes, type BlockTone } from "@/lib/rota/timeline";
 
-export type BlockTone = VisitTone | "shift" | "call";
+export type { BlockTone };
 
 export type TimelineBlock = {
   id: string;
@@ -61,17 +61,6 @@ const TONE_CLASS: Record<BlockTone, string> = {
   call: "bg-amber-700/80 text-white border-amber-400/60",
 };
 
-export const TONE_WORDS: Record<BlockTone, string> = {
-  done: "Done",
-  in_progress: "In progress",
-  late: "Late, nobody clocked in",
-  due: "Due",
-  draft: "Not published",
-  paused: "Paused (hospital or away)",
-  cancelled: "Cancelled",
-  shift: "Shift",
-  call: "Call",
-};
 
 export default function Timeline({
   rows,

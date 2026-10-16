@@ -99,3 +99,19 @@ export function weekDates(dateIso: string): string[] {
     return x.toISOString().slice(0, 10);
   });
 }
+
+/** A block on a timeline: a visit's progress, or a shift, or a Care Schedule call. */
+export type BlockTone = VisitTone | "shift" | "call";
+
+/** What each look means, for the key under a timeline and each block's description. */
+export const TONE_WORDS: Record<BlockTone, string> = {
+  done: "Done",
+  in_progress: "In progress",
+  late: "Late, nobody clocked in",
+  due: "Due",
+  draft: "Not published",
+  paused: "Paused (hospital or away)",
+  cancelled: "Cancelled",
+  shift: "Shift",
+  call: "Call",
+};

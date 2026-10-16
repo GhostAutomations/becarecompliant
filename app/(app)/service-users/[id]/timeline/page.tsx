@@ -5,13 +5,13 @@ import { requireRotaOffice } from "@/lib/rota/access";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
-import Timeline, { TONE_WORDS, type TimelineRow } from "@/components/rota/timeline";
+import Timeline, { type TimelineRow } from "@/components/rota/timeline";
 import { getCallServiceUsers } from "@/lib/rota/visits-data";
 import { getSuWeekVisits } from "@/lib/rota/timeline-data";
 import { DAY_NAMES, slotLabel } from "@/lib/rota/calls";
 import { dayLabel } from "@/lib/rota/types";
 import { addDaysIso } from "@/lib/rota/working-time";
-import { toMinutes, visitTone, weekDates } from "@/lib/rota/timeline";
+import { TONE_WORDS, toMinutes, visitTone, weekDates } from "@/lib/rota/timeline";
 
 export const metadata: Metadata = { title: "Week timeline" };
 
