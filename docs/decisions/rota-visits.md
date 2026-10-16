@@ -289,3 +289,8 @@ information, never their screens, wording or templates.
     for [service user] by [carer]" and opens the concern. Supervisors of the service user's branch
     start with it on for Recent activity, Email off. Concern emails follow the test company rule
     (none for Bevan). Existing check notifications are unchanged.
+13. **Rota dropdowns A to Z** (Phil, after his phone test: "all the drop-down options need to be in
+    alphabetical order"; popup "Every rota dropdown"): the concern types, the task reasons, the clock
+    in reasons and the Care plan task picker (its groups, the tasks in each, and the company's own
+    tasks) are shown A to Z, with "Other" always last. Only Rota and Visits lists change; the
+    incident form's own lists are untouched. The carer picker keeps its recommended order.

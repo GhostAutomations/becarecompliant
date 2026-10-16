@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { azOtherLast } from "@/lib/rota/az";
 import {
   OUTCOME_WORDS,
   TASK_REASONS,
@@ -105,7 +106,7 @@ function TaskRow({ task, outcome, onRecord }: { task: TaskItem; outcome?: Record
           </div>
           <select value={reason ?? ""} onChange={(e) => setReason((e.target.value || null) as TaskReasonCode | null)} aria-label="Reason">
             <option value="">Pick a reason…</option>
-            {TASK_REASONS.map((r) => (
+            {azOtherLast(TASK_REASONS, (r) => r.label).map((r) => (
               <option key={r.code} value={r.code}>
                 {r.label}
               </option>

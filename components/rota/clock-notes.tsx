@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { CentreDialog } from "@/components/panel-dialog";
+import { azOtherLast } from "@/lib/rota/az";
 import { CONCERN_STATUS_WORDS, CONCERN_TYPES, NOTE_MAX, concernProblem, noteProblem, type CardNotes, type ShownNote } from "@/lib/rota/notes";
 
 export type SaveNote = (body: string, forNextCarer: boolean, correctsEventId: string | null) => Promise<void>;
@@ -246,7 +247,7 @@ function ConcernDialog({ open, onClose, onConcern }: { open: boolean; onClose: (
           <span className="text-xs text-white/70">What kind of concern is it?</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Kind of concern">
             <option value="">Pick one…</option>
-            {CONCERN_TYPES.map((c) => (
+            {azOtherLast(CONCERN_TYPES, (c) => c).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>

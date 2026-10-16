@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
+import { azOtherLast } from "@/lib/rota/az";
 import { addLibraryTaskAction, archiveLibraryTaskAction, copyCallTasksAction, saveCallTasksAction } from "@/lib/rota/task-actions";
 import { MAX_TASKS, STARTER_TASKS, cleanTaskList, type TaskItem } from "@/lib/rota/tasks";
 import { DAY_NAMES, slotLabel } from "@/lib/rota/calls";
@@ -84,8 +85,11 @@ function CallCard({
   const options = useMemo(() => {
     const have = new Set(tasks.map((t) => t.name.toLowerCase()));
     return {
-      starter: STARTER_TASKS.map((g) => ({ category: g.category, tasks: g.tasks.filter((t) => !have.has(t.toLowerCase())) })).filter((g) => g.tasks.length),
-      custom: library.filter((l) => !have.has(l.name.toLowerCase())),
+      // A to Z, groups and the tasks in them (Phil, 2026-10-16, Stage 5 decision 13).
+      starter: azOtherLast(STARTER_TASKS, (g) => g.category)
+        .map((g) => ({ category: g.category, tasks: azOtherLast(g.tasks.filter((t) => !have.has(t.toLowerCase())), (t) => t) }))
+        .filter((g) => g.tasks.length),
+      custom: azOtherLast(library.filter((l) => !have.has(l.name.toLowerCase())), (l) => l.name),
     };
   }, [tasks, library]);
 
@@ -254,7 +258,7 @@ function LibraryEditor({ library }: { library: Library }) {
         <p className="text-xs text-white/55">Tasks you add here appear in the task picker for every service user in your company, beside the starter list.</p>
         {library.length === 0 ? <p className="text-xs text-white/45">None yet.</p> : null}
         <ul className="space-y-1">
-          {library.map((l) => (
+          {azOtherLast(library, (l) => l.name).map((l) => (
             <li key={l.id} className="flex items-center justify-between gap-2 text-sm text-white/80">
               <span>
                 {l.name}
@@ -273,7 +277,7 @@ function LibraryEditor({ library }: { library: Library }) {
             <span className="sr-only">Group</span>
             <select name="category" defaultValue="Custom">
               <option value="Custom">Custom</option>
-              {STARTER_TASKS.map((g) => (
+              {azOtherLast(STARTER_TASKS, (g) => g.category).map((g) => (
                 <option key={g.category} value={g.category}>
                   {g.category}
                 </option>
