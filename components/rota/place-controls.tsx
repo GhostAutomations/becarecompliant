@@ -8,7 +8,7 @@
  * code, so tapping it opens Clock in on any phone that reads NFC links.
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { CentreDialog } from "@/components/panel-dialog";
@@ -33,6 +33,17 @@ export default function PlaceControls({
   radius: number;
 }) {
   const [mapOpen, setMapOpen] = useState(false);
+  // Reopen the map after the one reload Apple's map may need (components/rota/place-map.tsx).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("bcc-open-map") === placeId) {
+        sessionStorage.removeItem("bcc-open-map");
+        setMapOpen(true);
+      }
+    } catch {
+      /* storage unavailable: nothing to reopen */
+    }
+  }, [placeId]);
   const router = useRouter();
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [busy, setBusy] = useState<"here" | "nfc" | null>(null);

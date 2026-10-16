@@ -192,3 +192,16 @@ information, never their screens, wording or templates.
 14. **Before Rota and Visits goes live for any real customer**: Mapbox and postcodes.io are added
     to Annex 3 of the Data Processing Agreement (lib/legal/text.ts), and every Company Admin is told
     at least 30 days before (DPA clause 6.2). Until then the module stays on Bevan only.
+15. **Map supplier changed again, to Apple Maps (MapKit JS)** (Phil's popups, 2026-10-16, after
+    Norton blocked Mapbox's real sign up page, `account.mapbox.com`, as "phishing" on its SafeWeb
+    list; I checked the page holds Mapbox's own `*.mapbox.com` certificate). Replaces decision 13.
+    Phil chose Apple **knowing that Apple is not our processor**: Apple handles map data under its
+    own privacy policy and offers no data processing agreement for MapKit JS (apple.com/legal,
+    Apple Maps Terms of Use, checked 2026-10-16), the same position that ruled Google out. Free up
+    to 250,000 map views and 25,000 service calls a day with an Apple Developer Program membership
+    ($99 a year, developer.apple.com/programs). Our server makes a short lived map pass (ES256
+    token, origin limited to becarecompliant.com) from Phil's Maps ID key, kept only in Vercel.
+    MapKit JS needs WebAssembly and its CDN in the Content Security Policy: allowed on the office
+    Clock in page only. Decision 14 now reads Apple (not Mapbox) and postcodes.io: before real use,
+    tell every Company Admin 30 days ahead, and say in the DPA and privacy information that home
+    pins viewed on the map go to Apple under Apple's own terms.

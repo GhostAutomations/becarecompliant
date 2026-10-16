@@ -59,23 +59,27 @@ export function isPublicPath(pathname: string): boolean {
  * nonce would disable the inline style="" attributes React and Tailwind emit, and
  * injected CSS cannot execute script. Supabase REST + Realtime are allowed to connect.
  */
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, pathname = ""): string {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const supabaseWss = supabaseUrl.replace(/^https:/, "wss:");
+  /* APPLE MAPS, OFFICE CLOCK IN PAGE ONLY (Rota and Visits Stage 3, Phil 2026-10-16). MapKit JS
+     needs WebAssembly and its CDN for workers, data and frames (Apple's documented CSP for MapKit
+     JS). Allowed on /rota/clock and nowhere else, so every other page keeps the stricter policy. */
+  const appleMaps = pathname === "/rota/clock" || pathname.startsWith("/rota/clock/");
+  const mapkit = appleMaps ? " https://*.apple-mapkit.com" : "";
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${appleMaps ? " 'wasm-unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    // api.mapbox.com: the Clock in map pin's map squares (Rota and Visits Stage 3, Phil 2026-10-16).
-    `connect-src 'self' ${supabaseUrl} ${supabaseWss} https://api.mapbox.com`,
-    "frame-src 'self'",
-    "worker-src 'self' blob:",
+    `connect-src 'self' ${supabaseUrl} ${supabaseWss}${appleMaps ? " https://*.apple-mapkit.com blob:" : ""}`,
+    `frame-src 'self'${mapkit}`,
+    `worker-src 'self' blob:${mapkit}`,
     "manifest-src 'self'",
   ].join("; ");
 }
@@ -116,7 +120,7 @@ async function wasDisplaced(sessionId: string): Promise<boolean> {
 /** Refreshes the Supabase session and enforces auth redirects. */
 export async function updateSession(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp(nonce);
+  const csp = buildCsp(nonce, request.nextUrl.pathname);
 
   // Forward the nonce to Next.js (it reads the 'Content-Security-Policy' request
   // header to nonce its own inline scripts) and to Server Components (via x-nonce)
