@@ -126,12 +126,16 @@ function pickerTitle(p: Picker): string {
 function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => void; onMove: (a: RotaAssignment) => void }) {
   const open = visit.carersNeeded - visit.assignments.length;
   return (
-    <div className={`space-y-2 rounded-xl border border-white/10 bg-white/5 p-3 ${visit.paused ? "opacity-60" : ""}`}>
+    <div
+      id={`visit-${visit.id}`}
+      className={`scroll-mt-24 space-y-2 rounded-xl border border-white/10 bg-white/5 p-3 target:ring-2 target:ring-amber-400 ${visit.paused ? "opacity-60" : ""}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-white">
             {visit.startTime} to {visit.endTime}
           </p>
+          {visit.timeChangedFrom ? <p className="text-xs text-amber-300">Time changed from {visit.timeChangedFrom}</p> : null}
           <p className="text-xs text-white/70">
             {visit.serviceUserName}
             {visit.postcode ? ` · ${visit.postcode}` : ""}

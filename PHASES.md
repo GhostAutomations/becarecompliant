@@ -2548,6 +2548,7 @@ Out of scope: invoicing and payroll.
   tasks before clock out; Care Plan Review stays the review cycle).
 - [x] Stage 5 (DONE 2026-10-16, migrations 0498 and 0499; R5.1 to R5.9 and R5.11 passed from Phil's phone, the office and the database; R5.10, the cloud copy of Visit records, is OPEN until Bevan's drive is reconnected; Phil chose a note store of its own with Evidence rules rather than the Evidence table, one Visit record PDF per visit (clock in and out with result and distance, tasks, notes, concerns, flags) with a new version for anything arriving later, copied to Care notes > year > month > day, a note prompt at clock out that can be skipped, notes for 24 hours and Pin Note (48hrs), corrections as linked new notes, and Raise a concern that tells Supervisors through Settings, Notifications so they decide whether to start an incident form (filled in and linked); rota dropdowns A to Z): care notes (per visit, never edited, stored as Evidence, handover notes, concern
   straight into Incidents and Safeguarding).
+- [ ] Stage 5b (Phil, 2026-10-16, before the MAR): timeline views: the service user's Care Schedule week and rota week on the record; Carer day and Service user day as Rota tabs; tap to open a visit; drag to another carer or along the line to change the time (docs/decisions/rota-visits.md, Stage 5b).
 - [ ] Stage 6: MAR (dm+d medicines, two person check, record only, competency rule, missed and late
   alerts, printable MAR and rota; date of birth and GP practice added to every company's Service
   User Manage record panel).

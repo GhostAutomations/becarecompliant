@@ -302,3 +302,30 @@ information, never their screens, wording or templates.
     a pinned note shows at the top in amber, "Pinned notes", for **48 hours** (was 3 days, decision
     7), so a must read is not missed. Unticked notes still reach the next carer. (The column stays
     for_next_carer; only the words and the times change.)
+
+## Stage 5b decisions: timeline views (popups, 2026-10-16)
+
+Phil showed four views from another system and asked for the same capabilities before the MAR
+(built in our own style and words, never their screens; no real names from the screenshots).
+
+1. **Built now, as Stage 5b**, before Stage 6 (MAR).
+2. **Four views:** the service user's Care Schedule week (Monday to Sunday down the side, a 24 hour
+   line across, each call a block, today highlighted); the service user's rota this week (the same
+   line, which carer is booked into each call, with clock in and out once done); Carer day (every
+   carer working that day down the side, their visits across the day, late or early clock ins, a
+   red line for now); Service user day (every service user with visits that day, grouped by
+   branch, the carers coming to them, a red line for now).
+3. **Where:** Carer day and Service user day are two new Rota tabs beside Visits; the two service
+   user week views are on the service user's record, beside Care notes.
+4. **Tap and drag** (Phil: "both"): tapping a block opens that visit; on Carer day a visit can be
+   dragged onto another carer's row, or from Unassigned onto a carer, with the same rules as Move
+   (DBS and Right to Work block, training warns, clashes and leave checked, a confirm first, the
+   carers texted when published), and dragged along the line to change its time.
+5. **Time change by dragging:** the start time only, same length, same day, in 5 minute steps.
+6. **Locked** once a carer has clocked in.
+7. **The changed visit keeps its time** when the Care Schedule changes later: it shows "Time changed
+   from HH:MM", and a Care Schedule change flags it "Schedule changed" for the office instead of
+   overwriting it. Invoices are worked out from the Care Schedule, so a one off change does not
+   alter an invoice.
+8. **Texts:** the carers on a published visit get the same "your rota has changed" text as Move
+   (test companies text only Founder mobiles, as now).

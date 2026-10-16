@@ -258,3 +258,26 @@ export async function clearVisitFlagAction(_prev: ActionState, fd: FormData): Pr
   if (error) return { error: error.message };
   return { ok: "Checked." };
 }
+
+/* ------------------------------- Timeline (Stage 5b) ------------------------- */
+
+/**
+ * The office dragged a visit along the Carer day timeline (Phil, 2026-10-16; Stage 5b decisions 5
+ * to 8): a new start time, same length, same day, 5 minute steps, refused once anyone has clocked
+ * in or a carer on it is busy or unavailable then. A published visit's carers are texted, as Move.
+ */
+export async function changeVisitTimeAction(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const g = await office();
+  if ("error" in g) return { error: g.error };
+  const visitId = str(fd, "visit_id");
+  const start = str(fd, "start_time");
+  if (!UUID.test(visitId)) return { error: "That visit could not be found." };
+  if (!TIME.test(start)) return { error: "Enter the start time as hours and minutes." };
+  const info = await visitInfo(visitId);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("rota_change_visit_time", { p_visit: visitId, p_start: start });
+  if (error) return { error: error.message };
+  const people = ((data as string[] | null) ?? []).filter((x) => UUID.test(x));
+  if (people.length === 0 && info && hhmm(info.start_time) === start) return { ok: "The time is the same." };
+  return { ok: `Time changed to ${start}.${await tellIfPublished(g, info, people)}` };
+}

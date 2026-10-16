@@ -70,7 +70,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rota_visits")
-    .select("id, branch_id, service_user_id, visit_date, start_time, end_time, starts_at, ends_at, service, carers_needed, status, schedule_changed, generated_key, service_users(full_name, address, service_status, hospital_since)")
+    .select("id, branch_id, service_user_id, visit_date, start_time, end_time, starts_at, ends_at, service, carers_needed, status, schedule_changed, generated_key, time_changed_from_start, service_users(full_name, address, service_status, hospital_since)")
     .eq("branch_id", branchId)
     .eq("visit_date", dateIso)
     .neq("status", "cancelled")
@@ -78,7 +78,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
   if (error) throw new Error(`The visits could not be read: ${error.message}`);
   type V = {
     id: string; branch_id: string; service_user_id: string; visit_date: string; start_time: string; end_time: string;
-    starts_at: string; ends_at: string; service: string | null; carers_needed: number; status: RotaVisit["status"]; schedule_changed: boolean; generated_key: string | null;
+    starts_at: string; ends_at: string; service: string | null; carers_needed: number; status: RotaVisit["status"]; schedule_changed: boolean; generated_key: string | null; time_changed_from_start: string | null;
     service_users: { full_name: string | null; address: { postcode?: string } | null; service_status: string | null; hospital_since: string | null } | null;
   };
   const rows = (data as unknown as V[] | null) ?? [];
@@ -113,6 +113,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     status: r.status,
     paused: isAway(r.service_users?.service_status ?? null, r.service_users?.hospital_since ?? null, r.visit_date),
     scheduleChanged: r.schedule_changed,
+    timeChangedFrom: r.time_changed_from_start ? hhmm(r.time_changed_from_start) : null,
     assignments: byVisit.get(r.id) ?? [],
     clocks: clocks.get(r.id) ?? [],
     tasks: tasks.get(r.id) ?? null,

@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 /** The Rota's views, kept on the same branch. */
-export default function RotaTabs({ active, branchId }: { active: "week" | "visits" | "calls" | "clock" | "concerns" | "templates" | "availability"; branchId: string }) {
+export default function RotaTabs({ active, branchId }: { active: "week" | "visits" | "carer_day" | "su_day" | "calls" | "clock" | "concerns" | "templates" | "availability"; branchId: string }) {
   const tabs = [
     { key: "week", label: "Week", href: `/rota?branch=${branchId}` },
     { key: "visits", label: "Visits", href: `/rota/visits?branch=${branchId}` },
+    { key: "carer_day", label: "Carer day", href: `/rota/carer-day?branch=${branchId}` },
+    { key: "su_day", label: "Service user day", href: `/rota/service-user-day?branch=${branchId}` },
     { key: "calls", label: "Call times", href: `/rota/calls?branch=${branchId}` },
     { key: "clock", label: "Clock in", href: `/rota/clock?branch=${branchId}` },
     { key: "concerns", label: "Concerns", href: `/rota/concerns?branch=${branchId}` },

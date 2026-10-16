@@ -120,6 +120,8 @@ export type RotaVisit = {
   clocks?: ClockRecord[];
   /** The call's current tasks and each carer's latest outcome per task (Stage 4). */
   tasks?: { list: { uid: string; name: string; category: string; key: boolean }[]; byPerson: Record<string, Record<string, { outcome: "done" | "refused" | "not_needed"; reason_code: string | null; reason_text: string | null; at: string }>> } | null;
+  /** The office dragged it to a new time (Stage 5b): the time the Care Schedule had given it. */
+  timeChangedFrom?: string | null;
   /** Care notes and concerns written at this visit (Stage 5). */
   notes?: VisitNoteLine[];
   concerns?: VisitConcernLine[];
