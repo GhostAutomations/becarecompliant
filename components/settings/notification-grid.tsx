@@ -219,7 +219,7 @@ export default function NotificationGrid({
                           type="checkbox"
                           checked={allOn(p.id, g.rows, "inApp")}
                           onChange={(e) => setGroup(p.id, g.rows, "inApp", e.target.checked)}
-                          aria-label={`${p.name}: all ${g.title} checks, Recent activity`}
+                          aria-label={`${p.name}: all ${g.title} ${g.rows.every((r) => r.population === "rota") ? "alerts" : "checks"}, Recent activity`}
                         />
                       </span>
                       <span className="p-1.5">
@@ -227,7 +227,7 @@ export default function NotificationGrid({
                           type="checkbox"
                           checked={allOn(p.id, g.rows, "email")}
                           onChange={(e) => setGroup(p.id, g.rows, "email", e.target.checked)}
-                          aria-label={`${p.name}: all ${g.title} checks, Email`}
+                          aria-label={`${p.name}: all ${g.title} ${g.rows.every((r) => r.population === "rota") ? "alerts" : "checks"}, Email`}
                         />
                       </span>
                     </div>
