@@ -38,7 +38,7 @@ export default function NoteLines({
           <div key={n.id} className="rounded-lg bg-white/5 px-2 py-1.5">
             <p className="text-[11px] text-white/50">
               Note {hhmm(n.at)}
-              {n.forNextCarer ? " · for the next carer" : ""}
+              {n.forNextCarer ? " · pinned" : ""}
               {corrects ? ` · correction to the ${hhmm(corrects.at)} note` : ""}
               {correctedBy ? ` · corrected at ${hhmm(correctedBy.at)}` : ""}
               {n.flags.includes("offline") ? " · recorded offline, sent later" : ""}

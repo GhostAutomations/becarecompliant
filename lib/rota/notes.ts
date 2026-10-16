@@ -4,8 +4,8 @@
  * another pure module, so node --test runs it.
  *
  * A note is written at a visit and never edited: a correction is a new note pointing at the one it
- * corrects. A note ticked "For the next carer" is highlighted on the next visits to that service
- * user for 3 days. A carer's phone shows the notes for the service user from the last 48 hours
+ * corrects. A note ticked "Pin Note (48hrs)" is pinned at the top of the next visits to that
+ * service user for 48 hours. A carer's phone shows the notes for the service user from the last 24 hours
  * (the server decides which; this only arranges them). Notes and concerns wait on the phone and
  * are sent once, like clock taps and task outcomes.
  */
@@ -66,9 +66,9 @@ export type ShownNote = {
 export type ShownConcern = { key: string; category: string; body: string; at: string; status: string; waiting: boolean };
 
 export type CardNotes = {
-  /** "For the next carer" notes written at other visits: shown highlighted at the top. */
+  /** Pinned notes ("Pin Note (48hrs)") written at other visits: shown at the top for 48 hours. */
   handover: ShownNote[];
-  /** Everything else from the last 48 hours written at other visits, newest first. */
+  /** Everything else from the last 24 hours written at other visits, newest first. */
   earlier: ShownNote[];
   /** This carer's own notes on this visit, oldest first, including any still waiting to send. */
   mine: ShownNote[];

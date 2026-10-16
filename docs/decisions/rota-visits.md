@@ -263,9 +263,10 @@ information, never their screens, wording or templates.
 6. **Earlier notes on the carer's phone:** the notes for that service user from the **last 48
    hours** (Phil's choice over "last 3 notes"), from any carer, shown on the carer's own visit card
    only (visits from yesterday to tomorrow). Every view is logged. The office sees every note for
-   its branches.
+   its branches. **Changed by Phil after his phone test (decision 14): 24 hours.**
 7. **Handover note:** a note ticked "For the next carer", highlighted at the top of the next visits
-   to that service user for 3 days. The office sees it too. ("Handover" elsewhere still means the
+   to that service user for 3 days. **Changed by Phil after his phone test (decision 14): the tick is
+   "Pin Note (48hrs)" and pins for 48 hours.** The office sees it too. ("Handover" elsewhere still means the
    On Call shift log and moving a shift to another carer.)
 8. **Corrections:** "Correct this note" makes a new note linked to the old one. The old note stays,
    marked "Corrected at HH:MM"; the correction says "Correction to the HH:MM note". Only the author
@@ -294,3 +295,10 @@ information, never their screens, wording or templates.
     in reasons and the Care plan task picker (its groups, the tasks in each, and the company's own
     tasks) are shown A to Z, with "Other" always last. Only Rota and Visits lists change; the
     incident form's own lists are untouched. The carer picker keeps its recommended order.
+14. **Earlier notes and pinned notes** (Phil, after his phone test, 2026-10-16: what is the point of
+    the tick, when the next carer should see the notes anyway): every note for the service user
+    from the **last 24 hours** shows on the carer's visit card (was 48 hours, decision 6), folded
+    under "Notes from the last 24 hours". The tick is renamed **"Pin Note (48hrs)"** (Phil's words):
+    a pinned note shows at the top in amber, "Pinned notes", for **48 hours** (was 3 days, decision
+    7), so a must read is not missed. Unticked notes still reach the next carer. (The column stays
+    for_next_carer; only the words and the times change.)

@@ -4,10 +4,10 @@
  * Be Care Compliant: care notes and concerns on a visit card, on the carer's Clock in page (Rota and
  * Visits Stage 5, Phil's popups 2026-10-16; docs/decisions/rota-visits.md, Stage 5 decisions).
  *
- *  - "For the next carer" notes from other visits, highlighted at the top (3 days).
+ *  - Pinned notes ("Pin Note (48hrs)") from other visits, at the top for 48 hours.
  *  - The carer's own notes on this visit; a sent note is never edited, "Correct this note" writes a
  *    new note linked to it.
- *  - Notes for this service user from the last 48 hours, folded away.
+ *  - Notes for this service user from the last 24 hours, folded away (Phil, 2026-10-16).
  *  - Raise a concern: the type (the incident types) and what it is; the office is told and decides
  *    whether an incident form is needed.
  *
@@ -36,7 +36,7 @@ function NoteLine({ n, onCorrect }: { n: ShownNote; onCorrect?: () => void }) {
     <li className="rounded-lg bg-white/5 px-3 py-2">
       <p className="text-xs text-white/55">
         {n.mine ? hhmm(n.at) : `${n.author}, ${when(n.at)}`}
-        {n.forNextCarer ? " · for the next carer" : ""}
+        {n.forNextCarer ? " · pinned" : ""}
         {n.correctsAt ? ` · correction to the ${hhmm(n.correctsAt)} note` : ""}
         {n.waiting ? " · waiting to send" : ""}
       </p>
@@ -100,7 +100,7 @@ export default function VisitNotesPanel({
     <div className="space-y-2 rounded-lg border border-white/10 p-2" aria-label="Care notes">
       {card.handover.length ? (
         <div className="space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2">
-          <p className="text-xs font-semibold text-amber-200">For the next carer</p>
+          <p className="text-xs font-semibold text-amber-200">Pinned notes</p>
           <ul className="space-y-1.5">
             {card.handover.map((n) => (
               <NoteLine key={n.key} n={n} />
@@ -157,7 +157,7 @@ export default function VisitNotesPanel({
           {!correcting ? (
             <label className="flex items-center gap-2 text-xs text-white/80">
               <input type="checkbox" checked={forNext} onChange={(e) => setForNext(e.target.checked)} />
-              For the next carer (shown at the next visits for 3 days)
+              Pin Note (48hrs)
             </label>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
@@ -196,7 +196,7 @@ export default function VisitNotesPanel({
 
       {card.earlier.length ? (
         <details className="rounded-lg bg-white/5 p-2">
-          <summary className="cursor-pointer text-xs font-semibold text-white/75">Notes from the last 48 hours ({card.earlier.length})</summary>
+          <summary className="cursor-pointer text-xs font-semibold text-white/75">Notes from the last 24 hours ({card.earlier.length})</summary>
           <ul className="mt-2 space-y-1.5">
             {card.earlier.map((n) => (
               <NoteLine key={n.key} n={n} />

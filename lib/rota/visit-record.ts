@@ -181,7 +181,7 @@ export function buildVisitRecord(v: VisitRecordInput): VisitRecordDoc {
       const corrects = n.correctsNoteId ? byId.get(n.correctsNoteId) : null;
       const correctedBy = notes.find((x) => x.correctsNoteId === n.id);
       const tags = [
-        n.forNextCarer ? "For the next carer." : "",
+        n.forNextCarer ? "Pinned note." : "",
         corrects ? `Correction to the ${londonTime(corrects.at)} note.` : "",
         correctedBy ? `Corrected at ${londonTime(correctedBy.at)}.` : "",
         n.flags.length ? `${flagList(n.flags)}.` : "",
