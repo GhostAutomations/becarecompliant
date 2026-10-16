@@ -101,9 +101,14 @@ export default function PlaceMap({
         if (box.current) box.current.dataset.state = state;
       };
       mark("created");
+      // The first look at an area is slow (each map square is read from the file once, then kept),
+      // so say so rather than leave the office wondering; after 45 seconds, say it is too long.
+      const firstLook = window.setTimeout(() => {
+        if (!map.loaded()) setStatus("Showing this area for the first time can take up to half a minute. After that it is quick.");
+      }, 4_000);
       const slow = window.setTimeout(() => {
         if (!map.loaded()) setError("The map is taking too long to load. Check your connection, or set the point from where you are standing.");
-      }, 20_000);
+      }, 45_000);
       map.on("styledata", () => mark("style"));
       map.on("sourcedata", (e: { sourceId?: string; isSourceLoaded?: boolean }) => {
         if (e.sourceId === "protomaps") mark(e.isSourceLoaded ? "tiles" : "source");
@@ -111,7 +116,9 @@ export default function PlaceMap({
       map.on("load", () => {
         mark("loaded");
         window.clearTimeout(slow);
+        window.clearTimeout(firstLook);
         setStatus(null);
+        setError(null);
         if (start) place(start);
       });
       map.on("error", (e: { error?: { message?: string } }) => {
@@ -127,6 +134,7 @@ export default function PlaceMap({
       map.on("click", (e: { lngLat: { lat: number; lng: number } }) => place({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
       cleanup = () => {
         window.clearTimeout(slow);
+        window.clearTimeout(firstLook);
         map.remove();
       };
     })().catch(() => {
@@ -165,7 +173,7 @@ export default function PlaceMap({
       <div className="relative h-[60vh] min-h-72 w-full overflow-hidden rounded-xl border border-white/10">
         {/* MapLibre sets its own position on this box, so it is sized directly, not by inset. */}
         <div ref={box} className="h-full w-full" />
-        {status ? <p className="absolute inset-x-0 top-1/2 text-center text-sm text-white/60" role="status">{status}</p> : null}
+        {status ? <p className="absolute inset-x-0 top-1/2 px-6 text-center text-sm text-white/60" role="status">{status}</p> : null}
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       <button type="button" className="btn-primary px-4 py-2 text-sm" disabled={!pos || saving} onClick={save}>
