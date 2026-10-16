@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
 import ClockLines from "@/components/rota/clock-lines";
+import { OUTCOME_WORDS, taskReasonLabel, taskSummary } from "@/lib/rota/tasks";
 import { CentreDialog } from "@/components/panel-dialog";
 import {
   cancelVisitAction,
@@ -182,6 +183,7 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
                 startsAt={visit.startsAt}
                 endsAt={visit.endsAt}
               />
+              {visit.tasks && visit.status === "published" ? <TaskLines tasks={visit.tasks} personId={a.personId} /> : null}
             </li>
           ))}
         </ul>
@@ -292,5 +294,31 @@ function VisitPicker({ picker, onDone }: { picker: Picker; onDone: () => void })
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** One carer's task outcomes on a visit, for the office (Stage 4): a summary, open for the detail. */
+function TaskLines({ tasks, personId }: { tasks: NonNullable<RotaVisit["tasks"]>; personId: string }) {
+  const mine = tasks.byPerson[personId] ?? {};
+  const recorded = Object.keys(mine).length > 0;
+  const s = taskSummary(tasks.list, mine);
+  const flagged = s.keyMissing > 0 || Object.values(mine).some((o) => o.outcome !== "done");
+  return (
+    <details className="mt-1">
+      <summary className={`cursor-pointer text-xs ${recorded && flagged ? "text-amber-300" : "text-white/60"}`}>
+        Tasks: {recorded ? s.text : `${tasks.list.length} task${tasks.list.length === 1 ? "" : "s"}, none recorded yet`}
+      </summary>
+      <ul className="mt-1 space-y-0.5 pl-3">
+        {tasks.list.map((t) => {
+          const o = mine[t.uid];
+          return (
+            <li key={t.uid} className={`text-xs ${!o ? "text-white/50" : o.outcome === "done" ? "text-white/70" : "text-amber-300"}`}>
+              {t.name}
+              {t.key ? " (key)" : ""}: {o ? `${OUTCOME_WORDS[o.outcome]}${o.reason_code ? `, ${taskReasonLabel(o.reason_code, o.reason_text)}` : ""}` : "not recorded"}
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }

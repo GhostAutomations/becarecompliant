@@ -12,9 +12,13 @@
  */
 
 import type { ClockEvent } from "@/lib/rota/clock";
+import type { RecordedOutcome, TaskEvent, TaskItem } from "@/lib/rota/tasks";
 
 const DB = "bcc-rota";
-const VERSION = 1;
+// 2: task outcomes (Stage 4) get their own outbox beside the clock taps.
+const VERSION = 2;
+
+export type VisitTasks = { visit_id: string; list_id: string; tasks: TaskItem[]; outcomes: Record<string, RecordedOutcome> };
 
 export type DayRow = {
   target_kind: "visit" | "shift";
@@ -39,6 +43,7 @@ function open(): Promise<IDBDatabase> {
       const db = req.result;
       if (!db.objectStoreNames.contains("outbox")) db.createObjectStore("outbox", { keyPath: "event_id" });
       if (!db.objectStoreNames.contains("day")) db.createObjectStore("day", { keyPath: "owner" });
+      if (!db.objectStoreNames.contains("task_outbox")) db.createObjectStore("task_outbox", { keyPath: "event_id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -94,18 +99,45 @@ export async function dismissEvent(id: string): Promise<void> {
   await removeEvents([id]);
 }
 
-export async function saveDay(owner: string, rows: DayRow[]): Promise<void> {
-  await run("day", "readwrite", (s) => s.put({ owner, rows, saved_at: new Date().toISOString() }));
+export async function saveDay(owner: string, rows: DayRow[], tasks: VisitTasks[] = []): Promise<void> {
+  await run("day", "readwrite", (s) => s.put({ owner, rows, tasks, saved_at: new Date().toISOString() }));
 }
 
-export async function loadDay(owner: string): Promise<{ rows: DayRow[]; saved_at: string } | null> {
-  const v = (await run<{ owner: string; rows: DayRow[]; saved_at: string }>("day", "readonly", (s) => s.get(owner))) ?? null;
-  return v ? { rows: v.rows, saved_at: v.saved_at } : null;
+export async function loadDay(owner: string): Promise<{ rows: DayRow[]; tasks: VisitTasks[]; saved_at: string } | null> {
+  const v = (await run<{ owner: string; rows: DayRow[]; tasks?: VisitTasks[]; saved_at: string }>("day", "readonly", (s) => s.get(owner))) ?? null;
+  return v ? { rows: v.rows, tasks: v.tasks ?? [], saved_at: v.saved_at } : null;
+}
+
+/* Task outcomes waiting to be sent (Stage 4): the same rules as the clock taps. */
+export async function addTaskEvent(e: TaskEvent): Promise<void> {
+  await run("task_outbox", "readwrite", (s) => s.put(e));
+}
+
+export async function allTaskEvents(): Promise<TaskEvent[]> {
+  return ((await run<TaskEvent[]>("task_outbox", "readonly", (s) => s.getAll() as IDBRequest<TaskEvent[]>)) ?? []) as TaskEvent[];
+}
+
+export async function removeTaskEvents(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await run("task_outbox", "readwrite", (s) => {
+    for (const id of ids) s.delete(id);
+  });
+}
+
+export async function markTasksRefused(refused: { event_id: string; reason: string }[]): Promise<void> {
+  if (!refused.length) return;
+  const byId = new Map((await allTaskEvents()).map((e) => [e.event_id, e]));
+  await run("task_outbox", "readwrite", (s) => {
+    for (const r of refused) {
+      const e = byId.get(r.event_id);
+      if (e) s.put({ ...e, refused: r.reason });
+    }
+  });
 }
 
 /** Another carer's kept day is removed once they have nothing waiting (offline design, 7). */
 export async function clearOtherDays(owner: string): Promise<void> {
-  const waiting = new Set((await allEvents()).map((e) => e.owner));
+  const waiting = new Set([...(await allEvents()), ...(await allTaskEvents())].map((e) => e.owner));
   const keys = ((await run<IDBValidKey[]>("day", "readonly", (s) => s.getAllKeys())) ?? []) as string[];
   const drop = keys.filter((k) => k !== owner && !waiting.has(k));
   if (!drop.length) return;

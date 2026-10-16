@@ -89,7 +89,7 @@ export type ClockEvent = {
 export type SubmitResult = { event_id: string; result: "accepted" | "duplicate" | "refused"; reason: string | null };
 
 /** The next batch to send: this sign in's own waiting events (not refused ones), oldest first. */
-export function nextBatch(queue: ClockEvent[], owner: string, max = 50): ClockEvent[] {
+export function nextBatch<T extends { owner: string; refused?: string | null; phone_time: string; device_seq?: number | null }>(queue: T[], owner: string, max = 50): T[] {
   return queue
     .filter((e) => e.owner === owner && !e.refused)
     .sort((a, b) => a.phone_time.localeCompare(b.phone_time) || (a.device_seq ?? 0) - (b.device_seq ?? 0))

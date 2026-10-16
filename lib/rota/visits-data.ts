@@ -70,7 +70,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rota_visits")
-    .select("id, branch_id, service_user_id, visit_date, start_time, end_time, starts_at, ends_at, service, carers_needed, status, schedule_changed, service_users(full_name, address, service_status, hospital_since)")
+    .select("id, branch_id, service_user_id, visit_date, start_time, end_time, starts_at, ends_at, service, carers_needed, status, schedule_changed, generated_key, service_users(full_name, address, service_status, hospital_since)")
     .eq("branch_id", branchId)
     .eq("visit_date", dateIso)
     .neq("status", "cancelled")
@@ -78,7 +78,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
   if (error) throw new Error(`The visits could not be read: ${error.message}`);
   type V = {
     id: string; branch_id: string; service_user_id: string; visit_date: string; start_time: string; end_time: string;
-    starts_at: string; ends_at: string; service: string | null; carers_needed: number; status: RotaVisit["status"]; schedule_changed: boolean;
+    starts_at: string; ends_at: string; service: string | null; carers_needed: number; status: RotaVisit["status"]; schedule_changed: boolean; generated_key: string | null;
     service_users: { full_name: string | null; address: { postcode?: string } | null; service_status: string | null; hospital_since: string | null } | null;
   };
   const rows = (data as unknown as V[] | null) ?? [];
@@ -96,7 +96,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     list.push({ id: a.id, personId: a.person_id, name: a.people?.full_name ?? "Someone from another branch", via: a.via, warnings: Array.isArray(a.warnings) ? a.warnings : [] });
     byVisit.set(a.visit_id, list);
   }
-  const clocks = await getClockRecords("visit", rows.map((r) => r.id));
+  const [clocks, tasks] = await Promise.all([getClockRecords("visit", rows.map((r) => r.id)), getVisitTasks(rows)]);
   return rows.map((r) => ({
     id: r.id,
     branchId: r.branch_id,
@@ -115,7 +115,47 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     scheduleChanged: r.schedule_changed,
     assignments: byVisit.get(r.id) ?? [],
     clocks: clocks.get(r.id) ?? [],
+    tasks: tasks.get(r.id) ?? null,
   }));
+}
+
+/**
+ * Each visit's call tasks (Stage 4): the call's current task list, found from the visit's key
+ * (service_user:date:service:slot:occurrence, 0491), and each carer's latest outcome per task.
+ */
+async function getVisitTasks(rows: { id: string; service_user_id: string; visit_date: string; generated_key: string | null }[]): Promise<Map<string, NonNullable<RotaVisit["tasks"]>>> {
+  const out = new Map<string, NonNullable<RotaVisit["tasks"]>>();
+  const keyed = rows.filter((r) => r.generated_key);
+  if (keyed.length === 0) return out;
+  const supabase = await createClient();
+  const [{ data: lists }, { data: outcomes }] = await Promise.all([
+    supabase
+      .from("rota_call_task_lists")
+      .select("service_user_id, day_of_week, service, slot_key, occurrence, tasks")
+      .in("service_user_id", [...new Set(keyed.map((r) => r.service_user_id))])
+      .is("replaced_at", null),
+    supabase
+      .from("rota_task_outcomes")
+      .select("visit_id, person_id, task_uid, outcome, reason_code, reason_text, happened_at")
+      .in("visit_id", keyed.map((r) => r.id))
+      .order("happened_at"),
+  ]);
+  type L = { service_user_id: string; day_of_week: number; service: string; slot_key: string; occurrence: number; tasks: { uid: string; name: string; category: string; key: boolean }[] };
+  type O = { visit_id: string; person_id: string; task_uid: string; outcome: "done" | "refused" | "not_needed"; reason_code: string | null; reason_text: string | null; happened_at: string };
+  const listMap = new Map(((lists as L[] | null) ?? []).map((l) => [`${l.service_user_id}|${l.day_of_week}|${l.service}|${l.slot_key}|${l.occurrence}`, l.tasks]));
+  for (const r of keyed) {
+    const [, , service, slot, occ] = (r.generated_key as string).split(":");
+    const dow = (new Date(`${r.visit_date}T12:00:00Z`).getUTCDay() + 6) % 7;
+    const list = listMap.get(`${r.service_user_id}|${dow}|${service}|${slot}|${occ}`);
+    if (list?.length) out.set(r.id, { list, byPerson: {} });
+  }
+  // Oldest first, so the latest outcome per carer and task is the one left.
+  for (const o of (outcomes as O[] | null) ?? []) {
+    const t = out.get(o.visit_id);
+    if (!t) continue;
+    (t.byPerson[o.person_id] ??= {})[o.task_uid] = { outcome: o.outcome, reason_code: o.reason_code, reason_text: o.reason_text, at: o.happened_at };
+  }
+  return out;
 }
 
 /** Draft shifts in a branch between two dates (with countDraftVisits, the week's Publish count). */

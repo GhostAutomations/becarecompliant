@@ -36,18 +36,25 @@ import {
   type ReasonCode,
   type SubmitResult,
 } from "@/lib/rota/clock";
+import { keyTasksWithoutOutcome, mergeOutcomes, type TaskEvent, type TaskItem, type TaskOutcomeKind, type TaskReasonCode } from "@/lib/rota/tasks";
+import VisitTaskList from "@/components/rota/clock-tasks";
 import {
   addEvent,
+  addTaskEvent,
   allEvents,
+  allTaskEvents,
   clearOtherDays,
   deviceId,
   dismissEvent,
   loadDay,
   markRefused,
+  markTasksRefused,
   nextSeq,
   removeEvents,
+  removeTaskEvents,
   saveDay,
   type DayRow,
+  type VisitTasks,
 } from "@/components/rota/clock-store";
 
 const SEND_EVERY_MS = 30_000;
@@ -89,28 +96,37 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
   const [code, setCode] = useState<{ token: string; via: "qr" | "nfc" } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [codeTargetId, setCodeTargetId] = useState<string | null>(null);
+  const [visitTasks, setVisitTasks] = useState<VisitTasks[]>([]);
+  const [taskQueue, setTaskQueue] = useState<TaskEvent[]>([]);
+  const [gate, setGate] = useState<{ row: DayRow; viaCode: { token: string; via: "qr" | "nfc" } | null } | null>(null);
   const sending = useRef(false);
 
-  const refreshQueue = useCallback(async () => setQueue(await allEvents()), []);
+  const refreshQueue = useCallback(async () => {
+    setQueue(await allEvents());
+    setTaskQueue(await allTaskEvents().catch(() => []));
+  }, []);
 
   // The day: the kept copy first (works with no signal), then a fresh one when there is signal.
   const loadTheDay = useCallback(async () => {
     const kept = await loadDay(ownerId).catch(() => null);
     if (kept) {
       setRows((r) => r ?? kept.rows);
+      setVisitTasks((v) => (v.length ? v : kept.tasks));
       setSavedAt((s) => s ?? kept.saved_at);
     }
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    const { data, error } = await supabase.rpc("rota_my_day");
+    const [{ data, error }, { data: taskData }] = await Promise.all([supabase.rpc("rota_my_day"), supabase.rpc("rota_my_visit_tasks")]);
     if (error) {
       if (!kept) setRows((r) => r ?? []);
       return;
     }
     const fresh = (data as DayRow[] | null) ?? [];
+    const freshTasks = (taskData as VisitTasks[] | null) ?? kept?.tasks ?? [];
     setRows(fresh);
+    setVisitTasks(freshTasks);
     const at = new Date().toISOString();
     setSavedAt(at);
-    await saveDay(ownerId, fresh).catch(() => undefined);
+    await saveDay(ownerId, fresh, freshTasks).catch(() => undefined);
     await clearOtherDays(ownerId).catch(() => undefined);
   }, [ownerId, supabase]);
 
@@ -136,6 +152,19 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
         sentAny = true;
         if (remove.length + refuse.length === 0) break;
         batch = nextBatch(await allEvents(), ownerId);
+      }
+      // Task outcomes (Stage 4): the same rules, their own outbox.
+      let taskBatch = nextBatch(await allTaskEvents(), ownerId);
+      while (taskBatch.length) {
+        const payload = taskBatch.map(({ owner: _o, refused: _r, ...e }) => e);
+        const { data, error } = await supabase.rpc("rota_task_submit", { p_events: payload, p_phone_now: new Date().toISOString() });
+        if (error) break;
+        const { remove, refuse } = applyResults((data as SubmitResult[] | null) ?? []);
+        await removeTaskEvents(remove);
+        await markTasksRefused(refuse);
+        sentAny = true;
+        if (remove.length + refuse.length === 0) break;
+        taskBatch = nextBatch(await allTaskEvents(), ownerId);
       }
       if (sentAny) {
         setLastSent(new Date().toISOString());
@@ -238,8 +267,42 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     void send();
   }
 
-  async function tap(row: DayRow, kind: "in" | "out", viaCode: { token: string; via: "qr" | "nfc" } | null) {
+  const tasksFor = (row: DayRow) => visitTasks.find((v) => v.visit_id === row.target_id) ?? null;
+  const outcomesFor = (row: DayRow) => {
+    const vt = tasksFor(row);
+    return mergeOutcomes(vt?.outcomes ?? {}, taskQueue, row.target_id, ownerId);
+  };
+
+  async function recordTask(row: DayRow, task: TaskItem, outcome: TaskOutcomeKind, reasonCode: TaskReasonCode | null, why: string) {
+    const vt = tasksFor(row);
+    if (!vt || !task.uid) return;
+    await addTaskEvent({
+      event_id: crypto.randomUUID(),
+      owner: ownerId,
+      visit_id: row.target_id,
+      list_id: vt.list_id,
+      task_uid: task.uid,
+      outcome,
+      reason_code: outcome === "done" ? null : reasonCode,
+      reason_text: reasonCode === "other" ? why.trim().slice(0, 500) : null,
+      phone_time: new Date().toISOString(),
+      device_id: deviceId(),
+      device_seq: nextSeq(),
+    });
+    await refreshQueue();
+    void send();
+  }
+
+  async function tap(row: DayRow, kind: "in" | "out", viaCode: { token: string; via: "qr" | "nfc" } | null, skipGate = false) {
     setNotice(null);
+    // Key tasks first (Phil, 2026-10-16): any outcome counts, so care is never blocked.
+    if (kind === "out" && !skipGate && row.target_kind === "visit") {
+      const vt = tasksFor(row);
+      if (vt && keyTasksWithoutOutcome(vt.tasks, outcomesFor(row)).length) {
+        setGate({ row, viaCode });
+        return;
+      }
+    }
     setBusy(`${row.target_id}:${kind}`);
     try {
       const fix = await readPosition();
@@ -382,6 +445,14 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                   {st.inAt ? `Clocked in ${hhmm(st.inAt)}${st.inWaiting ? " (waiting to send)" : ""}` : "Not clocked in"}
                   {st.outAt ? ` · Clocked out ${hhmm(st.outAt)}${st.outWaiting ? " (waiting to send)" : ""}` : ""}
                 </p>
+                {r.target_kind === "visit" && !r.paused && isOpen && tasksFor(r)?.tasks.length ? (
+                  <details className="rounded-lg border border-white/10 p-2" open={Boolean(st.inAt && !st.outAt)}>
+                    <summary className="cursor-pointer text-xs font-semibold text-white/75">Tasks ({tasksFor(r)!.tasks.length})</summary>
+                    <div className="mt-2">
+                      <VisitTaskList tasks={tasksFor(r)!.tasks} outcomes={outcomesFor(r)} onRecord={(t, o, rc, why) => recordTask(r, t, o, rc, why)} />
+                    </div>
+                  </details>
+                ) : null}
                 {!r.paused && kind ? (
                   isOpen ? (
                     <button
@@ -414,6 +485,38 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
       )}
 
       {savedAt && !online ? <p className="text-xs text-white/40">Showing your day as it was at {hhmm(savedAt)}.</p> : null}
+
+      <CentreDialog open={gate !== null} onClose={() => setGate(null)} label="Key tasks first">
+        {gate ? (
+          (() => {
+            const vt = tasksFor(gate.row);
+            const outs = outcomesFor(gate.row);
+            const missing = vt ? keyTasksWithoutOutcome(vt.tasks, outs) : [];
+            return (
+              <div className="space-y-3 p-5">
+                <p className="text-sm text-white/75">
+                  {missing.length
+                    ? "Before you clock out, mark each key task: Done, or Not done with a reason."
+                    : "All key tasks are marked. You can clock out now."}
+                </p>
+                {vt ? <VisitTaskList tasks={vt.tasks} outcomes={outs} onlyKey onRecord={(t, o, rc, why) => recordTask(gate.row, t, o, rc, why)} /> : null}
+                <button
+                  type="button"
+                  className="btn-primary w-full px-4 py-3 text-base"
+                  disabled={missing.length > 0}
+                  onClick={() => {
+                    const g = gate;
+                    setGate(null);
+                    void tap(g.row, "out", g.viaCode, true);
+                  }}
+                >
+                  Clock out
+                </button>
+              </div>
+            );
+          })()
+        ) : null}
+      </CentreDialog>
 
       <CentreDialog open={ask !== null} onClose={() => setAsk(null)} label="You are not at the home">
         {ask ? (

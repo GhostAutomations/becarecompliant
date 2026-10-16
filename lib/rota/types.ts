@@ -118,6 +118,8 @@ export type RotaVisit = {
   assignments: RotaAssignment[];
   /** Clock ins and outs on this visit (Stage 3). */
   clocks?: ClockRecord[];
+  /** The call's current tasks and each carer's latest outcome per task (Stage 4). */
+  tasks?: { list: { uid: string; name: string; category: string; key: boolean }[]; byPerson: Record<string, Record<string, { outcome: "done" | "refused" | "not_needed"; reason_code: string | null; reason_text: string | null; at: string }>> } | null;
 };
 
 export type VisitCandidate = RotaCandidate & {

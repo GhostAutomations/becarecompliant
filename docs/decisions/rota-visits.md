@@ -212,3 +212,28 @@ information, never their screens, wording or templates.
     the radius is still kept as proof and is **flagged to the office** as "Scanned away from the
     home", with the distance (Phil's popup, 2026-10-16, after his own test scanned a sheet on a
     computer screen 54 km away). Migration 0496.
+
+## Stage 4 decisions: care plan tasks (popups, 2026-10-16)
+
+1. Stage 4 adds **tasks per call**; the uploaded care plan document stays the written care plan.
+   No new written care plan form (Phil's choice over the bigger build).
+2. Tasks are set **per call** in the Care Schedule (the morning call can differ from the evening
+   one); a call's list can be copied to other calls.
+3. **Key tasks**: at clock out the carer is asked to give each key task an outcome first (done,
+   refused or not needed with a reason). Any outcome counts, so care is never blocked; it works
+   with no signal.
+4. **Who sets tasks**: the same people who manage the care plan today (Admin, RI, Registered
+   Manager, Manager, Supervisor, Recruiter, in their branches). Every change is kept as a version.
+5. **Where**: under each call on the service user's **Care plan** page, shown only when the
+   company has Rota and Visits on.
+6. **Reasons** when a task is refused or not needed (Phil: "as detailed as possible"): Service user
+   declined; Asleep and did not want to be woken; Unwell; Not at home; In hospital; Away (respite
+   or with family); Already done earlier; Done by family or a friend; Done by another professional
+   (district nurse, GP, another agency); Not needed today; No supplies or food in the house;
+   Equipment missing or faulty; Unsafe to do (risk to the service user or carer); Not enough time
+   on the visit; Other (typed).
+7. **Starter task list** (Phil: "more detailed and add custom tasks"), grouped Personal care, Food
+   and drink, Moving around, Health and wellbeing, Home and safety, Out and about, Evening and
+   night, exactly as shown to Phil (lib/rota/tasks.ts). Medicines and prescribed creams are left
+   out: they belong to the MAR (Stage 6). The office can add **custom tasks** to the company's list,
+   available for all its service users.

@@ -13,6 +13,10 @@ import { CALL_SLOTS } from "@/lib/service-users/care-package";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
+import { getSuCallTasks, getTaskLibrary } from "@/lib/rota/tasks-data";
+import CallTasks from "@/components/rota/call-tasks";
 
 export const metadata: Metadata = { title: "Care plan" };
 
@@ -55,6 +59,12 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
     branchIds: await callerBranchIds(profile.id),
     recordBranchId: su.branch_id,
   });
+  /* Tasks at each call (Rota and Visits Stage 4): only for a company with the module on, read from
+     the same cached company row the layout loads, so other companies get no extra query. */
+  const rotaOn = moduleOnInRow(await getCompanyRow(su.company_id), "rota_visits");
+  const [callTasks, taskLibrary] = rotaOn
+    ? await Promise.all([getSuCallTasks(id, entries), getTaskLibrary(su.company_id)])
+    : [[], []];
 
   return (
     <div className="page-shell space-y-6">
@@ -68,6 +78,8 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
         today={londonToday()}
         hasPlan={entries.length > 0}
       />
+
+      {rotaOn ? <CallTasks serviceUserId={id} calls={callTasks} library={taskLibrary} canEdit={canReplace} /> : null}
 
       {versions.map((v) => (
         <details key={`${v.effective_from}-${v.effective_to}`} className="glass-card p-5">
