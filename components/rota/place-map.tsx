@@ -49,10 +49,17 @@ export default function PlaceMap({
         setError(link.error ?? "The map could not be loaded.");
         return;
       }
-      const [maplibregl, pmtiles, basemaps] = await Promise.all([import("maplibre-gl"), import("pmtiles"), import("@protomaps/basemaps")]);
+      // MapLibre is loaded from its own files in public/map/maplibre (with its worker beside it),
+      // not through the app bundle: bundled, its main code and its worker did not cooperate and the
+      // map hung on "Loading" (found in the screen test, 2026-10-16). lib/rota/map-worker.test.ts
+      // keeps these files in step with the installed maplibre-gl.
+      const libUrl = `${location.origin}/map/maplibre/maplibre-gl.mjs`;
+      const [maplibregl, pmtiles, basemaps] = await Promise.all([
+        import(/* webpackIgnore: true */ libUrl) as Promise<typeof import("maplibre-gl")>,
+        import("pmtiles"),
+        import("@protomaps/basemaps"),
+      ]);
       if (cancelled || !box.current) return;
-      // MapLibre 6's worker is a separate file the app bundle does not carry: served from
-      // public/map/maplibre (lib/rota/map-worker.test.ts keeps it in step with the installed one).
       maplibregl.setWorkerUrl(`${location.origin}/map/maplibre/maplibre-gl-worker.mjs`);
       const protocol = new pmtiles.Protocol();
       const archive = new pmtiles.PMTiles(link.url);
@@ -96,17 +103,38 @@ export default function PlaceMap({
         setPos(p);
         draw(p);
       };
+      // Visible state, never a silent hang: what the map is doing is on the box (data-state),
+      // any error is shown, and after 20 seconds without a map the office is told.
+      const mark = (state: string) => {
+        if (box.current) box.current.dataset.state = state;
+      };
+      mark("created");
+      const slow = window.setTimeout(() => {
+        if (!map.loaded()) setError("The map is taking too long to load. Check your connection, or set the point from where you are standing.");
+      }, 20_000);
+      map.on("styledata", () => mark("style"));
+      map.on("sourcedata", (e: { sourceId?: string; isSourceLoaded?: boolean }) => {
+        if (e.sourceId === "protomaps") mark(e.isSourceLoaded ? "tiles" : "source");
+      });
       map.on("load", () => {
+        mark("loaded");
+        window.clearTimeout(slow);
         setStatus(null);
         if (start) place(start);
       });
-      map.on("error", () => setStatus(null));
+      map.on("error", (e: { error?: { message?: string } }) => {
+        const message = e.error?.message ?? "unknown";
+        mark(`error: ${message}`);
+        setStatus(null);
+        setError(`The map hit a problem: ${message}`);
+      });
       marker.on("dragend", () => {
         const ll = marker.getLngLat();
         place({ lat: ll.lat, lng: ll.lng });
       });
       map.on("click", (e: { lngLat: { lat: number; lng: number } }) => place({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
       cleanup = () => {
+        window.clearTimeout(slow);
         map.remove();
         maplibregl.removeProtocol("pmtiles");
       };
