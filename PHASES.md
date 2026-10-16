@@ -2544,7 +2544,7 @@ Out of scope: invoicing and payroll.
   carers, cover, hospital and respite pauses, carer recommendation, Europe/London dates).
 - [x] Stage 3 (DONE 2026-10-16, migrations 0493 to 0496; R3.1 to R3.11 passed, clock in, flight mode, QR and text tested on Phil's phone; map pin on Apple Maps after our own map file was too slow and Norton blocked Mapbox; QR scans far from the home flagged; office alert for unsent records waits for Stage 7): clock in and out with location (GPS, QR, NFC on Android, passcode by text, radius
   and accuracy rules, offline to the agreed design, no tracking between taps).
-- [ ] Stage 4: care plans and tasks (versioned plan on the forms engine, tasks per visit, required
+- [x] Stage 4 (DONE 2026-10-16, migration 0497; R4.1 to R4.8 passed; Phil chose tasks per call on the Care plan page and kept the uploaded care plan document as the written plan, so no new plan form; carer marks each task Done, Refused or Not needed with one of 15 reasons, offline like clock taps; key tasks asked for before clock out; office sees outcomes on the Visits page; a second Done tap saves nothing): care plans and tasks (versioned plan on the forms engine, tasks per visit, required
   tasks before clock out; Care Plan Review stays the review cycle).
 - [ ] Stage 5: care notes (per visit, never edited, stored as Evidence, handover notes, concern
   straight into Incidents and Safeguarding).
