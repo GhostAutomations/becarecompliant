@@ -4,11 +4,11 @@
  * Be Care Compliant: the office map pin for a clock in place (Rota and Visits Stage 3, Phil
  * 2026-10-16: "i think we need both", map in the office as well as at the home).
  *
- * Our own UK map file (OpenStreetMap data, Protomaps basemap) read through a one hour signed link,
- * with the map fonts and icons served from this app (public/map), so the map loads nothing from
- * another site and no map supplier sees who is looking where. MapLibre draws it. Drag the pin, or
- * tap the map where the front door is; the radius is drawn around it; Save sets the point (office
- * roles only, recorded).
+ * Mapbox's street map (Phil, 2026-10-16, as Nourish uses), shown through MapLibre in the way
+ * Mapbox documents for MapLibre: raster map squares from Mapbox's Styles API with our public token
+ * (restricted to our web addresses). Drag the pin, or tap the map where the front door is; the
+ * radius is drawn around it; Save sets the point (office roles only, recorded). Mapbox is a
+ * subprocessor: it sees which map squares are viewed (docs/decisions/rota-visits.md, Stage 3).
  */
 
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -42,16 +42,18 @@ export default function PlaceMap({
     let cancelled = false;
     let cleanup: (() => void) | null = null;
     (async () => {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!token) {
+        setStatus(null);
+        setError("The map is not set up yet: the Mapbox token is missing (the Founder adds it in Vercel). Set the point from where you are standing instead.");
+        return;
+      }
       // MapLibre is loaded from its own files in public/map/maplibre (with its worker beside it),
       // not through the app bundle: bundled, its main code and its worker did not cooperate
       // (found in the screen test, 2026-10-16). lib/rota/map-worker.test.ts keeps these files in
-      // step with the installed maplibre-gl. The map squares come from our own server
-      // (app/api/rota/map-tile), which reads them from our UK map file.
+      // step with the installed maplibre-gl.
       const libUrl = `${location.origin}/map/maplibre/maplibre-gl.mjs`;
-      const [maplibregl, basemaps] = await Promise.all([
-        import(/* webpackIgnore: true */ libUrl) as Promise<typeof import("maplibre-gl")>,
-        import("@protomaps/basemaps"),
-      ]);
+      const maplibregl = (await import(/* webpackIgnore: true */ libUrl)) as typeof import("maplibre-gl");
       if (cancelled || !box.current) return;
       maplibregl.setWorkerUrl(`${location.origin}/map/maplibre/maplibre-gl-worker.mjs`);
       const centre = start ?? UK_CENTRE;
@@ -59,19 +61,17 @@ export default function PlaceMap({
         container: box.current,
         style: {
           version: 8,
-          glyphs: `${location.origin}/map/fonts/{fontstack}/{range}.pbf`,
-          sprite: `${location.origin}/map/sprites/dark`,
           sources: {
-            protomaps: {
-              type: "vector",
-              tiles: [`${location.origin}/api/rota/map-tile/{z}/{x}/{y}`],
-              minzoom: 0,
-              maxzoom: 15,
-              bounds: [-8.65, 49.86, 1.77, 60.86],
-              attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">&copy; OpenStreetMap</a>',
+            basemap: {
+              type: "raster",
+              tiles: [`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${token}`],
+              tileSize: 512,
+              maxzoom: 22,
+              attribution:
+                '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
             },
           },
-          layers: basemaps.layers("protomaps", basemaps.namedFlavor("dark"), { lang: "en" }),
+          layers: [{ id: "basemap", type: "raster", source: "basemap" }],
         },
         center: [centre.lng, centre.lat],
         zoom: start ? 17 : 5,
@@ -101,22 +101,16 @@ export default function PlaceMap({
         if (box.current) box.current.dataset.state = state;
       };
       mark("created");
-      // The first look at an area is slow (each map square is read from the file once, then kept),
-      // so say so rather than leave the office wondering; after 45 seconds, say it is too long.
-      const firstLook = window.setTimeout(() => {
-        if (!map.loaded()) setStatus("Showing this area for the first time can take up to half a minute. After that it is quick.");
-      }, 4_000);
       const slow = window.setTimeout(() => {
         if (!map.loaded()) setError("The map is taking too long to load. Check your connection, or set the point from where you are standing.");
-      }, 45_000);
+      }, 20_000);
       map.on("styledata", () => mark("style"));
       map.on("sourcedata", (e: { sourceId?: string; isSourceLoaded?: boolean }) => {
-        if (e.sourceId === "protomaps") mark(e.isSourceLoaded ? "tiles" : "source");
+        if (e.sourceId === "basemap") mark(e.isSourceLoaded ? "tiles" : "source");
       });
       map.on("load", () => {
         mark("loaded");
         window.clearTimeout(slow);
-        window.clearTimeout(firstLook);
         setStatus(null);
         setError(null);
         if (start) place(start);
@@ -134,7 +128,6 @@ export default function PlaceMap({
       map.on("click", (e: { lngLat: { lat: number; lng: number } }) => place({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
       cleanup = () => {
         window.clearTimeout(slow);
-        window.clearTimeout(firstLook);
         map.remove();
       };
     })().catch(() => {

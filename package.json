@@ -10,7 +10,6 @@
     "test": "node --experimental-strip-types --test 'lib/**/*.test.ts'"
   },
   "dependencies": {
-    "@protomaps/basemaps": "^5.7.2",
     "@react-pdf/renderer": "^4.3.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.49.0",
@@ -23,7 +22,6 @@
     "next": "^15.5.27",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
-    "pmtiles": "^4.5.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

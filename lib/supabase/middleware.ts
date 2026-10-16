@@ -72,7 +72,8 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl} ${supabaseWss}`,
+    // api.mapbox.com: the Clock in map pin's map squares (Rota and Visits Stage 3, Phil 2026-10-16).
+    `connect-src 'self' ${supabaseUrl} ${supabaseWss} https://api.mapbox.com`,
     "frame-src 'self'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

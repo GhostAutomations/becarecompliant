@@ -178,3 +178,17 @@ information, never their screens, wording or templates.
 12. On My area, today's and tomorrow's visits and shifts open Clock in when tapped, and before
     Clock in opens the visit shows a greyed "Clock in opens at" button (Phil's phone test: tapping
     a visit seemed to do nothing).
+13. **Map supplier changed to Mapbox** (Phil's popup, 2026-10-16, after seeing Nourish use Mapbox
+    with OpenStreetMap for its pin map). Replaces decision 3 (our own map file): in the screen test
+    our own file worked but the first look at an area took up to half a minute, because Supabase is
+    slow the first time it sends each piece of a 3 GB file. Shown through MapLibre, Mapbox bills
+    per map square (raster tiles: about 200,000 a month free, third party summaries checked
+    2026-10-16; a map open uses about 20 to 40), so free at our use. Street style (streets-v12),
+    like Nourish's. Shown through MapLibre, which Mapbox documents (docs.mapbox.com, Use Mapbox APIs in
+    MapLibre GL JS), so no new library. Mapbox stores and serves from the US (AWS) and offers a DPA
+    with the EU Standard Contractual Clauses (mapbox.com/legal). Its public map token is meant to
+    be public and is restricted to our web addresses. The 3 GB map file and its tile server are
+    removed once Mapbox works (Phil deletes the file; I never delete data).
+14. **Before Rota and Visits goes live for any real customer**: Mapbox and postcodes.io are added
+    to Annex 3 of the Data Processing Agreement (lib/legal/text.ts), and every Company Admin is told
+    at least 30 days before (DPA clause 6.2). Until then the module stays on Bevan only.
