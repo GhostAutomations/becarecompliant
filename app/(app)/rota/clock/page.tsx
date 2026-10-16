@@ -111,7 +111,15 @@ export default async function RotaClockPage({ searchParams }: { searchParams: Pr
                 </label>
               </ActionForm>
 
-              {c ? <PlaceControls placeId={p.placeId} token={c.token} /> : null}
+              {c ? (
+                <PlaceControls
+                  placeId={p.placeId}
+                  token={c.token}
+                  name={p.name}
+                  point={p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null}
+                  radius={p.radius}
+                />
+              ) : null}
 
               {c ? (
                 <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">

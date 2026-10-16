@@ -9,12 +9,30 @@
  */
 
 import { useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { CentreDialog } from "@/components/panel-dialog";
 import { setPlaceHereAction } from "@/lib/rota/clock-actions";
+
+// Loaded only when the map is opened, so the Clock in page stays light.
+const PlaceMap = dynamic(() => import("@/components/rota/place-map"), { ssr: false });
 
 type NdefWriter = { write: (msg: { records: { recordType: string; data: string }[] }) => Promise<void> };
 
-export default function PlaceControls({ placeId, token }: { placeId: string; token: string }) {
+export default function PlaceControls({
+  placeId,
+  token,
+  name,
+  point,
+  radius,
+}: {
+  placeId: string;
+  token: string;
+  name: string;
+  point: { lat: number; lng: number } | null;
+  radius: number;
+}) {
+  const [mapOpen, setMapOpen] = useState(false);
   const router = useRouter();
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [busy, setBusy] = useState<"here" | "nfc" | null>(null);
@@ -65,6 +83,9 @@ export default function PlaceControls({ placeId, token }: { placeId: string; tok
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-outline px-3 py-1.5 text-xs" onClick={() => setMapOpen(true)} disabled={busy !== null}>
+          Move the pin on the map
+        </button>
         <button type="button" className="btn-outline px-3 py-1.5 text-xs" onClick={here} disabled={busy !== null}>
           {busy === "here" ? "Finding your position…" : "Set from where I am standing"}
         </button>
@@ -76,6 +97,21 @@ export default function PlaceControls({ placeId, token }: { placeId: string; tok
       </div>
       {msg?.ok ? <p className="text-xs text-emerald-300" role="status">{msg.ok}</p> : null}
       {msg?.error ? <p className="form-error">{msg.error}</p> : null}
+      <CentreDialog open={mapOpen} onClose={() => setMapOpen(false)} label={`Clock in point: ${name}`}>
+        <div className="p-5">
+          {mapOpen ? (
+            <PlaceMap
+              placeId={placeId}
+              start={point}
+              radius={radius}
+              onSaved={() => {
+                setMapOpen(false);
+                setMsg({ ok: "Pin saved." });
+              }}
+            />
+          ) : null}
+        </div>
+      </CentreDialog>
     </div>
   );
 }

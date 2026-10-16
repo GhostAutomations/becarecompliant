@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   applyResults,
+  circleRing,
   clockOpen,
   clockOutcome,
   clockState,
@@ -128,4 +129,11 @@ test("a clock in text is IN or OUT and a five character code, nothing else", () 
   assert.equal(parseClockText("STOP"), null);
   assert.equal(parseClockText("in the car, running late"), null);
   assert.equal(parseClockText("in AB3C"), null);
+});
+
+test("the radius ring on the map is the radius away from the place all the way round", () => {
+  const ring = circleRing(home, 200, 16);
+  assert.equal(ring.length, 17);
+  assert.deepEqual(ring[0], ring[16]);
+  for (const [lng, lat] of ring) assert.ok(Math.abs(metresBetween(home, { lat, lng }) - 200) <= 1);
 });

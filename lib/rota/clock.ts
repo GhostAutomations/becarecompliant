@@ -184,3 +184,17 @@ export function parseClockText(body: string): { kind: "in" | "out"; code: string
   const m = body.trim().replace(/[.!]+$/, "").match(/^(in|out)\s+([A-Za-z0-9]{5})$/i);
   return m ? { kind: m[1].toLowerCase() as "in" | "out", code: m[2].toUpperCase() } : null;
 }
+
+/** A ring of points around a place, for drawing its radius on the map ([lng, lat] pairs, closed). */
+export function circleRing(center: Point, radiusM: number, steps = 64): [number, number][] {
+  const R = 6371008.8;
+  const lat = (center.lat * Math.PI) / 180;
+  const ring: [number, number][] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const a = (2 * Math.PI * i) / steps;
+    const dLat = ((radiusM * Math.cos(a)) / R) * (180 / Math.PI);
+    const dLng = ((radiusM * Math.sin(a)) / (R * Math.cos(lat))) * (180 / Math.PI);
+    ring.push([center.lng + dLng, center.lat + dLat]);
+  }
+  return ring;
+}
