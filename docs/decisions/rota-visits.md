@@ -237,3 +237,6 @@ information, never their screens, wording or templates.
    night, exactly as shown to Phil (lib/rota/tasks.ts). Medicines and prescribed creams are left
    out: they belong to the MAR (Stage 6). The office can add **custom tasks** to the company's list,
    available for all its service users.
+8. **A second tap on Done saves nothing** (Phil, after his phone test made six Done records): on
+   the carer's phone, tapping Done on a task that already says Done does nothing. Changing Done to
+   Not done, or back, still saves as normal, and the latest outcome counts.

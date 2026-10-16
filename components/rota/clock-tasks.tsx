@@ -81,7 +81,8 @@ function TaskRow({ task, outcome, onRecord }: { task: TaskItem; outcome?: Record
             type="button"
             className={outcome?.outcome === "done" ? "btn-saved px-3 py-1.5 text-xs" : "btn-primary px-3 py-1.5 text-xs"}
             disabled={saving}
-            onClick={() => save("done", null, "")}
+            // Already Done: a second tap saves nothing (Phil, 2026-10-16), so the history keeps no repeats.
+            onClick={() => (outcome?.outcome === "done" ? undefined : save("done", null, ""))}
           >
             Done
           </button>
