@@ -27,6 +27,7 @@ export default function IncidentReportForm({
   presetAnswers,
   draft,
   lookupChoices,
+  concernId,
 }: {
   schema: FormSchema;
   /** The service users and staff the lookups offer, read on the server (report-choices.ts). */
@@ -34,6 +35,8 @@ export default function IncidentReportForm({
   presetAnswers?: Answers;
   /** What this user had already typed, read on the server. Omit to turn drafting off. */
   draft?: Answers | null;
+  /** Started from a carer's concern (Rota and Visits Stage 5): linked back to it when filed. */
+  concernId?: string;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(submitIncidentReport, IDLE_STATE);
@@ -93,6 +96,7 @@ export default function IncidentReportForm({
         : null);
     if (suName && suId) fd.set("service_user_id", suId);
     fd.set("staff_ids", JSON.stringify(staffIds));
+    if (concernId) fd.set("concern_id", concernId);
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
     }

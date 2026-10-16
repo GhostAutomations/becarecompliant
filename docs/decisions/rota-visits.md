@@ -240,3 +240,52 @@ information, never their screens, wording or templates.
 8. **A second tap on Done saves nothing** (Phil, after his phone test made six Done records): on
    the carer's phone, tapping Done on a task that already says Done does nothing. Changing Done to
    Not done, or back, still saves as normal, and the latest outcome counts.
+
+## Stage 5 decisions: care notes (popups, 2026-10-16)
+
+1. **Own note store**, not the Evidence table (using Evidence would mean changing the shared
+   filing function every company uses, and carers could not read their notes back). Same rules as
+   Evidence: author and time stamped (phone time and server time), never edited or deleted by
+   anyone, kept 8 years.
+2. **One Visit record per visit** (Phil: "everything that's recorded from the time they click clock
+   in"): clock in (time, how: GPS, QR, NFC, text or office, and where), every task outcome with its
+   reason and time, the written notes, clock out (time, how, where), and any flags (sent late with
+   no signal, phone clock wrong, outside the area with the reason). A PDF is made at clock out; a
+   later note or correction makes an updated PDF beside it and the first is kept.
+3. **Cloud copy** when the company has a cloud drive connected: the service user's folder, then
+   Care notes, then the year, the month, the day, one Visit record PDF per visit.
+4. **Location in the Visit record:** the result and the distance, never the map position (for
+   example "inside the home's area, 12 m away, accurate to 5 m"; "outside, 340 m away, reason: met
+   the service user elsewhere"). The exact position stays in the app and is still deleted after 12
+   months (Stage 3 decision 10), because nothing can be deleted from a company's own drive.
+5. **Clock out asks for a note** when the visit has none; the carer can write one or clock out
+   anyway, and the office sees "No note" on the visit.
+6. **Earlier notes on the carer's phone:** the notes for that service user from the **last 48
+   hours** (Phil's choice over "last 3 notes"), from any carer, shown on the carer's own visit card
+   only (visits from yesterday to tomorrow). Every view is logged. The office sees every note for
+   its branches.
+7. **Handover note:** a note ticked "For the next carer", highlighted at the top of the next visits
+   to that service user for 3 days. The office sees it too. ("Handover" elsewhere still means the
+   On Call shift log and moving a shift to another carer.)
+8. **Corrections:** "Correct this note" makes a new note linked to the old one. The old note stays,
+   marked "Corrected at HH:MM"; the correction says "Correction to the HH:MM note". Only the author
+   can correct their own note.
+9. **Raise a concern** (Phil: the carer clicks Raise a concern, enters what it is, picks from the
+   incident types, the supervisor is notified the way they are about a completed Care Plan Review,
+   then decides whether an incident form is needed). Built in full in Stage 5: a new row in
+   Settings, Notifications, "Concern raised in a care note", shown only when Rota and Visits is on;
+   Supervisors start with it on for Recent activity; a Concerns list for the office with "Start an
+   incident form" filled in from the concern. Safeguarding stays the office's decision on the
+   incident. The changes to the existing Notifications grid are shown to Phil before they are built.
+10. **Office view:** each visit on the Visits page shows its notes; the service user's record gets a
+    "Care notes" page (Visit records newest first, filter by date, print as PDF). Every view is
+    logged.
+11. Notes, corrections and concerns are phone events under the approved offline design (event id
+    made on the phone, sent once, refusals kept for the office).
+12. **Changes to the existing Notifications feature, approved by Phil:** the notification stores
+    also accept a "concern raised" type and a link to the concern (each person told once per
+    concern); Settings, Notifications gets a "Rota and Visits" band with one row, "Concern raised in
+    a care note", shown only when the module is on; the Recent activity tile shows "Concern raised
+    for [service user] by [carer]" and opens the concern. Supervisors of the service user's branch
+    start with it on for Recent activity, Email off. Concern emails follow the test company rule
+    (none for Bevan). Existing check notifications are unchanged.

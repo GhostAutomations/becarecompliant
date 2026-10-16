@@ -26,7 +26,17 @@ export type GridPerson = {
   primaryBranchId: string | null;
   branchIds: string[];
 };
-export type GridDefinition = { id: string; population: "people" | "service_users"; name: string };
+export type GridDefinition = {
+  id: string;
+  population: "people" | "service_users" | "rota";
+  name: string;
+  /** The row's words, when it is not "[name] completed" (the Rota and Visits concern row). */
+  title?: string;
+  /** Only these roles can be told; the others see no boxes on this row. */
+  roles?: string[];
+};
+const rowTitle = (d: GridDefinition) => d.title ?? activityTitle(d.name);
+const rowFor = (d: GridDefinition, role: string) => !d.roles || d.roles.includes(role);
 type Tick = { inApp: boolean; email: boolean };
 
 function BranchAdd({ person, branches }: { person: GridPerson; branches: Array<{ id: string; name: string }> }) {
@@ -97,20 +107,23 @@ export default function NotificationGrid({
   /* "ALL" ON EACH HEADING BAND (Phil, 2026-10-15): one box per person per tick column that sets
      every check in that group at once. Shown ticked only when every box below it is ticked (popup:
      "Empty until all are ticked"). Email and Recent activity are separate ticks (0474). */
+  const roleOf = new Map(people.map((p) => [p.id, p.role]));
   const setGroup = (pid: string, rows: GridDefinition[], which: "inApp" | "email", on: boolean) => {
     reset();
     setChanged((c) => (c.includes(pid) ? c : [...c, pid]));
     setTicks((t) => {
       const mine = { ...(t[pid] ?? {}) };
-      for (const d of rows) {
+      for (const d of rows.filter((r) => rowFor(r, roleOf.get(pid) ?? ""))) {
         const cur = mine[d.id] ?? { inApp: false, email: false };
         mine[d.id] = { ...cur, [which]: on };
       }
       return { ...t, [pid]: mine };
     });
   };
-  const allOn = (pid: string, rows: GridDefinition[], which: "inApp" | "email") =>
-    rows.length > 0 && rows.every((d) => (ticks[pid]?.[d.id] ?? { inApp: false, email: false })[which]);
+  const allOn = (pid: string, rows: GridDefinition[], which: "inApp" | "email") => {
+    const mineRows = rows.filter((r) => rowFor(r, roleOf.get(pid) ?? ""));
+    return mineRows.length > 0 && mineRows.every((d) => (ticks[pid]?.[d.id] ?? { inApp: false, email: false })[which]);
+  };
 
   if (people.length === 0) {
     return (
@@ -124,6 +137,8 @@ export default function NotificationGrid({
   const groups: Array<{ title: string; rows: GridDefinition[] }> = [
     { title: "People", rows: definitions.filter((d) => d.population === "people") },
     { title: "Service Users", rows: definitions.filter((d) => d.population === "service_users") },
+    // Rota and Visits (Stage 5): shown only when the company has the module on.
+    { title: "Rota and Visits", rows: definitions.filter((d) => d.population === "rota") },
   ].filter((g) => g.rows.length > 0);
 
   return (
@@ -142,6 +157,10 @@ export default function NotificationGrid({
         {changed.map((pid) => (
           <input key={pid} type="hidden" name="changed" value={pid} />
         ))}
+        {/* Who the role limited rows (the concern row) apply to, so the save sends them only for those. */}
+        {definitions
+          .filter((d) => d.roles)
+          .flatMap((d) => people.filter((p) => rowFor(d, p.role)).map((p) => <input key={`${d.id}-${p.id}`} type="hidden" name={`allowed:${d.id}`} value={p.id} />))}
       </form>
 
       <div className="notify-grid overflow-x-auto rounded-xl border border-white/10">
@@ -187,10 +206,13 @@ export default function NotificationGrid({
               <tr className="border-t-2 border-white/20 bg-navy-800">
                 <th className="sticky left-0 z-10 bg-navy-800 p-2 text-left text-sm font-bold text-white">
                   {g.title}
-                  <span className="block text-[11px] font-normal text-white/50">All {g.title.toLowerCase()} checks</span>
+                  <span className="block text-[11px] font-normal text-white/50">
+                    {g.rows.every((r) => r.population === "rota") ? "All alerts from carers' visits" : `All ${g.title.toLowerCase()} checks`}
+                  </span>
                 </th>
                 {people.map((p) => (
                   <td key={p.id} colSpan={2} className="border-l border-white/10 p-0">
+                    {g.rows.some((r) => rowFor(r, p.role)) ? (
                     <div className="grid grid-cols-2 text-center">
                       <span className="p-1.5">
                         <input
@@ -209,14 +231,22 @@ export default function NotificationGrid({
                         />
                       </span>
                     </div>
+                    ) : null}
                   </td>
                 ))}
               </tr>
               {g.rows.map((d) => (
                 <tr key={d.id} className="border-t border-white/5">
-                  <th className="sticky left-0 z-10 bg-navy-900 p-2 text-left font-normal text-white/80">{activityTitle(d.name)}</th>
+                  <th className="sticky left-0 z-10 bg-navy-900 p-2 text-left font-normal text-white/80">{rowTitle(d)}</th>
                   {people.map((p) => {
                     const t = ticks[p.id]?.[d.id] ?? { inApp: false, email: false };
+                    if (!rowFor(d, p.role)) {
+                      return (
+                        <td key={p.id} colSpan={2} className="border-l border-white/10 p-1.5 text-center text-[11px] text-white/40">
+                          Not for this role
+                        </td>
+                      );
+                    }
                     return (
                       <td key={p.id} colSpan={2} className="border-l border-white/10 p-0">
                         <div className="grid grid-cols-2 text-center">
@@ -228,7 +258,7 @@ export default function NotificationGrid({
                               value={`${p.id}:${d.id}`}
                               checked={t.inApp}
                               onChange={(e) => setTick(p.id, d.id, "inApp", e.target.checked)}
-                              aria-label={`${p.name}: ${activityTitle(d.name)}, Recent activity`}
+                              aria-label={`${p.name}: ${rowTitle(d)}, Recent activity`}
                             />
                           </span>
                           <span className="p-1.5">
@@ -239,7 +269,7 @@ export default function NotificationGrid({
                               value={`${p.id}:${d.id}`}
                               checked={t.email}
                               onChange={(e) => setTick(p.id, d.id, "email", e.target.checked)}
-                              aria-label={`${p.name}: ${activityTitle(d.name)}, Email`}
+                              aria-label={`${p.name}: ${rowTitle(d)}, Email`}
                             />
                           </span>
                         </div>

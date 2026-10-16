@@ -152,6 +152,9 @@ export const CATEGORY_NAMES: Record<string, string> = {
   rtw: "Right to Work",
   probation: "Probation",
   "care-plan": "Care Plan",
+  // Rota and Visits Stage 5 (Phil, 2026-10-16): made only when a service user's first Visit record
+  // is copied, never as a fixed folder, so companies without the module see no new folder.
+  "care-notes": "Care notes",
 };
 
 /** The fixed folders every person and every service user gets. */
@@ -161,7 +164,7 @@ export const SERVICE_USER_FIXED_CATEGORIES = ["care-plan", "documents"];
 const UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const RECORD_RE = new RegExp(`^(person|service_user):${UUID_RE}$`, "i");
 const CATEGORY_RE = new RegExp(
-  `^((?:person|service_user):${UUID_RE})/(holiday|absence|training|documents|dbs|rtw|probation|care-plan|check-${UUID_RE}|form-${UUID_RE})$`,
+  `^((?:person|service_user):${UUID_RE})/(holiday|absence|training|documents|dbs|rtw|probation|care-plan|care-notes|check-${UUID_RE}|form-${UUID_RE})$`,
   "i",
 );
 
@@ -222,6 +225,7 @@ export function categoryForFormKey(formKey: string | null | undefined, recordTyp
  */
 export function parentKey(key: FolderKey): FolderKey | null {
   if (key === "root") return null;
+  if (splitCareNotesKey(key)) return key.slice(0, key.lastIndexOf("/")) as FolderKey;
   const cat = splitCategoryKey(key);
   if (cat) return cat.record;
   if (key.startsWith("section:")) return "root";
@@ -238,6 +242,41 @@ export function isFolderKey(v: string): v is FolderKey {
     /^person:[0-9a-f-]{36}$/i.test(v) ||
     /^service_user:[0-9a-f-]{36}$/i.test(v) ||
     isBranchKey(v) ||
-    splitCategoryKey(v) !== null
+    splitCategoryKey(v) !== null ||
+    splitCareNotesKey(v) !== null
   );
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * CARE NOTES (Rota and Visits Stage 5, Phil 2026-10-16): "service users have a new file called care
+ * notes, in the care notes, there is a file for each year, then month and then on a day". One
+ * Visit record PDF per visit goes in the day's folder:
+ *   service_user:<id>/care-notes/2026/10/16  ->  Care notes > 2026 > 10 October > 16
+ * ------------------------------------------------------------------------------------------- */
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const CARE_NOTES_RE = new RegExp(`^(service_user:${UUID_RE})/care-notes/(\\d{4})(?:/(\\d{2})(?:/(\\d{2}))?)?$`, "i");
+
+/** The day folder for a visit on this date (YYYY-MM-DD). */
+export function careNotesDayKey(serviceUserId: string, dateIso: string): FolderKey {
+  const [y, m, d] = dateIso.split("-");
+  return `service_user:${serviceUserId}/care-notes/${y}/${m}/${d}`;
+}
+
+/** The record and the year, month and day parts of a care notes folder key below Care notes. */
+export function splitCareNotesKey(key: string): { record: RecordKey; parts: string[] } | null {
+  const m = CARE_NOTES_RE.exec(key);
+  if (!m) return null;
+  const parts = [m[2], m[3], m[4]].filter((x): x is string => Boolean(x));
+  const month = parts[1] ? Number(parts[1]) : null;
+  const day = parts[2] ? Number(parts[2]) : null;
+  if (month !== null && (month < 1 || month > 12)) return null;
+  if (day !== null && (day < 1 || day > 31)) return null;
+  return { record: m[1] as RecordKey, parts };
+}
+
+/** "2026", "10 October" (numbered so the months sort), "16". */
+export function careNotesFolderName(parts: string[]): string {
+  if (parts.length === 2) return `${parts[1]} ${MONTHS[Number(parts[1]) - 1]}`;
+  return parts[parts.length - 1];
 }

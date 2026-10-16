@@ -210,6 +210,15 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
     metadata: { evidence_id: result.evidenceId, ref_number: incident.ref_number },
   });
 
+  /* Started from a carer's concern (Rota and Visits Stage 5): link the case back to it, so the
+     concern shows "Incident form started". The database checks the concern is this person's to
+     decide and the incident is theirs; if the link fails the case still stands. */
+  const concernId = String(formData.get("concern_id") ?? "");
+  if (/^[0-9a-f-]{36}$/i.test(concernId)) {
+    const { error: linkError } = await supabase.rpc("rota_concern_link_incident", { p_concern: concernId, p_incident: incident.id });
+    if (linkError) console.error("[incidents] could not link the concern:", linkError.message);
+  }
+
   revalidatePath("/incidents");
   revalidatePath("/my");
   return { ok: "Reported.", redirectTo: `/incidents/${incident.id}` };

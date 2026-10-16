@@ -38,19 +38,25 @@ import {
 } from "@/lib/rota/clock";
 import { keyTasksWithoutOutcome, mergeOutcomes, type TaskEvent, type TaskItem, type TaskOutcomeKind, type TaskReasonCode } from "@/lib/rota/tasks";
 import VisitTaskList from "@/components/rota/clock-tasks";
+import VisitNotesPanel from "@/components/rota/clock-notes";
+import { needsNotePrompt, noteProblem, notesForCard, type NoteEvent, type VisitNotes } from "@/lib/rota/notes";
 import {
   addEvent,
+  addNoteEvent,
   addTaskEvent,
   allEvents,
+  allNoteEvents,
   allTaskEvents,
   clearOtherDays,
   deviceId,
   dismissEvent,
   loadDay,
+  markNotesRefused,
   markRefused,
   markTasksRefused,
   nextSeq,
   removeEvents,
+  removeNoteEvents,
   removeTaskEvents,
   saveDay,
   type DayRow,
@@ -99,11 +105,16 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
   const [visitTasks, setVisitTasks] = useState<VisitTasks[]>([]);
   const [taskQueue, setTaskQueue] = useState<TaskEvent[]>([]);
   const [gate, setGate] = useState<{ row: DayRow; viaCode: { token: string; via: "qr" | "nfc" } | null } | null>(null);
+  const [visitNotes, setVisitNotes] = useState<VisitNotes[]>([]);
+  const [noteQueue, setNoteQueue] = useState<NoteEvent[]>([]);
+  const [notePrompt, setNotePrompt] = useState<{ row: DayRow; viaCode: { token: string; via: "qr" | "nfc" } | null } | null>(null);
+  const [promptText, setPromptText] = useState("");
   const sending = useRef(false);
 
   const refreshQueue = useCallback(async () => {
     setQueue(await allEvents());
     setTaskQueue(await allTaskEvents().catch(() => []));
+    setNoteQueue(await allNoteEvents().catch(() => []));
   }, []);
 
   // The day: the kept copy first (works with no signal), then a fresh one when there is signal.
@@ -112,21 +123,28 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     if (kept) {
       setRows((r) => r ?? kept.rows);
       setVisitTasks((v) => (v.length ? v : kept.tasks));
+      setVisitNotes((v) => (v.length ? v : kept.notes));
       setSavedAt((s) => s ?? kept.saved_at);
     }
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    const [{ data, error }, { data: taskData }] = await Promise.all([supabase.rpc("rota_my_day"), supabase.rpc("rota_my_visit_tasks")]);
+    const [{ data, error }, { data: taskData }, { data: noteData, error: noteError }] = await Promise.all([
+      supabase.rpc("rota_my_day"),
+      supabase.rpc("rota_my_visit_tasks"),
+      supabase.rpc("rota_my_visit_notes"),
+    ]);
     if (error) {
       if (!kept) setRows((r) => r ?? []);
       return;
     }
     const fresh = (data as DayRow[] | null) ?? [];
     const freshTasks = (taskData as VisitTasks[] | null) ?? kept?.tasks ?? [];
+    const freshNotes = noteError ? (kept?.notes ?? []) : ((noteData as VisitNotes[] | null) ?? []);
     setRows(fresh);
     setVisitTasks(freshTasks);
+    setVisitNotes(freshNotes);
     const at = new Date().toISOString();
     setSavedAt(at);
-    await saveDay(ownerId, fresh, freshTasks).catch(() => undefined);
+    await saveDay(ownerId, fresh, freshTasks, freshNotes).catch(() => undefined);
     await clearOtherDays(ownerId).catch(() => undefined);
   }, [ownerId, supabase]);
 
@@ -140,20 +158,10 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
       const uid = s.session?.user.id ?? null;
       setSessionOk(uid === ownerId);
       if (uid !== ownerId) return;
-      let batch = nextBatch(await allEvents(), ownerId);
       let sentAny = false;
-      while (batch.length) {
-        const payload = batch.map(({ owner: _o, refused: _r, ...e }) => e);
-        const { data, error } = await supabase.rpc("rota_clock_submit", { p_events: payload, p_phone_now: new Date().toISOString() });
-        if (error) break;
-        const { remove, refuse } = applyResults((data as SubmitResult[] | null) ?? []);
-        await removeEvents(remove);
-        await markRefused(refuse);
-        sentAny = true;
-        if (remove.length + refuse.length === 0) break;
-        batch = nextBatch(await allEvents(), ownerId);
-      }
-      // Task outcomes (Stage 4): the same rules, their own outbox.
+      /* Task outcomes and notes go before clock taps (Stage 5): a visit whose taps and notes were
+         all saved with no signal then gets one Visit record at clock out, not a second "updated"
+         one a moment later. */
       let taskBatch = nextBatch(await allTaskEvents(), ownerId);
       while (taskBatch.length) {
         const payload = taskBatch.map(({ owner: _o, refused: _r, ...e }) => e);
@@ -165,6 +173,36 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
         sentAny = true;
         if (remove.length + refuse.length === 0) break;
         taskBatch = nextBatch(await allTaskEvents(), ownerId);
+      }
+      // Care notes and concerns (Stage 5): the same rules, their own outbox.
+      let concernSent = false;
+      let noteBatch = nextBatch(await allNoteEvents(), ownerId);
+      while (noteBatch.length) {
+        const payload = noteBatch.map(({ owner: _o, refused: _r, ...e }) => e);
+        const { data, error } = await supabase.rpc("rota_note_submit", { p_events: payload, p_phone_now: new Date().toISOString() });
+        if (error) break;
+        const results = (data as SubmitResult[] | null) ?? [];
+        const { remove, refuse } = applyResults(results);
+        if (results.some((r) => r.result === "accepted" && noteBatch.find((e) => e.event_id === r.event_id)?.kind === "concern")) concernSent = true;
+        await removeNoteEvents(remove);
+        await markNotesRefused(refuse);
+        sentAny = true;
+        if (remove.length + refuse.length === 0) break;
+        noteBatch = nextBatch(await allNoteEvents(), ownerId);
+      }
+      // The email half of a concern alert, for anyone who asked for Email (the tile is made by the database).
+      if (concernSent) void fetch("/api/rota/concerns/notify", { method: "POST" }).catch(() => undefined);
+      let batch = nextBatch(await allEvents(), ownerId);
+      while (batch.length) {
+        const payload = batch.map(({ owner: _o, refused: _r, ...e }) => e);
+        const { data, error } = await supabase.rpc("rota_clock_submit", { p_events: payload, p_phone_now: new Date().toISOString() });
+        if (error) break;
+        const { remove, refuse } = applyResults((data as SubmitResult[] | null) ?? []);
+        await removeEvents(remove);
+        await markRefused(refuse);
+        sentAny = true;
+        if (remove.length + refuse.length === 0) break;
+        batch = nextBatch(await allEvents(), ownerId);
       }
       if (sentAny) {
         setLastSent(new Date().toISOString());
@@ -293,7 +331,43 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     void send();
   }
 
-  async function tap(row: DayRow, kind: "in" | "out", viaCode: { token: string; via: "qr" | "nfc" } | null, skipGate = false) {
+  const notesFor = (row: DayRow) => notesForCard(visitNotes.find((v) => v.visit_id === row.target_id) ?? null, noteQueue, row.target_id, ownerId);
+
+  async function recordNote(row: DayRow, body: string, forNextCarer: boolean, correctsEventId: string | null) {
+    await addNoteEvent({
+      event_id: crypto.randomUUID(),
+      owner: ownerId,
+      kind: "note",
+      visit_id: row.target_id,
+      body: body.trim(),
+      for_next_carer: forNextCarer,
+      corrects_event_id: correctsEventId,
+      phone_time: new Date().toISOString(),
+      device_id: deviceId(),
+      device_seq: nextSeq(),
+    });
+    await refreshQueue();
+    void send();
+  }
+
+  async function recordConcern(row: DayRow, category: string, body: string) {
+    await addNoteEvent({
+      event_id: crypto.randomUUID(),
+      owner: ownerId,
+      kind: "concern",
+      visit_id: row.target_id,
+      body: body.trim(),
+      category,
+      phone_time: new Date().toISOString(),
+      device_id: deviceId(),
+      device_seq: nextSeq(),
+    });
+    await refreshQueue();
+    setNotice(`Concern saved on this phone${navigator.onLine ? ", sending to the office now." : ". It will send to the office when you have signal."}`);
+    void send();
+  }
+
+  async function tap(row: DayRow, kind: "in" | "out", viaCode: { token: string; via: "qr" | "nfc" } | null, skipGate = false, skipNote = false) {
     setNotice(null);
     // Key tasks first (Phil, 2026-10-16): any outcome counts, so care is never blocked.
     if (kind === "out" && !skipGate && row.target_kind === "visit") {
@@ -302,6 +376,12 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
         setGate({ row, viaCode });
         return;
       }
+    }
+    // Then a note (Phil, 2026-10-16): asked for when there is none, and the carer can skip it.
+    if (kind === "out" && !skipNote && row.target_kind === "visit" && needsNotePrompt(notesFor(row))) {
+      setPromptText("");
+      setNotePrompt({ row, viaCode });
+      return;
     }
     setBusy(`${row.target_id}:${kind}`);
     try {
@@ -322,9 +402,10 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     }
   }
 
-  const waiting = queue.filter((e) => e.owner === ownerId && !e.refused);
+  const waiting = [...queue, ...taskQueue, ...noteQueue].filter((e) => e.owner === ownerId && !e.refused);
   const refused = queue.filter((e) => e.owner === ownerId && e.refused);
-  const others = queue.filter((e) => e.owner !== ownerId).length;
+  const refusedNotes = noteQueue.filter((e) => e.owner === ownerId && e.refused);
+  const others = [...queue, ...taskQueue, ...noteQueue].filter((e) => e.owner !== ownerId).length;
   const list = rows ?? [];
   const open = list.filter((r) => !r.paused && clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at)));
   // With a scanned code: the visit or shift it is for is the open one still running, else the nearest.
@@ -372,6 +453,23 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                 {e.kind === "in" ? "Clock in" : "Clock out"} at {hhmm(e.phone_time)}: {e.refused}
               </span>
               <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => dismissEvent(e.event_id).then(refreshQueue)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {refusedNotes.length ? (
+        <section className="glass-card space-y-2 border-red-500/30 p-4" aria-label="Notes not accepted">
+          <h2 className="text-sm font-semibold text-white">Notes not accepted ({refusedNotes.length})</h2>
+          <p className="text-xs text-white/55">The office has been told and has a copy. Call them if you are not sure what to do.</p>
+          {refusedNotes.map((e) => (
+            <div key={e.event_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
+              <span className="text-xs text-white/80">
+                {e.kind === "concern" ? "Concern" : "Note"} at {hhmm(e.phone_time)}: {e.refused}
+              </span>
+              <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => removeNoteEvents([e.event_id]).then(refreshQueue)}>
                 Remove
               </button>
             </div>
@@ -453,6 +551,14 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                     </div>
                   </details>
                 ) : null}
+                {r.target_kind === "visit" && !r.paused ? (
+                  <VisitNotesPanel
+                    card={notesFor(r)}
+                    canWrite={isOpen || Boolean(st.inAt)}
+                    onNote={(body, forNext, corrects) => recordNote(r, body, forNext, corrects)}
+                    onConcern={(category, body) => recordConcern(r, category, body)}
+                  />
+                ) : null}
                 {!r.paused && kind ? (
                   isOpen ? (
                     <button
@@ -515,6 +621,47 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
               </div>
             );
           })()
+        ) : null}
+      </CentreDialog>
+
+      <CentreDialog open={notePrompt !== null} onClose={() => setNotePrompt(null)} label="Add a note before you go?">
+        {notePrompt ? (
+          <div className="space-y-3 p-5">
+            <p className="text-sm text-white/75">You have not written a note for this visit. Write one now, or clock out without one and the office will see No note.</p>
+            <textarea
+              rows={5}
+              maxLength={4000}
+              value={promptText}
+              onChange={(e) => setPromptText(e.target.value)}
+              placeholder="How the visit went: what you did, how they were, anything the office or the next carer should know"
+              aria-label="Care note"
+            />
+            <button
+              type="button"
+              className="btn-primary w-full px-4 py-3 text-base"
+              disabled={Boolean(noteProblem(promptText))}
+              onClick={async () => {
+                const p = notePrompt;
+                await recordNote(p.row, promptText, false, null);
+                setNotePrompt(null);
+                setPromptText("");
+                void tap(p.row, "out", p.viaCode, true, true);
+              }}
+            >
+              Save note and clock out
+            </button>
+            <button
+              type="button"
+              className="btn-outline w-full px-4 py-3 text-base"
+              onClick={() => {
+                const p = notePrompt;
+                setNotePrompt(null);
+                void tap(p.row, "out", p.viaCode, true, true);
+              }}
+            >
+              Clock out without a note
+            </button>
+          </div>
         ) : null}
       </CentreDialog>
 

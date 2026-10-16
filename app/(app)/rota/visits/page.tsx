@@ -11,6 +11,7 @@ import BackLink from "@/components/back-link";
 import RotaTabs from "@/components/rota/rota-tabs";
 import VisitsDay from "@/components/rota/visits-day";
 import { publishWeekAction } from "@/lib/rota/actions";
+import { writeAudit } from "@/lib/audit";
 
 export async function generateMetadata(): Promise<Metadata> {
   await requireRotaOffice();
@@ -44,6 +45,20 @@ export default async function RotaVisitsPage({ searchParams }: { searchParams: P
       ])
     : [[], [], 0, 0];
   const drafts = draftVisits + draftShifts;
+  // Care notes are health data: reading them is audit logged (Stage 5, decision 10).
+  if (branch && visits.some((v) => (v.notes?.length ?? 0) + (v.concerns?.length ?? 0) > 0)) {
+    await writeAudit({
+      companyId,
+      actorId: profile.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "rota.visit_notes_viewed",
+      entityType: "branch",
+      entityId: branch.id,
+      summary: `Viewed care notes on the Visits page for ${dateIso}`,
+      metadata: { date: dateIso },
+    });
+  }
   const href = (b: string, d: string) => `/rota/visits?branch=${b}&date=${d}`;
 
   return (

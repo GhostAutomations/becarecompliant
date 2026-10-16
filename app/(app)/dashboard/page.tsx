@@ -59,7 +59,7 @@ import { getCompanyRow } from "@/lib/companies/row";
 import ActionForm from "@/components/action-form";
 import { getMyNotifications } from "@/lib/notifications/personal";
 import { dismissNotification } from "@/lib/notifications/personal-actions";
-import { activityDetail, activityHref, activityTitle, activityWhen } from "@/lib/notifications/activity";
+import { activityDetail, activityHref, activityRowTitle, activityWhen } from "@/lib/notifications/activity";
 
 /**
  * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
@@ -1658,7 +1658,7 @@ export default async function DashboardPage() {
                   className="flex items-start justify-between gap-2 border-b border-white/5 pb-1.5 last:border-0 last:pb-0"
                 >
                   <Link href={activityHref(a)} className="min-w-0 flex-1 hover:underline">
-                    <span className="block text-xs font-semibold leading-snug text-white">{activityTitle(a.checkName)}</span>
+                    <span className="block text-xs font-semibold leading-snug text-white">{activityRowTitle(a)}</span>
                     <span className="block text-[11px] leading-snug text-white/70">{activityDetail(a)}</span>
                     <span className="block text-[10px] leading-snug text-white/45">{activityWhen(a.createdAt)}</span>
                   </Link>

@@ -120,7 +120,23 @@ export type RotaVisit = {
   clocks?: ClockRecord[];
   /** The call's current tasks and each carer's latest outcome per task (Stage 4). */
   tasks?: { list: { uid: string; name: string; category: string; key: boolean }[]; byPerson: Record<string, Record<string, { outcome: "done" | "refused" | "not_needed"; reason_code: string | null; reason_text: string | null; at: string }>> } | null;
+  /** Care notes and concerns written at this visit (Stage 5). */
+  notes?: VisitNoteLine[];
+  concerns?: VisitConcernLine[];
 };
+
+/** A care note as the office reads it (Stage 5): never edited; a correction points at the note it corrects. */
+export type VisitNoteLine = {
+  id: string;
+  personId: string;
+  author: string;
+  body: string;
+  at: string;
+  forNextCarer: boolean;
+  correctsNoteId: string | null;
+  flags: string[];
+};
+export type VisitConcernLine = { id: string; personId: string; author: string; category: string; body: string; at: string; status: string };
 
 export type VisitCandidate = RotaCandidate & {
   miles: number | null;

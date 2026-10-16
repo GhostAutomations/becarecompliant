@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
 import ClockLines from "@/components/rota/clock-lines";
+import NoteLines from "@/components/rota/note-lines";
 import { OUTCOME_WORDS, taskReasonLabel, taskSummary } from "@/lib/rota/tasks";
 import { CentreDialog } from "@/components/panel-dialog";
 import {
@@ -184,9 +185,22 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
                 endsAt={visit.endsAt}
               />
               {visit.tasks && visit.status === "published" ? <TaskLines tasks={visit.tasks} personId={a.personId} /> : null}
+              {visit.status === "published" ? (
+                <NoteLines
+                  notes={visit.notes ?? []}
+                  concerns={visit.concerns ?? []}
+                  personId={a.personId}
+                  clockedOut={(visit.clocks ?? []).some((c) => c.personId === a.personId && c.kind === "out")}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
+      ) : null}
+      {(visit.clocks ?? []).some((c) => c.kind === "out") ? (
+        <a href={`/api/rota/visit-record/${visit.id}`} className="inline-block text-xs text-amber-300 underline">
+          Visit record (PDF)
+        </a>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {open > 0 ? (

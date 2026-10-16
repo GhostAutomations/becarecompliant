@@ -25,6 +25,8 @@ import {
   SECTION_NAMES,
   sectionKeyOf,
   splitCategoryKey,
+  splitCareNotesKey,
+  careNotesFolderName,
   type FolderKey,
   type SectionKey,
 } from "@/lib/cloud/names";
@@ -39,6 +41,12 @@ async function plan(c: Ready, key: FolderKey): Promise<{ name: string; parent: F
   if (key.startsWith("section:")) {
     const name = SECTION_NAMES[key.slice(8) as SectionKey];
     return name ? { name, parent: "root" } : null;
+  }
+  // Care notes > year > month > day inside a service user's folder (Rota and Visits Stage 5).
+  const notes = splitCareNotesKey(key);
+  if (notes) {
+    const parent = parentKey(key);
+    return parent ? { name: careNotesFolderName(notes.parts), parent } : null;
   }
   // A category inside a record's folder (Holiday, Spot Check, Documents ...).
   const cat = splitCategoryKey(key);
@@ -129,7 +137,7 @@ export async function ensureFolder(c: Ready, token: string, key: FolderKey, veri
          its branch. Without this a record whose category folders were all made already would
          never be looked at again, so a new name or a transfer would never reach the drive.
          Database reads only, unless something has actually changed. */
-      if (splitCategoryKey(key)) await ensureFolder(c, token, parent, verify);
+      if (splitCategoryKey(key) || splitCareNotesKey(key)) await ensureFolder(c, token, parent, verify);
 
       if (isRecordKey(key)) {
         // The branch folder it belongs in (made if need be, and renamed if the branch was).

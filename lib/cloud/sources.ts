@@ -15,6 +15,9 @@ import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import { datedFileName, fileExtensionOf, initialsOf, isRecordKey, recordFileName, safeDriveName, type FolderKey } from "@/lib/cloud/names";
 import { categoryTargetFor, recordCategorySet } from "@/lib/cloud/categories";
 import { deriveComplaintPrefix, formatComplaintRef } from "@/lib/complaints/logic";
+import { careNotesDayKey } from "@/lib/cloud/names";
+import { loadVisitRecord, renderVisitRecordPdf } from "@/lib/rota/visit-record-data";
+import { visitRecordFileName } from "@/lib/rota/visit-record";
 
 export type CloudSourceKind =
   | "evidence"
@@ -28,7 +31,8 @@ export type CloudSourceKind =
   | "policy_version"
   | "notice"
   | "notice_file"
-  | "record_document";
+  | "record_document"
+  | "visit_record";
 
 const MIME: Record<string, string> = {
   pdf: "application/pdf",
@@ -630,6 +634,33 @@ function likeExact(value: string): string {
   return String(value ?? "").replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
+/**
+ * A Visit record PDF (Rota and Visits Stage 5, Phil 2026-10-16): the service user's folder, then
+ * Care notes, the year, the month and the day, one PDF per visit, and a later version beside it.
+ * The version shows what had arrived by its made_at, so copying it again gives the same file.
+ */
+async function visitRecordCopy(companyId: string, versionId: string): Promise<ResolvedCopy | null> {
+  const db = createServiceClient();
+  const { data: v } = await db
+    .from("rota_visit_record_versions")
+    .select("visit_id, version, made_at")
+    .eq("id", versionId)
+    .eq("company_id", companyId)
+    .maybeSingle<{ visit_id: string; version: number; made_at: string }>();
+  if (!v) return null;
+  const facts = await loadVisitRecord(db, { companyId, visitId: v.visit_id, version: { version: v.version, madeAt: v.made_at } });
+  if (!facts) return null;
+  const folderKey = careNotesDayKey(facts.serviceUserId, facts.input.visitDate);
+  const who = await recordParts(companyId, `service_user:${facts.serviceUserId}`);
+  const bytes = await renderVisitRecordPdf(facts.input);
+  return {
+    folderKey,
+    fileName: visitRecordFileName(facts.input.startTime, who?.initials ?? "", v.version, v.made_at),
+    bytes: new Uint8Array(bytes),
+    contentType: "application/pdf",
+  };
+}
+
 export async function resolveCloudCopy(
   companyId: string,
   kind: string,
@@ -670,6 +701,8 @@ async function resolveFlat(companyId: string, kind: string, sourceId: string): P
       return noticeFileCopy(companyId, sourceId);
     case "record_document":
       return recordDocumentCopy(companyId, sourceId);
+    case "visit_record":
+      return visitRecordCopy(companyId, sourceId);
     case "record_folder": {
       // "person:<id>" or "service_user:<id>": a new record gets its folder straight away (Phil,
       // 2026-10-08: "when a new client or service user is added, they would get a file created").

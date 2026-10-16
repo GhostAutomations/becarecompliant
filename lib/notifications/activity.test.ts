@@ -42,3 +42,13 @@ test("display date", async () => {
   assert.equal(displayDate("2028-02-29"), "29 Feb 2028");
   assert.equal(displayDate(null), null);
 });
+
+test("a concern line opens the concern and says what it is (Rota and Visits Stage 5)", async () => {
+  const { activityHref, activityRowTitle } = await import("./activity.ts");
+  const row = { evidenceId: null, recordKind: "service_user" as const, recordId: "su1", concernId: "c1", checkName: "Check" };
+  assert.equal(activityHref(row), "/rota/concerns?concern=c1");
+  assert.equal(activityRowTitle(row), "Concern raised in a care note");
+  // a completed check is unchanged
+  assert.equal(activityHref({ ...row, concernId: null, evidenceId: "e1" }), "/evidence/e1");
+  assert.equal(activityRowTitle({ checkName: "Care Plan Review", concernId: null }), "Care Plan Review completed");
+});

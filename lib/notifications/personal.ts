@@ -13,7 +13,7 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("user_notifications")
-    .select("id, person_id, service_user_id, evidence_id, actor_name, completed_on, created_at, definition:check_definitions(name), branch:branches(name)")
+    .select("id, person_id, service_user_id, evidence_id, concern_id, actor_name, completed_on, created_at, definition:check_definitions(name), branch:branches(name)")
     .eq("profile_id", profileId)
     // Email only notifications (0474) are not shown here.
     .eq("show_in_app", true)
@@ -26,6 +26,7 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
     person_id: string | null;
     service_user_id: string | null;
     evidence_id: string | null;
+    concern_id: string | null;
     actor_name: string | null;
     completed_on: string | null;
     created_at: string;
@@ -56,6 +57,7 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
       branchName: r.branch?.name ?? null,
       completedOn: r.completed_on,
       createdAt: r.created_at,
+      concernId: r.concern_id,
     };
   });
 }

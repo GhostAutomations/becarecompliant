@@ -785,3 +785,34 @@ export function inviteEmailHtml(opts: {
       "If you were not expecting this invitation you can ignore this email and no account will be created. This link expires for your security.",
   });
 }
+
+/**
+ * A carer raised a concern at a visit (Rota and Visits Stage 5, Phil 2026-10-16; docs/decisions/
+ * rota-visits.md, Stage 5 decisions 9 and 12). Health and safeguarding data, so the email says only
+ * who it is about, who raised it and when, never what it says: that stays behind a login.
+ */
+export function concernRaisedEmailHtml(opts: {
+  recipientName: string;
+  serviceUserName: string | null;
+  carerName: string | null;
+  raisedAt: string | null;
+  branchName: string | null;
+  companyName: string;
+  url: string;
+}): string {
+  const heading = "Concern raised in a care note";
+  const forWhom = opts.serviceUserName ? ` for <strong style="color:#ffffff;">${escapeHtml(opts.serviceUserName)}</strong>` : "";
+  const byWhom = opts.carerName ? ` by ${escapeHtml(opts.carerName)}` : "";
+  const when = opts.raisedAt ? ` at ${escapeHtml(opts.raisedAt)}` : "";
+  const where = [opts.branchName, opts.companyName].filter(Boolean).map((x) => escapeHtml(x as string)).join(", ");
+  return noticeEmailHtml({
+    preheader: heading,
+    heading,
+    bodyHtml: `<p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)}.</p>
+    <p style="margin:0 0 12px 0;">A concern was raised${forWhom}${byWhom}${when}${where ? ` (${where})` : ""}.</p>
+    <p style="margin:0;">Open it to read the concern and decide whether an incident form is needed. For privacy, what it says is not included in this email.</p>`,
+    ctaLabel: "Open the concern",
+    ctaUrl: opts.url,
+    footerNote: "You receive this email because your Admin set you to be told when a concern is raised. Your Admin can change it in Settings, Notifications.",
+  });
+}

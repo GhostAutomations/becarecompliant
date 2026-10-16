@@ -18,6 +18,8 @@ export type ActivityRow = {
   branchName: string | null;
   completedOn: string | null;
   createdAt: string;
+  /** A concern raised in a care note (Rota and Visits Stage 5) rather than a completed check. */
+  concernId?: string | null;
 };
 
 /** "Care Plan Review completed". */
@@ -25,8 +27,14 @@ export function activityTitle(checkName: string): string {
   return `${checkName} completed`;
 }
 
-/** Opens the Evidence when there is one, otherwise the record. */
-export function activityHref(row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId">): string {
+/** The line's title: "Care Plan Review completed", or "Concern raised in a care note" (Stage 5). */
+export function activityRowTitle(row: Pick<ActivityRow, "checkName" | "concernId">): string {
+  return row.concernId ? "Concern raised in a care note" : activityTitle(row.checkName);
+}
+
+/** Opens the concern, else the Evidence when there is one, otherwise the record. */
+export function activityHref(row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId" | "concernId">): string {
+  if (row.concernId) return `/rota/concerns?concern=${row.concernId}`;
   if (row.evidenceId) return `/evidence/${row.evidenceId}`;
   return row.recordKind === "person" ? `/people/${row.recordId}` : `/service-users/${row.recordId}`;
 }

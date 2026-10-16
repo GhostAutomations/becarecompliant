@@ -11,6 +11,11 @@ import { INCIDENT_REPORT_FORM } from "@/lib/incidents/form-keys";
 import { INCIDENTS_ROLES } from "@/lib/auth/module-roles";
 import { OFFICE_ONLY_KEYS, withoutOfficeQuestions } from "@/lib/incidents/report-answers";
 import { incidentReportChoices } from "@/lib/incidents/report-choices";
+import { createClient } from "@/lib/supabase/server";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
+import { isRotaOfficeRole } from "@/lib/rota/roles";
+import type { Answers } from "@/lib/form-schema";
 
 export const metadata: Metadata = { title: "Report an incident" };
 
@@ -23,9 +28,10 @@ export const metadata: Metadata = { title: "Report an incident" };
  * system entirely. Reporting is open; everything that happens to the case afterwards -- the
  * register, the investigation, the outcome -- stays with the branch.
  */
-export default async function NewIncidentPage() {
+export default async function NewIncidentPage({ searchParams }: { searchParams: Promise<{ concern?: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
+  const { concern: concernParam } = await searchParams;
 
   const form = await getCompanyFormByKey(profile.company_id, INCIDENT_REPORT_FORM);
   if (!form || !isFormSchema(form.schema)) {
@@ -40,7 +46,11 @@ export default async function NewIncidentPage() {
     );
   }
 
-  const draft = await readDraft(draftKey("incident", ["report"]));
+  /* STARTED FROM A CONCERN (Rota and Visits Stage 5, Phil 2026-10-16): the form opens filled in
+     from the concern a carer raised, and the incident is linked back to it when filed. Only for a
+     company with the module on and the rota office of the concern's branch (RLS reads it). */
+  const fromConcern = await concernPreset(profile.company_id, profile.role, concernParam);
+  const draft = fromConcern ? undefined : await readDraft(draftKey("incident", ["report"]));
 
   /* THE OFFICE DECIDES notifiable and safeguarding (Phil, 2026-09-19). Somebody who can reach
      the Incidents module is office staff and must answer both; anybody else is reporting from
@@ -70,8 +80,45 @@ export default async function NewIncidentPage() {
       </div>
 
       <div className="glass-card p-6">
-        <IncidentReportForm schema={schema} draft={draft} lookupChoices={lookupChoices} />
+        {fromConcern ? (
+          <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Filled in from the concern {fromConcern.raisedBy} raised. Check every answer and add what is missing before you report it.
+          </p>
+        ) : null}
+        <IncidentReportForm schema={schema} draft={draft} lookupChoices={lookupChoices} presetAnswers={fromConcern?.answers} concernId={fromConcern?.id} />
       </div>
     </div>
   );
+}
+
+/** The answers a concern fills in: branch, date, time, service user and what was said. */
+async function concernPreset(
+  companyId: string,
+  role: string,
+  concernId: string | undefined,
+): Promise<{ id: string; raisedBy: string; answers: Answers } | null> {
+  if (!concernId || !/^[0-9a-f-]{36}$/i.test(concernId) || !isRotaOfficeRole(role)) return null;
+  if (!moduleOnInRow(await getCompanyRow(companyId), "rota_visits")) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("rota_concerns")
+    .select("id, branch_id, author_name, category, body, happened_at, status, service_users(full_name)")
+    .eq("id", concernId)
+    .eq("company_id", companyId)
+    .maybeSingle<{ id: string; branch_id: string; author_name: string; category: string; body: string; happened_at: string; status: string; service_users: { full_name: string } | null }>();
+  if (!data || data.status === "incident") return null;
+  const at = new Date(data.happened_at);
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(at);
+  const time = at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  return {
+    id: data.id,
+    raisedBy: data.author_name,
+    answers: {
+      branch: data.branch_id,
+      occurred_on: day,
+      occurred_at: time,
+      ...(data.service_users?.full_name ? { service_user: data.service_users.full_name } : {}),
+      description: `Concern raised by ${data.author_name} at ${time} (${data.category}): ${data.body}`,
+    },
+  };
 }

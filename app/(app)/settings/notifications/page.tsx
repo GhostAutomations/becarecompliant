@@ -15,6 +15,9 @@ import NotificationGrid, { type GridDefinition, type GridPerson } from "@/compon
 import MorningEmailGrid, { type MorningPart } from "@/components/settings/morning-email-grid";
 import { NOTIFIABLE_ROLES } from "@/lib/notifications/activity";
 import { ROLE_LABELS } from "@/lib/nav";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
+import { CONCERN_GRID_ID, CONCERN_ROLES } from "@/lib/rota/notes";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -168,6 +171,24 @@ export default async function NotificationSettingsPage() {
     }
     gridInitial[ids[i]] = Object.fromEntries(rows.map((x) => [x.definition_id, { inApp: x.in_app, email: x.email }]));
   });
+
+  /* "Concern raised in a care note" (Rota and Visits Stage 5, decision 12): one more row, on its
+     own band, only when the company has the module on. The switch is read from the company row
+     the layout has already loaded, so other companies run no extra query. */
+  if (!gridError && moduleOnInRow(await getCompanyRow(profile.company_id), "rota_visits")) {
+    const { data: concernRows, error: concernError } = await supabase.rpc("rota_concern_notification_grid", { p_company: profile.company_id });
+    if (concernError) {
+      gridError = concernError.message;
+    } else {
+      gridDefinitions = [
+        ...gridDefinitions,
+        { id: CONCERN_GRID_ID, population: "rota", name: "Concern raised in a care note", title: "Concern raised in a care note", roles: [...CONCERN_ROLES] },
+      ];
+      for (const r of (concernRows ?? []) as Array<{ profile_id: string; in_app: boolean; email: boolean }>) {
+        gridInitial[r.profile_id] = { ...(gridInitial[r.profile_id] ?? {}), [CONCERN_GRID_ID]: { inApp: r.in_app, email: r.email } };
+      }
+    }
+  }
 
   return (
     <div className="page-shell space-y-6">

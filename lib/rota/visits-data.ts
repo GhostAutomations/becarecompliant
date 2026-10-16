@@ -5,7 +5,7 @@ import { compareCandidates, milesBetween, normalisePostcode } from "@/lib/rota/g
 import { postcodePoints } from "@/lib/rota/postcodes";
 import { mandatoryTrainingRed, shiftsAround } from "@/lib/rota/data";
 import { workingTimeWarnings } from "@/lib/rota/working-time";
-import { hhmm, type CallServiceUser, type RotaVisit, type RotaWarning, type VisitCandidate } from "@/lib/rota/types";
+import { hhmm, type CallServiceUser, type RotaVisit, type RotaWarning, type VisitCandidate, type VisitNoteLine, type VisitConcernLine } from "@/lib/rota/types";
 import { getClockRecords } from "@/lib/rota/clock-data";
 
 /**
@@ -96,7 +96,7 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     list.push({ id: a.id, personId: a.person_id, name: a.people?.full_name ?? "Someone from another branch", via: a.via, warnings: Array.isArray(a.warnings) ? a.warnings : [] });
     byVisit.set(a.visit_id, list);
   }
-  const [clocks, tasks] = await Promise.all([getClockRecords("visit", rows.map((r) => r.id)), getVisitTasks(rows)]);
+  const [clocks, tasks, notes] = await Promise.all([getClockRecords("visit", rows.map((r) => r.id)), getVisitTasks(rows), getVisitNotes(rows.map((r) => r.id))]);
   return rows.map((r) => ({
     id: r.id,
     branchId: r.branch_id,
@@ -116,14 +116,45 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     assignments: byVisit.get(r.id) ?? [],
     clocks: clocks.get(r.id) ?? [],
     tasks: tasks.get(r.id) ?? null,
+    notes: notes.notes.get(r.id) ?? [],
+    concerns: notes.concerns.get(r.id) ?? [],
   }));
+}
+
+/** Each visit's care notes and concerns (Stage 5), read as the signed in office person (RLS). */
+export async function getVisitNotes(ids: string[]): Promise<{ notes: Map<string, VisitNoteLine[]>; concerns: Map<string, VisitConcernLine[]> }> {
+  const notes = new Map<string, VisitNoteLine[]>();
+  const concerns = new Map<string, VisitConcernLine[]>();
+  if (ids.length === 0) return { notes, concerns };
+  const supabase = await createClient();
+  const [{ data: n }, { data: c }] = await Promise.all([
+    supabase
+      .from("rota_care_notes")
+      .select("id, visit_id, person_id, author_name, body, happened_at, for_next_carer, corrects_note_id, flags")
+      .in("visit_id", ids)
+      .order("happened_at"),
+    supabase.from("rota_concerns").select("id, visit_id, person_id, author_name, category, body, happened_at, status").in("visit_id", ids).order("happened_at"),
+  ]);
+  type N = { id: string; visit_id: string; person_id: string; author_name: string; body: string; happened_at: string; for_next_carer: boolean; corrects_note_id: string | null; flags: string[] | null };
+  type C = { id: string; visit_id: string; person_id: string; author_name: string; category: string; body: string; happened_at: string; status: string };
+  for (const r of (n as N[] | null) ?? []) {
+    const list = notes.get(r.visit_id) ?? [];
+    list.push({ id: r.id, personId: r.person_id, author: r.author_name, body: r.body, at: r.happened_at, forNextCarer: r.for_next_carer, correctsNoteId: r.corrects_note_id, flags: r.flags ?? [] });
+    notes.set(r.visit_id, list);
+  }
+  for (const r of (c as C[] | null) ?? []) {
+    const list = concerns.get(r.visit_id) ?? [];
+    list.push({ id: r.id, personId: r.person_id, author: r.author_name, category: r.category, body: r.body, at: r.happened_at, status: r.status });
+    concerns.set(r.visit_id, list);
+  }
+  return { notes, concerns };
 }
 
 /**
  * Each visit's call tasks (Stage 4): the call's current task list, found from the visit's key
  * (service_user:date:service:slot:occurrence, 0491), and each carer's latest outcome per task.
  */
-async function getVisitTasks(rows: { id: string; service_user_id: string; visit_date: string; generated_key: string | null }[]): Promise<Map<string, NonNullable<RotaVisit["tasks"]>>> {
+export async function getVisitTasks(rows: { id: string; service_user_id: string; visit_date: string; generated_key: string | null }[]): Promise<Map<string, NonNullable<RotaVisit["tasks"]>>> {
   const out = new Map<string, NonNullable<RotaVisit["tasks"]>>();
   const keyed = rows.filter((r) => r.generated_key);
   if (keyed.length === 0) return out;

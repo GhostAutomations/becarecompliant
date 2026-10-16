@@ -104,3 +104,23 @@ test("branch folders (0441): People > Branch > Person", async () => {
   assert.equal(branchFolderName("North/South"), "North South");
   assert.equal(branchFolderName(""), "Branch");
 });
+
+test("care notes folders: Care notes, the year, the month numbered so it sorts, the day", async () => {
+  const { careNotesDayKey, splitCareNotesKey, careNotesFolderName, parentKey, isFolderKey, splitCategoryKey } = await import("./names.ts");
+  const su = "service_user:0c543081-87fa-4892-b99f-4193ec8b57ee";
+  const day = careNotesDayKey("0c543081-87fa-4892-b99f-4193ec8b57ee", "2026-10-16");
+  assert.equal(day, `${su}/care-notes/2026/10/16`);
+  assert.ok(isFolderKey(day));
+  assert.deepEqual(splitCareNotesKey(day), { record: su, parts: ["2026", "10", "16"] });
+  assert.equal(careNotesFolderName(["2026"]), "2026");
+  assert.equal(careNotesFolderName(["2026", "10"]), "10 October");
+  assert.equal(careNotesFolderName(["2026", "10", "16"]), "16");
+  assert.equal(parentKey(day), `${su}/care-notes/2026/10`);
+  assert.equal(parentKey(`${su}/care-notes/2026`), `${su}/care-notes`);
+  assert.equal(parentKey(`${su}/care-notes`), su);
+  assert.deepEqual(splitCategoryKey(`${su}/care-notes`), { record: su, slug: "care-notes" });
+  // a person never gets one, and nonsense months or days are refused
+  assert.equal(splitCareNotesKey("person:0c543081-87fa-4892-b99f-4193ec8b57ee/care-notes/2026"), null);
+  assert.equal(splitCareNotesKey(`${su}/care-notes/2026/13`), null);
+  assert.equal(splitCareNotesKey(`${su}/care-notes/2026/10/32`), null);
+});

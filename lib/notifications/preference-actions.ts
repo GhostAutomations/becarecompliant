@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/forms";
+import { CONCERN_GRID_ID } from "@/lib/rota/notes";
 
 /**
  * Settings, Notifications, "Who is told when a check is completed" (0473, Phil 2026-10-14): the
@@ -32,6 +33,16 @@ export async function saveNotificationGrid(_prev: ActionState, formData: FormDat
     });
     const { error } = await supabase.rpc("set_notification_preferences", { p_profile: pid, p_prefs: prefs });
     if (error) failed.push(error.message);
+  }
+  /* "Concern raised in a care note" (Rota and Visits Stage 5): its own row and its own database
+     function, sent only for the people the row applies to (the grid lists them). */
+  if (formData.getAll("definition_id").map(String).includes(CONCERN_GRID_ID)) {
+    const allowed = new Set(formData.getAll(`allowed:${CONCERN_GRID_ID}`).map(String));
+    for (const pid of changed.filter((p) => allowed.has(p))) {
+      const key = `${pid}:${CONCERN_GRID_ID}`;
+      const { error } = await supabase.rpc("rota_set_concern_notification", { p_profile: pid, p_in_app: inApp.has(key), p_email: email.has(key) });
+      if (error) failed.push(error.message);
+    }
   }
   revalidatePath("/settings/notifications");
   if (failed.length > 0) return { error: `Not everyone was saved: ${failed[0]}` };

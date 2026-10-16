@@ -111,6 +111,12 @@ export async function queueEverything(companyId: string): Promise<number> {
     for (let i = 1; i <= count; i++) add("notice_file", `${n.id}|${i}`);
   });
 
+  // Visit records (Rota and Visits Stage 5): every version, each its own file in the day's folder.
+  const visitRecords = await all<{ id: string }>((a, b) =>
+    db.from("rota_visit_record_versions").select("id").eq("company_id", companyId).order("made_at", { ascending: true }).range(a, b),
+  );
+  visitRecords.forEach((v) => add("visit_record", v.id));
+
   for (let i = 0; i < jobs.length; i += 500) {
     const { error } = await db
       .from("cloud_sync_queue")

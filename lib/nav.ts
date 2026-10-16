@@ -234,6 +234,7 @@ export const NAV_ENTRIES: NavEntry[] = [
       { href: "/rota/visits", label: "Visits", icon: "rota" },
       { href: "/rota/calls", label: "Call times", icon: "rota" },
       { href: "/rota/clock", label: "Clock in", icon: "rota" },
+      { href: "/rota/concerns", label: "Concerns", icon: "rota" },
       { href: "/rota/templates", label: "Templates", icon: "rota" },
       { href: "/rota/availability", label: "Availability", icon: "rota" },
     ],

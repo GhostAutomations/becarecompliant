@@ -26,6 +26,9 @@ import EditServiceUserForm from "@/components/service-users/edit-service-user-fo
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
+import { isRotaOfficeRole } from "@/lib/rota/roles";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
   getServiceUser,
@@ -165,6 +168,10 @@ export default async function ServiceUserPage({
        audited in lib/documents/actions.ts. */
     getRecordDocuments({ kind: "service_user", id }, { supportMode }),
   ]);
+
+  /* Care notes (Rota and Visits Stage 5): only when the company has the module on, read from the
+     company row the layout has already loaded (React cache), so other companies get no extra query. */
+  const careNotesOn = isRotaOfficeRole(profile.role) && moduleOnInRow(await getCompanyRow(companyId), "rota_visits");
 
   const updatesTile = updates.canRead ? (
     <UpdatesTile
@@ -315,7 +322,7 @@ export default async function ServiceUserPage({
       ) : null}
 
       {canManage ? (
-        <div className={`grid gap-3 ${outcomesEnabled ? "sm:grid-cols-2" : ""}`}>
+        <div className={`grid gap-3 ${outcomesEnabled || careNotesOn ? "sm:grid-cols-2" : ""}`}>
           <Link
             href={`/service-users/${serviceUser.id}/care-plan`}
             className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
@@ -323,6 +330,16 @@ export default async function ServiceUserPage({
             <h2 className="text-base font-semibold text-white">Care plan</h2>
             <span className="btn-outline text-xs">Open</span>
           </Link>
+
+          {careNotesOn ? (
+            <Link
+              href={`/service-users/${serviceUser.id}/care-notes`}
+              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+            >
+              <h2 className="text-base font-semibold text-white">Care notes</h2>
+              <span className="btn-outline text-xs">Open</span>
+            </Link>
+          ) : null}
 
           {outcomesEnabled ? (
             <Link
