@@ -202,10 +202,10 @@ function CallCard({
                 occurrence: String(call.occurrence),
                 tasks: JSON.stringify(tasks),
               }}
-              label={changed ? "Save tasks" : "Saved"}
+              label={!changed && call.listId ? "Saved" : "Save tasks"}
               savingLabel="Saving…"
               savedLabel="Saved"
-              buttonClassName={changed ? "btn-primary px-3 py-1.5 text-xs" : "btn-saved px-3 py-1.5 text-xs"}
+              buttonClassName={!changed && call.listId ? "btn-saved px-3 py-1.5 text-xs" : "btn-primary px-3 py-1.5 text-xs"}
               className=""
               disabled={!changed}
             />
