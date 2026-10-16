@@ -205,3 +205,6 @@ information, never their screens, wording or templates.
     Clock in page only. Decision 14 now reads Apple (not Mapbox) and postcodes.io: before real use,
     tell every Company Admin 30 days ahead, and say in the DPA and privacy information that home
     pins viewed on the map go to Apple under Apple's own terms.
+16. The map pin opens about **2 km across** around the home (Phil, 2026-10-16: "start a bit more
+    zoomed out so they can get a better idea where they are"), not about 700 m; the whole UK when
+    a place has no point yet.
