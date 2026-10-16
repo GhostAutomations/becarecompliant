@@ -45,7 +45,7 @@ export type TimelineRow = {
 
 export type TimelineDrop = { block: TimelineBlock; fromRow: string; toRow: string; newStart: number };
 
-const PX = 1.1; // pixels per minute: the day is about 1,600 pixels across
+const PX = 2; // pixels per minute: a 30 minute visit is 60 pixels, wide enough for a name
 const LABEL_W = 168;
 const LANE_H = 30;
 
@@ -182,7 +182,7 @@ export default function Timeline({
                     const dragging = drag?.block.id === b.id;
                     const style = {
                       left: b.start * PX,
-                      width: Math.max(22, (b.end - b.start) * PX),
+                      width: Math.max(40, (b.end - b.start) * PX),
                       top: 5 + (lane.get(b.id) ?? 0) * LANE_H,
                       height: LANE_H - 4,
                       transform: dragging ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
