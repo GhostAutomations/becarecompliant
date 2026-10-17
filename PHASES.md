@@ -2566,6 +2566,15 @@ Out of scope: invoicing and payroll.
   (branch Managers and Supervisors and Out of Hours by default); Rota tabs Today (live counts,
   statuses, map of today's taps) and Alerts (clear down by a Supervisor or above with a reason).
   Not seen live: an urgent alert and the Tasks or Doses not done pills.
+- [ ] Stage 7b (IN PROGRESS, Phil's popups 2026-10-17; docs/decisions/rota-visits.md, Stage 7b): Rota
+  settings and call cancellations, before Stage 8.
+  - [x] Part 1 funders (live 2026-10-17, migration 0508, commits 1b1810e3 and c013e5fa; R7b.1 to
+    R7b.4 passed by Claude at Phil's request): a Funders list in Settings, Service users (add,
+    rename, archive, restore, Company Admin) and a Funder on every company's service user record.
+  - [ ] Part 2 Settings, Rota page (alert timings, clock in rules, notes and MAR) and the
+    cancellation reasons and rules per funder with a branch default.
+  - [ ] Part 3 cancelling visits (one, a range, one call over a range), restart, carer told.
+  - [ ] Part 4 short notice charges on invoices and the Chargeable cancellations report.
 - [ ] Stage 8: travel and mileage (own OpenRouteService server, postcode pair cache, short gap
   warnings, mileage and travel time totals).
 - [ ] Stage 9: reports (17 reports, PDF and CSV, filters, leavers and paused records left out).
