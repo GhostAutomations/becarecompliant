@@ -550,3 +550,6 @@ Phil, 2026-10-17, for the next push:
     stock 1 to 60 days. The radius applies to homes set up after the change; homes already set keep
     their own (changed on the service user's Clock in page). The page shows only while the module is
     on.
+16. **Branch default cancellation rule** (Phil's popup, 2026-10-17): every branch starts with **48
+    hours** notice, **48 hours** still charged and **48 hours** carer still paid, changeable per branch
+    in Settings, Rota. A funder's own rule, when set, wins over the branch default.
