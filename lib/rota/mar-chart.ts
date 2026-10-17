@@ -137,6 +137,8 @@ export function chartCell(m: ChartMed, date: string, slot: string, input: Pick<M
       ? { text: initials(latest.author), rag: "green" }
       : { text: OUTCOME_CODES[latest.outcome], strong: true, rag: "amber" };
   }
+  // A medicine stopped that day with nothing recorded: no box to fill (it is not due any more).
+  if (m.status === "stopped" && m.stoppedAt && date === londonDay(m.stoppedAt)) return { text: "" };
   const visitsHere = input.visits.filter((v) => v.date === date && v.slot === slot);
   const over = date < input.today || (date === input.today && visitsHere.length > 0 && visitsHere.every((v) => v.clockedOut));
   // Due and not yet due: a light empty box to write in by hand if the phones are down (decision 9).

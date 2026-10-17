@@ -49,7 +49,8 @@ test("cells: initials when given, a code when not, X when due and not recorded, 
   assert.equal(chartCell({ ...med, startDate: "2026-10-16" }, "2026-10-15", "morning", input).text, "");
   // a stopped medicine is not due after the day it stopped
   assert.equal(chartCell({ ...med, status: "stopped", stoppedAt: "2026-10-12T15:00:00Z" }, "2026-10-14", "morning", input).text, "");
-  assert.equal(chartCell({ ...med, status: "stopped", stoppedAt: "2026-10-12T15:00:00Z" }, "2026-10-12", "morning", input).text, "X");
+  // on the day it stopped, with nothing recorded: blank, not X or a box
+  assert.equal(chartCell({ ...med, status: "stopped", stoppedAt: "2026-10-12T15:00:00Z" }, "2026-10-12", "morning", input).text, "");
   // another call: not due
   assert.equal(chartCell(med, "2026-10-15", "night", input).text, "");
 });

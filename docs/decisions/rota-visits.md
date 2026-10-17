@@ -453,3 +453,6 @@ Phil, 2026-10-17, for the next push:
   meds"): the Clock in button is at the top of the visit card; tasks and medicines appear, and notes
   can be written, only once clocked in (earlier notes and pinned notes can still be read before).
   Clock out is at the bottom.
+- **Location prompts** (Phil, 2026-10-17): Safari asks for location at each clock unless the site
+  is set to Allow; a website cannot keep it on. For the planned app, location permission is given
+  once and must stay on (as Birdie does). Note for the app build.
