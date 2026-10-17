@@ -2549,9 +2549,16 @@ Out of scope: invoicing and payroll.
 - [x] Stage 5 (DONE 2026-10-16, migrations 0498 and 0499; R5.1 to R5.9 and R5.11 passed from Phil's phone, the office and the database; R5.10, the cloud copy of Visit records, is OPEN until Bevan's drive is reconnected; Phil chose a note store of its own with Evidence rules rather than the Evidence table, one Visit record PDF per visit (clock in and out with result and distance, tasks, notes, concerns, flags) with a new version for anything arriving later, copied to Care notes > year > month > day, a note prompt at clock out that can be skipped, notes for 24 hours and Pin Note (48hrs), corrections as linked new notes, and Raise a concern that tells Supervisors through Settings, Notifications so they decide whether to start an incident form (filled in and linked); rota dropdowns A to Z): care notes (per visit, never edited, stored as Evidence, handover notes, concern
   straight into Incidents and Safeguarding).
 - [x] Stage 5b (DONE 2026-10-17, migration 0500; R5b.1 to R5b.7 passed, drag and drop tested by Claude in the Claude browser at Phil's request, Founder on Bevan and nothing on Thistle checked; Phil, 2026-10-16, before the MAR): timeline views: the service user's Care Schedule week and rota week on the record; Carer day and Service user day as Rota tabs; tap to open a visit; drag to another carer or along the line to change the time (docs/decisions/rota-visits.md, Stage 5b).
-- [ ] Stage 6: MAR (dm+d medicines, two person check, record only, competency rule, missed and late
-  alerts, printable MAR and rota; date of birth and GP practice added to every company's Service
-  User Manage record panel).
+- [x] Stage 6 (DONE 2026-10-17, Phil closed it with the open checks listed; migrations 0501 to 0505;
+  TEST-CHECKLIST-ROTA.md R6.1 to R6.18): MAR. NHS dm+d list loaded weekly through TRUD (Founder card),
+  medicines per service user with a label photo or a reason, a second check by another Supervisor or
+  above with Send back and Correct and resend, stock, stop, the carer's due doses after Clock in
+  (location required), refused and not available alerts, doses on the Visits page and the Visit
+  record, the monthly MAR chart and weekly rota PDFs, the time sensitive flag; date of birth, NHS
+  number, GP practice and allergies in every company's Manage record. Open: R6.7 when required dose,
+  flight mode and location refused on the phone; R6.8 a Supervisor seeing the alert; R6.9 Not
+  recorded in red and the time sensitive ring; R6.12 record tiles on a phone; R6.16 My area and Care
+  split (to build before Stage 7).
 - [ ] Stage 7: live attendance and alerts (today's visits, late and missed job behind CRON_SECRET).
 - [ ] Stage 8: travel and mileage (own OpenRouteService server, postcode pair cache, short gap
   warnings, mileage and travel time totals).
