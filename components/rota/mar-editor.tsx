@@ -259,65 +259,73 @@ function LiveMed({ m, balance, serviceUserId, dmdReady }: { m: MarMed; balance: 
   const [mode, setMode] = useState<null | "change" | "stop" | "stock">(null);
   const days = daysOfStock({ prn: m.prn, slots: m.slots, days: m.days, start_date: m.startDate, stop_date: m.stopDate, dose_quantity: m.doseQuantity }, balance);
   return (
-    <li className={`space-y-2 rounded-xl border p-3 ${mode === "change" ? "col-span-full" : ""} ${m.timeSensitive ? "border-red-500/40 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
+    <li className={`flex h-full flex-col gap-2 rounded-xl border p-3 ${m.timeSensitive ? "border-red-500/40 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
       <MedSummary m={m} />
       <p className={`text-xs ${days != null && days < LOW_STOCK_DAYS ? "text-amber-300" : "text-white/55"}`}>
         Stock: {balance == null ? "not recorded" : `${balance} ${m.doseUnit ?? ""}`.trim()}
         {days != null ? ` · about ${days} day${days === 1 ? "" : "s"} left${days < LOW_STOCK_DAYS ? ", order more" : ""}` : ""}
         {m.checkedByName ? ` · checked by ${m.checkedByName}` : ""}
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-auto flex flex-wrap gap-2">
         <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode(mode === "change" ? null : "change")}>
           Change
         </button>
         <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode(mode === "stock" ? null : "stock")}>
           Stock
         </button>
-        <button type="button" className="btn-ghost px-3 py-1 text-xs" onClick={() => setMode(mode === "stop" ? null : "stop")}>
+        <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode(mode === "stop" ? null : "stop")}>
           Stop
         </button>
       </div>
-      {mode === "change" ? (
-        <div className="rounded-lg border border-white/10 p-3">
-          <p className="mb-2 text-xs text-amber-200">A change waits for a second check; until then carers are told to call the office for this medicine.</p>
+      {/* Change, Stock and Stop open in popups, so the tiles stay one size (Phil, 2026-10-17). */}
+      <CentreDialog open={mode === "change"} onClose={() => setMode(null)} label={`Change: ${m.name}`}>
+        <div className="space-y-3 p-5">
+          <p className="text-xs text-amber-200">A change waits for a second check; until then carers are told to call the office for this medicine.</p>
           <MedicineForm serviceUserId={serviceUserId} med={m} dmdReady={dmdReady} onDone={() => setMode(null)} />
         </div>
-      ) : null}
-      {mode === "stop" ? (
-        <ActionForm
-          action={stopMedicineAction}
-          hidden={{ med_uid: m.medUid }}
-          label="Stop it now"
-          savingLabel="Stopping…"
-          savedLabel="Stopped"
-          buttonClassName="btn-outline px-3 py-1 text-xs"
-          className="flex flex-wrap items-end gap-2"
-          confirm={`Stop ${m.name}? Carers stop seeing it straight away.`}
-        >
-          <label className="min-w-[14rem] flex-1">
-            <span className="sr-only">Why it is stopped</span>
-            <input name="reason" required maxLength={500} placeholder="Why it is stopped, e.g. GP stopped it on 17/10" />
-          </label>
-        </ActionForm>
-      ) : null}
-      {mode === "stock" ? (
-        <ActionForm
-          action={stockMedicineAction}
-          hidden={{ med_uid: m.medUid }}
-          label="Save stock"
-          savingLabel="Saving…"
-          savedLabel="Saved"
-          buttonClassName="btn-outline px-3 py-1 text-xs"
-          className="grid gap-2"
-        >
-          <select name="kind" defaultValue="received" aria-label="Received or correction">
-            <option value="received">Received</option>
-            <option value="corrected">Correct the count</option>
-          </select>
-          <input name="quantity" type="number" step="0.25" required placeholder="Quantity (a correction can be minus)" aria-label="Quantity" />
-          <input name="reason" maxLength={500} placeholder="Reason (needed for a correction)" aria-label="Reason" />
-        </ActionForm>
-      ) : null}
+      </CentreDialog>
+      <CentreDialog open={mode === "stop"} onClose={() => setMode(null)} label={`Stop: ${m.name}`}>
+        <div className="space-y-3 p-5">
+          <p className="text-xs text-white/70">Carers stop seeing it straight away. It moves to Stopped with the reason and the date.</p>
+          <ActionForm
+            action={stopMedicineAction}
+            hidden={{ med_uid: m.medUid }}
+            label="Stop it now"
+            savingLabel="Stopping…"
+            savedLabel="Stopped"
+            buttonClassName="btn-primary px-3 py-1.5 text-xs"
+            className="space-y-2"
+            onDone={() => setMode(null)}
+            confirm={`Stop ${m.name}? Carers stop seeing it straight away.`}
+          >
+            <input name="reason" required maxLength={500} placeholder="Why it is stopped, e.g. GP stopped it on 17/10" aria-label="Why it is stopped" />
+          </ActionForm>
+        </div>
+      </CentreDialog>
+      <CentreDialog open={mode === "stock"} onClose={() => setMode(null)} label={`Stock: ${m.name}`}>
+        <div className="space-y-3 p-5">
+          <p className="text-xs text-white/70">
+            Now: {balance == null ? "not recorded" : `${balance} ${m.doseUnit ?? ""}`.trim()}. Each dose given takes off its quantity.
+          </p>
+          <ActionForm
+            action={stockMedicineAction}
+            hidden={{ med_uid: m.medUid }}
+            label="Save stock"
+            savingLabel="Saving…"
+            savedLabel="Saved"
+            buttonClassName="btn-primary px-3 py-1.5 text-xs"
+            className="grid gap-2 sm:grid-cols-2"
+            onDone={() => setMode(null)}
+          >
+            <select name="kind" defaultValue="received" aria-label="Received or correction">
+              <option value="received">Received</option>
+              <option value="corrected">Correct the count</option>
+            </select>
+            <input name="quantity" type="number" step="0.25" required placeholder="Quantity (a correction can be minus)" aria-label="Quantity" />
+            <input name="reason" maxLength={500} placeholder="Reason (needed for a correction)" aria-label="Reason" className="sm:col-span-2" />
+          </ActionForm>
+        </div>
+      </CentreDialog>
     </li>
   );
 }
@@ -345,7 +353,11 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
   const sentBack = Boolean(m.sentBackAt);
   const photo = `/api/rota/mar-label/${m.id}`;
   return (
-    <li className={`flex h-full flex-col gap-3 rounded-xl border p-3 sm:flex-row ${sentBack ? "border-amber-500/60 bg-amber-500/10" : "border-white/10 bg-white/5"}`}>
+    <li
+      className={`flex h-full flex-col gap-3 rounded-xl border p-3 sm:flex-row ${
+        sentBack ? "border-red-500/70 bg-red-500/10" : m.recheckReason ? "border-amber-400/80 bg-amber-400/10" : "border-white/10 bg-white/5"
+      }`}
+    >
       {m.hasLabel ? (
         <button type="button" onClick={() => setBig(true)} className="h-40 w-full shrink-0 overflow-hidden sm:w-1/2 rounded-lg border border-white/10 bg-white" title="Open the label photo large">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -361,9 +373,18 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
         <p className="text-xs text-white/55">
           Set by {m.setByName ?? "someone"} on {ukDate(m.setAt)} · {change ? "a change to a live medicine" : "new"}
         </p>
+        {/* Sent back red, back for a recheck gold (Phil's popup, 2026-10-17). */}
         {sentBack ? (
-          <p className="rounded-lg bg-amber-500/15 px-2 py-1.5 text-xs text-amber-100">
-            Sent back by {m.sentBackByName ?? "the checker"} on {ukDate(m.sentBackAt)}: {m.sentBackReason}
+          <p className="space-x-2 rounded-lg bg-red-500/15 px-2 py-1.5 text-xs text-red-100">
+            <span className="pill pill-red">Sent back</span>
+            <span>
+              by {m.sentBackByName ?? "the checker"} on {ukDate(m.sentBackAt)}: {m.sentBackReason}
+            </span>
+          </p>
+        ) : m.recheckReason ? (
+          <p className="space-x-2 rounded-lg bg-amber-400/15 px-2 py-1.5 text-xs text-amber-100">
+            <span className="pill pill-amber">Recheck</span>
+            <span>It was sent back: {m.recheckReason}</span>
           </p>
         ) : null}
         <div className="mt-auto flex flex-wrap items-center gap-2">
@@ -484,7 +505,7 @@ export default function MarEditor({
           <p className="text-xs text-white/60">A different Supervisor or above checks each one against the label photo, or the prescription or label itself. Until then carers are told to call the office.</p>
           {/* Three to a row on a laptop, every card the same height (Phil, 2026-10-17): a fixed photo box
               beside the details; clicking the photo opens it large with the check beside it. */}
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid auto-rows-fr grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
             {waiting.map((m) => (
               <WaitingCard
                 key={m.id}
@@ -514,7 +535,7 @@ export default function MarEditor({
         {live.length === 0 ? <p className="text-sm text-white/55">No live medicines. Add them from the prescription or the pharmacy label; each needs a second check.</p> : null}
         {/* Compact tiles (Phil, 2026-10-17): one to a row on a phone, two on a tablet, three on a laptop,
             four on a wide screen; a medicine being changed opens across the whole row. */}
-        <ul className="grid grid-cols-1 items-start gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <ul className="grid auto-rows-fr grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {live.map((m) => (
             <LiveMed key={m.id} m={m} balance={balances[m.medUid] ?? null} serviceUserId={serviceUserId} dmdReady={dmdReady} />
           ))}

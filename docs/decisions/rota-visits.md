@@ -429,3 +429,8 @@ Phil, 2026-10-17, for the next push:
 - **Correct and resend opens in a popup** (Phil, 2026-10-17, after watching it): the card keeps its
   size; the popup shows why it was sent back and the form, with the label photo shown up to 256px
   tall (also when a new photo is taken).
+- **Card colours and uniform tiles** (Phil's popups, 2026-10-17): a sent back medicine is a red card
+  with a red Sent back pill and the reason; one back for a recheck is a gold card with a Recheck
+  pill and the earlier reason. Every waiting card and every medicine tile is the same height; so
+  Change, Stock and Stop open in popups (replacing "a medicine being changed opens across the row").
+  The button that takes a medicine off the MAR stays "Stop", now a pill like Change and Stock.

@@ -41,6 +41,8 @@ export type MarMed = {
   sentBackAt: string | null;
   sentBackByName: string | null;
   sentBackReason: string | null;
+  /** Back for a recheck after being sent back: the earlier reason (Phil 2026-10-17, gold card). */
+  recheckReason: string | null;
 };
 
 export type MarDose = {
@@ -79,7 +81,7 @@ type MedRow = {
 
 export async function getMar(serviceUserId: string, fromIso: string, toIso: string): Promise<MarData> {
   const supabase = await createClient();
-  const [{ data: medRows }, { data: stock }, { data: doseRows }, { data: visitRows }, { data: release }, { count }] = await Promise.all([
+  const [{ data: medRows }, { data: stock }, { data: doseRows }, { data: visitRows }, { data: release }, { count }, { data: sentBackRows }] = await Promise.all([
     supabase
       .from("rota_mar_medicines")
       .select("id, med_uid, dmd_id, name, form, route, dose_text, dose_quantity, dose_unit, support, prn, slots, days, time_sensitive, instructions, start_date, stop_date, review_date, status, set_by, set_at, checked_by, checked_at, stopped_at, stop_reason, created_at, label_path, label_skip_reason, sent_back_at, sent_back_by, sent_back_reason")
@@ -103,6 +105,12 @@ export async function getMar(serviceUserId: string, fromIso: string, toIso: stri
       .order("starts_at"),
     supabase.from("dmd_releases").select("release, loaded_at").eq("status", "loaded").order("loaded_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("dmd_products").select("id", { count: "exact", head: true }),
+    supabase
+      .from("rota_mar_medicines")
+      .select("med_uid, set_at, sent_back_reason")
+      .eq("service_user_id", serviceUserId)
+      .eq("status", "replaced")
+      .not("sent_back_at", "is", null),
   ]);
 
   const rows = (medRows as MedRow[] | null) ?? [];
@@ -124,13 +132,24 @@ export async function getMar(serviceUserId: string, fromIso: string, toIso: stri
     stopDate: r.stop_date, reviewDate: r.review_date, status: r.status, setBy: r.set_by, setByName: r.set_by ? nameOf.get(r.set_by) ?? null : null,
     setAt: r.set_at, checkedByName: r.checked_by ? nameOf.get(r.checked_by) ?? null : null, checkedAt: r.checked_at,
     stoppedAt: r.stopped_at, stopReason: r.stop_reason, hasLabel: Boolean(r.label_path), labelSkipReason: r.label_skip_reason,
-    sentBackAt: r.sent_back_at, sentBackByName: r.sent_back_by ? nameOf.get(r.sent_back_by) ?? null : null, sentBackReason: r.sent_back_reason,
+    sentBackAt: r.sent_back_at, sentBackByName: r.sent_back_by ? nameOf.get(r.sent_back_by) ?? null : null, sentBackReason: r.sent_back_reason, recheckReason: null,
   });
   const meds: MarMed[] = [];
   for (const list of byUid.values()) {
     const current = list.filter((r) => r.status !== "stopped");
     if (current.length) meds.push(...current.map(toMed));
     else meds.push(toMed(list[0]));
+  }
+  // A waiting version that follows a sent back one, with no check since, is a recheck.
+  if (sentBackRows?.length) {
+    for (const m of meds) {
+      if (m.status !== "awaiting_check" || m.sentBackAt) continue;
+      const liveCheck = meds.find((x) => x.medUid === m.medUid && x.status === "live")?.checkedAt ?? "";
+      const earlier = (sentBackRows as { med_uid: string; set_at: string; sent_back_reason: string | null }[])
+        .filter((r) => r.med_uid === m.medUid && r.set_at < m.setAt && r.set_at > liveCheck)
+        .sort((a, b) => b.set_at.localeCompare(a.set_at))[0];
+      if (earlier) m.recheckReason = earlier.sent_back_reason ?? "sent back";
+    }
   }
 
   const balances: Record<string, number | null> = {};
