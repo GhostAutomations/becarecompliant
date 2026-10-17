@@ -84,11 +84,21 @@ export async function saveMedicineAction(_prev: ActionState, fd: FormData): Prom
   // the company and service user; removed again if the save is refused.
   const photo = str(fd, "label_photo");
   const skip = str(fd, "label_skip_reason");
-  if (!photo && !skip) return { error: "Add a photo of the pharmacy label or prescription, or tick There is no photo and say why." };
+  const keepFrom = str(fd, "label_keep_from");
   const supabase = await createClient();
   let labelPath: string | null = null;
+  // Correcting a medicine sent back (0505): its photo may be kept rather than taken again.
+  if (!photo && UUID.test(keepFrom)) {
+    const { data: prev } = await supabase
+      .from("rota_mar_medicines")
+      .select("label_path, service_user_id, status, sent_back_at")
+      .eq("id", keepFrom)
+      .maybeSingle<{ label_path: string | null; service_user_id: string; status: string; sent_back_at: string | null }>();
+    if (prev?.label_path && prev.service_user_id === su && prev.status === "awaiting_check" && prev.sent_back_at) labelPath = prev.label_path;
+  }
+  if (!photo && !labelPath && !skip) return { error: "Add a photo of the pharmacy label or prescription, or tick There is no photo and say why." };
   const service = createServiceClient();
-  if (photo) {
+  if (photo && !labelPath) {
     const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(photo);
     if (!m) return { error: "That photo could not be used. Take it again." };
     const bytes = Buffer.from(m[2], "base64");
@@ -105,7 +115,7 @@ export async function saveMedicineAction(_prev: ActionState, fd: FormData): Prom
     p_data: { ...data, label_path: labelPath ?? "", label_skip_reason: labelPath ? "" : skip },
   });
   if (error) {
-    if (labelPath) await service.storage.from(LABEL_BUCKET).remove([labelPath]);
+    if (labelPath && photo) await service.storage.from(LABEL_BUCKET).remove([labelPath]);
     return { error: error.message };
   }
   return { ok: "Saved. It needs a second check by another Supervisor or above before carers can record it." };
@@ -120,6 +130,19 @@ export async function checkMedicineAction(_prev: ActionState, fd: FormData): Pro
   const { error } = await supabase.rpc("rota_mar_check", { p_medicine: id });
   if (error) return { error: error.message };
   return { ok: "Checked. It is live for carers now." };
+}
+
+export async function sendBackMedicineAction(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const g = await guard();
+  if ("error" in g) return { error: g.error };
+  const id = str(fd, "medicine_id");
+  const reason = str(fd, "reason");
+  if (!UUID.test(id)) return { error: "That medicine could not be found." };
+  if (!reason) return { error: "Say what needs correcting." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rota_mar_send_back", { p_medicine: id, p_reason: reason });
+  if (error) return { error: error.message };
+  return { ok: "Sent back. The person who set it has been told." };
 }
 
 export async function withdrawMedicineAction(_prev: ActionState, fd: FormData): Promise<ActionState> {

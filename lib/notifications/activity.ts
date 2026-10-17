@@ -22,6 +22,8 @@ export type ActivityRow = {
   concernId?: string | null;
   /** A dose refused or not available (Rota and Visits Stage 6). */
   doseId?: string | null;
+  /** The notice's kind: "mar_sent_back" is a MAR medicine sent back for a correction (0505). */
+  eventType?: string | null;
 };
 
 /** "Care Plan Review completed". */
@@ -30,14 +32,15 @@ export function activityTitle(checkName: string): string {
 }
 
 /** The line's title: "Care Plan Review completed", or "Concern raised in a care note" (Stage 5). */
-export function activityRowTitle(row: Pick<ActivityRow, "checkName" | "concernId" | "doseId">): string {
+export function activityRowTitle(row: Pick<ActivityRow, "checkName" | "concernId" | "doseId" | "eventType">): string {
+  if (row.eventType === "mar_sent_back") return "Medicine sent back for a correction";
   if (row.doseId) return "Dose refused or not available";
   return row.concernId ? "Concern raised in a care note" : activityTitle(row.checkName);
 }
 
 /** Opens the concern, else the Evidence when there is one, otherwise the record. */
-export function activityHref(row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId" | "concernId" | "doseId">): string {
-  if (row.doseId) return `/service-users/${row.recordId}/mar`;
+export function activityHref(row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId" | "concernId" | "doseId" | "eventType">): string {
+  if (row.doseId || row.eventType === "mar_sent_back") return `/service-users/${row.recordId}/mar`;
   if (row.concernId) return `/rota/concerns?concern=${row.concernId}`;
   if (row.evidenceId) return `/evidence/${row.evidenceId}`;
   return row.recordKind === "person" ? `/people/${row.recordId}` : `/service-users/${row.recordId}`;

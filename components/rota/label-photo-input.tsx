@@ -13,7 +13,8 @@ import { shrinkImageFile } from "@/lib/images/shrink";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
-export default function LabelPhotoInput() {
+export default function LabelPhotoInput({ keepFrom }: { keepFrom?: string } = {}) {
+  const [keep, setKeep] = useState(Boolean(keepFrom));
   const [photo, setPhoto] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -49,7 +50,17 @@ export default function LabelPhotoInput() {
       <legend className="px-1 text-xs text-white/70">Photo of the pharmacy label or prescription</legend>
       <p className="text-xs text-white/55">The second checker compares what you enter against this photo.</p>
       <input type="hidden" name="label_photo" value={photo} />
-      {photo ? (
+      <input type="hidden" name="label_keep_from" value={keep && keepFrom && !photo ? keepFrom : ""} />
+      {keep && keepFrom && !photo ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/rota/mar-label/${keepFrom}`} alt="The photo already attached" className="h-24 w-auto rounded border border-white/10 bg-white" />
+          <span className="text-xs text-white/70">Using the photo already attached.</span>
+          <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setKeep(false)}>
+            Take a new photo
+          </button>
+        </div>
+      ) : photo ? (
         <div className="flex flex-wrap items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo} alt="The label photo" className="h-24 w-auto rounded border border-white/10" />
@@ -64,13 +75,13 @@ export default function LabelPhotoInput() {
         </label>
       )}
       {err ? <p className="text-xs text-red-300">{err}</p> : null}
-      {!photo ? (
+      {!photo && !(keep && keepFrom) ? (
         <label className="flex items-center gap-2 text-xs text-white/75">
           <input type="checkbox" checked={none} onChange={(e) => setNone(e.target.checked)} />
           There is no photo
         </label>
       ) : null}
-      {!photo && none ? (
+      {!photo && !(keep && keepFrom) && none ? (
         <input type="text" name="label_skip_reason" maxLength={300} placeholder="Why, e.g. the label is unreadable" aria-label="Why there is no photo" />
       ) : (
         <input type="hidden" name="label_skip_reason" value="" />

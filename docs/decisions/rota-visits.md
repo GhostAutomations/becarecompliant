@@ -419,3 +419,10 @@ Phil, 2026-10-17, for the next push:
 - **Waiting cards, revised** (Phil, 2026-10-17, after seeing it): three to a row on a laptop, every
   card the same height, the photo in a fixed box beside the details; clicking it opens the photo
   large in a popup with the details and Checked: make it live pinned underneath.
+- **Send back** (Phil's popups, 2026-10-17, 0505): the second checker has Checked: make it live and
+  Send back with a reason. A sent back medicine stays waiting (carers still call the office), turns
+  amber with who sent it back and why, and cannot be checked until the person who set it uses
+  Correct and resend (the form filled in, the photo kept unless they take a new one). Only the
+  person who set it can Withdraw. The person who set it gets a Recent activity notice "Medicine sent
+  back for a correction" that opens the MAR, in the app only. Approved change to Notifications:
+  user_notifications accepts the event 'mar_sent_back'; nothing else in it changed.

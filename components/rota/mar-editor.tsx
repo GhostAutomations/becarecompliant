@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
 import LabelPhotoInput from "@/components/rota/label-photo-input";
 import { CentreDialog } from "@/components/panel-dialog";
-import { checkMedicineAction, saveMedicineAction, searchDmdAction, stockMedicineAction, stopMedicineAction, withdrawMedicineAction, type DmdHit } from "@/lib/rota/mar-actions";
+import { checkMedicineAction, sendBackMedicineAction, saveMedicineAction, searchDmdAction, stockMedicineAction, stopMedicineAction, withdrawMedicineAction, type DmdHit } from "@/lib/rota/mar-actions";
 import { DAY_SHORT, LOW_STOCK_DAYS, MAR_SLOTS, SUPPORT_SHORT, SUPPORT_WORDS, dayWords, daysOfStock, slotWords, type Support } from "@/lib/rota/mar";
 import type { MarMed } from "@/lib/rota/mar-data";
 
@@ -54,7 +54,20 @@ function MedSummary({ m, labelLink = true }: { m: MarMed; labelLink?: boolean })
   );
 }
 
-export function MedicineForm({ serviceUserId, med, dmdReady, onDone }: { serviceUserId: string; med?: MarMed; dmdReady: boolean; onDone?: () => void }) {
+export function MedicineForm({
+  serviceUserId,
+  med,
+  dmdReady,
+  onDone,
+  correcting = false,
+}: {
+  serviceUserId: string;
+  med?: MarMed;
+  dmdReady: boolean;
+  onDone?: () => void;
+  /** Correcting a medicine sent back (0505): its photo can be kept. */
+  correcting?: boolean;
+}) {
   const [term, setTerm] = useState("");
   const [hits, setHits] = useState<DmdHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -89,7 +102,7 @@ export function MedicineForm({ serviceUserId, med, dmdReady, onDone }: { service
         form: chosen?.form ?? "",
         route,
       }}
-      label={med ? "Save the change" : "Add medicine"}
+      label={correcting ? "Correct and resend" : med ? "Save the change" : "Add medicine"}
       savingLabel="Saving…"
       savedLabel="Saved"
       buttonClassName="btn-primary px-4 py-2 text-sm"
@@ -223,7 +236,7 @@ export function MedicineForm({ serviceUserId, med, dmdReady, onDone }: { service
         <span className="text-xs text-white/70">Other instructions on the label</span>
         <textarea name="instructions" rows={2} maxLength={1000} defaultValue={med?.instructions ?? ""} placeholder="e.g. Take with food. Do not crush." />
       </label>
-      <LabelPhotoInput />
+      <LabelPhotoInput keepFrom={correcting && med?.hasLabel ? med.id : undefined} />
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block space-y-1">
           <span className="text-xs text-white/70">Start date</span>
@@ -326,11 +339,13 @@ function CheckButton({ m, onDone }: { m: MarMed; onDone?: () => void }) {
 }
 
 /** One medicine waiting for its second check: a fixed size photo box, the details, the check. */
-function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: boolean }) {
+function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; mine: boolean; change: boolean; serviceUserId: string; dmdReady: boolean }) {
   const [big, setBig] = useState(false);
+  const [mode, setMode] = useState<null | "send_back" | "correct">(null);
+  const sentBack = Boolean(m.sentBackAt);
   const photo = `/api/rota/mar-label/${m.id}`;
   return (
-    <li className="flex h-full flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:flex-row">
+    <li className={`flex h-full flex-col gap-3 rounded-xl border p-3 sm:flex-row ${mode === "correct" ? "col-span-full" : ""} ${sentBack ? "border-amber-500/60 bg-amber-500/10" : "border-white/10 bg-white/5"}`}>
       {m.hasLabel ? (
         <button type="button" onClick={() => setBig(true)} className="h-40 w-full shrink-0 overflow-hidden sm:w-1/2 rounded-lg border border-white/10 bg-white" title="Open the label photo large">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -346,19 +361,62 @@ function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: bo
         <p className="text-xs text-white/55">
           Set by {m.setByName ?? "someone"} on {ukDate(m.setAt)} · {change ? "a change to a live medicine" : "new"}
         </p>
+        {sentBack ? (
+          <p className="rounded-lg bg-amber-500/15 px-2 py-1.5 text-xs text-amber-100">
+            Sent back by {m.sentBackByName ?? "the checker"} on {ukDate(m.sentBackAt)}: {m.sentBackReason}
+          </p>
+        ) : null}
         <div className="mt-auto flex flex-wrap items-center gap-2">
-          {mine ? <span className="text-xs text-white/50">You set this, so someone else must check it.</span> : <CheckButton m={m} />}
-          <ActionForm
-            action={withdrawMedicineAction}
-            hidden={{ medicine_id: m.id }}
-            label="Withdraw"
-            savingLabel="Withdrawing…"
-            savedLabel="Withdrawn"
-            buttonClassName="btn-ghost px-3 py-1 text-xs"
-            className=""
-            confirm="Withdraw this? Any live version stays as it is."
-          />
+          {sentBack ? (
+            mine ? (
+              <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setMode(mode === "correct" ? null : "correct")}>
+                {mode === "correct" ? "Close" : "Correct and resend"}
+              </button>
+            ) : (
+              <span className="text-xs text-white/55">Waiting for {m.setByName ?? "the person who set it"} to correct it.</span>
+            )
+          ) : mine ? (
+            <span className="text-xs text-white/50">You set this, so someone else must check it.</span>
+          ) : (
+            <>
+              <CheckButton m={m} />
+              <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode(mode === "send_back" ? null : "send_back")}>
+                Send back
+              </button>
+            </>
+          )}
+          {mine ? (
+            <ActionForm
+              action={withdrawMedicineAction}
+              hidden={{ medicine_id: m.id }}
+              label="Withdraw"
+              savingLabel="Withdrawing…"
+              savedLabel="Withdrawn"
+              buttonClassName="btn-ghost px-3 py-1 text-xs"
+              className=""
+              confirm="Withdraw this? Any live version stays as it is."
+            />
+          ) : null}
         </div>
+        {mode === "send_back" && !sentBack && !mine ? (
+          <ActionForm
+            action={sendBackMedicineAction}
+            hidden={{ medicine_id: m.id }}
+            label="Send back"
+            savingLabel="Sending…"
+            savedLabel="Sent"
+            buttonClassName="btn-outline px-3 py-1 text-xs"
+            className="space-y-2"
+            onDone={() => setMode(null)}
+          >
+            <input name="reason" required maxLength={500} placeholder="What needs correcting, e.g. the label says TWO tablets" aria-label="What needs correcting" />
+          </ActionForm>
+        ) : null}
+        {mode === "correct" && sentBack && mine ? (
+          <div className="rounded-lg border border-white/10 p-3">
+            <MedicineForm serviceUserId={serviceUserId} med={m} dmdReady={dmdReady} correcting onDone={() => setMode(null)} />
+          </div>
+        ) : null}
       </div>
       <CentreDialog
         open={big}
@@ -366,7 +424,13 @@ function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: bo
         label={`Label photo: ${m.name}`}
         footer={
           <div className="flex flex-wrap items-center gap-2 px-5 py-3">
-            {mine ? <span className="text-xs text-white/50">You set this, so someone else must check it.</span> : <CheckButton m={m} onDone={() => setBig(false)} />}
+            {sentBack ? (
+              <span className="text-xs text-amber-200">Sent back: {m.sentBackReason}</span>
+            ) : mine ? (
+              <span className="text-xs text-white/50">You set this, so someone else must check it.</span>
+            ) : (
+              <CheckButton m={m} onDone={() => setBig(false)} />
+            )}
           </div>
         }
       >
@@ -410,7 +474,14 @@ export default function MarEditor({
               beside the details; clicking the photo opens it large with the check beside it. */}
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
             {waiting.map((m) => (
-              <WaitingCard key={m.id} m={m} mine={m.setBy === myProfileId} change={live.some((l) => l.medUid === m.medUid)} />
+              <WaitingCard
+                key={m.id}
+                m={m}
+                mine={m.setBy === myProfileId}
+                change={live.some((l) => l.medUid === m.medUid)}
+                serviceUserId={serviceUserId}
+                dmdReady={dmdReady}
+              />
             ))}
           </ul>
         </section>

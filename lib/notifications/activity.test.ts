@@ -59,3 +59,10 @@ test("a dose line opens the service user's MAR (Rota and Visits Stage 6)", async
   assert.equal(activityHref(row), "/service-users/su1/mar");
   assert.equal(activityRowTitle(row), "Dose refused or not available");
 });
+
+test("a MAR medicine sent back for a correction says so and opens the MAR (0505)", async () => {
+  const { activityRowTitle, activityHref } = await import("./activity.ts");
+  const row = { checkName: "Check", concernId: null, doseId: null, eventType: "mar_sent_back", evidenceId: null, recordKind: "service_user" as const, recordId: "su1" };
+  assert.equal(activityRowTitle(row), "Medicine sent back for a correction");
+  assert.equal(activityHref(row), "/service-users/su1/mar");
+});
