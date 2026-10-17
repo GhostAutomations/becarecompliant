@@ -325,6 +325,9 @@ The next five were found by the step 7 check of the October audit fixes and park
     after 30 minutes (lib/founder/manage-as.ts) and the next page Phil opens says Page not found,
     with no warning. Wanted: a popup a couple of minutes before the end saying the time is nearly
     up, with More time (another 30 minutes, an audit line) or Stop managing.
+62. **Carer pay for cancelled visits** (Phil, popup 2026-10-17, PARKED from Stage 7b). Each
+    cancellation rule says how long the carer is still paid; how that is kept (marked on the visit
+    for the pay totals, or a list for payroll) is to be decided when pay and working time are built.
 
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.

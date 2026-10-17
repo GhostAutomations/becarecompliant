@@ -534,3 +534,8 @@ Phil, 2026-10-17, for the next push:
    for hospital or respite, when the office records the person is home (using the existing hospital
    and respite record, which also pauses checks), with the same carers if they are free.
 11. Built now as **Stage 7b**, before Stage 8.
+12. **Charging:** a chargeable short notice cancellation goes on the next invoice as "Short notice
+    cancellation" for service users the company invoices itself, and into a Chargeable
+    cancellations report (Stage 9) for councils that pay through their own systems.
+13. **Carer pay** for cancelled visits: the rule keeps the pay period; how pay is recorded is parked
+    (THE LIST 62).
