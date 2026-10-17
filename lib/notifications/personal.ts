@@ -13,7 +13,7 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("user_notifications")
-    .select("id, event_type, person_id, service_user_id, evidence_id, concern_id, dose_id, actor_name, completed_on, created_at, definition:check_definitions(name), branch:branches(name)")
+    .select("id, event_type, person_id, service_user_id, evidence_id, concern_id, dose_id, visit_id, branch_id, actor_name, completed_on, created_at, definition:check_definitions(name), branch:branches(name)")
     .eq("profile_id", profileId)
     // Email only notifications (0474) are not shown here.
     .eq("show_in_app", true)
@@ -24,6 +24,8 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
   type Row = {
     id: string;
     event_type: string;
+    visit_id: string | null;
+    branch_id: string | null;
     person_id: string | null;
     service_user_id: string | null;
     evidence_id: string | null;
@@ -42,6 +44,13 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
     suIds.length ? supabase.from("service_users").select("id, full_name").in("id", suIds) : Promise.resolve({ data: [] }),
     personIds.length ? supabase.from("people").select("id, full_name").in("id", personIds) : Promise.resolve({ data: [] }),
   ]);
+  // Visit alerts (Stage 7): which are urgent, read under the person's own RLS (office only).
+  const alertVisits = [...new Set(rows.map((r) => r.visit_id).filter((x): x is string => !!x))];
+  const { data: alertRows } = alertVisits.length
+    ? await supabase.from("rota_visit_alerts").select("visit_id, kind, urgent").in("visit_id", alertVisits)
+    : { data: [] };
+  const urgentOf = new Map(((alertRows ?? []) as { visit_id: string; kind: string; urgent: boolean }[]).map((a) => [`${a.visit_id}:${a.kind}`, a.urgent]));
+  const alertKind: Record<string, string> = { visit_late: "late", visit_missed: "missed", dose_not_recorded: "dose_not_recorded" };
   const names = new Map<string, string>();
   for (const r of [...((sus.data ?? []) as Array<{ id: string; full_name: string }>), ...((people.data ?? []) as Array<{ id: string; full_name: string }>)]) {
     names.set(r.id, r.full_name);
@@ -62,6 +71,9 @@ export async function getMyNotifications(profileId: string, limit = 10): Promise
       concernId: r.concern_id,
       doseId: r.dose_id,
       eventType: r.event_type,
+      visitId: r.visit_id,
+      branchId: r.branch_id,
+      urgent: Boolean(r.visit_id && urgentOf.get(`${r.visit_id}:${alertKind[r.event_type] ?? ""}`)),
     };
   });
 }

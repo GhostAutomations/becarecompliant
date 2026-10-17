@@ -5,6 +5,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/forms";
 import { CONCERN_GRID_ID, DOSE_GRID_ID } from "@/lib/rota/notes";
+import { ALERT_GRID_ROWS } from "@/lib/rota/alerts";
 
 /**
  * Settings, Notifications, "Who is told when a check is completed" (0473, Phil 2026-10-14): the
@@ -50,6 +51,16 @@ export async function saveNotificationGrid(_prev: ActionState, formData: FormDat
     for (const pid of changed.filter((p) => allowed.has(p))) {
       const key = `${pid}:${DOSE_GRID_ID}`;
       const { error } = await supabase.rpc("rota_set_alert_notification", { p_profile: pid, p_event: "dose_issue", p_in_app: inApp.has(key), p_email: email.has(key) });
+      if (error) failed.push(error.message);
+    }
+  }
+  // Visit late, Visit missed and Dose not recorded (Stage 7): the same generic function.
+  for (const row of ALERT_GRID_ROWS) {
+    if (!formData.getAll("definition_id").map(String).includes(row.id)) continue;
+    const allowed = new Set(formData.getAll(`allowed:${row.id}`).map(String));
+    for (const pid of changed.filter((p) => allowed.has(p))) {
+      const key = `${pid}:${row.id}`;
+      const { error } = await supabase.rpc("rota_set_alert_notification", { p_profile: pid, p_event: row.event, p_in_app: inApp.has(key), p_email: email.has(key) });
       if (error) failed.push(error.message);
     }
   }

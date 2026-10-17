@@ -232,6 +232,8 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { href: "/rota", label: "Week", icon: "rota" },
       { href: "/rota/visits", label: "Visits", icon: "rota" },
+      { href: "/rota/today", label: "Today", icon: "rota" },
+      { href: "/rota/alerts", label: "Alerts", icon: "rota" },
       { href: "/rota/carer-day", label: "Carer day", icon: "rota" },
       { href: "/rota/service-user-day", label: "Service user day", icon: "rota" },
       { href: "/rota/calls", label: "Call times", icon: "rota" },

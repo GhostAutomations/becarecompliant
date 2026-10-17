@@ -65,7 +65,8 @@ function buildCsp(nonce: string, pathname = ""): string {
   /* APPLE MAPS, OFFICE CLOCK IN PAGE ONLY (Rota and Visits Stage 3, Phil 2026-10-16). MapKit JS
      needs WebAssembly and its CDN for workers, data and frames (Apple's documented CSP for MapKit
      JS). Allowed on /rota/clock and nowhere else, so every other page keeps the stricter policy. */
-  const appleMaps = pathname === "/rota/clock" || pathname.startsWith("/rota/clock/");
+  // And the Today tab's map of today's clock taps (Stage 7, Phil's popup 2026-10-17).
+  const appleMaps = pathname === "/rota/clock" || pathname.startsWith("/rota/clock/") || pathname === "/rota/today";
   const mapkit = appleMaps ? " https://*.apple-mapkit.com" : "";
   return [
     "default-src 'self'",

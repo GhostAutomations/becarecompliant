@@ -24,6 +24,16 @@ export type ActivityRow = {
   doseId?: string | null;
   /** The notice's kind: "mar_sent_back" is a MAR medicine sent back for a correction (0505). */
   eventType?: string | null;
+  /** A visit alert (Stage 7): the visit, its branch and date, and whether it is urgent. */
+  visitId?: string | null;
+  branchId?: string | null;
+  urgent?: boolean;
+};
+
+const VISIT_ALERT_TITLES: Record<string, string> = {
+  visit_late: "Visit late",
+  visit_missed: "Visit missed",
+  dose_not_recorded: "Dose not recorded",
 };
 
 /** "Care Plan Review completed". */
@@ -32,14 +42,23 @@ export function activityTitle(checkName: string): string {
 }
 
 /** The line's title: "Care Plan Review completed", or "Concern raised in a care note" (Stage 5). */
-export function activityRowTitle(row: Pick<ActivityRow, "checkName" | "concernId" | "doseId" | "eventType">): string {
+export function activityRowTitle(row: Pick<ActivityRow, "checkName" | "concernId" | "doseId" | "eventType" | "urgent">): string {
+  if (row.eventType && VISIT_ALERT_TITLES[row.eventType]) {
+    return row.urgent ? `${VISIT_ALERT_TITLES[row.eventType]}: urgent, time sensitive medicine` : VISIT_ALERT_TITLES[row.eventType];
+  }
   if (row.eventType === "mar_sent_back") return "Medicine sent back for a correction";
   if (row.doseId) return "Dose refused or not available";
   return row.concernId ? "Concern raised in a care note" : activityTitle(row.checkName);
 }
 
 /** Opens the concern, else the Evidence when there is one, otherwise the record. */
-export function activityHref(row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId" | "concernId" | "doseId" | "eventType">): string {
+export function activityHref(
+  row: Pick<ActivityRow, "evidenceId" | "recordKind" | "recordId" | "concernId" | "doseId" | "eventType" | "visitId" | "branchId"> &
+    Partial<Pick<ActivityRow, "completedOn">>,
+): string {
+  if (row.eventType && VISIT_ALERT_TITLES[row.eventType] && row.visitId && row.branchId) {
+    return `/rota/visits?branch=${row.branchId}${row.completedOn ? `&date=${row.completedOn}` : ""}#visit-${row.visitId}`;
+  }
   if (row.doseId || row.eventType === "mar_sent_back") return `/service-users/${row.recordId}/mar`;
   if (row.concernId) return `/rota/concerns?concern=${row.concernId}`;
   if (row.evidenceId) return `/evidence/${row.evidenceId}`;

@@ -461,3 +461,38 @@ Phil, 2026-10-17, for the next push:
   at /clock, so QR codes and the offline copy keep working) has Clock in and today's visits at the
   top, then the carer's visits and shifts for the next four weeks and the open shifts to ask for.
   My area is exactly what it was before the module. A carer signs in to Care.
+
+## Stage 7 decisions: live attendance and alerts (popups, 2026-10-17)
+
+1. **Late:** no clock in 15 minutes after the start (Stage 0 decision 7). A double up is late while
+   any carer on it has not clocked in; a visit with no carer is late too.
+2. **Missed:** no clock in 30 minutes after the visit's end (Phil's choice over "by the end time").
+3. **Overrunning:** clocked in and not clocked out 15 minutes after the planned end. Shown on the
+   Today tab; no alert.
+4. **Alerts in the app only, no texts**, set in Settings, Notifications (Phil: "put this in the
+   notifications settings"): rows Visit late, Visit missed and Dose not recorded in the Rota and
+   Visits band, on in the app by default for the branch's Managers and Supervisors and for whoever
+   is on Out of Hours at that moment; email off by default (and never for test companies). Once
+   per visit for each kind. Paused, draft and cancelled visits never alert.
+5. **Dose not recorded:** checked at clock out. A due dose recorded neither way tells the same
+   people once for that visit; a time sensitive medicine marks the alert urgent, and a late visit
+   with a time sensitive medicine due is urgent too.
+6. **Today tab** under Rota: counts at the top (late, missed, overrunning, not done), each visit
+   with its status and carers, updating by itself; tap opens the visit on the Visits page, ringed.
+7. **Map on Today:** each carer's last clock in or out today as a dot beside the home's point;
+   office roles only, today only, nothing new stored. The Visit record stays result and distance.
+8. **Approved changes to Notifications:** user_notifications accepts visit_late, visit_missed and
+   dose_not_recorded, and gains a visit column (empty for every other notice) so a notice opens its
+   visit ringed and can show urgent. Nothing else in Notifications changes.
+9. Housekeeping in the same migration: indexes on the branch column of 12 module tables (and the
+   MAR's sent back by), flagged by the performance advisor.
+10. **Alerts tab** under Rota (Phil, 2026-10-17): every late, missed and dose not recorded alert,
+    open ones first, with who was told and when. Each alert must be **cleared down by a Supervisor
+    or above**, picking a reason (A to Z, Other last with a typed reason). Late or missed: Carer
+    arrived late; Carer forgot to clock in, visit happened; Covered by another carer; Service user
+    cancelled or not at home; Service user in hospital; Visit moved by the office; Other. Dose not
+    recorded: Carer forgot to record, dose given; Dose not given, reason told to the office;
+    Medicine stopped or changed; Other. The reason, who cleared it and when stay as the record.
+11. notification_preferences also accepts the three new events, so the Settings rows can be saved
+    (part of the approved Settings rows in decision 4).
+12. **To ask after Stage 7** (Phil, 2026-10-17): call cancellations and how cancellation is set up.

@@ -66,3 +66,14 @@ test("a MAR medicine sent back for a correction says so and opens the MAR (0505)
   assert.equal(activityRowTitle(row), "Medicine sent back for a correction");
   assert.equal(activityHref(row), "/service-users/su1/mar");
 });
+
+test("visit alerts (Stage 7): the title, urgent, and a link to the visit ringed on the Visits page", async () => {
+  const { activityRowTitle, activityHref } = await import("./activity.ts");
+  const row = {
+    checkName: "Check", concernId: null, doseId: null, eventType: "visit_late", evidenceId: null, recordKind: "service_user" as const,
+    recordId: "su1", visitId: "v1", branchId: "b1", completedOn: "2026-10-18", urgent: false,
+  };
+  assert.equal(activityRowTitle(row), "Visit late");
+  assert.equal(activityRowTitle({ ...row, eventType: "dose_not_recorded", urgent: true }), "Dose not recorded: urgent, time sensitive medicine");
+  assert.equal(activityHref(row), "/rota/visits?branch=b1&date=2026-10-18#visit-v1");
+});

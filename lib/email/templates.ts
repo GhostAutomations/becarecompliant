@@ -846,3 +846,32 @@ export function doseIssueEmailHtml(opts: {
     footerNote: "You receive this email because your Admin set you to be told when a dose is refused or not available. Your Admin can change it in Settings, Notifications.",
   });
 }
+
+/** A late, missed or dose not recorded alert (Rota and Visits Stage 7, decision 4). No care details. */
+export function visitAlertEmailHtml(opts: {
+  recipientName: string;
+  heading: string;
+  serviceUserName: string | null;
+  visitTime: string | null;
+  carerNames: string | null;
+  urgent: boolean;
+  branchName: string | null;
+  companyName: string;
+  url: string;
+}): string {
+  const forWhom = opts.serviceUserName ? ` for <strong style="color:#ffffff;">${escapeHtml(opts.serviceUserName)}</strong>` : "";
+  const when = opts.visitTime ? ` at ${escapeHtml(opts.visitTime)}` : "";
+  const who = opts.carerNames ? `, with ${escapeHtml(opts.carerNames)}` : "";
+  const where = [opts.branchName, opts.companyName].filter(Boolean).map((x) => escapeHtml(x as string)).join(", ");
+  return noticeEmailHtml({
+    preheader: opts.heading,
+    heading: opts.urgent ? `${opts.heading}: urgent` : opts.heading,
+    bodyHtml: `<p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)}.</p>
+    <p style="margin:0 0 12px 0;">${escapeHtml(opts.heading)}: the visit${forWhom}${when}${who}${where ? ` (${where})` : ""}.</p>
+    ${opts.urgent ? '<p style="margin:0 0 12px 0;">A time sensitive medicine is due at this visit.</p>' : ""}
+    <p style="margin:0;">Open the Alerts tab to see it and clear it down. For privacy, care details are not included in this email.</p>`,
+    ctaLabel: "Open the alerts",
+    ctaUrl: opts.url,
+    footerNote: "You receive this email because your Admin set you to be told about visit alerts. Your Admin can change it in Settings, Notifications.",
+  });
+}

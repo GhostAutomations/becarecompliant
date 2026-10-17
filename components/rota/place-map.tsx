@@ -25,7 +25,7 @@ const MAPKIT_SRC = "https://cdn.apple-mapkit.com/mk/5.81.60/mapkit.core.js";
 const UK_CENTRE: Point = { lat: 54.0, lng: -2.5 };
 
 /** Loads MapKit JS once per page, with the pass from our server; resolves with the mapkit object. */
-function loadMapKit(token: string): Promise<MapKit> {
+export function loadMapKit(token: string): Promise<MapKit> {
   const w = window as unknown as { mapkit?: MapKit; __bccMapKit?: Promise<MapKit> };
   if (w.__bccMapKit) return w.__bccMapKit;
   w.__bccMapKit = new Promise((resolve, reject) => {
