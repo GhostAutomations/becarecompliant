@@ -426,3 +426,6 @@ Phil, 2026-10-17, for the next push:
   person who set it can Withdraw. The person who set it gets a Recent activity notice "Medicine sent
   back for a correction" that opens the MAR, in the app only. Approved change to Notifications:
   user_notifications accepts the event 'mar_sent_back'; nothing else in it changed.
+- **Correct and resend opens in a popup** (Phil, 2026-10-17, after watching it): the card keeps its
+  size; the popup shows why it was sent back and the form, with the label photo shown up to 256px
+  tall (also when a new photo is taken).

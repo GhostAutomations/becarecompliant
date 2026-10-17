@@ -345,7 +345,7 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
   const sentBack = Boolean(m.sentBackAt);
   const photo = `/api/rota/mar-label/${m.id}`;
   return (
-    <li className={`flex h-full flex-col gap-3 rounded-xl border p-3 sm:flex-row ${mode === "correct" ? "col-span-full" : ""} ${sentBack ? "border-amber-500/60 bg-amber-500/10" : "border-white/10 bg-white/5"}`}>
+    <li className={`flex h-full flex-col gap-3 rounded-xl border p-3 sm:flex-row ${sentBack ? "border-amber-500/60 bg-amber-500/10" : "border-white/10 bg-white/5"}`}>
       {m.hasLabel ? (
         <button type="button" onClick={() => setBig(true)} className="h-40 w-full shrink-0 overflow-hidden sm:w-1/2 rounded-lg border border-white/10 bg-white" title="Open the label photo large">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -369,8 +369,8 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
         <div className="mt-auto flex flex-wrap items-center gap-2">
           {sentBack ? (
             mine ? (
-              <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setMode(mode === "correct" ? null : "correct")}>
-                {mode === "correct" ? "Close" : "Correct and resend"}
+              <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setMode("correct")}>
+                Correct and resend
               </button>
             ) : (
               <span className="text-xs text-white/55">Waiting for {m.setByName ?? "the person who set it"} to correct it.</span>
@@ -420,11 +420,15 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
             Cancel
           </button>
         ) : null}
-        {mode === "correct" && sentBack && mine ? (
-          <div className="rounded-lg border border-white/10 p-3">
+        {/* Correcting opens in a popup so the card keeps its size (Phil, 2026-10-17). */}
+        <CentreDialog open={mode === "correct" && sentBack && mine} onClose={() => setMode(null)} label={`Correct and resend: ${m.name}`}>
+          <div className="space-y-3 p-5">
+            <p className="rounded-lg bg-amber-500/15 px-3 py-2 text-xs text-amber-100">
+              Sent back by {m.sentBackByName ?? "the checker"}: {m.sentBackReason}
+            </p>
             <MedicineForm serviceUserId={serviceUserId} med={m} dmdReady={dmdReady} correcting onDone={() => setMode(null)} />
           </div>
-        ) : null}
+        </CentreDialog>
       </div>
       <CentreDialog
         open={big}

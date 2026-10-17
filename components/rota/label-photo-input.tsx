@@ -54,7 +54,7 @@ export default function LabelPhotoInput({ keepFrom }: { keepFrom?: string } = {}
       {keep && keepFrom && !photo ? (
         <div className="flex flex-wrap items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/rota/mar-label/${keepFrom}`} alt="The photo already attached" className="h-24 w-auto rounded border border-white/10 bg-white" />
+          <img src={`/api/rota/mar-label/${keepFrom}`} alt="The photo already attached" className="max-h-64 w-auto max-w-full rounded border border-white/10 bg-white object-contain" />
           <span className="text-xs text-white/70">Using the photo already attached.</span>
           <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setKeep(false)}>
             Take a new photo
@@ -63,7 +63,7 @@ export default function LabelPhotoInput({ keepFrom }: { keepFrom?: string } = {}
       ) : photo ? (
         <div className="flex flex-wrap items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo} alt="The label photo" className="h-24 w-auto rounded border border-white/10" />
+          <img src={photo} alt="The label photo" className="max-h-64 w-auto max-w-full rounded border border-white/10 bg-white object-contain" />
           <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setPhoto("")}>
             Remove
           </button>
