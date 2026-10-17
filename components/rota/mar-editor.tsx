@@ -330,14 +330,14 @@ function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: bo
   const [big, setBig] = useState(false);
   const photo = `/api/rota/mar-label/${m.id}`;
   return (
-    <li className="flex h-full gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+    <li className="flex h-full flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:flex-row">
       {m.hasLabel ? (
-        <button type="button" onClick={() => setBig(true)} className="h-32 w-44 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white xl:w-56" title="Open the label photo large">
+        <button type="button" onClick={() => setBig(true)} className="h-40 w-full shrink-0 overflow-hidden sm:w-1/2 rounded-lg border border-white/10 bg-white" title="Open the label photo large">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo} alt={`Label photo for ${m.name}`} className="h-full w-full object-cover" />
         </button>
       ) : (
-        <div className="flex h-32 w-44 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-2 text-center text-xs leading-tight text-amber-200 xl:w-56">
+        <div className="flex h-40 w-full shrink-0 items-center sm:w-1/2 justify-center rounded-lg border border-dashed border-amber-500/50 p-2 text-center text-xs leading-tight text-amber-200">
           No label photo{m.labelSkipReason ? `: ${m.labelSkipReason}` : ""}
         </div>
       )}
