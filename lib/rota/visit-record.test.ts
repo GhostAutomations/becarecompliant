@@ -66,3 +66,25 @@ test("file names: the start time and initials, a later version says when it was 
   assert.equal(visitRecordFileName("13:30", "AB", 1, "2026-10-16T13:09:30.000Z"), "13.30 Visit record AB.pdf");
   assert.equal(visitRecordFileName("13:30", "AB", 2, "2026-10-16T13:20:00.000Z"), "13.30 Visit record AB, updated 14.20.pdf");
 });
+
+test("medicines: each dose in time order with its reason, and a due medicine nobody recorded says Not recorded", () => {
+  const doc = buildVisitRecord({
+    ...base,
+    doses: [
+      { personId: "p1", name: "Paracetamol 500mg tablets", prn: true, outcome: "given", reason_code: null, reason_text: null, quantity: 2, unit: "tablet", at: "2026-10-16T12:20:00.000Z", flags: [] },
+      { personId: "p1", name: "Ramipril 5mg capsules", prn: false, outcome: "refused", reason_code: "declined", reason_text: null, quantity: null, unit: null, at: "2026-10-16T12:10:00.000Z", flags: [] },
+    ],
+    notRecorded: ["Metformin 500mg tablets"],
+  });
+  const i = doc.blocks.findIndex((b) => b.kind === "heading" && b.text === "Medicines");
+  assert.ok(i > 0);
+  const t = doc.blocks[i + 1] as { kind: "table"; rows: { text: string; rag?: string }[][] };
+  assert.equal(t.rows[0][0].text, "Ramipril 5mg capsules");
+  assert.match(t.rows[0][1].text, /^Refused: /);
+  assert.equal(t.rows[1][0].text, "Paracetamol 500mg tablets (when required)");
+  assert.equal(t.rows[1][1].text, "Given: 2 tablet");
+  assert.equal(t.rows[2][1].text, "Not recorded");
+  assert.equal(t.rows[2][1].rag, "red");
+  // no medicines, no section
+  assert.ok(!buildVisitRecord(base).blocks.some((b) => b.kind === "heading" && b.text === "Medicines"));
+});

@@ -24,7 +24,8 @@ import {
   visitUnassignAction,
 } from "@/lib/rota/visit-actions";
 import { milesLabel } from "@/lib/rota/geo";
-import type { RotaAssignment, RotaVisit, VisitCandidate } from "@/lib/rota/types";
+import { OUTCOME_LABELS } from "@/lib/rota/mar";
+import type { RotaAssignment, RotaVisit, VisitCandidate, VisitDoseLine } from "@/lib/rota/types";
 
 type Picker = { mode: "assign"; visit: RotaVisit } | { mode: "move"; visit: RotaVisit; assignment: RotaAssignment };
 
@@ -139,6 +140,55 @@ export default function VisitsDay({
   );
 }
 
+function doseTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+}
+
+/** One carer's medicines at this visit (Stage 6): what they recorded; "Not recorded" in red once they clock out. */
+function DoseLines({ doses, personId, clockedOut }: { doses: VisitDoseLine[]; personId: string; clockedOut: boolean }) {
+  const regular = [...new Set(doses.filter((d) => !d.prn).map((d) => d.medUid))];
+  const prn = doses.filter((d) => d.prn && d.personId === personId);
+  if (regular.length === 0 && prn.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 text-xs">
+      {regular.map((uid) => {
+        const lines = doses.filter((d) => d.medUid === uid && !d.prn);
+        const mine = lines.find((d) => d.personId === personId);
+        const other = lines.find((d) => d.personId && d.personId !== personId);
+        const name = lines[0].name;
+        if (mine?.outcome) {
+          return (
+            <li key={uid} className={mine.outcome === "given" ? "text-emerald-300" : "text-amber-300"}>
+              {name}: {OUTCOME_LABELS[mine.outcome]} {mine.at ? doseTime(mine.at) : ""}
+              {mine.reason ? `, ${mine.reason}` : ""}
+            </li>
+          );
+        }
+        if (other?.outcome) {
+          return (
+            <li key={uid} className="text-white/55">
+              {name}: recorded by the other carer
+            </li>
+          );
+        }
+        return (
+          <li key={uid} className={clockedOut ? "font-semibold text-red-300" : "text-white/55"}>
+            {name}: {clockedOut ? "Not recorded" : "Due"}
+            {lines[0].timeSensitive ? " (time sensitive)" : ""}
+          </li>
+        );
+      })}
+      {prn.map((d, i) => (
+        <li key={`prn-${i}`} className="text-white/70">
+          {d.name} (when required): {d.outcome ? OUTCOME_LABELS[d.outcome] : ""} {d.at ? doseTime(d.at) : ""}
+          {d.quantity ? `, ${d.quantity}` : ""}
+          {d.reason ? `, ${d.reason}` : ""}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function pickerTitle(p: Picker): string {
   const when = `${p.visit.startTime} to ${p.visit.endTime}, ${p.visit.serviceUserName}`;
   return p.mode === "move" ? `Move ${p.assignment.name}'s visit, ${when}` : `Choose a carer, ${when}`;
@@ -164,6 +214,7 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
           <p className="text-xs text-white/45">{visit.service ?? "Visit"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          {visit.timeSensitive ? <span className="pill pill-red">Time sensitive medicine</span> : null}
           {visit.paused ? <span className="pill pill-amber">Paused</span> : null}
           {visit.scheduleChanged ? <span className="pill pill-red">Schedule changed</span> : null}
           <span className={`pill ${open > 0 ? "pill-amber" : "pill-green"}`}>
@@ -214,6 +265,13 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
                 <NoteLines
                   notes={visit.notes ?? []}
                   concerns={visit.concerns ?? []}
+                  personId={a.personId}
+                  clockedOut={(visit.clocks ?? []).some((c) => c.personId === a.personId && c.kind === "out")}
+                />
+              ) : null}
+              {visit.status === "published" && visit.doses?.length ? (
+                <DoseLines
+                  doses={visit.doses}
                   personId={a.personId}
                   clockedOut={(visit.clocks ?? []).some((c) => c.personId === a.personId && c.kind === "out")}
                 />

@@ -74,9 +74,10 @@ export default async function CarerDayPage({ searchParams }: { searchParams: Pro
         label: v.serviceUserName,
         sublabel: mineIn ? `In ${londonHhmm(mineIn.at)}${mineOut ? `, out ${londonHhmm(mineOut.at)}` : ""}` : v.timeChangedFrom ? `Moved from ${v.timeChangedFrom}` : undefined,
         tone,
-        title: `${v.serviceUserName}, ${v.startTime} to ${v.endTime}, ${a.name}. ${TONE_WORDS[tone]}${inWords ? `, clocked in ${inWords}` : ""}.${v.timeChangedFrom ? ` Time changed from ${v.timeChangedFrom}.` : ""}`,
+        title: `${v.serviceUserName}, ${v.startTime} to ${v.endTime}, ${a.name}. ${TONE_WORDS[tone]}${inWords ? `, clocked in ${inWords}` : ""}.${v.timeChangedFrom ? ` Time changed from ${v.timeChangedFrom}.` : ""}${v.timeSensitive ? " Time sensitive medicine due." : ""}`,
         href: visitHref(v.id),
         draggable: !mineIn && !v.paused,
+        urgent: Boolean(v.timeSensitive),
       });
       meta[id] = { visitId: v.id, assignmentId: a.id, personId: a.personId, serviceUserName: v.serviceUserName, startTime: v.startTime, endTime: v.endTime };
     }

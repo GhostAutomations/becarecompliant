@@ -329,3 +329,68 @@ Phil showed four views from another system and asked for the same capabilities b
    alter an invoice.
 8. **Texts:** the carers on a published visit get the same "your rota has changed" text as Move
    (test companies text only Founder mobiles, as now).
+
+## Stage 6 decisions: the MAR (popups, 2026-10-17)
+
+Facts checked 2026-10-17: NICE NG67 1.5.5 (a MAR includes the person's name, date of birth and any
+other identifier such as NHS number; the medicine's name, formulation and strength; how often or
+when; the route; the GP practice; any stop or review date; instructions and known allergies) and
+1.5.2 (record the support for each medicine on every occasion, taken or declined); Welsh
+Regulation 58 (SI 2017/1264: safe storage and administration, sufficient supply, ordering,
+recording, handling, disposal, regular audits); dm+d on NHS TRUD under the Open Government Licence
+for TRUD, open TRUD account required, released every Monday (release 10.1.0, 12 Oct 2026).
+
+1. **Medicines list:** our own copy of the NHS dm+d, fetched every Monday from TRUD with Phil's
+   free TRUD account key (in Vercel, never in chat). Fast search; works if the NHS service is down.
+2. **Dose times are linked to the Care Schedule calls**, as tasks are (Stage 4): a medicine is
+   given at chosen calls; the carer sees it on that call's visit. "When required" medicines show at
+   every visit and are recorded only when given.
+3. **Support per medicine:** prompt, assist or give (NICE separates reminding from giving). Shown
+   with the dose and printed on the MAR chart.
+4. **Second check:** a different office login, Supervisor or above, checks a MAR before it goes
+   live, and every change to a live MAR again. Until then carers see "MAR not checked yet, call the
+   office".
+5. **Dose outcomes:** Given; Refused (reasons list); Not available (reasons list); Other (typed).
+   A refused or not available dose tells the office at once. No dose sums, no clinical advice.
+6. **Missed and late doses:** a dose not recorded shows red on the office's MAR and Visits page now;
+   refused and not available tell the office through Settings, Notifications at once. The timed
+   alert to the office and Out of Hours for doses never recorded comes in Stage 7 with the late
+   visit alert.
+7. **NHS number and known allergies** join date of birth and GP practice in **every company's**
+   Manage record (Phil's choice over module only; extends Stage 0 decision 13). Four optional
+   columns on service_users and four fields in Manage record; Thistle sees them too. GDPR: NHS
+   number and allergies are special category health data, held under the existing service user
+   RLS and audit; the MAR and its PDF read them from there.
+8. **Simple stock:** quantity received per medicine; each dose given takes off its stated quantity;
+   a warning when fewer than 7 days are left; counts corrected with a reason.
+9. **Printing:** a monthly MAR chart PDF per service user (medicines down, days across, each dose
+   time a box with what was recorded, a code key, blank boxes for writing in by hand) and a weekly
+   rota PDF per branch (each carer's visits by day).
+10. **Time sensitive flag** per medicine: red on the carer's phone, the office MAR and the
+    timelines; Stage 7's alert treats a late visit with one as urgent.
+11. **When required medicines:** the carer sees the label instructions and when it was last given
+    (time and quantity). The app works nothing out; the carer follows the label and calls the
+    office if unsure.
+12. **In date Medication Competency:** the carer's own People record has a completed Medication
+    Competency check (key `competency`) that is not past its due date. Missing or overdue: the
+    carer sees the doses and "You cannot record doses yet, call the office" (Stage 0 decision 14).
+13. Bevan test data only. The beta banner on every MAR screen says the Clinical Safety Officer
+    review and the Welsh record keeping research must be done before any real service user uses
+    it (New Dawn rule).
+
+How decision 9 and 10 were built (2026-10-17, for Phil to confirm at his screen check):
+
+- **MAR chart cells**, as on a paper MAR: the carer's initials when given (green), R, N or O when
+  not given (amber, the reasons listed under the grid), X when due and not recorded (red), a grey
+  empty box when due later (to write in by hand if the phones are down), blank when not due. The
+  month prints in two halves, 1 to 16 and 17 to the end, on A4 landscape. The grid uses each
+  medicine's current version; a stopped medicine is due only until the day it was stopped.
+- **Weekly rota PDF**: one section a carer, A to Z, with their visits by day and time, the other
+  carer named on a double up, drafts and time sensitive medicines marked; then the visits still
+  needing a carer. Linked from the Rota week page ("Print the visits (PDF)").
+- **The office Visits page** shows each carer's medicines under their visit (Given, Refused and so
+  on with the time; "Not recorded" in red once they clock out) and a red "Time sensitive
+  medicine" pill on the visit. The **Visit record PDF** gains a Medicines section (each dose, and
+  any due medicine nobody recorded).
+- **Timelines** (carer day, service user day, the record's week): a visit with a time sensitive
+  medicine due has a red ring, with "Time sensitive medicine" in the key.

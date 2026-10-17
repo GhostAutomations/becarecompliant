@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
-import { concernRaisedEmailHtml } from "@/lib/email/templates";
+import { concernRaisedEmailHtml, doseIssueEmailHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 
@@ -22,6 +22,15 @@ import { claimNotification, settleNotification } from "@/lib/notifications/log";
  * Notifications shows.
  */
 export async function emailConcernNotifications(companyId: string): Promise<number> {
+  return emailRotaAlerts(companyId, "concern_raised");
+}
+
+/** The same for a dose refused or not available (Stage 6, decision 5). */
+export async function emailDoseNotifications(companyId: string): Promise<number> {
+  return emailRotaAlerts(companyId, "dose_issue");
+}
+
+async function emailRotaAlerts(companyId: string, kind: "concern_raised" | "dose_issue"): Promise<number> {
   let sent = 0;
   try {
     const service = createServiceClient();
@@ -29,10 +38,10 @@ export async function emailConcernNotifications(companyId: string): Promise<numb
     const { data: rows } = await service
       .from("user_notifications")
       .select(
-        "id, company_id, branch_id, profile_id, concern_id, service_user_id, actor_name, created_at, profile:profiles!user_notifications_profile_id_fkey(full_name, email, status), branch:branches(name)",
+        "id, company_id, branch_id, profile_id, concern_id, dose_id, service_user_id, actor_name, created_at, profile:profiles!user_notifications_profile_id_fkey(full_name, email, status), branch:branches(name)",
       )
       .eq("company_id", companyId)
-      .eq("event_type", "concern_raised")
+      .eq("event_type", kind)
       .eq("email_wanted", true)
       .gte("created_at", since)
       .limit(200);
@@ -42,6 +51,7 @@ export async function emailConcernNotifications(companyId: string): Promise<numb
       branch_id: string | null;
       profile_id: string;
       concern_id: string | null;
+      dose_id: string | null;
       service_user_id: string | null;
       actor_name: string | null;
       created_at: string;
@@ -61,33 +71,45 @@ export async function emailConcernNotifications(companyId: string): Promise<numb
 
     for (const n of list) {
       const p = n.profile;
-      if (!p?.email || p.status !== "active" || !n.concern_id) continue;
-      const subject = `Concern raised${n.service_user_id && suName.get(n.service_user_id) ? ` for ${suName.get(n.service_user_id)}` : ""}`;
+      if (!p?.email || p.status !== "active" || !(kind === "dose_issue" ? n.dose_id : n.concern_id)) continue;
+      const who = n.service_user_id ? suName.get(n.service_user_id) ?? null : null;
+      const subject = kind === "dose_issue" ? `Dose not given${who ? ` for ${who}` : ""}` : `Concern raised${who ? ` for ${who}` : ""}`;
       const logId = await claimNotification({
         companyId: n.company_id,
         branchId: n.branch_id,
         recipientProfileId: n.profile_id,
         channel: "email",
-        kind: "concern_raised",
-        dedupeKey: `concern_raised:${n.id}`,
+        kind,
+        dedupeKey: `${kind}:${n.id}`,
         toAddress: p.email,
         subject,
-        metadata: { user_notification_id: n.id, concern_id: n.concern_id },
+        metadata: { user_notification_id: n.id, concern_id: n.concern_id, dose_id: n.dose_id },
       });
       if (!logId) continue;
       const result = await sendEmail({
         to: p.email,
         subject,
         companyId: n.company_id,
-        html: concernRaisedEmailHtml({
-          recipientName: p.full_name,
-          serviceUserName: n.service_user_id ? suName.get(n.service_user_id) ?? null : null,
-          carerName: n.actor_name,
-          raisedAt: new Date(n.created_at).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }),
-          branchName: n.branch?.name ?? null,
-          companyName,
-          url: `${siteUrl()}/rota/concerns?concern=${n.concern_id}`,
-        }),
+        html:
+          kind === "dose_issue"
+            ? doseIssueEmailHtml({
+                recipientName: p.full_name,
+                serviceUserName: who,
+                carerName: n.actor_name,
+                recordedAt: londonWhen(n.created_at),
+                branchName: n.branch?.name ?? null,
+                companyName,
+                url: `${siteUrl()}/service-users/${n.service_user_id}/mar`,
+              })
+            : concernRaisedEmailHtml({
+                recipientName: p.full_name,
+                serviceUserName: who,
+                carerName: n.actor_name,
+                raisedAt: londonWhen(n.created_at),
+                branchName: n.branch?.name ?? null,
+                companyName,
+                url: `${siteUrl()}/rota/concerns?concern=${n.concern_id}`,
+              }),
       });
       if (result.sent) sent++;
       await settleNotification(logId, result.sent ? "sent" : result.skippedReason ? "skipped" : "failed", result.error ?? result.skippedReason);
@@ -96,4 +118,8 @@ export async function emailConcernNotifications(companyId: string): Promise<numb
     console.error("[rota] concern email skipped:", (e as Error).message);
   }
   return sent;
+}
+
+function londonWhen(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 }

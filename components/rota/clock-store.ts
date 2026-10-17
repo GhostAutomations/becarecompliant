@@ -14,11 +14,13 @@
 import type { ClockEvent } from "@/lib/rota/clock";
 import type { RecordedOutcome, TaskEvent, TaskItem } from "@/lib/rota/tasks";
 import type { NoteEvent, VisitNotes } from "@/lib/rota/notes";
+import type { DoseEvent, VisitDoses } from "@/lib/rota/mar";
 
 const DB = "bcc-rota";
 // 2: task outcomes (Stage 4) get their own outbox beside the clock taps.
 // 3: care notes and concerns (Stage 5) get theirs.
-const VERSION = 3;
+// 4: MAR doses (Stage 6) get theirs.
+const VERSION = 4;
 
 export type VisitTasks = { visit_id: string; list_id: string; tasks: TaskItem[]; outcomes: Record<string, RecordedOutcome> };
 
@@ -47,6 +49,7 @@ function open(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("day")) db.createObjectStore("day", { keyPath: "owner" });
       if (!db.objectStoreNames.contains("task_outbox")) db.createObjectStore("task_outbox", { keyPath: "event_id" });
       if (!db.objectStoreNames.contains("note_outbox")) db.createObjectStore("note_outbox", { keyPath: "event_id" });
+      if (!db.objectStoreNames.contains("dose_outbox")) db.createObjectStore("dose_outbox", { keyPath: "event_id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -102,13 +105,13 @@ export async function dismissEvent(id: string): Promise<void> {
   await removeEvents([id]);
 }
 
-export async function saveDay(owner: string, rows: DayRow[], tasks: VisitTasks[] = [], notes: VisitNotes[] = []): Promise<void> {
-  await run("day", "readwrite", (s) => s.put({ owner, rows, tasks, notes, saved_at: new Date().toISOString() }));
+export async function saveDay(owner: string, rows: DayRow[], tasks: VisitTasks[] = [], notes: VisitNotes[] = [], doses: VisitDoses[] = []): Promise<void> {
+  await run("day", "readwrite", (s) => s.put({ owner, rows, tasks, notes, doses, saved_at: new Date().toISOString() }));
 }
 
-export async function loadDay(owner: string): Promise<{ rows: DayRow[]; tasks: VisitTasks[]; notes: VisitNotes[]; saved_at: string } | null> {
-  const v = (await run<{ owner: string; rows: DayRow[]; tasks?: VisitTasks[]; notes?: VisitNotes[]; saved_at: string }>("day", "readonly", (s) => s.get(owner))) ?? null;
-  return v ? { rows: v.rows, tasks: v.tasks ?? [], notes: v.notes ?? [], saved_at: v.saved_at } : null;
+export async function loadDay(owner: string): Promise<{ rows: DayRow[]; tasks: VisitTasks[]; notes: VisitNotes[]; doses: VisitDoses[]; saved_at: string } | null> {
+  const v = (await run<{ owner: string; rows: DayRow[]; tasks?: VisitTasks[]; notes?: VisitNotes[]; doses?: VisitDoses[]; saved_at: string }>("day", "readonly", (s) => s.get(owner))) ?? null;
+  return v ? { rows: v.rows, tasks: v.tasks ?? [], notes: v.notes ?? [], doses: v.doses ?? [], saved_at: v.saved_at } : null;
 }
 
 /* Task outcomes waiting to be sent (Stage 4): the same rules as the clock taps. */
@@ -165,9 +168,36 @@ export async function markNotesRefused(refused: { event_id: string; reason: stri
   });
 }
 
+/* MAR doses waiting to be sent (Stage 6): the same rules again. */
+export async function addDoseEvent(e: DoseEvent): Promise<void> {
+  await run("dose_outbox", "readwrite", (s) => s.put(e));
+}
+
+export async function allDoseEvents(): Promise<DoseEvent[]> {
+  return ((await run<DoseEvent[]>("dose_outbox", "readonly", (s) => s.getAll() as IDBRequest<DoseEvent[]>)) ?? []) as DoseEvent[];
+}
+
+export async function removeDoseEvents(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await run("dose_outbox", "readwrite", (s) => {
+    for (const id of ids) s.delete(id);
+  });
+}
+
+export async function markDosesRefused(refused: { event_id: string; reason: string }[]): Promise<void> {
+  if (!refused.length) return;
+  const byId = new Map((await allDoseEvents()).map((e) => [e.event_id, e]));
+  await run("dose_outbox", "readwrite", (s) => {
+    for (const r of refused) {
+      const e = byId.get(r.event_id);
+      if (e) s.put({ ...e, refused: r.reason });
+    }
+  });
+}
+
 /** Another carer's kept day is removed once they have nothing waiting (offline design, 7). */
 export async function clearOtherDays(owner: string): Promise<void> {
-  const waiting = new Set([...(await allEvents()), ...(await allTaskEvents()), ...(await allNoteEvents())].map((e) => e.owner));
+  const waiting = new Set([...(await allEvents()), ...(await allTaskEvents()), ...(await allNoteEvents()), ...(await allDoseEvents())].map((e) => e.owner));
   const keys = ((await run<IDBValidKey[]>("day", "readonly", (s) => s.getAllKeys())) ?? []) as string[];
   const drop = keys.filter((k) => k !== owner && !waiting.has(k));
   if (!drop.length) return;

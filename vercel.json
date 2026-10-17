@@ -50,6 +50,10 @@
     {
       "path": "/api/cron/rota-visits",
       "schedule": "45 2 * * *"
+    },
+    {
+      "path": "/api/cron/dmd",
+      "schedule": "0 9 * * 1"
     }
   ]
 }

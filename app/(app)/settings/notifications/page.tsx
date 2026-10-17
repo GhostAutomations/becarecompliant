@@ -17,7 +17,7 @@ import { NOTIFIABLE_ROLES } from "@/lib/notifications/activity";
 import { ROLE_LABELS } from "@/lib/nav";
 import { getCompanyRow } from "@/lib/companies/row";
 import { moduleOnInRow } from "@/lib/modules/switch";
-import { CONCERN_GRID_ID, CONCERN_ROLES } from "@/lib/rota/notes";
+import { CONCERN_GRID_ID, CONCERN_ROLES, DOSE_GRID_ID } from "@/lib/rota/notes";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -186,6 +186,19 @@ export default async function NotificationSettingsPage() {
       ];
       for (const r of (concernRows ?? []) as Array<{ profile_id: string; in_app: boolean; email: boolean }>) {
         gridInitial[r.profile_id] = { ...(gridInitial[r.profile_id] ?? {}), [CONCERN_GRID_ID]: { inApp: r.in_app, email: r.email } };
+      }
+      // A dose refused or not available (Stage 6 decision 5): the same people, its own row.
+      const { data: doseRows, error: doseError } = await supabase.rpc("rota_alert_notification_grid", { p_company: profile.company_id, p_event: "dose_issue" });
+      if (doseError) {
+        gridError = doseError.message;
+      } else {
+        gridDefinitions = [
+          ...gridDefinitions,
+          { id: DOSE_GRID_ID, population: "rota", name: "Dose refused or not available", title: "Dose refused or not available", roles: [...CONCERN_ROLES] },
+        ];
+        for (const r of (doseRows ?? []) as Array<{ profile_id: string; in_app: boolean; email: boolean }>) {
+          gridInitial[r.profile_id] = { ...(gridInitial[r.profile_id] ?? {}), [DOSE_GRID_ID]: { inApp: r.in_app, email: r.email } };
+        }
       }
     }
   }

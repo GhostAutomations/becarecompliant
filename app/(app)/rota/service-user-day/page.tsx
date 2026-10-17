@@ -91,7 +91,8 @@ function rowsFor(
         nowMs > Date.parse(v.startsAt)
           ? "late"
           : tone,
-      title: `${v.serviceUserName}, ${v.startTime} to ${v.endTime}: ${carers.length ? carers.join(" and ") : "needs a carer"}. ${TONE_WORDS[tone]}.${v.timeChangedFrom ? ` Time changed from ${v.timeChangedFrom}.` : ""}`,
+      title: `${v.serviceUserName}, ${v.startTime} to ${v.endTime}: ${carers.length ? carers.join(" and ") : "needs a carer"}. ${TONE_WORDS[tone]}.${v.timeChangedFrom ? ` Time changed from ${v.timeChangedFrom}.` : ""}${v.timeSensitive ? " Time sensitive medicine due." : ""}`,
+      urgent: Boolean(v.timeSensitive),
       href: `/rota/visits?branch=${branchId}&date=${dateIso}#visit-${v.id}`,
     });
   }

@@ -816,3 +816,33 @@ export function concernRaisedEmailHtml(opts: {
     footerNote: "You receive this email because your Admin set you to be told when a concern is raised. Your Admin can change it in Settings, Notifications.",
   });
 }
+
+/**
+ * A dose was refused or not available (Rota and Visits Stage 6, decision 5). Health data, so the
+ * email says only whose MAR, who recorded it and when, never the medicine or the reason.
+ */
+export function doseIssueEmailHtml(opts: {
+  recipientName: string;
+  serviceUserName: string | null;
+  carerName: string | null;
+  recordedAt: string | null;
+  branchName: string | null;
+  companyName: string;
+  url: string;
+}): string {
+  const heading = "Dose refused or not available";
+  const forWhom = opts.serviceUserName ? ` for <strong style="color:#ffffff;">${escapeHtml(opts.serviceUserName)}</strong>` : "";
+  const byWhom = opts.carerName ? `, recorded by ${escapeHtml(opts.carerName)}` : "";
+  const when = opts.recordedAt ? ` at ${escapeHtml(opts.recordedAt)}` : "";
+  const where = [opts.branchName, opts.companyName].filter(Boolean).map((x) => escapeHtml(x as string)).join(", ");
+  return noticeEmailHtml({
+    preheader: heading,
+    heading,
+    bodyHtml: `<p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)}.</p>
+    <p style="margin:0 0 12px 0;">A dose was not given${forWhom}${byWhom}${when}${where ? ` (${where})` : ""}.</p>
+    <p style="margin:0;">Open the MAR to see which medicine and why. For privacy, those details are not included in this email.</p>`,
+    ctaLabel: "Open the MAR",
+    ctaUrl: opts.url,
+    footerNote: "You receive this email because your Admin set you to be told when a dose is refused or not available. Your Admin can change it in Settings, Notifications.",
+  });
+}

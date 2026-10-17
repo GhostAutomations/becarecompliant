@@ -5,8 +5,9 @@ import { compareCandidates, milesBetween, normalisePostcode } from "@/lib/rota/g
 import { postcodePoints } from "@/lib/rota/postcodes";
 import { mandatoryTrainingRed, shiftsAround } from "@/lib/rota/data";
 import { workingTimeWarnings } from "@/lib/rota/working-time";
-import { hhmm, type CallServiceUser, type RotaVisit, type RotaWarning, type VisitCandidate, type VisitNoteLine, type VisitConcernLine } from "@/lib/rota/types";
+import { hhmm, type CallServiceUser, type RotaVisit, type RotaWarning, type VisitCandidate, type VisitNoteLine, type VisitConcernLine, type VisitDoseLine } from "@/lib/rota/types";
 import { getClockRecords } from "@/lib/rota/clock-data";
+import { doseReasonLabel, dueAt } from "@/lib/rota/mar";
 
 /**
  * Be Care Compliant: what the visit screens read (Rota and Visits Stage 2, 2026-10-15). Under the
@@ -96,7 +97,12 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     list.push({ id: a.id, personId: a.person_id, name: a.people?.full_name ?? "Someone from another branch", via: a.via, warnings: Array.isArray(a.warnings) ? a.warnings : [] });
     byVisit.set(a.visit_id, list);
   }
-  const [clocks, tasks, notes] = await Promise.all([getClockRecords("visit", rows.map((r) => r.id)), getVisitTasks(rows), getVisitNotes(rows.map((r) => r.id))]);
+  const [clocks, tasks, notes, doses] = await Promise.all([
+    getClockRecords("visit", rows.map((r) => r.id)),
+    getVisitTasks(rows),
+    getVisitNotes(rows.map((r) => r.id)),
+    getVisitDoses(rows),
+  ]);
   return rows.map((r) => ({
     id: r.id,
     branchId: r.branch_id,
@@ -119,7 +125,68 @@ export async function getDayVisits(branchId: string, dateIso: string): Promise<R
     tasks: tasks.get(r.id) ?? null,
     notes: notes.notes.get(r.id) ?? [],
     concerns: notes.concerns.get(r.id) ?? [],
+    doses: doses.get(r.id) ?? [],
+    timeSensitive: (doses.get(r.id) ?? []).some((d) => d.timeSensitive && !d.prn),
   }));
+}
+
+/**
+ * Each visit's MAR doses (Stage 6): the live regular medicines due at its call, each with the
+ * latest dose recorded by each carer, plus any when required doses given there. Read as the office
+ * (RLS); a service user with no MAR costs one small query.
+ */
+export async function getVisitDoses(
+  rows: { id: string; service_user_id: string; visit_date: string; generated_key: string | null }[],
+): Promise<Map<string, VisitDoseLine[]>> {
+  const out = new Map<string, VisitDoseLine[]>();
+  if (rows.length === 0) return out;
+  const supabase = await createClient();
+  const suIds = [...new Set(rows.map((r) => r.service_user_id))];
+  const [{ data: meds }, { data: doseRows }] = await Promise.all([
+    supabase
+      .from("rota_mar_medicines")
+      .select("med_uid, service_user_id, name, prn, slots, days, time_sensitive, start_date, stop_date, dose_quantity")
+      .in("service_user_id", suIds)
+      .eq("status", "live"),
+    supabase
+      .from("rota_mar_doses")
+      .select("visit_id, med_uid, person_id, outcome, reason_code, reason_text, quantity, happened_at")
+      .in("visit_id", rows.map((r) => r.id))
+      .order("happened_at"),
+  ]);
+  type M = { med_uid: string; service_user_id: string; name: string; prn: boolean; slots: string[]; days: number[] | null; time_sensitive: boolean; start_date: string; stop_date: string | null; dose_quantity: number | null };
+  type D = { visit_id: string; med_uid: string; person_id: string; outcome: VisitDoseLine["outcome"]; reason_code: string | null; reason_text: string | null; quantity: number | string | null; happened_at: string };
+  const medList = (meds as M[] | null) ?? [];
+  const doseList = (doseRows as D[] | null) ?? [];
+  const nameOf = new Map(medList.map((m) => [m.med_uid, m]));
+  for (const r of rows) {
+    const slot = (r.generated_key ?? "").split(":")[3] ?? "";
+    const lines: VisitDoseLine[] = [];
+    for (const m of medList.filter((x) => x.service_user_id === r.service_user_id && !x.prn)) {
+      if (!dueAt({ prn: m.prn, slots: m.slots, days: m.days, start_date: m.start_date, stop_date: m.stop_date, dose_quantity: m.dose_quantity }, r.visit_date, slot)) continue;
+      const recorded = doseList.filter((d) => d.visit_id === r.id && d.med_uid === m.med_uid);
+      const byPerson = new Map<string, D>();
+      for (const d of recorded) byPerson.set(d.person_id, d);
+      if (byPerson.size === 0) {
+        lines.push({ medUid: m.med_uid, name: m.name, prn: false, timeSensitive: m.time_sensitive, personId: null, outcome: null, reason: null, quantity: null, at: null });
+      }
+      for (const d of byPerson.values()) {
+        lines.push({
+          medUid: m.med_uid, name: m.name, prn: false, timeSensitive: m.time_sensitive, personId: d.person_id, outcome: d.outcome,
+          reason: d.reason_code ? doseReasonLabel(d.reason_code, d.reason_text) : null, quantity: d.quantity == null ? null : Number(d.quantity), at: d.happened_at,
+        });
+      }
+    }
+    for (const d of doseList.filter((x) => x.visit_id === r.id && nameOf.get(x.med_uid)?.prn)) {
+      const m = nameOf.get(d.med_uid)!;
+      lines.push({
+        medUid: d.med_uid, name: m.name, prn: true, timeSensitive: m.time_sensitive, personId: d.person_id, outcome: d.outcome,
+        reason: d.reason_code ? doseReasonLabel(d.reason_code, d.reason_text) : null, quantity: d.quantity == null ? null : Number(d.quantity), at: d.happened_at,
+      });
+    }
+    if (lines.length) out.set(r.id, lines);
+  }
+  return out;
 }
 
 /** Each visit's care notes and concerns (Stage 5), read as the signed in office person (RLS). */

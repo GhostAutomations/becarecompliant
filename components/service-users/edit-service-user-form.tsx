@@ -64,6 +64,30 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
           />
         </div>
 
+        {/* Health details (Phil, Stage 0 decision 13 and Stage 6 decision 7): what a MAR must show
+            (NICE NG67 1.5.5), held on the record for every company. All optional. */}
+        <div className="sm:col-span-2 border-t border-white/10 pt-4">
+          <p className="text-sm font-semibold text-white/85">Health details</p>
+          <p className="form-hint">Shown on the MAR when a company uses Rota and Visits. All optional.</p>
+        </div>
+        <div>
+          <label htmlFor="e_dob" className="form-label">Date of birth</label>
+          <input id="e_dob" name="date_of_birth" type="date" defaultValue={serviceUser.date_of_birth ?? ""} />
+        </div>
+        <div>
+          <label htmlFor="e_nhs" className="form-label">NHS number</label>
+          <input id="e_nhs" name="nhs_number" inputMode="numeric" maxLength={12} placeholder="10 digits" defaultValue={serviceUser.nhs_number ?? ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="e_gp" className="form-label">GP practice</label>
+          <input id="e_gp" name="gp_practice" maxLength={200} defaultValue={serviceUser.gp_practice ?? ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="e_allergies" className="form-label">Known allergies</label>
+          <textarea id="e_allergies" name="allergies" rows={2} maxLength={1000} defaultValue={serviceUser.allergies ?? ""} />
+          <p className="form-hint">Write &quot;None known&quot; when there are none, so it is clear it was asked.</p>
+        </div>
+
         <PrivateInvoicingFields
           initial={{
             private_invoicing: serviceUser.private_invoicing,

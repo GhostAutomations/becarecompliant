@@ -52,3 +52,10 @@ test("a concern line opens the concern and says what it is (Rota and Visits Stag
   assert.equal(activityHref({ ...row, concernId: null, evidenceId: "e1" }), "/evidence/e1");
   assert.equal(activityRowTitle({ checkName: "Care Plan Review", concernId: null }), "Care Plan Review completed");
 });
+
+test("a dose line opens the service user's MAR (Rota and Visits Stage 6)", async () => {
+  const { activityHref, activityRowTitle } = await import("./activity.ts");
+  const row = { evidenceId: null, recordKind: "service_user" as const, recordId: "su1", concernId: null, doseId: "d1", checkName: "Check" };
+  assert.equal(activityHref(row), "/service-users/su1/mar");
+  assert.equal(activityRowTitle(row), "Dose refused or not available");
+});

@@ -12,6 +12,7 @@
  * logged in the pages that render them (writeAudit), not just writes here.
  */
 
+import { nhsNumberClean, nhsNumberValid } from "@/lib/rota/mar";
 import { awayWords, isAway, returnDateProblem, longDate as ukDateLong } from "@/lib/service-users/hospital-pause";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -280,6 +281,18 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   const inv = invoicingFieldsFromForm(formData);
   if (inv.error) return { error: inv.error };
 
+  /* Health details (Stage 0 decision 13, Stage 6 decision 7), all optional. Checked here so a
+     mistyped NHS number or a date of birth in the future is refused with what was typed kept. */
+  const dob = isoDateOrNull(formData.get("date_of_birth"));
+  const todayLondon = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  if (dob && (dob > todayLondon || dob < "1900-01-01")) return { error: "Check the date of birth." };
+  const nhsRaw = String(formData.get("nhs_number") ?? "").trim();
+  if (nhsRaw && !nhsNumberValid(nhsRaw)) return { error: "That NHS number is not valid. It is 10 digits; check it against a letter or prescription." };
+  const gp = trimOrNull(formData.get("gp_practice"));
+  if (gp && gp.length > 200) return { error: "The GP practice is too long." };
+  const allergies = trimOrNull(formData.get("allergies"));
+  if (allergies && allergies.length > 1000) return { error: "The allergies are too long (1,000 characters at most)." };
+
   const supabase = await createClient();
   const newStart = isoDateOrNull(formData.get("package_start_date"));
   const { data: before } = await supabase
@@ -295,6 +308,10 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
       phone: contact.values.phone,
       ssid: trimOrNull(formData.get("ssid")),
       package_start_date: newStart,
+      date_of_birth: dob,
+      nhs_number: nhsRaw ? nhsNumberClean(nhsRaw) : null,
+      gp_practice: gp,
+      allergies,
       ...inv.values,
     })
     .eq("id", id);

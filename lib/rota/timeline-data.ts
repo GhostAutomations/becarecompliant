@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { hhmm } from "@/lib/rota/types";
+import { getVisitDoses } from "@/lib/rota/visits-data";
 
 /**
  * Be Care Compliant: what the timeline views read beyond the day's visits (Rota and Visits Stage
@@ -55,6 +56,8 @@ export type WeekVisit = {
   timeChangedFrom: string | null;
   carers: { personId: string; name: string }[];
   clocks: { personId: string; kind: "in" | "out"; at: string }[];
+  /** A live time sensitive medicine is due at this visit (Stage 6 decision 10). */
+  timeSensitive: boolean;
 };
 
 /** One service user's visits across a week, with carers and clock ins (the rota week view). */
@@ -62,7 +65,7 @@ export async function getSuWeekVisits(serviceUserId: string, fromIso: string, to
   const supabase = await createClient();
   const { data } = await supabase
     .from("rota_visits")
-    .select("id, visit_date, start_time, end_time, starts_at, status, service, time_changed_from_start, rota_visit_assignments(person_id, status, people(full_name))")
+    .select("id, service_user_id, visit_date, start_time, end_time, starts_at, status, service, generated_key, time_changed_from_start, rota_visit_assignments(person_id, status, people(full_name))")
     .eq("service_user_id", serviceUserId)
     .gte("visit_date", fromIso)
     .lte("visit_date", toIso)
@@ -70,15 +73,18 @@ export async function getSuWeekVisits(serviceUserId: string, fromIso: string, to
     .order("visit_date")
     .order("start_time");
   type R = {
-    id: string; visit_date: string; start_time: string; end_time: string; starts_at: string; status: string; service: string | null;
-    time_changed_from_start: string | null;
+    id: string; service_user_id: string; visit_date: string; start_time: string; end_time: string; starts_at: string; status: string; service: string | null;
+    generated_key: string | null; time_changed_from_start: string | null;
     rota_visit_assignments: { person_id: string; status: string; people: { full_name: string | null } | null }[];
   };
   const rows = (data as unknown as R[] | null) ?? [];
   const ids = rows.map((r) => r.id);
-  const { data: clocks } = ids.length
-    ? await supabase.from("rota_clock_events").select("visit_id, person_id, kind, happened_at").in("visit_id", ids).order("happened_at")
-    : { data: [] };
+  const [{ data: clocks }, doses] = await Promise.all([
+    ids.length
+      ? supabase.from("rota_clock_events").select("visit_id, person_id, kind, happened_at").in("visit_id", ids).order("happened_at")
+      : Promise.resolve({ data: [] }),
+    getVisitDoses(rows),
+  ]);
   type C = { visit_id: string; person_id: string; kind: "in" | "out"; happened_at: string };
   return rows.map((r) => ({
     id: r.id,
@@ -91,5 +97,6 @@ export async function getSuWeekVisits(serviceUserId: string, fromIso: string, to
     timeChangedFrom: r.time_changed_from_start ? hhmm(r.time_changed_from_start) : null,
     carers: r.rota_visit_assignments.filter((a) => a.status === "active").map((a) => ({ personId: a.person_id, name: a.people?.full_name ?? "Someone" })),
     clocks: ((clocks as C[] | null) ?? []).filter((c) => c.visit_id === r.id).map((c) => ({ personId: c.person_id, kind: c.kind, at: c.happened_at })),
+    timeSensitive: (doses.get(r.id) ?? []).some((d) => d.timeSensitive && !d.prn),
   }));
 }

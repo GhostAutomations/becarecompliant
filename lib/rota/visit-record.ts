@@ -14,6 +14,7 @@
 
 import { flagWords, reasonLabel } from "./clock.ts";
 import { OUTCOME_WORDS, taskReasonLabel, type TaskOutcomeKind } from "./tasks.ts";
+import { OUTCOME_LABELS, doseReasonLabel, type DoseOutcome } from "./mar.ts";
 
 export type RecordClock = {
   personId: string;
@@ -48,6 +49,18 @@ export type RecordNote = {
   correctsNoteId: string | null;
   flags: string[];
 };
+export type RecordDose = {
+  personId: string;
+  name: string;
+  prn: boolean;
+  outcome: DoseOutcome;
+  reason_code: string | null;
+  reason_text: string | null;
+  quantity: number | null;
+  unit: string | null;
+  at: string;
+  flags: string[];
+};
 export type RecordConcern = { personId: string; author: string; category: string; body: string; at: string; status: string };
 
 export type VisitRecordInput = {
@@ -66,6 +79,10 @@ export type VisitRecordInput = {
   tasks: RecordTask[];
   notes: RecordNote[];
   concerns: RecordConcern[];
+  /** The MAR doses recorded at this visit (Stage 6). */
+  doses?: RecordDose[];
+  /** Regular medicines due at this visit with no dose recorded by anyone. */
+  notRecorded?: string[];
 };
 
 // The shared PDF document model, written out here so this file stays importless.
@@ -203,6 +220,34 @@ export function buildVisitRecord(v: VisitRecordInput): VisitRecordDoc {
       rows: [...v.concerns]
         .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
         .map((c) => [{ text: londonTime(c.at) }, { text: c.author }, { text: `${c.category}.\n${c.body}`, rag: "red" as const }]),
+    });
+  }
+
+  // Medicines (Stage 6): every dose recorded, in time order, then anything due and not recorded.
+  const doses = [...(v.doses ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const missing = v.notRecorded ?? [];
+  if (doses.length || missing.length) {
+    blocks.push({ kind: "heading", text: "Medicines" });
+    blocks.push({
+      kind: "table",
+      columns: [{ header: "Medicine", width: "36%" }, { header: "Outcome", width: "34%" }, { header: "Time", width: "10%" }, { header: "Carer", width: "20%" }],
+      rows: [
+        ...doses.map((d) => [
+          { text: d.prn ? `${d.name} (when required)` : d.name },
+          {
+            text: [
+              OUTCOME_LABELS[d.outcome],
+              d.quantity != null ? `${d.quantity.toLocaleString("en-GB")}${d.unit ? ` ${d.unit}` : ""}` : "",
+              doseReasonLabel(d.reason_code, d.reason_text) ?? "",
+              d.flags.length ? flagList(d.flags) : "",
+            ].filter(Boolean).join(": "),
+            rag: d.outcome === "given" ? ("green" as const) : ("amber" as const),
+          },
+          { text: londonTime(d.at) },
+          { text: who(d.personId) },
+        ]),
+        ...missing.map((name) => [{ text: name }, { text: "Not recorded", strong: true, rag: "red" as const }, { text: "" }, { text: "" }]),
+      ],
     });
   }
 

@@ -125,6 +125,23 @@ export type RotaVisit = {
   /** Care notes and concerns written at this visit (Stage 5). */
   notes?: VisitNoteLine[];
   concerns?: VisitConcernLine[];
+  /** The MAR doses due at this visit and what was recorded (Stage 6). */
+  doses?: VisitDoseLine[];
+  /** A live time sensitive medicine is due at this visit (Stage 6 decision 10). */
+  timeSensitive?: boolean;
+};
+
+/** One medicine due at a visit (or a when required dose given there), for the office. */
+export type VisitDoseLine = {
+  medUid: string;
+  name: string;
+  prn: boolean;
+  timeSensitive: boolean;
+  personId: string | null;
+  outcome: "given" | "refused" | "not_available" | "other" | null;
+  reason: string | null;
+  quantity: number | null;
+  at: string | null;
 };
 
 /** A care note as the office reads it (Stage 5): never edited; a correction points at the note it corrects. */

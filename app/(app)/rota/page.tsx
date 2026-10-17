@@ -85,6 +85,9 @@ export default async function RotaPage({
           <Link href={href(branch.id, addDaysIso(monday, 7))} className="btn-ghost px-3 py-1.5 text-xs" aria-label="Next week">
             Next &rsaquo;
           </Link>
+          <a href={`/api/rota/rota-pdf?branch=${branch.id}&week=${monday}`} className="text-xs text-amber-300 underline">
+            Print the visits (PDF)
+          </a>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ActionForm

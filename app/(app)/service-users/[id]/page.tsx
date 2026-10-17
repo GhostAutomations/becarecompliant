@@ -351,6 +351,16 @@ export default async function ServiceUserPage({
             </Link>
           ) : null}
 
+          {careNotesOn ? (
+            <Link
+              href={`/service-users/${serviceUser.id}/mar`}
+              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+            >
+              <h2 className="text-base font-semibold text-white">MAR</h2>
+              <span className="btn-outline text-xs">Open</span>
+            </Link>
+          ) : null}
+
           {outcomesEnabled ? (
             <Link
               href={`/service-users/${serviceUser.id}/outcomes`}

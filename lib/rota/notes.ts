@@ -171,3 +171,5 @@ export const CONCERN_STATUS_WORDS: Record<string, string> = {
 /** Settings, Notifications (decision 12): the concern row's id on the grid, and who can be told. */
 export const CONCERN_GRID_ID = "rota_concern";
 export const CONCERN_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"] as const;
+/** The MAR's alert row on the grid (Stage 6 decision 5): a dose refused or not available. */
+export const DOSE_GRID_ID = "rota_dose";

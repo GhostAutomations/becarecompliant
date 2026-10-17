@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/forms";
-import { CONCERN_GRID_ID } from "@/lib/rota/notes";
+import { CONCERN_GRID_ID, DOSE_GRID_ID } from "@/lib/rota/notes";
 
 /**
  * Settings, Notifications, "Who is told when a check is completed" (0473, Phil 2026-10-14): the
@@ -41,6 +41,15 @@ export async function saveNotificationGrid(_prev: ActionState, formData: FormDat
     for (const pid of changed.filter((p) => allowed.has(p))) {
       const key = `${pid}:${CONCERN_GRID_ID}`;
       const { error } = await supabase.rpc("rota_set_concern_notification", { p_profile: pid, p_in_app: inApp.has(key), p_email: email.has(key) });
+      if (error) failed.push(error.message);
+    }
+  }
+  // "Dose refused or not available" (Stage 6): its own row, the generic module alert function.
+  if (formData.getAll("definition_id").map(String).includes(DOSE_GRID_ID)) {
+    const allowed = new Set(formData.getAll(`allowed:${DOSE_GRID_ID}`).map(String));
+    for (const pid of changed.filter((p) => allowed.has(p))) {
+      const key = `${pid}:${DOSE_GRID_ID}`;
+      const { error } = await supabase.rpc("rota_set_alert_notification", { p_profile: pid, p_event: "dose_issue", p_in_app: inApp.has(key), p_email: email.has(key) });
       if (error) failed.push(error.message);
     }
   }

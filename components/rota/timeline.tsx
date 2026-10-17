@@ -29,6 +29,8 @@ export type TimelineBlock = {
   title: string;
   href?: string;
   draggable?: boolean;
+  /** A time sensitive medicine is due at this visit (Stage 6 decision 10): a red ring. */
+  urgent?: boolean;
 };
 
 export type TimelineRow = {
@@ -200,7 +202,7 @@ export default function Timeline({
                       pointerEvents: dragging ? ("none" as const) : undefined,
                     };
                     const cls = `absolute z-[5] overflow-hidden rounded-md border px-1.5 text-left leading-tight ${TONE_CLASS[b.tone]} ${
-                      dragging ? "z-40 opacity-90 shadow-lg ring-2 ring-amber-300" : ""
+                      dragging ? "z-40 opacity-90 shadow-lg ring-2 ring-amber-300" : b.urgent ? "ring-2 ring-red-500" : ""
                     } ${b.draggable && onDrop ? "cursor-grab" : b.href ? "cursor-pointer" : ""}`;
                     const inner = (
                       <>
@@ -253,6 +255,12 @@ export default function Timeline({
             {TONE_WORDS[t]}
           </li>
         ))}
+        {rows.some((r) => r.blocks.some((b) => b.urgent)) ? (
+          <li className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-5 rounded border border-white/20 ring-2 ring-red-500" aria-hidden="true" />
+            Time sensitive medicine
+          </li>
+        ) : null}
       </ul>
     </div>
   );

@@ -39,11 +39,15 @@ import {
 import { keyTasksWithoutOutcome, mergeOutcomes, type TaskEvent, type TaskItem, type TaskOutcomeKind, type TaskReasonCode } from "@/lib/rota/tasks";
 import VisitTaskList from "@/components/rota/clock-tasks";
 import VisitNotesPanel from "@/components/rota/clock-notes";
+import VisitDosesPanel from "@/components/rota/clock-doses";
+import { mergeDoses, type DoseEvent, type DoseOutcome, type PhoneMed, type VisitDoses } from "@/lib/rota/mar";
 import { needsNotePrompt, noteProblem, notesForCard, type NoteEvent, type VisitNotes } from "@/lib/rota/notes";
 import {
+  addDoseEvent,
   addEvent,
   addNoteEvent,
   addTaskEvent,
+  allDoseEvents,
   allEvents,
   allNoteEvents,
   allTaskEvents,
@@ -51,10 +55,12 @@ import {
   deviceId,
   dismissEvent,
   loadDay,
+  markDosesRefused,
   markNotesRefused,
   markRefused,
   markTasksRefused,
   nextSeq,
+  removeDoseEvents,
   removeEvents,
   removeNoteEvents,
   removeTaskEvents,
@@ -109,12 +115,15 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
   const [noteQueue, setNoteQueue] = useState<NoteEvent[]>([]);
   const [notePrompt, setNotePrompt] = useState<{ row: DayRow; viaCode: { token: string; via: "qr" | "nfc" } | null } | null>(null);
   const [promptText, setPromptText] = useState("");
+  const [visitDoses, setVisitDoses] = useState<VisitDoses[]>([]);
+  const [doseQueue, setDoseQueue] = useState<DoseEvent[]>([]);
   const sending = useRef(false);
 
   const refreshQueue = useCallback(async () => {
     setQueue(await allEvents());
     setTaskQueue(await allTaskEvents().catch(() => []));
     setNoteQueue(await allNoteEvents().catch(() => []));
+    setDoseQueue(await allDoseEvents().catch(() => []));
   }, []);
 
   // The day: the kept copy first (works with no signal), then a fresh one when there is signal.
@@ -124,13 +133,15 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
       setRows((r) => r ?? kept.rows);
       setVisitTasks((v) => (v.length ? v : kept.tasks));
       setVisitNotes((v) => (v.length ? v : kept.notes));
+      setVisitDoses((v) => (v.length ? v : kept.doses));
       setSavedAt((s) => s ?? kept.saved_at);
     }
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    const [{ data, error }, { data: taskData }, { data: noteData, error: noteError }] = await Promise.all([
+    const [{ data, error }, { data: taskData }, { data: noteData, error: noteError }, { data: doseData, error: doseError }] = await Promise.all([
       supabase.rpc("rota_my_day"),
       supabase.rpc("rota_my_visit_tasks"),
       supabase.rpc("rota_my_visit_notes"),
+      supabase.rpc("rota_my_visit_doses"),
     ]);
     if (error) {
       if (!kept) setRows((r) => r ?? []);
@@ -139,12 +150,14 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     const fresh = (data as DayRow[] | null) ?? [];
     const freshTasks = (taskData as VisitTasks[] | null) ?? kept?.tasks ?? [];
     const freshNotes = noteError ? (kept?.notes ?? []) : ((noteData as VisitNotes[] | null) ?? []);
+    const freshDoses = doseError ? (kept?.doses ?? []) : ((doseData as VisitDoses[] | null) ?? []);
     setRows(fresh);
     setVisitTasks(freshTasks);
     setVisitNotes(freshNotes);
+    setVisitDoses(freshDoses);
     const at = new Date().toISOString();
     setSavedAt(at);
-    await saveDay(ownerId, fresh, freshTasks, freshNotes).catch(() => undefined);
+    await saveDay(ownerId, fresh, freshTasks, freshNotes, freshDoses).catch(() => undefined);
     await clearOtherDays(ownerId).catch(() => undefined);
   }, [ownerId, supabase]);
 
@@ -192,6 +205,24 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
       }
       // The email half of a concern alert, for anyone who asked for Email (the tile is made by the database).
       if (concernSent) void fetch("/api/rota/concerns/notify", { method: "POST" }).catch(() => undefined);
+      // MAR doses (Stage 6): the same rules, their own outbox; a dose refused or not available
+      // tells the office (the tile by the database, any email here).
+      let doseIssue = false;
+      let doseBatch = nextBatch(await allDoseEvents(), ownerId);
+      while (doseBatch.length) {
+        const payload = doseBatch.map(({ owner: _o, refused: _r, ...e }) => e);
+        const { data, error } = await supabase.rpc("rota_dose_submit", { p_events: payload, p_phone_now: new Date().toISOString() });
+        if (error) break;
+        const results = (data as SubmitResult[] | null) ?? [];
+        const { remove, refuse } = applyResults(results);
+        if (results.some((r) => r.result === "accepted" && ["refused", "not_available"].includes(doseBatch.find((e) => e.event_id === r.event_id)?.outcome ?? ""))) doseIssue = true;
+        await removeDoseEvents(remove);
+        await markDosesRefused(refuse);
+        sentAny = true;
+        if (remove.length + refuse.length === 0) break;
+        doseBatch = nextBatch(await allDoseEvents(), ownerId);
+      }
+      if (doseIssue) void fetch("/api/rota/doses/notify", { method: "POST" }).catch(() => undefined);
       let batch = nextBatch(await allEvents(), ownerId);
       while (batch.length) {
         const payload = batch.map(({ owner: _o, refused: _r, ...e }) => e);
@@ -350,6 +381,31 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     void send();
   }
 
+  const dosesFor = (row: DayRow) => {
+    const server = visitDoses.find((v) => v.visit_id === row.target_id) ?? null;
+    return { server, meds: mergeDoses(server, doseQueue, row.target_id, ownerId) };
+  };
+
+  async function recordDose(row: DayRow, med: PhoneMed, outcome: DoseOutcome, reasonCode: string | null, why: string, quantity: number | null) {
+    if (!med.medicine_id) return;
+    await addDoseEvent({
+      event_id: crypto.randomUUID(),
+      owner: ownerId,
+      visit_id: row.target_id,
+      med_uid: med.med_uid,
+      medicine_id: med.medicine_id,
+      outcome,
+      reason_code: outcome === "given" ? null : reasonCode,
+      reason_text: reasonCode === "other" ? why.trim().slice(0, 500) : null,
+      quantity: outcome === "given" ? quantity : null,
+      phone_time: new Date().toISOString(),
+      device_id: deviceId(),
+      device_seq: nextSeq(),
+    });
+    await refreshQueue();
+    void send();
+  }
+
   async function recordConcern(row: DayRow, category: string, body: string) {
     await addNoteEvent({
       event_id: crypto.randomUUID(),
@@ -402,10 +458,11 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     }
   }
 
-  const waiting = [...queue, ...taskQueue, ...noteQueue].filter((e) => e.owner === ownerId && !e.refused);
+  const waiting = [...queue, ...taskQueue, ...noteQueue, ...doseQueue].filter((e) => e.owner === ownerId && !e.refused);
   const refused = queue.filter((e) => e.owner === ownerId && e.refused);
   const refusedNotes = noteQueue.filter((e) => e.owner === ownerId && e.refused);
-  const others = [...queue, ...taskQueue, ...noteQueue].filter((e) => e.owner !== ownerId).length;
+  const refusedDoses = doseQueue.filter((e) => e.owner === ownerId && e.refused);
+  const others = [...queue, ...taskQueue, ...noteQueue, ...doseQueue].filter((e) => e.owner !== ownerId).length;
   const list = rows ?? [];
   const open = list.filter((r) => !r.paused && clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at)));
   // With a scanned code: the visit or shift it is for is the open one still running, else the nearest.
@@ -470,6 +527,23 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                 {e.kind === "concern" ? "Concern" : "Note"} at {hhmm(e.phone_time)}: {e.refused}
               </span>
               <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => removeNoteEvents([e.event_id]).then(refreshQueue)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {refusedDoses.length ? (
+        <section className="glass-card space-y-2 border-red-500/30 p-4" aria-label="Doses not accepted">
+          <h2 className="text-sm font-semibold text-white">Doses not accepted ({refusedDoses.length})</h2>
+          <p className="text-xs text-white/55">The office has been told and has a copy. Call them now about these doses.</p>
+          {refusedDoses.map((e) => (
+            <div key={e.event_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
+              <span className="text-xs text-white/80">
+                Dose at {hhmm(e.phone_time)}: {e.refused}
+              </span>
+              <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => removeDoseEvents([e.event_id]).then(refreshQueue)}>
                 Remove
               </button>
             </div>
@@ -551,6 +625,20 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                     </div>
                   </details>
                 ) : null}
+                {r.target_kind === "visit" && !r.paused
+                  ? (() => {
+                      const d = dosesFor(r);
+                      return (
+                        <VisitDosesPanel
+                          meds={d.meds}
+                          competent={d.server?.competent ?? false}
+                          allergies={d.server?.allergies ?? null}
+                          canRecord={isOpen || Boolean(st.inAt)}
+                          onRecord={(m, o, rc, why, q) => recordDose(r, m, o, rc, why, q)}
+                        />
+                      );
+                    })()
+                  : null}
                 {r.target_kind === "visit" && !r.paused ? (
                   <VisitNotesPanel
                     card={notesFor(r)}

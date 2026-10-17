@@ -111,7 +111,8 @@ export default async function SuTimelinePage({ params, searchParams }: { params:
           label: names.length ? names.join(", ") : "Needs a carer",
           sublabel: firstIn ? `In ${londonHhmm(firstIn.at)}${lastOut ? `, out ${londonHhmm(lastOut.at)}` : ""}` : v.timeChangedFrom ? `Moved from ${v.timeChangedFrom}` : undefined,
           tone: names.length === 0 && v.status !== "draft" && nowMs > Date.parse(v.startsAt) ? ("late" as const) : tone,
-          title: `${dayLabel(d)}, ${v.startTime} to ${v.endTime}: ${names.length ? names.join(" and ") : "needs a carer"}. ${TONE_WORDS[tone]}.`,
+          title: `${dayLabel(d)}, ${v.startTime} to ${v.endTime}: ${names.length ? names.join(" and ") : "needs a carer"}. ${TONE_WORDS[tone]}.${v.timeSensitive ? " Time sensitive medicine due." : ""}`,
+          urgent: v.timeSensitive,
           href: su.branch_id ? `/rota/visits?branch=${su.branch_id}&date=${d}#visit-${v.id}` : undefined,
         };
       }),

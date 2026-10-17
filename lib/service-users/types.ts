@@ -41,6 +41,11 @@ export type ServiceUserRecord = {
   phone?: string | null;
   ssid: string | null;
   package_start_date: string | null;
+  /** For the MAR and every company's record (NICE NG67 1.5.5; Stage 0 decision 13, Stage 6 decision 7). */
+  date_of_birth?: string | null;
+  gp_practice?: string | null;
+  nhs_number?: string | null;
+  allergies?: string | null;
   service_status: ServiceStatus;
   discharge_date: string | null;
   /** In hospital since (0461), when known; and the day they last came out. */
