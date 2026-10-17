@@ -496,3 +496,20 @@ Phil, 2026-10-17, for the next push:
 11. notification_preferences also accepts the three new events, so the Settings rows can be saved
     (part of the approved Settings rows in decision 4).
 12. **To ask after Stage 7** (Phil, 2026-10-17): call cancellations and how cancellation is set up.
+
+## Call cancellations (Phil's popups, 2026-10-17, after Stage 7; not built yet)
+
+1. The office can cancel **one visit**, **every visit for a service user over a date range**, or
+   **one call over a date range** (the other calls stay).
+2. Cancelling picks a reason, A to Z with Other last (typed): Carer unavailable, no cover found;
+   Family cancelled; Office error; Service user cancelled; Service user deceased; Service user in
+   hospital; Service user in respite; Visit moved to another time; Other. The reason shows on the
+   Visits page and in reports.
+3. **Short notice**, set per company in Settings, Rota: a notice period (default 24 hours) and
+   whether a short notice cancellation is still charged and still paid; each cancellation inside the
+   period is marked Short notice for Invoicing and pay.
+4. The carer is told by **text and on the Care tab** (a text for a published visit, the Founder's
+   mobile only for test companies; the visit shows Cancelled on their Care tab for the rest of the
+   day).
+Still to decide: how much a short notice cancellation is charged, carer pay for one, what happens
+with the hospital and respite reasons, and whether a cancellation can be undone.
