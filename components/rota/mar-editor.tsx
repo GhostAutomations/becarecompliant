@@ -332,12 +332,12 @@ function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: bo
   return (
     <li className="flex h-full gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
       {m.hasLabel ? (
-        <button type="button" onClick={() => setBig(true)} className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white" title="Open the label photo large">
+        <button type="button" onClick={() => setBig(true)} className="h-32 w-44 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white xl:w-56" title="Open the label photo large">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo} alt={`Label photo for ${m.name}`} className="h-full w-full object-contain" />
+          <img src={photo} alt={`Label photo for ${m.name}`} className="h-full w-full object-cover" />
         </button>
       ) : (
-        <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-2 text-center text-[11px] leading-tight text-amber-200">
+        <div className="flex h-32 w-44 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-2 text-center text-xs leading-tight text-amber-200 xl:w-56">
           No label photo{m.labelSkipReason ? `: ${m.labelSkipReason}` : ""}
         </div>
       )}
