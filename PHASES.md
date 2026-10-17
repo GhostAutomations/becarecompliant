@@ -2559,7 +2559,13 @@ Out of scope: invoicing and payroll.
   flight mode and location refused on the phone; R6.8 a Supervisor seeing the alert; R6.9 Not
   recorded in red and the time sensitive ring; R6.12 record tiles on a phone. R6.16 My area and Care
   split built and passed on Phil's phone (2026-10-17).
-- [ ] Stage 7: live attendance and alerts (today's visits, late and missed job behind CRON_SECRET).
+- [x] Stage 7 (DONE 2026-10-17, Phil closed it; migrations 0506 and 0507; TEST-CHECKLIST-ROTA.md R7.1 to
+  R7.8): live attendance and alerts. An every minute job (CRON_SECRET) raises late (15 minutes after
+  the start), missed (30 minutes after the end) and dose not recorded (at clock out) alerts once per
+  visit, urgent with a time sensitive medicine, told in the app by Settings, Notifications rows
+  (branch Managers and Supervisors and Out of Hours by default); Rota tabs Today (live counts,
+  statuses, map of today's taps) and Alerts (clear down by a Supervisor or above with a reason).
+  Not seen live: an urgent alert and the Tasks or Doses not done pills.
 - [ ] Stage 8: travel and mileage (own OpenRouteService server, postcode pair cache, short gap
   warnings, mileage and travel time totals).
 - [ ] Stage 9: reports (17 reports, PDF and CSV, filters, leavers and paused records left out).
