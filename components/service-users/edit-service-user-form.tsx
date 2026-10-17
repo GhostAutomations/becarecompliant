@@ -7,8 +7,11 @@ import { useSavedFlash } from "@/lib/use-saved-flash";
 import PrivateInvoicingFields from "@/components/service-users/private-invoicing-fields";
 import type { ServiceUserRecord } from "@/lib/service-users/types";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
+import type { FunderRow } from "@/components/service-users/funders-form";
 
-export default function EditServiceUserForm({ serviceUser }: { serviceUser: ServiceUserRecord }) {
+export default function EditServiceUserForm({ serviceUser, funders = [] }: { serviceUser: ServiceUserRecord; funders?: FunderRow[] }) {
+  // Live funders A to Z, plus the record's own one if it has since been archived (0508, Stage 7b).
+  const funderChoices = funders.filter((f) => !f.archivedAt || f.id === serviceUser.funder_id);
   const [state, formAction, pending] = useActionState(updateServiceUser, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
@@ -62,6 +65,23 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
             type="date"
             defaultValue={serviceUser.package_start_date ?? ""}
           />
+        </div>
+
+        {/* Funder (Phil, Stage 7b, 2026-10-17): every company. The list is kept in Settings,
+            Service users; cancellation rules follow it. */}
+        <div className="sm:col-span-2">
+          <label htmlFor="e_funder" className="form-label">Funder</label>
+          <select id="e_funder" name="funder_id" defaultValue={serviceUser.funder_id ?? ""}>
+            <option value="">Not set</option>
+            {funderChoices.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}{f.archivedAt ? " (archived)" : ""}</option>
+            ))}
+          </select>
+          <p className="form-hint">
+            {funders.length === 0
+              ? "No funders yet. A Company Admin adds them in Settings, Service users, Funders."
+              : "The council or health board that pays for this care."}
+          </p>
         </div>
 
         {/* Health details (Phil, Stage 0 decision 13 and Stage 6 decision 7): what a MAR must show

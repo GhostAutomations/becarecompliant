@@ -23,6 +23,7 @@ import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
 import { getRecordDocuments } from "@/lib/documents/data";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
+import { listFunders } from "@/lib/service-users/funders";
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -532,7 +533,7 @@ export default async function ServiceUserPage({
       {canManage ? (
         <PanelDialog title="Manage record">
           <div className="space-y-6 border-t border-white/10 p-5">
-            <EditServiceUserForm serviceUser={serviceUser} />
+            <EditServiceUserForm serviceUser={serviceUser} funders={canManage ? await listFunders(serviceUser.company_id) : []} />
 
             <div className="grid gap-5 sm:grid-cols-2">
               <ActionForm action={transferServiceUser} hidden={{ service_user_id: serviceUser.id }} label="Transfer" buttonClassName="btn-outline text-xs">

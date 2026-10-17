@@ -22,12 +22,14 @@ export type CompanyLinks = {
   branchId?: string | null;
   serviceUserId?: string | null;
   personId?: string | null;
+  funderId?: string | null;
 };
 
 const CHECKS: Array<{ key: keyof CompanyLinks; table: string; refusal: string }> = [
   { key: "branchId", table: "branches", refusal: "That branch is not one of your company's branches." },
   { key: "serviceUserId", table: "service_users", refusal: "That service user is not one of your company's records." },
   { key: "personId", table: "people", refusal: "That team member is not one of your company's records." },
+  { key: "funderId", table: "funders", refusal: "That funder is not on your company's list." },
 ];
 
 /** A message to show when any posted id is not this company's, otherwise null. */

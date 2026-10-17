@@ -539,3 +539,7 @@ Phil, 2026-10-17, for the next push:
     cancellations report (Stage 9) for councils that pay through their own systems.
 13. **Carer pay** for cancelled visits: the rule keeps the pay period; how pay is recorded is parked
     (THE LIST 62).
+14. **Settings, Rota options** each company can change (Phil's popup): alert timings (late after
+    15 minutes, missed 30 minutes after the end, overrunning 15 minutes after the end), clock in
+    rules (opens 30 minutes before, default home radius 200 m), notes and MAR (earlier notes 24
+    hours, pinned notes 48 hours, low stock warning 7 days). Location required stays fixed (on).

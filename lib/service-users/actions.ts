@@ -22,6 +22,7 @@ import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
 import { profilesById } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
+import { foreignLinkError } from "@/lib/companies/links";
 import { emailCompletionNotifications } from "@/lib/notifications/completion-email";
 import { queueCloudCopy } from "@/lib/cloud/queue";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
@@ -297,9 +298,23 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   const newStart = isoDateOrNull(formData.get("package_start_date"));
   const { data: before } = await supabase
     .from("service_users")
-    .select("package_start_date, company_id")
+    .select("package_start_date, company_id, funder_id")
     .eq("id", id)
     .maybeSingle();
+
+  /* Funder (0508, Stage 7b): one of the company's own, and not an archived one unless the record
+     already had it. Only written when the form sends the field, so no other form can clear it. */
+  const funderSent = formData.has("funder_id");
+  const funderId = trimOrNull(formData.get("funder_id"));
+  if (funderSent && funderId && before) {
+    const foreign = await foreignLinkError(before.company_id as string, { funderId });
+    if (foreign) return { error: foreign };
+    if (funderId !== (before.funder_id as string | null)) {
+      const { data: f } = await supabase.from("funders").select("archived_at").eq("id", funderId).maybeSingle();
+      if (!f || (f as { archived_at: string | null }).archived_at) return { error: "That funder is archived. Choose another, or restore it in Settings, Service users." };
+    }
+  }
+
   const { error } = await supabase
     .from("service_users")
     .update({
@@ -312,6 +327,7 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
       nhs_number: nhsRaw ? nhsNumberClean(nhsRaw) : null,
       gp_practice: gp,
       allergies,
+      ...(funderSent ? { funder_id: funderId } : {}),
       ...inv.values,
     })
     .eq("id", id);

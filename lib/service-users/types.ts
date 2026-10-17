@@ -46,6 +46,8 @@ export type ServiceUserRecord = {
   gp_practice?: string | null;
   nhs_number?: string | null;
   allergies?: string | null;
+  /** Who funds the care (0508, Stage 7b): one of the company's funders, or empty. */
+  funder_id?: string | null;
   service_status: ServiceStatus;
   discharge_date: string | null;
   /** In hospital since (0461), when known; and the day they last came out. */

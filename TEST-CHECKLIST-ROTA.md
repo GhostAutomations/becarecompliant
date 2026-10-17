@@ -174,3 +174,12 @@ Known gaps (not in this stage): the Care Schedule has no alternate weeks (a know
 | R7.6 | Settings, Notifications: Visit late, Visit missed and Dose not recorded rows, Managers and Supervisors on by default; Recent activity shows the alert and opens the visit ringed | Rows PASS (Claude as Bev Admin: the three rows, Recent activity ticked for the Branch Manager and both Swansea Supervisors, not for Bev Admin, email off). Recent activity on screen: Not tested |
 | R7.7 | The live job: a real late visit on Bevan raises its alert within a minute of the 15 minute mark | PASS (Claude: test visit 20:17 today with Gethin, no clock in; the every minute job raised the late alert at 20:32:25, naming Gethin, and told the three Swansea Supervisors and Branch Manager in the app; the job route answers 401 without the secret) |
 | R7.8 | Nothing else changed after the deploy | PASS (Claude, 20:40: fingerprint identical to the Stage 7 baseline for every Thistle login, Demo, every Senior, the Team Member and both Staff logins, readiness identical; Bevan Admin and both Supervisors changed only by the test alert (their notices, the clear down audit line); timings (median of 5, ms) Dashboard 524, People 671, Service Users 524, Planner 509, Readiness 1,024 within the baseline; Today 524, Alerts 320) |
+
+## Stage 7b part 1: funders (migration 0508)
+
+| # | Check | Result |
+|---|-------|--------|
+| R7b.1 | 0508 proved on Bevan, undone: a Company Admin adds a funder; the same name again (any case) is refused; another company's funder cannot be added; a Team Member sees the list but cannot add or change it; Thistle sees none of Bevan's; a Bevan service user cannot be pointed at another company's funder, and can at its own | PASS (Claude, 2026-10-17) |
+| R7b.2 | Nothing else changed: only the new funders table and its two policies, and service_users' company link check now covering funder_id; its other policies and triggers unchanged | PASS (Claude, after the apply) |
+| R7b.3 | Settings, Service users, Funders: add, rename, archive (asks first), restore; empty state; archived ones greyed at the bottom | Not tested |
+| R7b.4 | Service user Manage record: Funder dropdown with Not set and the live funders A to Z; saves; an archived funder stays on a record that has it, marked (archived) | Not tested |

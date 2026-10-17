@@ -8,6 +8,8 @@ import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
 import FundingOptionsForm from "@/components/service-users/funding-options-form";
+import FundersForm from "@/components/service-users/funders-form";
+import { listFunders } from "@/lib/service-users/funders";
 import SatisfactionQuestionsForm from "@/components/service-users/satisfaction-questions-form";
 import OutcomesIntervalForm from "@/components/service-users/outcomes-interval-form";
 import {
@@ -37,6 +39,7 @@ export default async function SettingsServiceUsersPage() {
     allForms,
     fundingOptions,
     satisfactionQs,
+    funders,
   ] = await Promise.all([
       listAllServiceUserCheckDefinitions(profile.company_id),
       getServiceUserColumnLabels(profile.company_id),
@@ -45,6 +48,7 @@ export default async function SettingsServiceUsersPage() {
       listCompanyForms(profile.company_id),
       listFundingOptions(profile.company_id),
       getSatisfactionQuestions(profile.company_id),
+      listFunders(profile.company_id),
     ]);
   const publishableForms = allForms
     .filter((f) => f.population === "service_users" && f.currentVersion != null)
@@ -142,6 +146,20 @@ export default async function SettingsServiceUsersPage() {
             Visit, so nobody reads past options that are never true for you.
           </p>
           <FundingOptionsForm options={fundingOptions} />
+        </div>
+      </details>
+
+      {/* Stage 7b (Phil, 2026-10-17): the councils and health boards that pay for care, set on
+          each service user's Manage record. Cancellation rules follow the funder. */}
+      <details className="glass-card section-card">
+        <summary>Funders</summary>
+        <div className="space-y-3 border-t border-white/10 p-5">
+          <p className="page-subtitle">
+            The councils and health boards that pay for your service users&apos; care. Choose one on
+            each service user&apos;s Manage record. Archive a funder you no longer work for; records
+            that have it keep it.
+          </p>
+          <FundersForm funders={funders} />
         </div>
       </details>
 
