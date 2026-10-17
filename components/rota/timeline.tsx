@@ -93,40 +93,48 @@ export default function Timeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!drag) return;
-    const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, dx: e.clientX - d.x0, dy: e.clientY - d.y0 } : d));
+  /* A mouse drag. The listeners go on the window the moment the button goes down (not after the
+     next redraw), so even a quick flick of the mouse is followed to where it is let go. */
+  function startDrag(block: TimelineBlock, row: string, x0: number, y0: number) {
+    dragBegan.current = true;
+    setDrag({ block, row, x0, y0, dx: 0, dy: 0 });
+    const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, dx: e.clientX - x0, dy: e.clientY - y0 } : d));
     const up = (e: PointerEvent) => {
-      const d = drag;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
       setDrag(null);
       // The click that follows this pointer up (if any) comes first; then the flag is cleared.
       setTimeout(() => {
         dragBegan.current = false;
       }, 0);
-      const moved = Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0);
+      const moved = Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0);
       if (moved < 5) {
-        if (d.block.href) router.push(d.block.href);
+        if (block.href) router.push(block.href);
         return;
       }
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-row-key]") as HTMLElement | null;
-      const toRow = el?.dataset.rowKey ?? d.row;
+      const toRow = el?.dataset.rowKey ?? row;
       const droppable = el?.dataset.droppable === "true";
-      const length = d.block.end - d.block.start;
-      if (toRow !== d.row) {
+      if (toRow !== row) {
         // Onto another carer: the time stays as it is.
-        if (droppable) onDrop?.({ block: d.block, fromRow: d.row, toRow, newStart: d.block.start });
+        if (droppable) onDrop?.({ block, fromRow: row, toRow, newStart: block.start });
         return;
       }
-      const newStart = dragStart(d.block.start, (e.clientX - d.x0) / PX, length);
-      if (newStart !== d.block.start) onDrop?.({ block: d.block, fromRow: d.row, toRow, newStart });
+      const newStart = dragStart(block.start, (e.clientX - x0) / PX, block.end - block.start);
+      if (newStart !== block.start) onDrop?.({ block, fromRow: row, toRow, newStart });
     };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up, { once: true });
-    return () => {
+    const cancel = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      setDrag(null);
+      dragBegan.current = false;
     };
-  }, [drag, onDrop, router]);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+  }
 
   const width = DAY_MINUTES * PX;
   const hours = Array.from({ length: 24 }, (_, h) => h);
@@ -208,8 +216,7 @@ export default function Timeline({
                           // A mouse or pen drags; a finger scrolls the line and taps to open.
                           if (!b.draggable || !onDrop || e.pointerType === "touch" || e.button !== 0) return;
                           e.preventDefault();
-                          dragBegan.current = true;
-                          setDrag({ block: b, row: r.key, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 });
+                          startDrag(b, r.key, e.clientX, e.clientY);
                         }}
                         onClick={() => {
                           if (dragBegan.current) {
