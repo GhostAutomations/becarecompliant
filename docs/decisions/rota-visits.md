@@ -438,3 +438,18 @@ Phil, 2026-10-17, for the next push:
   next one not yet done, is first and open; then the other visits still to do, earliest first; then
   those done, newest first. All but the first fold to one line (time, name, clock state) that opens
   when tapped. This page only; timelines elsewhere keep oldest first.
+- **My area and Care split on the phone** (Phil, 2026-10-17, to be done before the module closes):
+  the carer's bottom menu bar gets two tabs. My area is everything it was before the module (the
+  carer's own checks, training and so on); Care is everything about delivering care (Clock in, the
+  visits, tasks, notes, doses). No crossover between the two.
+- **Location must be allowed** (Phil's popups, 2026-10-17; replaces Stage 3 decision 8 for a refused
+  location): a carer who refuses location, or whose phone has none, cannot clock in or out by GPS,
+  and a QR or sticker scan does not stand in for it; the phone says to turn location on or call
+  the office (who can add the time with a reason). Location allowed but no fix or poor accuracy
+  still saves as Location unclear. Carers with no smartphone keep the text clock in. Enforced on
+  the phone; the server cannot see the phone's permission, so a clock with no position still saves
+  as Location unclear there.
+- **Clock in first** (Phil, 2026-10-17: "must clock in to complete tasks, make notes and give
+  meds"): the Clock in button is at the top of the visit card; tasks and medicines appear, and notes
+  can be written, only once clocked in (earlier notes and pinned notes can still be read before).
+  Clock out is at the bottom.

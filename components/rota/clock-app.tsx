@@ -79,13 +79,17 @@ function dayWord(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
-/** The phone's position at the tap, or null (refused, switched off, or no fix in 20 seconds). */
-function readPosition(): Promise<Fix | null> {
+/**
+ * The phone's position at the tap. `refused` when the carer refused location or the phone has
+ * none: then there is no clock in (Phil, 2026-10-17: "must accept location"). No fix in 20 seconds
+ * with location allowed is a poor signal: it saves as Location unclear.
+ */
+function readPosition(): Promise<{ fix: Fix | null; refused: boolean }> {
   return new Promise((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) return resolve({ fix: null, refused: true });
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      () => resolve(null),
+      (p) => resolve({ fix: { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }, refused: false }),
+      (e) => resolve({ fix: null, refused: e.code === 1 }),
       { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
     );
   });
@@ -442,7 +446,14 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
     }
     setBusy(`${row.target_id}:${kind}`);
     try {
-      const fix = await readPosition();
+      const { fix, refused } = await readPosition();
+      if (refused) {
+        setNotice(
+          `Location is off, so you cannot clock ${kind}. Turn on location for this website in your phone's settings, then try again. If you cannot, call the office.`,
+        );
+        if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
       const place = row.place_lat != null && row.place_lng != null ? { lat: row.place_lat, lng: row.place_lng, radius: row.radius_m } : null;
       const { outcome, metres } = clockOutcome(fix, place);
       const p: Pending = { row, kind, fix, metres, method: viaCode ? viaCode.via : "gps", token: viaCode?.token ?? null };
@@ -622,6 +633,31 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
             }
             const wait = minutesUntilOpen(now, Date.parse(r.starts_at));
             const kind: "in" | "out" | null = !st.inAt ? "in" : !st.outAt ? "out" : null;
+            const clockButton = !r.paused && kind ? (
+                  isOpen ? (
+                    <button
+                      type="button"
+                      className="btn-primary w-full px-4 py-3 text-base"
+                      disabled={busy !== null}
+                      onClick={() => tap(r, kind, null)}
+                    >
+                      {busy === `${r.target_id}:${kind}` ? "Finding your position…" : kind === "in" ? "Clock in" : "Clock out"}
+                    </button>
+                  ) : wait > 0 ? (
+                    // Shown as a greyed button, so it is clear where Clock in will be (Phil,
+                    // 2026-10-16: tapping the visit before it opened seemed to do nothing).
+                    <>
+                      <button type="button" className="btn-outline w-full px-4 py-3 text-base" disabled>
+                        Clock in opens at {hhmm(new Date(Date.parse(r.starts_at) - 30 * 60_000).toISOString())}
+                      </button>
+                      <p className="text-xs text-white/45">
+                        That is 30 minutes before the start ({wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min from now` : `${wait} min from now`}).
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-white/45">Clock in has closed. Call the office to add the time.</p>
+                  )
+                ) : null;
             return (
               <section key={cardKey} className={`glass-card space-y-2 p-4 ${r.paused ? "opacity-70" : ""}`} aria-label={r.title}>
                 {!focus ? (
@@ -654,7 +690,13 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                   {st.inAt ? `Clocked in ${hhmm(st.inAt)}${st.inWaiting ? " (waiting to send)" : ""}` : "Not clocked in"}
                   {st.outAt ? ` · Clocked out ${hhmm(st.outAt)}${st.outWaiting ? " (waiting to send)" : ""}` : ""}
                 </p>
-                {r.target_kind === "visit" && !r.paused && isOpen && tasksFor(r)?.tasks.length ? (
+                {/* Clock in first (Phil, 2026-10-17): the button at the top; tasks, medicines and notes
+                    are done once clocked in. Clock out sits at the bottom. */}
+                {kind === "in" ? clockButton : null}
+                {r.target_kind === "visit" && !r.paused && !st.inAt ? (
+                  <p className="text-xs text-white/55">Clock in first to complete tasks, give medicines and write notes.</p>
+                ) : null}
+                {r.target_kind === "visit" && !r.paused && st.inAt && tasksFor(r)?.tasks.length ? (
                   <details className="rounded-lg border border-white/10 p-2" open={Boolean(st.inAt && !st.outAt)}>
                     <summary className="cursor-pointer text-xs font-semibold text-white/75">Tasks ({tasksFor(r)!.tasks.length})</summary>
                     <div className="mt-2">
@@ -662,7 +704,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                     </div>
                   </details>
                 ) : null}
-                {r.target_kind === "visit" && !r.paused
+                {r.target_kind === "visit" && !r.paused && st.inAt
                   ? (() => {
                       const d = dosesFor(r);
                       return (
@@ -670,7 +712,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                           meds={d.meds}
                           competent={d.server?.competent ?? false}
                           allergies={d.server?.allergies ?? null}
-                          canRecord={isOpen || Boolean(st.inAt)}
+                          canRecord={Boolean(st.inAt)}
                           onRecord={(m, o, rc, why, q) => recordDose(r, m, o, rc, why, q)}
                         />
                       );
@@ -679,36 +721,12 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                 {r.target_kind === "visit" && !r.paused ? (
                   <VisitNotesPanel
                     card={notesFor(r)}
-                    canWrite={isOpen || Boolean(st.inAt)}
+                    canWrite={Boolean(st.inAt)}
                     onNote={(body, forNext, corrects) => recordNote(r, body, forNext, corrects)}
                     onConcern={(category, body) => recordConcern(r, category, body)}
                   />
                 ) : null}
-                {!r.paused && kind ? (
-                  isOpen ? (
-                    <button
-                      type="button"
-                      className="btn-primary w-full px-4 py-3 text-base"
-                      disabled={busy !== null}
-                      onClick={() => tap(r, kind, null)}
-                    >
-                      {busy === `${r.target_id}:${kind}` ? "Finding your position…" : kind === "in" ? "Clock in" : "Clock out"}
-                    </button>
-                  ) : wait > 0 ? (
-                    // Shown as a greyed button, so it is clear where Clock in will be (Phil,
-                    // 2026-10-16: tapping the visit before it opened seemed to do nothing).
-                    <>
-                      <button type="button" className="btn-outline w-full px-4 py-3 text-base" disabled>
-                        Clock in opens at {hhmm(new Date(Date.parse(r.starts_at) - 30 * 60_000).toISOString())}
-                      </button>
-                      <p className="text-xs text-white/45">
-                        That is 30 minutes before the start ({wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min from now` : `${wait} min from now`}).
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-white/45">Clock in has closed. Call the office to add the time.</p>
-                  )
-                ) : null}
+                {kind === "out" ? clockButton : null}
               </section>
             );
           })}
