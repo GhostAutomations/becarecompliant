@@ -28,8 +28,10 @@ export default function FundersForm({ funders }: { funders: FunderRow[] }) {
         </p>
       ) : (
         <ul className="space-y-2">
+          {/* Keyed on the name and archived state too, so a rename or an archive starts the row's
+              buttons afresh rather than carrying the last flash ("Restored" on a just archived row). */}
           {[...live, ...archived].map((f) => (
-            <li key={`${f.id}-${f.name}`} className={`rounded-xl border border-white/10 px-4 py-3 ${f.archivedAt ? "opacity-60" : ""}`}>
+            <li key={`${f.id}-${f.name}-${f.archivedAt ? "archived" : "live"}`} className={`rounded-xl border border-white/10 px-4 py-3 ${f.archivedAt ? "opacity-60" : ""}`}>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-0 flex-1">
                   <ActionForm action={renameFunderAction} hidden={{ funder_id: f.id }} label="Save" inline>
