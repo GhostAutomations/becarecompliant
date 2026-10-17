@@ -42,6 +42,27 @@ export default function VisitsDay({
   const [picker, setPicker] = useState<Picker | null>(null);
   const [runFrom, setRunFrom] = useState<{ personId: string; name: string } | null>(null);
 
+  /* Opened from a timeline (Stage 5b): the visit named after # is scrolled to and ringed. The CSS
+     :target ring only works on a full page load, not when the app moves here itself. */
+  useEffect(() => {
+    const mark = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id.startsWith("visit-")) return;
+      document.querySelectorAll("[data-timeline-mark]").forEach((n) => {
+        n.classList.remove("ring-2", "ring-amber-400");
+        n.removeAttribute("data-timeline-mark");
+      });
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add("ring-2", "ring-amber-400");
+      el.setAttribute("data-timeline-mark", "1");
+      el.scrollIntoView({ block: "center" });
+    };
+    mark();
+    window.addEventListener("hashchange", mark);
+    return () => window.removeEventListener("hashchange", mark);
+  }, [visits]);
+
   const runs = new Map<string, { name: string; visits: RotaVisit[] }>();
   for (const v of visits) {
     for (const a of v.assignments) {
