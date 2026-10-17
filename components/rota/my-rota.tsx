@@ -13,7 +13,10 @@ import { dayLabel, hhmm } from "@/lib/rota/types";
  * they could work, to ask for. They never see colleagues' shifts (Phil's popup, 2026-10-15).
  * Everything is read under their own RLS.
  */
-export default async function MyRota({ personId }: { personId: string }) {
+export default async function MyRota({ personId, onCare = false }: { personId: string; onCare?: boolean }) {
+  // On the Care tab (Phil, 2026-10-17) Clock in is already at the top of the page, so the button
+  // goes and a tapped visit or shift scrolls back up to it.
+  const clockHref = onCare ? "#care-top" : "/clock";
   const supabase = await createClient();
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const [{ data: mine }, { data: open }, { data: requests }, { data: visitRows }] = await Promise.all([
@@ -45,7 +48,7 @@ export default async function MyRota({ personId }: { personId: string }) {
 
   return (
     <>
-      {shifts.length || visits.length ? (
+      {!onCare && (shifts.length || visits.length) ? (
         // Clock in and out (Stage 3): its own page, so it can open with no signal.
         <Link href="/clock" className="btn-primary flex w-full items-center justify-center px-4 py-3 text-base">
           Clock in or out
@@ -73,7 +76,7 @@ export default async function MyRota({ personId }: { personId: string }) {
                 </>
               );
               return clockable(s.shift_date) ? (
-                <Link key={s.id} href="/clock" className="block p-4 hover:bg-white/5">
+                <Link key={s.id} href={clockHref} className="block p-4 hover:bg-white/5">
                   {body}
                 </Link>
               ) : (
@@ -109,7 +112,7 @@ export default async function MyRota({ personId }: { personId: string }) {
                 </>
               );
               return canClock ? (
-                <Link key={v.visit_id} href="/clock" className="block p-4 hover:bg-white/5">
+                <Link key={v.visit_id} href={clockHref} className="block p-4 hover:bg-white/5">
                   {body}
                 </Link>
               ) : (

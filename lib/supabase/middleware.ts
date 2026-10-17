@@ -281,8 +281,22 @@ export async function updateSession(request: NextRequest) {
            never open, so every carer who accepted their invite landed on "That area is switched
            off" with nowhere to go. The pages themselves send staff to /my, but this gate runs
            first. Send them home instead, unless their company has closed My area too. */
-        url.pathname =
-          isCarerLogin(role) && canUseModule("team_portal", role, disabled) ? "/my" : NO_ACCESS_PATH;
+        let home = NO_ACCESS_PATH;
+        if (isCarerLogin(role) && canUseModule("team_portal", role, disabled)) {
+          home = "/my";
+          /* With Rota and Visits on, a carer's home is Care (Phil, 2026-10-17). One small read,
+             only on this redirect. */
+          if (companyId) {
+            const { data: rota } = await supabase
+              .from("company_modules")
+              .select("enabled")
+              .eq("company_id", companyId)
+              .eq("module", "rota_visits")
+              .maybeSingle<{ enabled: boolean }>();
+            if (rota?.enabled) home = "/clock";
+          }
+        }
+        url.pathname = home;
         url.search = "";
         return NextResponse.redirect(url);
       }

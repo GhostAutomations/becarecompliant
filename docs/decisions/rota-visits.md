@@ -456,3 +456,8 @@ Phil, 2026-10-17, for the next push:
 - **Location prompts** (Phil, 2026-10-17): Safari asks for location at each clock unless the site
   is set to Allow; a website cannot keep it on. For the planned app, location permission is given
   once and must stay on (as Birdie does). Note for the app build.
+- **My area and Care, built** (Phil's popups, 2026-10-17): where the company has Rota and Visits,
+  carers (Team Member) and Seniors get a Care tab beside My area in the bottom bar. Care (the page
+  at /clock, so QR codes and the offline copy keep working) has Clock in and today's visits at the
+  top, then the carer's visits and shifts for the next four weeks and the open shifts to ask for.
+  My area is exactly what it was before the module. A carer signs in to Care.

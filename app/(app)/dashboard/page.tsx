@@ -56,6 +56,7 @@ import { getBranchTerms } from "@/lib/branches/company-word";
 import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import { DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
 import ActionForm from "@/components/action-form";
 import { getMyNotifications } from "@/lib/notifications/personal";
 import { dismissNotification } from "@/lib/notifications/personal-actions";
@@ -656,7 +657,8 @@ export default async function DashboardPage() {
      held nothing for them; it stopped being reasonable when the urgent follow ups they raise are
      shown on the Dashboard and nowhere else (Phil, 2026-09-17). Everything else on the page is
      gated on companyWide, which they are not, so what they get is their own follow ups. */
-  if (isCarerLogin(profile.role)) redirect("/my");
+  // A carer's home: Care where the company has Rota and Visits (Phil, 2026-10-17), else My area.
+  if (isCarerLogin(profile.role)) redirect(moduleOnInRow(await getCompanyRow(profile.company_id), "rota_visits") ? "/clock" : "/my");
 
   const supabase = await createClient();
   const companyId = profile.company_id;

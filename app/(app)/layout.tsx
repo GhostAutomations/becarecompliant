@@ -154,6 +154,13 @@ export default async function AppLayout({
     .filter((e) => e.href !== "/on-call" || onCallEnabled)
     .filter((e) => e.href !== "/readiness" || readinessEnabled)
     .filter((e) => e.href !== "/rota" || rotaEnabled)
+    // A carer's Care tab, beside My area, where the company has Rota and Visits (Phil, 2026-10-17:
+    // My area and Care, no crossover). Its page is /clock, so QR codes and the offline copy work.
+    .flatMap((e) =>
+      isStaff && rotaEnabled && e.href === "/my"
+        ? [e, { href: "/clock", label: "Care", icon: "rota" as const, group: e.group }]
+        : [e],
+    )
     // Outcomes + Satisfaction are Pro sub-departments under Service Users.
     .map((e) =>
       e.href === "/service-users" && !outcomesSatisfactionEnabled
@@ -173,7 +180,9 @@ export default async function AppLayout({
       : profile.role === "on_call"
         ? "/on-call"
         : isCarerLogin(profile.role)
-          ? "/my"
+          ? rotaEnabled
+            ? "/clock"
+            : "/my"
           : "/dashboard";
 
   console.log(`[perf] layout.total ${Date.now() - perfStart}`);
