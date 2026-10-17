@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { getRotaBranches } from "@/lib/rota/data";
 import { countDraftShifts, countDraftVisits, getDayVisits, getRotaPeople } from "@/lib/rota/visits-data";
 import { addDaysIso, mondayOfIso } from "@/lib/rota/working-time";
@@ -36,6 +37,7 @@ export default async function RotaVisitsPage({ searchParams }: { searchParams: P
     const supabase = await createClient();
     await supabase.rpc("rota_refresh_visits", { p_branch: branch.id });
   }
+  const { clockOpensMin } = await getRotaSettings(companyId);
   const [visits, people, draftVisits, draftShifts] = branch
     ? await Promise.all([
         getDayVisits(branch.id, dateIso),
@@ -116,7 +118,7 @@ export default async function RotaVisitsPage({ searchParams }: { searchParams: P
               No visits on this day. Visits are made from each service user&apos;s Care Schedule once its calls have times under Call times.
             </p>
           ) : (
-            <VisitsDay branchId={branch.id} dateIso={dateIso} visits={visits} people={people} />
+            <VisitsDay branchId={branch.id} dateIso={dateIso} visits={visits} people={people} opensMin={clockOpensMin} />
           )}
         </>
       ) : null}

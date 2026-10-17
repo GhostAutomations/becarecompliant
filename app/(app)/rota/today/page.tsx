@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { requireRotaOffice } from "@/lib/rota/access";
 import { getRotaBranches } from "@/lib/rota/data";
 import { getDayVisits } from "@/lib/rota/visits-data";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { createClient } from "@/lib/supabase/server";
 import RotaTabs from "@/components/rota/rota-tabs";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -45,7 +46,8 @@ export default async function RotaTodayPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const visits = (await getDayVisits(branch.id, todayIso)).filter((v) => v.status === "published" && !v.paused);
+  const [allVisits, timings] = await Promise.all([getDayVisits(branch.id, todayIso), getRotaSettings(companyId)]);
+  const visits = allVisits.filter((v) => v.status === "published" && !v.paused);
   const supabase = await createClient();
   const suIds = [...new Set(visits.map((v) => v.serviceUserId))];
   const [{ data: places }, { data: taps }] = await Promise.all([
@@ -66,14 +68,14 @@ export default async function RotaTodayPage({ searchParams }: { searchParams: Pr
       nowMs,
       carers: v.assignments.map((a) => a.personId),
       clocks,
-    });
+    }, timings);
     const firstIn = (v.clocks ?? []).filter((c) => c.kind === "in").sort((a, b) => a.at.localeCompare(b.at))[0];
     const outPeople = new Set((v.clocks ?? []).filter((c) => c.kind === "out").map((c) => c.personId));
     // Not done: someone has clocked out and a key task, or a due dose, has nothing recorded.
     const keyTasks = (v.tasks?.list ?? []).filter((t) => t.key);
     const tasksNotDone = [...outPeople].some((pid) => keyTasks.some((t) => !v.tasks?.byPerson?.[pid]?.[t.uid]));
     const dosesNotDone = outPeople.size > 0 && (v.doses ?? []).some((d) => !d.prn && d.outcome == null);
-    return { v, status, tasksNotDone, dosesNotDone, arrival: arrivalWords(Date.parse(v.startsAt), firstIn ? Date.parse(firstIn.at) : null) };
+    return { v, status, tasksNotDone, dosesNotDone, arrival: arrivalWords(Date.parse(v.startsAt), firstIn ? Date.parse(firstIn.at) : null, timings.lateAfterMin) };
   });
   const order: TodayStatus[] = ["missed", "late", "overrunning", "in_progress", "not_started", "done"];
   rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.v.startsAt.localeCompare(b.v.startsAt));
@@ -119,7 +121,7 @@ export default async function RotaTodayPage({ searchParams }: { searchParams: Pr
           <h1 className="page-title">Today</h1>
           <span className="pill pill-amber">Beta</span>
         </div>
-        <p className="text-sm text-white/60">Every published visit today, as it happens. Late is 15 minutes after the start with no clock in; missed is 30 minutes after the end.</p>
+        <p className="text-sm text-white/60">Every published visit today, as it happens. Late is {timings.lateAfterMin} minutes after the start with no clock in; missed is {timings.missedAfterEndMin} minutes after the end; overrunning is {timings.overrunAfterEndMin} minutes after the end.</p>
       </div>
       <RotaTabs active="today" branchId={branch.id} />
       {branches.length > 1 ? (

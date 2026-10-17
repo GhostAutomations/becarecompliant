@@ -69,13 +69,15 @@ export function visitTone(v: {
   nowMs: number;
   clockedIn: boolean;
   clockedOut: boolean;
+  /** The company's Settings, Rota late time (0509); 15 minutes when not given. */
+  lateAfterMin?: number;
 }): VisitTone {
   if (v.status === "cancelled") return "cancelled";
   if (v.paused) return "paused";
   if (v.clockedOut) return "done";
   if (v.clockedIn) return "in_progress";
   if (v.status === "draft") return "draft";
-  if (v.nowMs > v.startsAtMs + LATE_AFTER_MINUTES * 60_000) return "late";
+  if (v.nowMs > v.startsAtMs + (v.lateAfterMin ?? LATE_AFTER_MINUTES) * 60_000) return "late";
   return "due";
 }
 

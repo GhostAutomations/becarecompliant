@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
@@ -57,7 +58,7 @@ export default async function MarPage({ params }: { params: Promise<{ id: string
     entityId: id,
     summary: `Viewed the MAR of ${su.full_name}`,
   });
-  const data = await getMar(id, from, today);
+  const [data, { lowStockDays }] = await Promise.all([getMar(id, from, today), getRotaSettings(companyId)]);
   const grid = dueGrid(data).sort((a, b) => b.visit.startsAt.localeCompare(a.visit.startsAt));
   const prnDoses = data.doses.filter((d) => data.meds.find((m) => m.medUid === d.medUid)?.prn).reverse();
   const medName = new Map(data.meds.map((m) => [m.medUid, m.name]));
@@ -122,7 +123,7 @@ export default async function MarPage({ params }: { params: Promise<{ id: string
         </span>
       </section>
 
-      <MarEditor serviceUserId={id} meds={data.meds} balances={data.balances} myProfileId={user.id} dmdReady={data.dmdCount > 0} />
+      <MarEditor serviceUserId={id} meds={data.meds} balances={data.balances} myProfileId={user.id} dmdReady={data.dmdCount > 0} lowStockDays={lowStockDays} />
 
       <section className="glass-card space-y-3 p-4" aria-label="The last 7 days">
         <div className="flex flex-wrap items-center justify-between gap-2">

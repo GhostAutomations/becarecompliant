@@ -14,12 +14,20 @@ export const ALERT_KIND_WORDS: Record<AlertKind, string> = {
   dose_not_recorded: "Dose not recorded",
 };
 
-/** The Settings, Notifications rows (decision 4): grid id, database event, row name. */
+/** The Settings, Notifications rows (decision 4): grid id, database event, row name (at the default
+ *  timings; alertGridName gives the company's own). */
 export const ALERT_GRID_ROWS = [
   { id: "rota_visit_late", event: "visit_late", name: "Visit late (no clock in 15 minutes after the start)" },
   { id: "rota_visit_missed", event: "visit_missed", name: "Visit missed (no clock in 30 minutes after the end)" },
   { id: "rota_dose_not_recorded", event: "dose_not_recorded", name: "Dose not recorded at clock out" },
 ] as const;
+
+/** A row's name with the company's Settings, Rota timings (0509). */
+export function alertGridName(id: (typeof ALERT_GRID_ROWS)[number]["id"], t: { lateAfterMin: number; missedAfterEndMin: number }): string {
+  if (id === "rota_visit_late") return `Visit late (no clock in ${t.lateAfterMin} minutes after the start)`;
+  if (id === "rota_visit_missed") return `Visit missed (no clock in ${t.missedAfterEndMin} minutes after the end)`;
+  return "Dose not recorded at clock out";
+}
 
 export type ClearReason = { code: string; label: string };
 
@@ -62,9 +70,13 @@ export const TODAY_STATUS_WORDS: Record<TodayStatus, string> = {
   done: "Done",
 };
 
+/** The defaults; each company can change them in Settings, Rota (0509, Stage 7b decision 14). */
 export const LATE_AFTER_MIN = 15;
 export const MISSED_AFTER_END_MIN = 30;
 export const OVERRUN_AFTER_END_MIN = 15;
+
+export type AlertTimings = { lateAfterMin: number; missedAfterEndMin: number; overrunAfterEndMin: number };
+const DEFAULT_TIMINGS: AlertTimings = { lateAfterMin: LATE_AFTER_MIN, missedAfterEndMin: MISSED_AFTER_END_MIN, overrunAfterEndMin: OVERRUN_AFTER_END_MIN };
 
 /**
  * What the Today tab says about a visit right now. Late while any carer on it has not clocked in
@@ -78,23 +90,23 @@ export function todayStatus(v: {
   nowMs: number;
   carers: string[];
   clocks: { personId: string; kind: "in" | "out" }[];
-}): TodayStatus {
+}, t: AlertTimings = DEFAULT_TIMINGS): TodayStatus {
   const inIds = new Set(v.clocks.filter((c) => c.kind === "in").map((c) => c.personId));
   const outIds = new Set(v.clocks.filter((c) => c.kind === "out").map((c) => c.personId));
   const min = 60_000;
   if (inIds.size === 0) {
-    if (v.nowMs >= v.endsAtMs + MISSED_AFTER_END_MIN * min) return "missed";
-    if (v.nowMs >= v.startsAtMs + LATE_AFTER_MIN * min) return "late";
+    if (v.nowMs >= v.endsAtMs + t.missedAfterEndMin * min) return "missed";
+    if (v.nowMs >= v.startsAtMs + t.lateAfterMin * min) return "late";
     return "not_started";
   }
   const stillIn = [...inIds].some((id) => !outIds.has(id));
   if (!stillIn) {
     const someoneMissing = v.carers.some((id) => !inIds.has(id));
-    return someoneMissing && v.nowMs < v.endsAtMs + MISSED_AFTER_END_MIN * min ? "late" : "done";
+    return someoneMissing && v.nowMs < v.endsAtMs + t.missedAfterEndMin * min ? "late" : "done";
   }
-  if (v.nowMs >= v.endsAtMs + OVERRUN_AFTER_END_MIN * min) return "overrunning";
+  if (v.nowMs >= v.endsAtMs + t.overrunAfterEndMin * min) return "overrunning";
   const someoneMissing = v.carers.some((id) => !inIds.has(id));
-  if (someoneMissing && v.nowMs >= v.startsAtMs + LATE_AFTER_MIN * min) return "late";
+  if (someoneMissing && v.nowMs >= v.startsAtMs + t.lateAfterMin * min) return "late";
   return "in_progress";
 }
 
@@ -103,10 +115,10 @@ export function todayTone(s: TodayStatus): "pill-red" | "pill-amber" | "pill-gre
   return s === "missed" || s === "late" ? "pill-red" : s === "overrunning" ? "pill-amber" : s === "done" ? "pill-green" : "pill-neutral";
 }
 
-/** How many minutes late a clock in was ("On time" within 15 minutes), in words. */
-export function arrivalWords(startsAtMs: number, clockInMs: number | null): string | null {
+/** How many minutes late a clock in was ("On time" within the late time, 15 minutes by default), in words. */
+export function arrivalWords(startsAtMs: number, clockInMs: number | null, lateAfterMin: number = LATE_AFTER_MIN): string | null {
   if (clockInMs == null) return null;
   const diff = Math.round((clockInMs - startsAtMs) / 60_000);
-  if (diff <= LATE_AFTER_MIN) return diff < -5 ? `${-diff} min early` : "On time";
+  if (diff <= lateAfterMin) return diff < -5 ? `${-diff} min early` : "On time";
   return `${diff} min late`;
 }

@@ -543,3 +543,10 @@ Phil, 2026-10-17, for the next push:
     15 minutes, missed 30 minutes after the end, overrunning 15 minutes after the end), clock in
     rules (opens 30 minutes before, default home radius 200 m), notes and MAR (earlier notes 24
     hours, pinned notes 48 hours, low stock warning 7 days). Location required stays fixed (on).
+15. **Settings, Rota (built, part 2a, 0509):** one set of options per company, not per branch
+    (decision 14 says each company). A company that has saved nothing uses the defaults, so nothing
+    changes until a Company Admin saves. Ranges: late 5 to 120 minutes, missed 0 to 240, overrunning
+    5 to 120, Clock in opens 0 to 120 minutes before, radius 25 to 2,000 m, notes 1 to 168 hours, low
+    stock 1 to 60 days. The radius applies to homes set up after the change; homes already set keep
+    their own (changed on the service user's Clock in page). The page shows only while the module is
+    on.

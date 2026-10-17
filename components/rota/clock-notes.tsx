@@ -56,12 +56,17 @@ export default function VisitNotesPanel({
   canWrite,
   onNote,
   onConcern,
+  earlierHours = 24,
+  pinnedHours = 48,
 }: {
   card: CardNotes;
   /** The visit is open or the carer has clocked in: they may write. */
   canWrite: boolean;
   onNote: SaveNote;
   onConcern: SaveConcern;
+  /** The company's note windows (Settings, Rota, 0509): earlier notes and pinned notes, in hours. */
+  earlierHours?: number;
+  pinnedHours?: number;
 }) {
   const [text, setText] = useState("");
   const [forNext, setForNext] = useState(false);
@@ -157,7 +162,7 @@ export default function VisitNotesPanel({
           {!correcting ? (
             <label className="flex items-center gap-2 text-xs text-white/80">
               <input type="checkbox" checked={forNext} onChange={(e) => setForNext(e.target.checked)} />
-              Pin Note (48hrs)
+              Pin Note ({pinnedHours}hrs)
             </label>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
@@ -196,7 +201,7 @@ export default function VisitNotesPanel({
 
       {card.earlier.length ? (
         <details className="rounded-lg bg-white/5 p-2">
-          <summary className="cursor-pointer text-xs font-semibold text-white/75">Notes from the last 24 hours ({card.earlier.length})</summary>
+          <summary className="cursor-pointer text-xs font-semibold text-white/75">Notes from the last {earlierHours} hours ({card.earlier.length})</summary>
           <ul className="mt-2 space-y-1.5">
             {card.earlier.map((n) => (
               <NoteLine key={n.key} n={n} />

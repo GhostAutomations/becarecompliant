@@ -34,11 +34,13 @@ export default function VisitsDay({
   dateIso,
   visits,
   people,
+  opensMin,
 }: {
   branchId: string;
   dateIso: string;
   visits: RotaVisit[];
   people: { id: string; name: string }[];
+  opensMin?: number;
 }) {
   const [picker, setPicker] = useState<Picker | null>(null);
   const [runFrom, setRunFrom] = useState<{ personId: string; name: string } | null>(null);
@@ -82,7 +84,7 @@ export default function VisitsDay({
           <h2 className="text-sm font-semibold text-white/90">Needing a carer ({needing.length})</h2>
           {needing.length === 0 ? <p className="text-xs text-white/45">Every visit has its carers.</p> : null}
           {needing.map((v) => (
-            <VisitCard key={`n-${v.id}`} visit={v} onAdd={() => setPicker({ mode: "assign", visit: v })} onMove={(a) => setPicker({ mode: "move", visit: v, assignment: a })} />
+            <VisitCard key={`n-${v.id}`} visit={v} onAdd={() => setPicker({ mode: "assign", visit: v })} onMove={(a) => setPicker({ mode: "move", visit: v, assignment: a })} opensMin={opensMin} />
           ))}
         </section>
 
@@ -97,7 +99,7 @@ export default function VisitsDay({
               </button>
             </div>
             {run.visits.map((v) => (
-              <VisitCard key={`${personId}-${v.id}`} visit={v} onAdd={() => setPicker({ mode: "assign", visit: v })} onMove={(a) => setPicker({ mode: "move", visit: v, assignment: a })} />
+              <VisitCard key={`${personId}-${v.id}`} visit={v} onAdd={() => setPicker({ mode: "assign", visit: v })} onMove={(a) => setPicker({ mode: "move", visit: v, assignment: a })} opensMin={opensMin} />
             ))}
           </section>
         ))}
@@ -194,7 +196,7 @@ function pickerTitle(p: Picker): string {
   return p.mode === "move" ? `Move ${p.assignment.name}'s visit, ${when}` : `Choose a carer, ${when}`;
 }
 
-function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => void; onMove: (a: RotaAssignment) => void }) {
+function VisitCard({ visit, onAdd, onMove, opensMin }: { visit: RotaVisit; onAdd: () => void; onMove: (a: RotaAssignment) => void; opensMin?: number }) {
   const open = visit.carersNeeded - visit.assignments.length;
   return (
     <div
@@ -259,6 +261,7 @@ function VisitCard({ visit, onAdd, onMove }: { visit: RotaVisit; onAdd: () => vo
                 published={visit.status === "published"}
                 startsAt={visit.startsAt}
                 endsAt={visit.endsAt}
+                opensMin={opensMin}
               />
               {visit.tasks && visit.status === "published" ? <TaskLines tasks={visit.tasks} personId={a.personId} /> : null}
               {visit.status === "published" ? (

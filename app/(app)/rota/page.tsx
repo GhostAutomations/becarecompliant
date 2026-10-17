@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { getPendingRequests, getRotaBranches, getRotaTemplates, getRotaWeek } from "@/lib/rota/data";
 import { countDraftVisits } from "@/lib/rota/visits-data";
 import { addDaysIso, mondayOfIso } from "@/lib/rota/working-time";
@@ -48,6 +49,7 @@ export default async function RotaPage({
     );
   }
 
+  const { clockOpensMin } = await getRotaSettings(companyId);
   const [shifts, templates, requests, draftVisits] = await Promise.all([
     getRotaWeek(branch.id, monday),
     getRotaTemplates(branch.id),
@@ -140,7 +142,7 @@ export default async function RotaPage({
         </p>
       ) : null}
 
-      <RotaWeek branchId={branch.id} days={days} shifts={shifts} templates={templates} />
+      <RotaWeek branchId={branch.id} days={days} shifts={shifts} templates={templates} opensMin={clockOpensMin} />
     </div>
   );
 }

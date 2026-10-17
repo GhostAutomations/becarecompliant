@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { getRotaBranches } from "@/lib/rota/data";
 import { getDayVisits } from "@/lib/rota/visits-data";
 import { getDayShifts } from "@/lib/rota/timeline-data";
@@ -44,6 +45,7 @@ export default async function CarerDayPage({ searchParams }: { searchParams: Pro
   const [visits, shifts] = branch ? await Promise.all([getDayVisits(branch.id, dateIso), getDayShifts(branch.id, dateIso)]) : [[], []];
 
   const nowMs = Date.now();
+  const { lateAfterMin } = await getRotaSettings(companyId);
   const rowsByPerson = new Map<string, TimelineRow>();
   const meta: Record<string, DropMeta> = {};
   const unassigned: TimelineBlock[] = [];
@@ -64,7 +66,7 @@ export default async function CarerDayPage({ searchParams }: { searchParams: Pro
     for (const a of v.assignments) {
       const mineIn = clocks.find((c) => c.personId === a.personId && c.kind === "in") ?? null;
       const mineOut = clocks.find((c) => c.personId === a.personId && c.kind === "out") ?? null;
-      const tone = visitTone({ status: v.status, paused: v.paused, startsAtMs: Date.parse(v.startsAt), nowMs, clockedIn: Boolean(mineIn), clockedOut: Boolean(mineOut) });
+      const tone = visitTone({ status: v.status, paused: v.paused, startsAtMs: Date.parse(v.startsAt), nowMs, clockedIn: Boolean(mineIn), clockedOut: Boolean(mineOut), lateAfterMin });
       const inWords = clockInWords(Date.parse(v.startsAt), mineIn ? Date.parse(mineIn.at) : null);
       const id = `${v.id}:${a.id}`;
       row(a.personId, a.name).blocks.push({

@@ -18,7 +18,8 @@ import { ROLE_LABELS } from "@/lib/nav";
 import { getCompanyRow } from "@/lib/companies/row";
 import { moduleOnInRow } from "@/lib/modules/switch";
 import { CONCERN_GRID_ID, CONCERN_ROLES, DOSE_GRID_ID } from "@/lib/rota/notes";
-import { ALERT_GRID_ROWS } from "@/lib/rota/alerts";
+import { ALERT_GRID_ROWS, alertGridName } from "@/lib/rota/alerts";
+import { getRotaSettings } from "@/lib/rota/settings";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -202,16 +203,18 @@ export default async function NotificationSettingsPage() {
         }
       }
       // Visit late, Visit missed and Dose not recorded (Stage 7 decision 4): one row each.
-      const alertGrids = await Promise.all(
-        ALERT_GRID_ROWS.map((row) => supabase.rpc("rota_alert_notification_grid", { p_company: profile.company_id, p_event: row.event })),
-      );
+      const [timings, ...alertGrids] = await Promise.all([
+        getRotaSettings(profile.company_id),
+        ...ALERT_GRID_ROWS.map((row) => supabase.rpc("rota_alert_notification_grid", { p_company: profile.company_id, p_event: row.event })),
+      ]);
       ALERT_GRID_ROWS.forEach((row, i) => {
         const { data: rows, error } = alertGrids[i];
         if (error) {
           gridError = error.message;
           return;
         }
-        gridDefinitions = [...gridDefinitions, { id: row.id, population: "rota", name: row.name, title: row.name, roles: [...CONCERN_ROLES] }];
+        const name = alertGridName(row.id, timings);
+        gridDefinitions = [...gridDefinitions, { id: row.id, population: "rota", name, title: name, roles: [...CONCERN_ROLES] }];
         for (const r of (rows ?? []) as Array<{ profile_id: string; in_app: boolean; email: boolean }>) {
           gridInitial[r.profile_id] = { ...(gridInitial[r.profile_id] ?? {}), [row.id]: { inApp: r.in_app, email: r.email } };
         }

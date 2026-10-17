@@ -30,6 +30,7 @@ export default function ClockLines({
   published,
   startsAt,
   endsAt,
+  opensMin = 30,
 }: {
   targetKind: "visit" | "shift";
   targetId: string;
@@ -39,13 +40,15 @@ export default function ClockLines({
   published: boolean;
   startsAt: string;
   endsAt: string;
+  /** When Clock in opens before the start (Settings, Rota, 0509; 30 minutes by default). */
+  opensMin?: number;
 }) {
   const [adding, setAdding] = useState<"in" | "out" | null>(null);
   const mine = clocks.filter((c) => c.personId === personId);
   const hasIn = mine.some((c) => c.kind === "in");
   const hasOut = mine.some((c) => c.kind === "out");
-  // Adding is offered once the visit or shift has started (a clock in opens 30 minutes before).
-  const started = Date.now() >= Date.parse(startsAt) - 30 * 60_000;
+  // Adding is offered once the visit or shift has started (a clock in opens opensMin minutes before).
+  const started = Date.now() >= Date.parse(startsAt) - opensMin * 60_000;
   if (!published) return null;
 
   return (

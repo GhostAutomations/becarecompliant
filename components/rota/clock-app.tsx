@@ -97,7 +97,18 @@ function readPosition(): Promise<{ fix: Fix | null; refused: boolean }> {
 
 type Pending = { row: DayRow; kind: "in" | "out"; fix: Fix | null; metres: number | null; method: "gps" | "qr" | "nfc"; token: string | null };
 
-export default function ClockApp({ ownerId }: { ownerId: string }) {
+export default function ClockApp({
+  ownerId,
+  opensMin = 30,
+  notesEarlierHours = 24,
+  notesPinnedHours = 48,
+}: {
+  ownerId: string;
+  /** The company's Settings, Rota times (0509): when Clock in opens, and the note windows. */
+  opensMin?: number;
+  notesEarlierHours?: number;
+  notesPinnedHours?: number;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<DayRow[] | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -594,7 +605,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
               );
             })()
           ) : (
-            <p className="text-sm text-white/70">You have no visit or shift open right now. Clock in opens 30 minutes before the start.</p>
+            <p className="text-sm text-white/70">You have no visit or shift open right now. Clock in opens {opensMin} minutes before the start.</p>
           )}
           <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setCode(null)}>
             Not now
@@ -610,7 +621,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
         <div className="space-y-3">
           {clockCardOrder(list, (x) => clockState(x, queue, ownerId), now).map(({ row: r, focus }) => {
             const st = clockState(r, queue, ownerId);
-            const isOpen = clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at));
+            const isOpen = clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at), opensMin);
             const cardKey = `${r.target_kind}-${r.target_id}`;
             // Only the current or next visit is open; the rest fold to one line (Phil, 2026-10-17).
             if (!focus && !unfolded.has(cardKey)) {
@@ -631,7 +642,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                 </button>
               );
             }
-            const wait = minutesUntilOpen(now, Date.parse(r.starts_at));
+            const wait = minutesUntilOpen(now, Date.parse(r.starts_at), opensMin);
             const kind: "in" | "out" | null = !st.inAt ? "in" : !st.outAt ? "out" : null;
             const clockButton = !r.paused && kind ? (
                   isOpen ? (
@@ -648,10 +659,10 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                     // 2026-10-16: tapping the visit before it opened seemed to do nothing).
                     <>
                       <button type="button" className="btn-outline w-full px-4 py-3 text-base" disabled>
-                        Clock in opens at {hhmm(new Date(Date.parse(r.starts_at) - 30 * 60_000).toISOString())}
+                        Clock in opens at {hhmm(new Date(Date.parse(r.starts_at) - opensMin * 60_000).toISOString())}
                       </button>
                       <p className="text-xs text-white/45">
-                        That is 30 minutes before the start ({wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min from now` : `${wait} min from now`}).
+                        That is {opensMin} minutes before the start ({wait >= 60 ? `${Math.floor(wait / 60)} h ${wait % 60} min from now` : `${wait} min from now`}).
                       </p>
                     </>
                   ) : (
@@ -724,6 +735,8 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
                     canWrite={Boolean(st.inAt)}
                     onNote={(body, forNext, corrects) => recordNote(r, body, forNext, corrects)}
                     onConcern={(category, body) => recordConcern(r, category, body)}
+                    earlierHours={notesEarlierHours}
+                    pinnedHours={notesPinnedHours}
                   />
                 ) : null}
                 {kind === "out" ? clockButton : null}

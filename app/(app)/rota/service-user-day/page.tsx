@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { getRotaBranches } from "@/lib/rota/data";
 import { getDayVisits } from "@/lib/rota/visits-data";
 import { addDaysIso } from "@/lib/rota/working-time";
@@ -30,7 +31,7 @@ function londonHhmm(iso: string): string {
 }
 
 /** One visit's look for the service user: the furthest along of its carers, or late or open. */
-function overallTone(v: RotaVisit, nowMs: number): VisitTone {
+function overallTone(v: RotaVisit, nowMs: number, lateAfterMin: number): VisitTone {
   const clocks = v.clocks ?? [];
   const anyIn = clocks.some((c) => c.kind === "in");
   const allOut =
@@ -45,6 +46,7 @@ function overallTone(v: RotaVisit, nowMs: number): VisitTone {
     nowMs,
     clockedIn: anyIn,
     clockedOut: allOut,
+    lateAfterMin,
   });
 }
 
@@ -53,6 +55,7 @@ function rowsFor(
   branchId: string,
   dateIso: string,
   nowMs: number,
+  lateAfterMin: number,
 ): TimelineRow[] {
   const bySu = new Map<string, TimelineRow>();
   for (const v of visits) {
@@ -69,7 +72,7 @@ function rowsFor(
     }
     const start = toMinutes(v.startTime);
     const end = Math.max(start + 5, toMinutes(v.endTime) || 1440);
-    const tone = overallTone(v, nowMs);
+    const tone = overallTone(v, nowMs, lateAfterMin);
     const carers = v.assignments.map((a) => a.name);
     const open = v.carersNeeded - v.assignments.length;
     const firstIn = (v.clocks ?? []).find((c) => c.kind === "in");
@@ -142,6 +145,7 @@ export default async function ServiceUserDayPage({
     })),
   );
   const nowMs = Date.now();
+  const { lateAfterMin } = await getRotaSettings(companyId);
   const londonNow = new Date().toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -240,7 +244,7 @@ export default async function ServiceUserDayPage({
             </p>
           ) : (
             <Timeline
-              rows={rowsFor(visits, b.id, dateIso, nowMs)}
+              rows={rowsFor(visits, b.id, dateIso, nowMs, lateAfterMin)}
               labelHeader="Service user"
               nowMinute={nowMinute}
               emptyText="No visits in this branch on this day."

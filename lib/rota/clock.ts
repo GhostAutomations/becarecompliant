@@ -42,14 +42,15 @@ export function clockOutcome(fix: Fix | null, place: Place | null): { outcome: O
   return { outcome: metres <= place.radius ? "inside" : "outside", metres };
 }
 
-/** Clock in opens 30 minutes before the start and stays open until 3 hours after the end. */
-export function clockOpen(nowMs: number, startsAtMs: number, endsAtMs: number): boolean {
-  return nowMs >= startsAtMs - CLOCK_OPENS_MINUTES * 60_000 && nowMs <= endsAtMs + CLOCK_CLOSES_HOURS * 3_600_000;
+/** Clock in opens 30 minutes before the start (the company's Settings, Rota time, 0509) and stays
+ *  open until 3 hours after the end. */
+export function clockOpen(nowMs: number, startsAtMs: number, endsAtMs: number, opensMin: number = CLOCK_OPENS_MINUTES): boolean {
+  return nowMs >= startsAtMs - opensMin * 60_000 && nowMs <= endsAtMs + CLOCK_CLOSES_HOURS * 3_600_000;
 }
 
 /** Minutes until clock in opens (0 when it is open or has closed). */
-export function minutesUntilOpen(nowMs: number, startsAtMs: number): number {
-  const ms = startsAtMs - CLOCK_OPENS_MINUTES * 60_000 - nowMs;
+export function minutesUntilOpen(nowMs: number, startsAtMs: number, opensMin: number = CLOCK_OPENS_MINUTES): number {
+  const ms = startsAtMs - opensMin * 60_000 - nowMs;
   return ms > 0 ? Math.ceil(ms / 60_000) : 0;
 }
 

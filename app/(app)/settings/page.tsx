@@ -10,6 +10,8 @@ import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { TIER_LABELS, type Tier } from "@/lib/stripe/config";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { isDemoCompany } from "@/lib/demo/data";
+import { getCompanyRow } from "@/lib/companies/row";
+import { moduleOnInRow } from "@/lib/modules/switch";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -21,7 +23,7 @@ export default async function SettingsPage() {
   const demo = profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id));
 
   const supabase = await createClient();
-  const [{ data: company }, seats, invoicingEnabled] = await Promise.all([
+  const [{ data: company }, seats, invoicingEnabled, companyRow] = await Promise.all([
     supabase
       .from("companies")
       .select("name, tier, status")
@@ -29,7 +31,9 @@ export default async function SettingsPage() {
       .maybeSingle(),
     getSeatUsage(profile.company_id),
     featureEnabled(profile.company_id, "invoicing"),
+    getCompanyRow(profile.company_id),
   ]);
+  const rotaOn = moduleOnInRow(companyRow, "rota_visits");
 
   return (
     <div className="page-shell space-y-8">
@@ -187,6 +191,15 @@ export default async function SettingsPage() {
             <p className="text-sm text-white/60">
               Create a short link your team can use to send a form with no account, such as
               a holiday request, and publish it wherever they will see it.
+            </p>
+          </Link>
+        )}
+        {rotaOn && (
+          <Link href="/settings/rota" className="app-tile">
+            <h2 className="text-base font-semibold text-white">Rota</h2>
+            <p className="text-sm text-white/60">
+              Late and missed visit timings, when Clock in opens, the home radius, how long notes
+              show and the low stock warning.
             </p>
           </Link>
         )}

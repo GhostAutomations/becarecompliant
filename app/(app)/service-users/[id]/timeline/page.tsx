@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRotaOffice } from "@/lib/rota/access";
+import { getRotaSettings } from "@/lib/rota/settings";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
@@ -89,6 +90,7 @@ export default async function SuTimelinePage({ params, searchParams }: { params:
 
   // This week's rota: one row per date, each visit a block with its carers.
   const nowMs = Date.now();
+  const { lateAfterMin } = await getRotaSettings(companyId);
   const londonNow = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   const rotaRows: TimelineRow[] = week.map((d) => ({
     key: d,
@@ -102,7 +104,7 @@ export default async function SuTimelinePage({ params, searchParams }: { params:
         const firstIn = v.clocks.find((c) => c.kind === "in") ?? null;
         const lastOut = [...v.clocks].reverse().find((c) => c.kind === "out") ?? null;
         const allOut = v.carers.length > 0 && v.carers.every((c) => v.clocks.some((k) => k.personId === c.personId && k.kind === "out"));
-        const tone = visitTone({ status: v.status, paused: false, startsAtMs: Date.parse(v.startsAt), nowMs, clockedIn: Boolean(firstIn), clockedOut: allOut });
+        const tone = visitTone({ status: v.status, paused: false, startsAtMs: Date.parse(v.startsAt), nowMs, clockedIn: Boolean(firstIn), clockedOut: allOut, lateAfterMin });
         const names = v.carers.map((c) => c.name);
         return {
           id: v.id,

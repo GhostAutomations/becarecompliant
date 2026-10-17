@@ -255,15 +255,15 @@ export function MedicineForm({
   );
 }
 
-function LiveMed({ m, balance, serviceUserId, dmdReady }: { m: MarMed; balance: number | null; serviceUserId: string; dmdReady: boolean }) {
+function LiveMed({ m, balance, serviceUserId, dmdReady, lowStockDays }: { m: MarMed; balance: number | null; serviceUserId: string; dmdReady: boolean; lowStockDays: number }) {
   const [mode, setMode] = useState<null | "change" | "stop" | "stock">(null);
   const days = daysOfStock({ prn: m.prn, slots: m.slots, days: m.days, start_date: m.startDate, stop_date: m.stopDate, dose_quantity: m.doseQuantity }, balance);
   return (
     <li className={`flex h-full flex-col gap-2 rounded-xl border p-3 ${m.timeSensitive ? "border-red-500/40 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
       <MedSummary m={m} />
-      <p className={`text-xs ${days != null && days < LOW_STOCK_DAYS ? "text-amber-300" : "text-white/55"}`}>
+      <p className={`text-xs ${days != null && days < lowStockDays ? "text-amber-300" : "text-white/55"}`}>
         Stock: {balance == null ? "not recorded" : `${balance} ${m.doseUnit ?? ""}`.trim()}
-        {days != null ? ` · about ${days} day${days === 1 ? "" : "s"} left${days < LOW_STOCK_DAYS ? ", order more" : ""}` : ""}
+        {days != null ? ` · about ${days} day${days === 1 ? "" : "s"} left${days < lowStockDays ? ", order more" : ""}` : ""}
         {m.checkedByName ? ` · checked by ${m.checkedByName}` : ""}
       </p>
       <div className="mt-auto flex flex-wrap gap-2">
@@ -485,12 +485,15 @@ export default function MarEditor({
   balances,
   myProfileId,
   dmdReady,
+  lowStockDays = LOW_STOCK_DAYS,
 }: {
   serviceUserId: string;
   meds: MarMed[];
   balances: Record<string, number | null>;
   myProfileId: string;
   dmdReady: boolean;
+  /** The company's low stock warning (Settings, Rota, 0509; 7 days by default). */
+  lowStockDays?: number;
 }) {
   const [adding, setAdding] = useState(false);
   const waiting = useMemo(() => meds.filter((m) => m.status === "awaiting_check"), [meds]);
@@ -537,7 +540,7 @@ export default function MarEditor({
             four on a wide screen; a medicine being changed opens across the whole row. */}
         <ul className="grid auto-rows-fr grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {live.map((m) => (
-            <LiveMed key={m.id} m={m} balance={balances[m.medUid] ?? null} serviceUserId={serviceUserId} dmdReady={dmdReady} />
+            <LiveMed key={m.id} m={m} balance={balances[m.medUid] ?? null} serviceUserId={serviceUserId} dmdReady={dmdReady} lowStockDays={lowStockDays} />
           ))}
         </ul>
       </section>

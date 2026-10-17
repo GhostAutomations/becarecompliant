@@ -34,11 +34,13 @@ export default function RotaWeek({
   days,
   shifts,
   templates,
+  opensMin,
 }: {
   branchId: string;
   days: string[];
   shifts: RotaShift[];
   templates: RotaTemplate[];
+  opensMin?: number;
 }) {
   const [picker, setPicker] = useState<Picker | null>(null);
   const [editing, setEditing] = useState<RotaShift | null>(null);
@@ -71,6 +73,7 @@ export default function RotaWeek({
                     onEdit={() => setEditing(s)}
                     onHandover={(a) => setPicker({ mode: "handover", shift: s, assignment: a })}
                     onSwap={(a) => setSwapping({ shift: s, assignment: a })}
+                    opensMin={opensMin}
                   />
                 ))
               )}
@@ -127,6 +130,7 @@ function ShiftCard({
   onEdit,
   onHandover,
   onSwap,
+  opensMin,
 }: {
   shift: RotaShift;
   onAdd: () => void;
@@ -134,6 +138,7 @@ function ShiftCard({
   onEdit: () => void;
   onHandover: (a: RotaAssignment) => void;
   onSwap: (a: RotaAssignment) => void;
+  opensMin?: number;
 }) {
   const open = shift.headcount - shift.assignments.length;
   return (
@@ -198,6 +203,7 @@ function ShiftCard({
               published={shift.status === "published"}
               startsAt={shift.startsAt}
               endsAt={shift.endsAt}
+              opensMin={opensMin}
             />
           </li>
         ))}

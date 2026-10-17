@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DOSE_CLEAR_REASONS, VISIT_CLEAR_REASONS, arrivalWords, clearReasonLabel, todayStatus } from "./alerts.ts";
+import { DOSE_CLEAR_REASONS, VISIT_CLEAR_REASONS, alertGridName, arrivalWords, clearReasonLabel, todayStatus } from "./alerts.ts";
+import { clockOpen, minutesUntilOpen } from "./clock.ts";
+import { visitTone } from "./timeline.ts";
 
 const min = 60_000;
 const start = Date.parse("2026-10-18T11:30:00Z");
@@ -43,4 +45,27 @@ test("arrival in words", () => {
   assert.equal(arrivalWords(start, start + 22 * min), "22 min late");
   assert.equal(arrivalWords(start, start - 20 * min), "20 min early");
   assert.equal(arrivalWords(start, null), null);
+});
+
+test("a company's own timings (Settings, Rota): late, missed, overrunning, arrival, row names", () => {
+  const t = { lateAfterMin: 5, missedAfterEndMin: 60, overrunAfterEndMin: 30 };
+  assert.equal(todayStatus({ ...base, nowMs: start + 5 * min }, t), "late");
+  assert.equal(todayStatus({ ...base, nowMs: end + 30 * min }, t), "late");
+  assert.equal(todayStatus({ ...base, nowMs: end + 60 * min }, t), "missed");
+  const inOnly = [{ personId: "a", kind: "in" as const }];
+  assert.equal(todayStatus({ ...base, clocks: inOnly, nowMs: end + 15 * min }, t), "in_progress");
+  assert.equal(todayStatus({ ...base, clocks: inOnly, nowMs: end + 30 * min }, t), "overrunning");
+  assert.equal(arrivalWords(start, start + 10 * min, 5), "10 min late");
+  assert.equal(alertGridName("rota_visit_late", t), "Visit late (no clock in 5 minutes after the start)");
+  assert.equal(alertGridName("rota_visit_missed", t), "Visit missed (no clock in 60 minutes after the end)");
+  assert.equal(visitTone({ status: "published", paused: false, startsAtMs: start, nowMs: start + 6 * min, clockedIn: false, clockedOut: false, lateAfterMin: 5 }), "late");
+  assert.equal(visitTone({ status: "published", paused: false, startsAtMs: start, nowMs: start + 6 * min, clockedIn: false, clockedOut: false }), "due");
+});
+
+test("Clock in opens by the company's time", () => {
+  assert.equal(clockOpen(start - 31 * min, start, end), false);
+  assert.equal(clockOpen(start - 30 * min, start, end), true);
+  assert.equal(clockOpen(start - 50 * min, start, end, 60), true);
+  assert.equal(minutesUntilOpen(start - 70 * min, start, 60), 10);
+  assert.equal(minutesUntilOpen(start - 70 * min, start), 40);
 });

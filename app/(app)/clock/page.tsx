@@ -6,6 +6,7 @@ import { getCompanyRow } from "@/lib/companies/row";
 import { moduleOnInRow } from "@/lib/modules/switch";
 import { getMyRecord } from "@/lib/staff/data";
 import ClockApp from "@/components/rota/clock-app";
+import { getRotaSettings } from "@/lib/rota/settings";
 import MyRota from "@/components/rota/my-rota";
 
 export const metadata: Metadata = { title: "Care" };
@@ -22,7 +23,7 @@ export const metadata: Metadata = { title: "Care" };
 export default async function ClockPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id || !moduleOnInRow(await getCompanyRow(profile.company_id), "rota_visits")) notFound();
-  const record = await getMyRecord();
+  const [record, timings] = await Promise.all([getMyRecord(), getRotaSettings(profile.company_id)]);
 
   return (
     <div className="page-shell mx-auto max-w-xl space-y-5" id="care-top">
@@ -34,7 +35,12 @@ export default async function ClockPage() {
       </div>
       {record ? (
         <>
-          <ClockApp ownerId={profile.id} />
+          <ClockApp
+            ownerId={profile.id}
+            opensMin={timings.clockOpensMin}
+            notesEarlierHours={timings.notesEarlierHours}
+            notesPinnedHours={timings.notesPinnedHours}
+          />
           <MyRota personId={record.id} onCare />
         </>
       ) : (
