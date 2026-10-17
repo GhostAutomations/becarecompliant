@@ -25,6 +25,7 @@ import { CentreDialog } from "@/components/panel-dialog";
 import {
   OUTSIDE_REASONS,
   applyResults,
+  clockCardOrder,
   clockOpen,
   clockOutcome,
   clockState,
@@ -464,6 +465,7 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
   const refusedDoses = doseQueue.filter((e) => e.owner === ownerId && e.refused);
   const others = [...queue, ...taskQueue, ...noteQueue, ...doseQueue].filter((e) => e.owner !== ownerId).length;
   const list = rows ?? [];
+  const [unfolded, setUnfolded] = useState<Set<string>>(() => new Set());
   const open = list.filter((r) => !r.paused && clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at)));
   // With a scanned code: the visit or shift it is for is the open one still running, else the nearest.
   const codeTarget = code
@@ -595,13 +597,48 @@ export default function ClockApp({ ownerId }: { ownerId: string }) {
         <div className="glass-card p-4 text-sm text-white/60">No published visits or shifts for you today or tomorrow.</div>
       ) : (
         <div className="space-y-3">
-          {list.map((r) => {
+          {clockCardOrder(list, (x) => clockState(x, queue, ownerId), now).map(({ row: r, focus }) => {
             const st = clockState(r, queue, ownerId);
             const isOpen = clockOpen(now, Date.parse(r.starts_at), Date.parse(r.ends_at));
+            const cardKey = `${r.target_kind}-${r.target_id}`;
+            // Only the current or next visit is open; the rest fold to one line (Phil, 2026-10-17).
+            if (!focus && !unfolded.has(cardKey)) {
+              return (
+                <button
+                  key={cardKey}
+                  type="button"
+                  className="glass-card flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left"
+                  onClick={() => setUnfolded((u) => new Set(u).add(cardKey))}
+                  aria-label={`Open ${r.title}, ${dayWord(r.starts_at)} ${hhmm(r.starts_at)}`}
+                >
+                  <span className="text-sm text-white/85">
+                    {dayWord(r.starts_at)}, {hhmm(r.starts_at)} to {hhmm(r.ends_at)} · {r.title}
+                  </span>
+                  <span className="text-xs text-white/55">
+                    {st.outAt ? `Clocked out ${hhmm(st.outAt)}` : st.inAt ? `Clocked in ${hhmm(st.inAt)}` : "Not clocked in"} ▾
+                  </span>
+                </button>
+              );
+            }
             const wait = minutesUntilOpen(now, Date.parse(r.starts_at));
             const kind: "in" | "out" | null = !st.inAt ? "in" : !st.outAt ? "out" : null;
             return (
-              <section key={`${r.target_kind}-${r.target_id}`} className={`glass-card space-y-2 p-4 ${r.paused ? "opacity-70" : ""}`} aria-label={r.title}>
+              <section key={cardKey} className={`glass-card space-y-2 p-4 ${r.paused ? "opacity-70" : ""}`} aria-label={r.title}>
+                {!focus ? (
+                  <button
+                    type="button"
+                    className="btn-ghost px-2 py-0.5 text-xs"
+                    onClick={() =>
+                      setUnfolded((u) => {
+                        const n = new Set(u);
+                        n.delete(cardKey);
+                        return n;
+                      })
+                    }
+                  >
+                    Fold ▴
+                  </button>
+                ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-white">

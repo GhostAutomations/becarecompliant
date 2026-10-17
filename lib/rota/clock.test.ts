@@ -133,3 +133,28 @@ test("a clock in text is IN or OUT and a five character code, nothing else", () 
   assert.equal(parseClockText("in AB3C"), null);
 });
 
+
+test("Clock in page order: clocked in first, then the rest to do, then done newest first; only the first open", async () => {
+  const { clockCardOrder } = await import("./clock.ts");
+  const at = (h: number) => `2026-10-18T${String(h).padStart(2, "0")}:00:00.000Z`;
+  const rows = [
+    { id: "fri", starts_at: "2026-10-16T12:00:00.000Z", ends_at: "2026-10-16T12:30:00.000Z" },
+    { id: "a", starts_at: at(11), ends_at: at(12) },
+    { id: "b", starts_at: at(13), ends_at: at(14) },
+    { id: "c", starts_at: at(9), ends_at: at(10) },
+  ];
+  const state: Record<string, { inAt: string | null; outAt: string | null }> = {
+    fri: { inAt: "x", outAt: "y" }, a: { inAt: null, outAt: null }, b: { inAt: null, outAt: null }, c: { inAt: "x", outAt: "y" },
+  };
+  const now = Date.parse("2026-10-18T10:45:00.000Z");
+  const order = clockCardOrder(rows, (r) => state[r.id], now);
+  assert.deepEqual(order.map((o) => o.row.id), ["a", "b", "c", "fri"]);
+  assert.deepEqual(order.map((o) => o.focus), [true, false, false, false]);
+  // clocked in to b: b comes first
+  state.b = { inAt: "x", outAt: null };
+  assert.equal(clockCardOrder(rows, (r) => state[r.id], now)[0].row.id, "b");
+  // everything done: nothing is open, newest first
+  const all = clockCardOrder(rows, () => ({ inAt: "x", outAt: "y" }), now);
+  assert.deepEqual(all.map((o) => o.row.id), ["b", "a", "c", "fri"]);
+  assert.ok(all.every((o) => !o.focus));
+});

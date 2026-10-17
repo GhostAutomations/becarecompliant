@@ -434,3 +434,7 @@ Phil, 2026-10-17, for the next push:
   pill and the earlier reason. Every waiting card and every medicine tile is the same height; so
   Change, Stock and Stop open in popups (replacing "a medicine being changed opens across the row").
   The button that takes a medicine off the MAR stays "Stop", now a pill like Change and Stock.
+- **Clock in page order** (Phil's popup, 2026-10-17): the visit the carer is clocked in to, else the
+  next one not yet done, is first and open; then the other visits still to do, earliest first; then
+  those done, newest first. All but the first fold to one line (time, name, clock state) that opens
+  when tapped. This page only; timelines elsewhere keep oldest first.

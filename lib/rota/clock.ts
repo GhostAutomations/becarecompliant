@@ -190,3 +190,26 @@ export function parseClockText(body: string): { kind: "in" | "out"; code: string
   return m ? { kind: m[1].toLowerCase() as "in" | "out", code: m[2].toUpperCase() } : null;
 }
 
+
+/**
+ * The order of the Clock in page (Phil, 2026-10-17: "the current one at the top, the others
+ * collapsed"): the visit you are clocked in to, else the next one not yet done, first and open;
+ * then the other visits still to do, earliest first; then those done (clocked out, or closed),
+ * newest first. Only the first is open; the rest fold to one line.
+ */
+export function clockCardOrder<T extends { starts_at: string; ends_at: string }>(
+  rows: T[],
+  stateOf: (r: T) => { inAt: string | null; outAt: string | null },
+  nowMs: number,
+): { row: T; focus: boolean }[] {
+  const done = (r: T) => {
+    const s = stateOf(r);
+    return Boolean(s.outAt) || nowMs > Date.parse(r.ends_at) + CLOCK_CLOSES_HOURS * 3_600_000;
+  };
+  const byStart = (a: T, b: T) => Date.parse(a.starts_at) - Date.parse(b.starts_at);
+  const current = rows.filter((r) => stateOf(r).inAt && !stateOf(r).outAt).sort(byStart);
+  const todo = rows.filter((r) => !done(r) && !current.includes(r)).sort(byStart);
+  const past = rows.filter((r) => done(r) && !current.includes(r)).sort((a, b) => byStart(b, a));
+  const ordered = [...current, ...todo, ...past];
+  return ordered.map((row, i) => ({ row, focus: i === 0 && !done(row) }));
+}
