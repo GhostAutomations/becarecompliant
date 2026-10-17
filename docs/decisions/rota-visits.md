@@ -511,5 +511,26 @@ Phil, 2026-10-17, for the next push:
 4. The carer is told by **text and on the Care tab** (a text for a published visit, the Founder's
    mobile only for test companies; the visit shows Cancelled on their Care tab for the rest of the
    day).
-Still to decide: how much a short notice cancellation is charged, carer pay for one, what happens
-with the hospital and respite reasons, and whether a cancellation can be undone.
+
+## Stage 7b decisions: Rota settings and cancellations (Phil, 2026-10-17)
+
+5. **Settings gets a Rota section** holding every rota option agreed so far (clock in window,
+   late and missed timings, radius default, and so on) and a **Cancellations** part.
+6. **Cancellation rules belong to the funder (council or health board), with a branch default** for
+   anyone whose funder has no rule (e.g. private clients). A rule has: the notice period (e.g. 48
+   hours), how long a short notice cancellation is still charged (e.g. Newport 48 hours, Cardiff
+   two weeks to hold the bed), and how long the carer is still paid.
+7. **Funders:** each company keeps a list of funders, and **every company's** service user Manage
+   record gets a Funder field from that list (Phil's choice over module only).
+8. **Short or sufficient notice is worked out**: the office enters when they were told; less than
+   the rule's notice period before the first cancelled call is short notice. Shown before saving.
+9. **Reasons can be charged or paid** only where set: by default Service user in hospital, Service
+   user in respite, Service user cancelled and Family cancelled; never Carer unavailable, Office
+   error, Visit moved or Deceased unless a company changes it. Reasons differ by company, so the list
+   is kept in Settings, Rota with those settings per reason.
+10. **Cancelling** picks the reason, a start date and an end date or open ended. The system cancels
+   the calls in that time, charges for the rule's period if short notice and the reason allows it,
+   pays the carer for the rule's period, and restarts the calls: after the end date, or, open ended
+   for hospital or respite, when the office records the person is home (using the existing hospital
+   and respite record, which also pauses checks), with the same carers if they are free.
+11. Built now as **Stage 7b**, before Stage 8.
