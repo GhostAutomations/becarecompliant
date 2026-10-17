@@ -5,6 +5,7 @@ import { requireRotaOffice } from "@/lib/rota/access";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import RealtimeRefresh from "@/components/realtime-refresh";
 import MarEditor from "@/components/rota/mar-editor";
 import { dueGrid, getMar } from "@/lib/rota/mar-data";
 import { OUTCOME_CODES, OUTCOME_LABELS, doseReasonLabel, nhsNumberShown, slotWords } from "@/lib/rota/mar";
@@ -66,6 +67,9 @@ export default async function MarPage({ params }: { params: Promise<{ id: string
   return (
     <div className="page-shell space-y-5">
       <BackLink href={`/service-users/${id}`} label="Back to record" />
+      {/* Live (Phil, 2026-10-17: a checker waiting with the page open sees each medicine arrive):
+          the MAR tables broadcast a change (0501), and the page pushes it in without a reload. */}
+      <RealtimeRefresh tables={["rota_mar_medicines", "rota_mar_stock", "rota_mar_doses"]} channel="mar-live" />
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="page-title">MAR</h1>

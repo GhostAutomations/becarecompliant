@@ -409,3 +409,10 @@ Phil, 2026-10-17, for the next push:
   compares the entry against it. Required, unless the person adding it gives a reason (for example
   the label is unreadable), which the checker and the MAR show. The photo is health data: private
   storage under the company, short lived signed links, every view audit logged.
+- **The MAR page is live** (Phil, 2026-10-17: a manager waiting with the page open should see each
+  medicine arrive): it pushes in medicine, stock and dose changes without a reload, through the
+  shared live refresh and the broadcast the MAR tables already send.
+- **MAR layout** (Phil's popups, 2026-10-17): a medicine waiting for its check shows the label
+  photo inside its card, beside the details and the Check button (above them on a phone; click to
+  open full size). Live medicines are compact tiles: one to a row on a phone, two on a tablet,
+  three on a laptop, four on a wide screen; a medicine being changed opens across the row.

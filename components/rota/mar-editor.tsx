@@ -21,7 +21,7 @@ function ukDate(iso: string | null): string {
   return `${d}/${m}/${y}`;
 }
 
-function MedSummary({ m }: { m: MarMed }) {
+function MedSummary({ m, labelLink = true }: { m: MarMed; labelLink?: boolean }) {
   return (
     <div className="space-y-0.5">
       <p className="text-sm font-semibold text-white">
@@ -42,7 +42,7 @@ function MedSummary({ m }: { m: MarMed }) {
         {m.reviewDate ? ` · review ${ukDate(m.reviewDate)}` : ""}
       </p>
       {m.instructions ? <p className="text-xs text-white/60">{m.instructions}</p> : null}
-      {m.hasLabel ? (
+      {!labelLink ? null : m.hasLabel ? (
         <a href={`/api/rota/mar-label/${m.id}`} target="_blank" rel="noreferrer" className="inline-block text-xs text-amber-300 underline">
           View the label photo
         </a>
@@ -245,7 +245,7 @@ function LiveMed({ m, balance, serviceUserId, dmdReady }: { m: MarMed; balance: 
   const [mode, setMode] = useState<null | "change" | "stop" | "stock">(null);
   const days = daysOfStock({ prn: m.prn, slots: m.slots, days: m.days, start_date: m.startDate, stop_date: m.stopDate, dose_quantity: m.doseQuantity }, balance);
   return (
-    <li className={`space-y-2 rounded-xl border p-3 ${m.timeSensitive ? "border-red-500/40 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
+    <li className={`space-y-2 rounded-xl border p-3 ${mode === "change" ? "col-span-full" : ""} ${m.timeSensitive ? "border-red-500/40 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
       <MedSummary m={m} />
       <p className={`text-xs ${days != null && days < LOW_STOCK_DAYS ? "text-amber-300" : "text-white/55"}`}>
         Stock: {balance == null ? "not recorded" : `${balance} ${m.doseUnit ?? ""}`.trim()}
@@ -294,14 +294,14 @@ function LiveMed({ m, balance, serviceUserId, dmdReady }: { m: MarMed; balance: 
           savingLabel="Saving…"
           savedLabel="Saved"
           buttonClassName="btn-outline px-3 py-1 text-xs"
-          className="grid gap-2 sm:grid-cols-4"
+          className="grid gap-2"
         >
           <select name="kind" defaultValue="received" aria-label="Received or correction">
             <option value="received">Received</option>
             <option value="corrected">Correct the count</option>
           </select>
           <input name="quantity" type="number" step="0.25" required placeholder="Quantity (a correction can be minus)" aria-label="Quantity" />
-          <input name="reason" maxLength={500} placeholder="Reason (needed for a correction)" aria-label="Reason" className="sm:col-span-2" />
+          <input name="reason" maxLength={500} placeholder="Reason (needed for a correction)" aria-label="Reason" />
         </ActionForm>
       ) : null}
     </li>
@@ -332,10 +332,23 @@ export default function MarEditor({
         <section className="glass-card space-y-3 border-amber-500/40 p-4" aria-label="Waiting for a second check">
           <h2 className="text-base font-semibold text-white">Waiting for a second check ({waiting.length})</h2>
           <p className="text-xs text-white/60">A different Supervisor or above checks each one against the label photo, or the prescription or label itself. Until then carers are told to call the office.</p>
-          <ul className="space-y-2">
+          {/* The label photo inside the card, beside the details and the check (Phil, 2026-10-17); above
+              them on a phone. The image loads through the logged, signed photo route. */}
+          <ul className="grid grid-cols-1 items-start gap-2 lg:grid-cols-2">
             {waiting.map((m) => (
-              <li key={m.id} className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                <MedSummary m={m} />
+              <li key={m.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:flex-row">
+                {m.hasLabel ? (
+                  <a href={`/api/rota/mar-label/${m.id}`} target="_blank" rel="noreferrer" className="shrink-0 sm:w-60" title="Open the label photo full size">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/rota/mar-label/${m.id}`} alt={`Label photo for ${m.name}`} className="max-h-72 w-full rounded-lg border border-white/10 bg-white object-contain" />
+                  </a>
+                ) : (
+                  <div className="flex shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-3 text-center text-xs text-amber-200 sm:w-60">
+                    No label photo{m.labelSkipReason ? `: ${m.labelSkipReason}` : ""}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 space-y-2">
+                <MedSummary m={m} labelLink={false} />
                 <p className="text-xs text-white/55">
                   Set by {m.setByName ?? "someone"} on {ukDate(m.setAt)}
                   {live.some((l) => l.medUid === m.medUid) ? " · a change to a live medicine" : " · new"}
@@ -366,6 +379,7 @@ export default function MarEditor({
                     confirm="Withdraw this? Any live version stays as it is."
                   />
                 </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -385,7 +399,9 @@ export default function MarEditor({
           </div>
         ) : null}
         {live.length === 0 ? <p className="text-sm text-white/55">No live medicines. Add them from the prescription or the pharmacy label; each needs a second check.</p> : null}
-        <ul className="space-y-2">
+        {/* Compact tiles (Phil, 2026-10-17): one to a row on a phone, two on a tablet, three on a laptop,
+            four on a wide screen; a medicine being changed opens across the whole row. */}
+        <ul className="grid grid-cols-1 items-start gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {live.map((m) => (
             <LiveMed key={m.id} m={m} balance={balances[m.medUid] ?? null} serviceUserId={serviceUserId} dmdReady={dmdReady} />
           ))}

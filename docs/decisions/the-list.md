@@ -321,6 +321,10 @@ The next five were found by the step 7 check of the October audit fixes and park
     due in 2025, nothing done. The record page's supervision and appraisal history reads come back
     empty in support mode, so the cycle is worked out from nothing. To do: find which read the
     Founder's session cannot see, and make support mode show the same history the Admin sees.
+61. **A warning before "Manage as company" runs out** (Phil, popup 2026-10-17, PARKED). Manage ends
+    after 30 minutes (lib/founder/manage-as.ts) and the next page Phil opens says Page not found,
+    with no warning. Wanted: a popup a couple of minutes before the end saying the time is nearly
+    up, with More time (another 30 minutes, an audit line) or Stop managing.
 
 ## Re-checked against code and data 2026-09-29 (Phil: "are you sure 11 is outstanding")
 - Item 11 DONE: commit 0ffeb74f (2026-08-15) scopes Supervisors by branch (lib/notifications/scope.ts); notification_log shows 54 supervisor daily digests sent, last 2026-09-29; Registered roles receive both reports daily.
