@@ -380,9 +380,12 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
           ) : (
             <>
               <CheckButton m={m} />
-              <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode(mode === "send_back" ? null : "send_back")}>
-                Send back
-              </button>
+              {/* One Send back (Phil, 2026-10-17): this opens the reason box, which has its own button. */}
+              {mode === "send_back" ? null : (
+                <button type="button" className="btn-outline px-3 py-1 text-xs" onClick={() => setMode("send_back")}>
+                  Send back
+                </button>
+              )}
             </>
           )}
           {mine ? (
@@ -411,6 +414,11 @@ function WaitingCard({ m, mine, change, serviceUserId, dmdReady }: { m: MarMed; 
           >
             <input name="reason" required maxLength={500} placeholder="What needs correcting, e.g. the label says TWO tablets" aria-label="What needs correcting" />
           </ActionForm>
+        ) : null}
+        {mode === "send_back" && !sentBack && !mine ? (
+          <button type="button" className="btn-ghost self-start px-3 py-1 text-xs" onClick={() => setMode(null)}>
+            Cancel
+          </button>
         ) : null}
         {mode === "correct" && sentBack && mine ? (
           <div className="rounded-lg border border-white/10 p-3">
