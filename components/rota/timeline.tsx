@@ -113,7 +113,8 @@ export default function Timeline({
         if (block.href) router.push(block.href);
         return;
       }
-      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-row-key]") as HTMLElement | null;
+      // The row under the pointer, looking past the dragged block itself.
+      const el = (document.elementsFromPoint(e.clientX, e.clientY).find((n) => !n.closest("[data-block-id]") && n.closest("[data-row-key]"))?.closest("[data-row-key]") ?? null) as HTMLElement | null;
       const toRow = el?.dataset.rowKey ?? row;
       const droppable = el?.dataset.droppable === "true";
       if (toRow !== row) {
@@ -194,6 +195,9 @@ export default function Timeline({
                       top: 5 + (lane.get(b.id) ?? 0) * LANE_H,
                       height: LANE_H - 4,
                       transform: dragging ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
+                      // While it follows the pointer it must not be what the pointer is over, or the
+                      // drop would land on the block itself instead of the row beneath it.
+                      pointerEvents: dragging ? ("none" as const) : undefined,
                     };
                     const cls = `absolute z-[5] overflow-hidden rounded-md border px-1.5 text-left leading-tight ${TONE_CLASS[b.tone]} ${
                       dragging ? "z-40 opacity-90 shadow-lg ring-2 ring-amber-300" : ""
@@ -210,6 +214,7 @@ export default function Timeline({
                         type="button"
                         title={b.title}
                         aria-label={b.title}
+                        data-block-id={dragging ? b.id : undefined}
                         className={cls}
                         style={style}
                         onPointerDown={(e) => {
