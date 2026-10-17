@@ -87,9 +87,14 @@ export async function loadDmd(opts: { force?: boolean; by?: string | null } = {}
     return { ok: true, release, products: products.length };
   } catch (e) {
     const message = (e as Error).message || "The NHS medicines list could not be loaded.";
-    if (release) {
-      await db.from("dmd_releases").upsert({ release, status: "failed", products: null, error: message.slice(0, 500), loaded_at: new Date().toISOString(), loaded_by: opts.by ?? null }, { onConflict: "release" });
-    }
+    // Kept apart from the release's own row, so a failed retry never hides the last good load,
+    // and logged even when TRUD could not be reached at all, so the Founder page shows it.
+    await db
+      .from("dmd_releases")
+      .upsert(
+        { release: `failed: ${release ?? "TRUD not reached"}`, status: "failed", products: null, error: message.slice(0, 500), loaded_at: new Date().toISOString(), loaded_by: opts.by ?? null },
+        { onConflict: "release" },
+      );
     return { ok: false, error: message };
   }
 }

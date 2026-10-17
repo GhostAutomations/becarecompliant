@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
+import DmdLoadButton from "@/components/rota/dmd-load-button";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/founder/stat-card";
 import { Suspense } from "react";
@@ -51,6 +52,7 @@ export default async function FounderPage() {
     { count: newTrialRequests },
     { data: oldestTrialRequest },
     { count: unreadEmails },
+    { data: dmdRows },
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -88,6 +90,8 @@ export default async function FounderPage() {
       .eq("direction", "in")
       .eq("is_read", false)
       .eq("is_spam", false),
+    // The NHS medicines list (Rota and Visits Stage 6): the last two loads, so a failed Monday shows.
+    supabase.from("dmd_releases").select("release, status, products, error, loaded_at").order("loaded_at", { ascending: false }).limit(2),
   ]);
   const tickets = await ticketsPromise;
 
@@ -372,6 +376,10 @@ export default async function FounderPage() {
         />
         <FounderTile href="/founder/usage" icon="reports" title="Usage" text="Metered SMS and AI per company." />
       </section>
+
+      {/* The NHS medicines list (dm+d), one central copy for every company's MAR, refreshed by the
+          Monday cron (Phil, 2026-10-17: a Founder thing, not on the MAR page). */}
+      <NhsListCard rows={(dmdRows as DmdRow[] | null) ?? []} />
     </div>
   );
 }
@@ -429,5 +437,28 @@ function FounderTile({
         </div>
       ) : null}
     </Link>
+  );
+}
+
+type DmdRow = { release: string; status: string; products: number | null; error: string | null; loaded_at: string };
+
+function NhsListCard({ rows }: { rows: DmdRow[] }) {
+  const loaded = rows.find((r) => r.status === "loaded") ?? null;
+  const failed = rows[0] && rows[0].status !== "loaded" ? rows[0] : null;
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  return (
+    <section aria-label="NHS medicines list" className="glass-card flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="space-y-0.5">
+        <h2 className="text-base font-semibold text-white">NHS medicines list (dm+d)</h2>
+        <p className="text-xs text-white/60">
+          {loaded
+            ? `Release ${loaded.release}, ${(loaded.products ?? 0).toLocaleString("en-GB")} medicines, loaded ${when(loaded.loaded_at)}. Every company's MAR uses this one copy; it reloads itself every Monday.`
+            : "Not loaded yet. Every company's MAR uses this one copy; it reloads itself every Monday once the TRUD key is in Vercel."}
+        </p>
+        {failed ? <p className="text-xs text-red-300">The last load failed {when(failed.loaded_at)}: {failed.error ?? "no reason recorded"}</p> : null}
+      </div>
+      <DmdLoadButton />
+    </section>
   );
 }

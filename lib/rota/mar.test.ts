@@ -97,3 +97,20 @@ test("the phone shows a newer dose waiting to send, never another sign in's or a
   // a refused dose waiting does not move "last given"
   assert.equal(mergeDoses(server, [ev({ outcome: "refused", reason_code: "declined" })], "vis", "me")[0].last_given?.at, "2026-10-16T08:00:00+00:00");
 });
+
+test("NHS list search: the exact name first, then names starting with it, combinations last", async () => {
+  const { rankDmdHits } = await import("./mar.ts");
+  const hits = [
+    "Paracetamol 500mg / Caffeine 65mg tablets",
+    "Paracetamol 500mg soluble tablets",
+    "Paracetamol 500mg tablets",
+    "Paracetamol 500mg / Domperidone 10mg tablets",
+  ].map((name) => ({ name }));
+  assert.deepEqual(rankDmdHits(hits, "paracetamol 500mg tablets").map((h) => h.name), [
+    "Paracetamol 500mg tablets",
+    "Paracetamol 500mg soluble tablets",
+    "Paracetamol 500mg / Caffeine 65mg tablets",
+    "Paracetamol 500mg / Domperidone 10mg tablets",
+  ]);
+  assert.equal(rankDmdHits(hits, "paracetamol")[0].name, "Paracetamol 500mg tablets");
+});

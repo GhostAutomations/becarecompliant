@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
+import LabelPhotoInput from "@/components/rota/label-photo-input";
 import { checkMedicineAction, saveMedicineAction, searchDmdAction, stockMedicineAction, stopMedicineAction, withdrawMedicineAction, type DmdHit } from "@/lib/rota/mar-actions";
 import { DAY_SHORT, LOW_STOCK_DAYS, MAR_SLOTS, SUPPORT_SHORT, SUPPORT_WORDS, dayWords, daysOfStock, slotWords, type Support } from "@/lib/rota/mar";
 import type { MarMed } from "@/lib/rota/mar-data";
@@ -41,6 +42,13 @@ function MedSummary({ m }: { m: MarMed }) {
         {m.reviewDate ? ` · review ${ukDate(m.reviewDate)}` : ""}
       </p>
       {m.instructions ? <p className="text-xs text-white/60">{m.instructions}</p> : null}
+      {m.hasLabel ? (
+        <a href={`/api/rota/mar-label/${m.id}`} target="_blank" rel="noreferrer" className="inline-block text-xs text-amber-300 underline">
+          View the label photo
+        </a>
+      ) : m.labelSkipReason ? (
+        <p className="text-xs text-amber-300">No label photo: {m.labelSkipReason}</p>
+      ) : null}
     </div>
   );
 }
@@ -214,6 +222,7 @@ export function MedicineForm({ serviceUserId, med, dmdReady, onDone }: { service
         <span className="text-xs text-white/70">Other instructions on the label</span>
         <textarea name="instructions" rows={2} maxLength={1000} defaultValue={med?.instructions ?? ""} placeholder="e.g. Take with food. Do not crush." />
       </label>
+      <LabelPhotoInput />
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block space-y-1">
           <span className="text-xs text-white/70">Start date</span>
@@ -322,7 +331,7 @@ export default function MarEditor({
       {waiting.length ? (
         <section className="glass-card space-y-3 border-amber-500/40 p-4" aria-label="Waiting for a second check">
           <h2 className="text-base font-semibold text-white">Waiting for a second check ({waiting.length})</h2>
-          <p className="text-xs text-white/60">A different Supervisor or above checks each one against the prescription or label. Until then carers are told to call the office.</p>
+          <p className="text-xs text-white/60">A different Supervisor or above checks each one against the label photo, or the prescription or label itself. Until then carers are told to call the office.</p>
           <ul className="space-y-2">
             {waiting.map((m) => (
               <li key={m.id} className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-3">
@@ -343,7 +352,7 @@ export default function MarEditor({
                       savedLabel="Live"
                       buttonClassName="btn-primary px-3 py-1 text-xs"
                       className=""
-                      confirm={`Have you checked ${m.name}, the dose, the calls and the dates against the prescription or the pharmacy label?`}
+                      confirm={`Have you checked ${m.name}, the dose, the calls and the dates against the label photo or the prescription?`}
                     />
                   )}
                   <ActionForm

@@ -4,6 +4,9 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/forms";
 import { rotaModuleOn } from "@/lib/rota/access";
+import { rankDmdHits } from "@/lib/rota/mar";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { randomUUID } from "node:crypto";
 
 /**
  * Be Care Compliant: the office's MAR actions (Rota and Visits Stage 6, Phil's popups 2026-10-17).
@@ -13,6 +16,8 @@ import { rotaModuleOn } from "@/lib/rota/access";
  */
 
 const UUID = /^[0-9a-f-]{36}$/i;
+const LABEL_BUCKET = "mar-labels";
+const LABEL_MAX_BYTES = 5 * 1024 * 1024;
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 async function guard() {
@@ -32,9 +37,9 @@ export async function searchDmdAction(term: string): Promise<{ hits?: DmdHit[]; 
   const supabase = await createClient();
   let q = supabase.from("dmd_products").select("id, name, form, routes").eq("invalid", false);
   for (const w of words) q = q.ilike("name", `%${w}%`);
-  const { data, error } = await q.order("name").limit(25);
+  const { data, error } = await q.order("name").limit(200);
   if (error) return { error: error.message };
-  return { hits: (data as DmdHit[] | null) ?? [] };
+  return { hits: rankDmdHits((data as DmdHit[] | null) ?? [], words.join(" ")).slice(0, 25) };
 }
 
 /** Add a medicine, or change one: a new version waiting for its second check. */
@@ -75,9 +80,34 @@ export async function saveMedicineAction(_prev: ActionState, fd: FormData): Prom
     stop_date: stop || null,
     review_date: str(fd, "review_date") || null,
   };
+  // The label photo (0503): required, or a reason. Stored privately at the moment of saving, under
+  // the company and service user; removed again if the save is refused.
+  const photo = str(fd, "label_photo");
+  const skip = str(fd, "label_skip_reason");
+  if (!photo && !skip) return { error: "Add a photo of the pharmacy label or prescription, or tick There is no photo and say why." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("rota_mar_save", { p_su: su, p_med_uid: UUID.test(medUid) ? medUid : null, p_data: data });
-  if (error) return { error: error.message };
+  let labelPath: string | null = null;
+  const service = createServiceClient();
+  if (photo) {
+    const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(photo);
+    if (!m) return { error: "That photo could not be used. Take it again." };
+    const bytes = Buffer.from(m[2], "base64");
+    if (bytes.length === 0 || bytes.length > LABEL_MAX_BYTES) return { error: "That photo is too big. Take it again closer to the label." };
+    const { data: row } = await supabase.from("service_users").select("company_id").eq("id", su).maybeSingle<{ company_id: string }>();
+    if (!row) return { error: "That service user could not be found." };
+    labelPath = `${row.company_id}/${su}/${randomUUID()}.${m[1] === "image/png" ? "png" : "jpg"}`;
+    const { error: upErr } = await service.storage.from(LABEL_BUCKET).upload(labelPath, bytes, { contentType: m[1], upsert: false });
+    if (upErr) return { error: `The photo could not be stored: ${upErr.message}` };
+  }
+  const { error } = await supabase.rpc("rota_mar_save", {
+    p_su: su,
+    p_med_uid: UUID.test(medUid) ? medUid : null,
+    p_data: { ...data, label_path: labelPath ?? "", label_skip_reason: labelPath ? "" : skip },
+  });
+  if (error) {
+    if (labelPath) await service.storage.from(LABEL_BUCKET).remove([labelPath]);
+    return { error: error.message };
+  }
   return { ok: "Saved. It needs a second check by another Supervisor or above before carers can record it." };
 }
 

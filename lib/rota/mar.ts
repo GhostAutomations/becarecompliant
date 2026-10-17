@@ -199,3 +199,19 @@ export function mergeDoses(server: VisitDoses | null, waiting: DoseEvent[], visi
     return { ...m, recorded, last_given: lastGiven, waitingSend };
   });
 }
+
+/**
+ * Order NHS list matches so the closest comes first (Phil's test, 2026-10-17: "paracetamol 500mg
+ * tablets" was the last of 13 because names with "/" sort first): the exact name, then names
+ * starting with what was typed, then single ingredient before combinations, then shorter, then A to Z.
+ */
+export function rankDmdHits<T extends { name: string }>(hits: T[], term: string): T[] {
+  const t = term.trim().toLowerCase().replace(/\s+/g, " ");
+  const score = (n: string) => {
+    const name = n.toLowerCase();
+    if (name === t) return 0;
+    if (name.startsWith(t)) return 1;
+    return name.includes(" / ") ? 3 : 2;
+  };
+  return [...hits].sort((a, b) => score(a.name) - score(b.name) || a.name.length - b.name.length || a.name.localeCompare(b.name, "en-GB"));
+}

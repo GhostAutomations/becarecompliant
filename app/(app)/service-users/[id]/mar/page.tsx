@@ -6,7 +6,6 @@ import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import MarEditor from "@/components/rota/mar-editor";
-import DmdLoadButton from "@/components/rota/dmd-load-button";
 import { dueGrid, getMar } from "@/lib/rota/mar-data";
 import { OUTCOME_CODES, OUTCOME_LABELS, doseReasonLabel, nhsNumberShown, slotWords } from "@/lib/rota/mar";
 import { dayLabel } from "@/lib/rota/types";
@@ -61,7 +60,6 @@ export default async function MarPage({ params }: { params: Promise<{ id: string
   const grid = dueGrid(data).sort((a, b) => b.visit.startsAt.localeCompare(a.visit.startsAt));
   const prnDoses = data.doses.filter((d) => data.meds.find((m) => m.medUid === d.medUid)?.prn).reverse();
   const medName = new Map(data.meds.map((m) => [m.medUid, m.name]));
-  const isFounder = profile.role === "platform_admin" || Boolean(profile.actingAsCompanyId);
   const nowMs = Date.now();
   const month = today.slice(0, 7);
 
@@ -116,9 +114,8 @@ export default async function MarPage({ params }: { params: Promise<{ id: string
         <span>
           {data.release
             ? `Medicines come from the NHS list (dm+d), release ${data.release.release}, loaded ${ukDate(data.release.loadedAt)}; it updates every Monday.`
-            : "The NHS medicines list (dm+d) has not been loaded yet, so medicines cannot be added. It needs the TRUD key in Vercel."}
+            : "The NHS medicines list (dm+d) has not been loaded yet, so medicines cannot be added. Ask Be Care Compliant support."}
         </span>
-        {isFounder ? <DmdLoadButton /> : null}
       </section>
 
       <MarEditor serviceUserId={id} meds={data.meds} balances={data.balances} myProfileId={user.id} dmdReady={data.dmdCount > 0} />

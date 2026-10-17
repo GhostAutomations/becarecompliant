@@ -80,6 +80,14 @@ function ragPill(rag: string, size = "", since: string | null = null, status: st
 const NAME_SIZE = "text-4xl sm:text-5xl";
 const PILL_SIZE = "px-4 py-2 text-base";
 
+/** The tiles row: full width for one tile, else two a row on a phone and all in one row from a tablet up. */
+const TILE_COLS: Record<number, string> = {
+  2: "grid-cols-2",
+  3: "grid-cols-2 md:grid-cols-3",
+  4: "grid-cols-2 md:grid-cols-4",
+  5: "grid-cols-2 md:grid-cols-5",
+};
+
 export default async function ServiceUserPage({
   params,
   searchParams,
@@ -322,10 +330,12 @@ export default async function ServiceUserPage({
       ) : null}
 
       {canManage ? (
-        <div className={`grid gap-3 ${outcomesEnabled || careNotesOn ? "sm:grid-cols-2" : ""}`}>
+        /* One row of tiles on a computer or tablet (Phil, 2026-10-17: Care plan, Care notes, Week
+           timeline, MAR and Personal outcomes side by side); two to a row on a phone. */
+        <div className={`grid gap-3 ${TILE_COLS[1 + (careNotesOn ? 3 : 0) + (outcomesEnabled ? 1 : 0)] ?? ""}`}>
           <Link
             href={`/service-users/${serviceUser.id}/care-plan`}
-            className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+            className="glass-card flex flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-white/15"
           >
             <h2 className="text-base font-semibold text-white">Care plan</h2>
             <span className="btn-outline text-xs">Open</span>
@@ -334,7 +344,7 @@ export default async function ServiceUserPage({
           {careNotesOn ? (
             <Link
               href={`/service-users/${serviceUser.id}/care-notes`}
-              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+              className="glass-card flex flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-white/15"
             >
               <h2 className="text-base font-semibold text-white">Care notes</h2>
               <span className="btn-outline text-xs">Open</span>
@@ -344,7 +354,7 @@ export default async function ServiceUserPage({
           {careNotesOn ? (
             <Link
               href={`/service-users/${serviceUser.id}/timeline`}
-              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+              className="glass-card flex flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-white/15"
             >
               <h2 className="text-base font-semibold text-white">Week timeline</h2>
               <span className="btn-outline text-xs">Open</span>
@@ -354,7 +364,7 @@ export default async function ServiceUserPage({
           {careNotesOn ? (
             <Link
               href={`/service-users/${serviceUser.id}/mar`}
-              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+              className="glass-card flex flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-white/15"
             >
               <h2 className="text-base font-semibold text-white">MAR</h2>
               <span className="btn-outline text-xs">Open</span>
@@ -364,7 +374,7 @@ export default async function ServiceUserPage({
           {outcomesEnabled ? (
             <Link
               href={`/service-users/${serviceUser.id}/outcomes`}
-              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+              className="glass-card flex flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-white/15"
             >
               <h2 className="text-base font-semibold text-white">Personal outcomes</h2>
               <span className="btn-outline text-xs">Open</span>

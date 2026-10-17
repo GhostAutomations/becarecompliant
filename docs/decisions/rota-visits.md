@@ -394,3 +394,18 @@ How decision 9 and 10 were built (2026-10-17, for Phil to confirm at his screen 
   any due medicine nobody recorded).
 - **Timelines** (carer day, service user day, the record's week): a visit with a time sensitive
   medicine due has a red ring, with "Time sensitive medicine" in the key.
+
+Phil, 2026-10-17, for the next push:
+
+- **The NHS list load lives in the Founder area.** The dm+d list is one central copy for every
+  company, refreshed by the Monday cron. The Founder's load button and the last load date move to
+  a section of the Founder page; the MAR page only says which release is in use. Care companies
+  never load it.
+- **Service user record tiles in one row:** Care plan, Care notes, Week timeline, MAR and Personal
+  outcomes side by side on a computer or tablet (a fifth of the width each); two to a row on a
+  phone.
+- **Label photo for the second check** (Phil's popups, 2026-10-17, built in Stage 6): whoever adds
+  or changes a medicine attaches a photo of the pharmacy label or prescription; the second checker
+  compares the entry against it. Required, unless the person adding it gives a reason (for example
+  the label is unreadable), which the checker and the MAR show. The photo is health data: private
+  storage under the company, short lived signed links, every view audit logged.

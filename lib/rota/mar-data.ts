@@ -34,6 +34,9 @@ export type MarMed = {
   checkedAt: string | null;
   stoppedAt: string | null;
   stopReason: string | null;
+  /** A photo of the label or prescription was attached (0503); or why not. */
+  hasLabel: boolean;
+  labelSkipReason: string | null;
 };
 
 export type MarDose = {
@@ -66,7 +69,7 @@ type MedRow = {
   dose_quantity: number | string | null; dose_unit: string | null; support: Support; prn: boolean; slots: string[]; days: number[] | null;
   time_sensitive: boolean; instructions: string | null; start_date: string; stop_date: string | null; review_date: string | null;
   status: MarMed["status"]; set_by: string | null; set_at: string; checked_by: string | null; checked_at: string | null;
-  stopped_at: string | null; stop_reason: string | null; created_at: string;
+  stopped_at: string | null; stop_reason: string | null; created_at: string; label_path: string | null; label_skip_reason: string | null;
 };
 
 export async function getMar(serviceUserId: string, fromIso: string, toIso: string): Promise<MarData> {
@@ -74,7 +77,7 @@ export async function getMar(serviceUserId: string, fromIso: string, toIso: stri
   const [{ data: medRows }, { data: stock }, { data: doseRows }, { data: visitRows }, { data: release }, { count }] = await Promise.all([
     supabase
       .from("rota_mar_medicines")
-      .select("id, med_uid, dmd_id, name, form, route, dose_text, dose_quantity, dose_unit, support, prn, slots, days, time_sensitive, instructions, start_date, stop_date, review_date, status, set_by, set_at, checked_by, checked_at, stopped_at, stop_reason, created_at")
+      .select("id, med_uid, dmd_id, name, form, route, dose_text, dose_quantity, dose_unit, support, prn, slots, days, time_sensitive, instructions, start_date, stop_date, review_date, status, set_by, set_at, checked_by, checked_at, stopped_at, stop_reason, created_at, label_path, label_skip_reason")
       .eq("service_user_id", serviceUserId)
       .in("status", ["live", "awaiting_check", "stopped"])
       .order("created_at", { ascending: false }),
@@ -114,7 +117,7 @@ export async function getMar(serviceUserId: string, fromIso: string, toIso: stri
     slots: r.slots ?? [], days: r.days, timeSensitive: r.time_sensitive, instructions: r.instructions, startDate: r.start_date,
     stopDate: r.stop_date, reviewDate: r.review_date, status: r.status, setBy: r.set_by, setByName: r.set_by ? nameOf.get(r.set_by) ?? null : null,
     setAt: r.set_at, checkedByName: r.checked_by ? nameOf.get(r.checked_by) ?? null : null, checkedAt: r.checked_at,
-    stoppedAt: r.stopped_at, stopReason: r.stop_reason,
+    stoppedAt: r.stopped_at, stopReason: r.stop_reason, hasLabel: Boolean(r.label_path), labelSkipReason: r.label_skip_reason,
   });
   const meds: MarMed[] = [];
   for (const list of byUid.values()) {
