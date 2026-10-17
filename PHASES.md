@@ -2557,8 +2557,8 @@ Out of scope: invoicing and payroll.
   record, the monthly MAR chart and weekly rota PDFs, the time sensitive flag; date of birth, NHS
   number, GP practice and allergies in every company's Manage record. Open: R6.7 when required dose,
   flight mode and location refused on the phone; R6.8 a Supervisor seeing the alert; R6.9 Not
-  recorded in red and the time sensitive ring; R6.12 record tiles on a phone; R6.16 My area and Care
-  split (to build before Stage 7).
+  recorded in red and the time sensitive ring; R6.12 record tiles on a phone. R6.16 My area and Care
+  split built and passed on Phil's phone (2026-10-17).
 - [ ] Stage 7: live attendance and alerts (today's visits, late and missed job behind CRON_SECRET).
 - [ ] Stage 8: travel and mileage (own OpenRouteService server, postcode pair cache, short gap
   warnings, mileage and travel time totals).
