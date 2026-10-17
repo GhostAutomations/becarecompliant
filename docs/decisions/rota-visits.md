@@ -416,3 +416,6 @@ Phil, 2026-10-17, for the next push:
   photo inside its card, beside the details and the Check button (above them on a phone; click to
   open full size). Live medicines are compact tiles: one to a row on a phone, two on a tablet,
   three on a laptop, four on a wide screen; a medicine being changed opens across the row.
+- **Waiting cards, revised** (Phil, 2026-10-17, after seeing it): three to a row on a laptop, every
+  card the same height, the photo in a fixed box beside the details; clicking it opens the photo
+  large in a popup with the details and Checked: make it live pinned underneath.

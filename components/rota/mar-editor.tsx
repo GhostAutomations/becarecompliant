@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ActionForm from "@/components/rota/rota-action";
 import LabelPhotoInput from "@/components/rota/label-photo-input";
+import { CentreDialog } from "@/components/panel-dialog";
 import { checkMedicineAction, saveMedicineAction, searchDmdAction, stockMedicineAction, stopMedicineAction, withdrawMedicineAction, type DmdHit } from "@/lib/rota/mar-actions";
 import { DAY_SHORT, LOW_STOCK_DAYS, MAR_SLOTS, SUPPORT_SHORT, SUPPORT_WORDS, dayWords, daysOfStock, slotWords, type Support } from "@/lib/rota/mar";
 import type { MarMed } from "@/lib/rota/mar-data";
@@ -308,6 +309,79 @@ function LiveMed({ m, balance, serviceUserId, dmdReady }: { m: MarMed; balance: 
   );
 }
 
+function CheckButton({ m, onDone }: { m: MarMed; onDone?: () => void }) {
+  return (
+    <ActionForm
+      action={checkMedicineAction}
+      hidden={{ medicine_id: m.id }}
+      label="Checked: make it live"
+      savingLabel="Checking…"
+      savedLabel="Live"
+      buttonClassName="btn-primary px-3 py-1 text-xs"
+      className=""
+      onDone={onDone}
+      confirm={`Have you checked ${m.name}, the dose, the calls and the dates against the label photo or the prescription?`}
+    />
+  );
+}
+
+/** One medicine waiting for its second check: a fixed size photo box, the details, the check. */
+function WaitingCard({ m, mine, change }: { m: MarMed; mine: boolean; change: boolean }) {
+  const [big, setBig] = useState(false);
+  const photo = `/api/rota/mar-label/${m.id}`;
+  return (
+    <li className="flex h-full gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+      {m.hasLabel ? (
+        <button type="button" onClick={() => setBig(true)} className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white" title="Open the label photo large">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt={`Label photo for ${m.name}`} className="h-full w-full object-contain" />
+        </button>
+      ) : (
+        <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-2 text-center text-[11px] leading-tight text-amber-200">
+          No label photo{m.labelSkipReason ? `: ${m.labelSkipReason}` : ""}
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <MedSummary m={m} labelLink={false} />
+        <p className="text-xs text-white/55">
+          Set by {m.setByName ?? "someone"} on {ukDate(m.setAt)} · {change ? "a change to a live medicine" : "new"}
+        </p>
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          {mine ? <span className="text-xs text-white/50">You set this, so someone else must check it.</span> : <CheckButton m={m} />}
+          <ActionForm
+            action={withdrawMedicineAction}
+            hidden={{ medicine_id: m.id }}
+            label="Withdraw"
+            savingLabel="Withdrawing…"
+            savedLabel="Withdrawn"
+            buttonClassName="btn-ghost px-3 py-1 text-xs"
+            className=""
+            confirm="Withdraw this? Any live version stays as it is."
+          />
+        </div>
+      </div>
+      <CentreDialog
+        open={big}
+        onClose={() => setBig(false)}
+        label={`Label photo: ${m.name}`}
+        footer={
+          <div className="flex flex-wrap items-center gap-2 px-5 py-3">
+            {mine ? <span className="text-xs text-white/50">You set this, so someone else must check it.</span> : <CheckButton m={m} onDone={() => setBig(false)} />}
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4 p-5 lg:flex-row">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt={`Label photo for ${m.name}`} className="max-h-[50vh] w-full rounded-lg bg-white object-contain lg:w-3/5" />
+          <div className="min-w-0 flex-1">
+            <MedSummary m={m} labelLink={false} />
+          </div>
+        </div>
+      </CentreDialog>
+    </li>
+  );
+}
+
 export default function MarEditor({
   serviceUserId,
   meds,
@@ -332,55 +406,11 @@ export default function MarEditor({
         <section className="glass-card space-y-3 border-amber-500/40 p-4" aria-label="Waiting for a second check">
           <h2 className="text-base font-semibold text-white">Waiting for a second check ({waiting.length})</h2>
           <p className="text-xs text-white/60">A different Supervisor or above checks each one against the label photo, or the prescription or label itself. Until then carers are told to call the office.</p>
-          {/* The label photo inside the card, beside the details and the check (Phil, 2026-10-17); above
-              them on a phone. The image loads through the logged, signed photo route. */}
-          <ul className="grid grid-cols-1 items-start gap-2 lg:grid-cols-2">
+          {/* Three to a row on a laptop, every card the same height (Phil, 2026-10-17): a fixed photo box
+              beside the details; clicking the photo opens it large with the check beside it. */}
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
             {waiting.map((m) => (
-              <li key={m.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:flex-row">
-                {m.hasLabel ? (
-                  <a href={`/api/rota/mar-label/${m.id}`} target="_blank" rel="noreferrer" className="shrink-0 sm:w-60" title="Open the label photo full size">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/rota/mar-label/${m.id}`} alt={`Label photo for ${m.name}`} className="max-h-72 w-full rounded-lg border border-white/10 bg-white object-contain" />
-                  </a>
-                ) : (
-                  <div className="flex shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-500/50 p-3 text-center text-xs text-amber-200 sm:w-60">
-                    No label photo{m.labelSkipReason ? `: ${m.labelSkipReason}` : ""}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1 space-y-2">
-                <MedSummary m={m} labelLink={false} />
-                <p className="text-xs text-white/55">
-                  Set by {m.setByName ?? "someone"} on {ukDate(m.setAt)}
-                  {live.some((l) => l.medUid === m.medUid) ? " · a change to a live medicine" : " · new"}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {m.setBy === myProfileId ? (
-                    <span className="text-xs text-white/50">You set this, so someone else must check it.</span>
-                  ) : (
-                    <ActionForm
-                      action={checkMedicineAction}
-                      hidden={{ medicine_id: m.id }}
-                      label="Checked: make it live"
-                      savingLabel="Checking…"
-                      savedLabel="Live"
-                      buttonClassName="btn-primary px-3 py-1 text-xs"
-                      className=""
-                      confirm={`Have you checked ${m.name}, the dose, the calls and the dates against the label photo or the prescription?`}
-                    />
-                  )}
-                  <ActionForm
-                    action={withdrawMedicineAction}
-                    hidden={{ medicine_id: m.id }}
-                    label="Withdraw"
-                    savingLabel="Withdrawing…"
-                    savedLabel="Withdrawn"
-                    buttonClassName="btn-ghost px-3 py-1 text-xs"
-                    className=""
-                    confirm="Withdraw this? Any live version stays as it is."
-                  />
-                </div>
-                </div>
-              </li>
+              <WaitingCard key={m.id} m={m} mine={m.setBy === myProfileId} change={live.some((l) => l.medUid === m.medUid)} />
             ))}
           </ul>
         </section>
